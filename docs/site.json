@@ -83,8 +83,8 @@
       "source": "docs/guides/lab-viewer.md",
       "sourceEn": "docs/guides/lab-viewer.en.md",
       "route": "guides/lab-viewer.md",
-      "title": "运行 Lab Viewer 预览",
-      "titleEn": "Run the Lab Viewer preview",
+      "title": "Lab 与资产库",
+      "titleEn": "Lab and asset library",
       "group": "实验室",
       "type": "guide",
       "previous": "quickstart"

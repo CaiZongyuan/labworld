@@ -1,8 +1,37 @@
-# Run The Lab Viewer Preview
+# Use Lab And The Asset Library
 
-Goal: inspect equipment, import a GLB and check camera controls, selection and failure recovery. This guide covers the accepted isolated v1 preview; record production Lab integration acceptance separately.
+Goal: inspect equipment in the application, import a local GLB and reopen it from the asset library. Lab uses the existing identity and shell; 3D code loads with the page.
 
-## Prerequisites And Version
+## Application
+
+From the repository root:
+
+```bash
+pnpm install --frozen-lockfile
+just dev
+```
+
+Open <http://127.0.0.1:5173/lab>. Sign in or register at `/register`; both login and registration land on Lab. `just dev` starts services and runs migrations against existing development data, not an isolated test environment.
+
+1. Expect the industrial microscope, HDR lighting and a grid.
+2. Orbit, zoom and pan. Fit preserves the viewing direction and reset restores the original direction. Click the model to select it, or empty space to clear selection.
+3. Select or drop a self-contained glTF 2.0 `.glb`; it is centered and framed while preserving its scale.
+4. Search names or filenames in Asset library, open a model in Lab, or confirm removal of a local entry.
+5. Invalid imports show feedback and preserve the previous usable model; a valid retry recovers.
+
+The catalog belongs to the current browser session. Reload or identity changes clear local files; the preset remains available. Legacy document and knowledge-base URLs retain their meaning. FPS, draw calls, triangles, object counts and available JS heap are observed live. GPU timing is not sampled and object counts do not measure GPU memory bytes.
+
+Start at the [assembly](../../apps/web/src/app-examples.tsx), [Lab contribution](../../packages/views/src/lab/app-example.tsx) and [viewer](../../packages/views/src/lab/lab-view.tsx). The [asset record](../../assets/README.md) retains originals, runtime files and licenses.
+
+```bash
+pnpm exec vitest run apps/web/src/lab.test.tsx
+pnpm typecheck
+node scripts/perf-bundle.mjs
+```
+
+Page checks cover the catalog, navigation, import feedback and removal. WebGL, camera, selection and resource lifetime require browser verification. Background server logs must live outside the application's watched directory to avoid console/file-watch reload loops.
+
+## Historical v1 Preview
 
 Use Node, pnpm, desktop Chrome and a local `.scratch/lab-viewer/v1/`. The local `preview/lab-viewer-v1` branch preserves the complete version at `9439a1de78c5433795d22a03e3e6086540832794`. It is outside the main branch's source tree. A main-only checkout cannot run these commands. The preview branch is currently local; check online availability after publication.
 

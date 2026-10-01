@@ -157,9 +157,9 @@ test('the documents page renders the zh workspace with localized dates and names
     name: '主菜单',
   });
   expect(
-    await within(navigation).findByRole('link', { name: '我的文档' }),
+    await within(navigation).findByRole('link', { name: 'Lab' }),
   ).toBeVisible();
-  for (const label of ['知识库', '首页'])
+  for (const label of ['资产库', '首页'])
     expect(within(navigation).getByRole('link', { name: label })).toBeVisible();
   expect(
     await screen.findByRole('heading', { name: '我的文档' }),
@@ -180,9 +180,9 @@ test('the en workspace renders the documents page and reader with localized chro
     name: 'Main menu',
   });
   expect(
-    await within(navigation).findByRole('link', { name: 'My documents' }),
+    await within(navigation).findByRole('link', { name: 'Lab' }),
   ).toBeVisible();
-  for (const label of ['Knowledge bases', 'Home'])
+  for (const label of ['Asset library', 'Home'])
     expect(within(navigation).getByRole('link', { name: label })).toBeVisible();
   expect(
     await screen.findByRole('heading', { name: 'My documents' }),
@@ -267,7 +267,7 @@ test('the zh library page keeps the grant contract bilingual-consistent', async 
   ).toBeVisible();
 });
 
-test('a narrow screen reaches the library through the drawer and reads a base', async () => {
+test('a narrow screen reaches the asset library through the drawer from a legacy document route', async () => {
   const { user, router } = open('/documents', 'zh');
   await screen.findByRole('main');
   const toggle = screen.getByRole('button', { name: '打开导航菜单' });
@@ -281,26 +281,19 @@ test('a narrow screen reaches the library through the drawer and reads a base', 
   await user.click(
     within(screen.getByRole('navigation', { name: '主菜单' })).getByRole(
       'link',
-      { name: '知识库' },
+      { name: '资产库' },
     ),
   );
-  expect(router.state.location.pathname).toBe('/knowledge-bases');
+  expect(router.state.location.pathname).toBe('/assets');
   // The shell remounts with the route, so the state is re-read live.
   const resetToggle = screen.getByRole('button', { name: '打开导航菜单' });
   expect(resetToggle).toHaveAttribute('aria-expanded', 'false');
   expect(document.getElementById('app-sidebar')).toHaveClass('hidden');
 
   expect(
-    await screen.findByRole('heading', { name: '知识库', level: 1 }),
+    await screen.findByRole('heading', { name: '资产库', level: 1 }),
   ).toBeVisible();
-  await user.click(await screen.findByRole('button', { name: '共享知识库' }));
-  expect(
-    await screen.findByRole('heading', { name: '共享知识库' }),
-  ).toBeVisible();
-  expect(
-    await screen.findByRole('region', { name: '知识库授权' }),
-  ).toBeVisible();
-  expect(screen.getByRole('button', { name: '新建文档' })).toBeVisible();
+  expect(await screen.findByText('工业显微镜')).toBeVisible();
 });
 
 test('existing library URLs stay compatible as deep links', async () => {

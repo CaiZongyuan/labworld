@@ -1,6 +1,6 @@
 # Lab Viewer Experience Preview v1
 
-Status: the user accepted v1 on 2026-10-01 and explicitly requested direct implementation without another preview. Their final correction replaces Knowledge in the sidebar with an Asset Library. The preview remains design evidence; product integration is underway.
+Status: the user accepted v1 on 2026-10-01 and requested direct implementation without another preview. Their correction replaces Knowledge in the sidebar with an Asset Library. The application now implements the accepted viewer and session-local catalog; validation and whole-repository limitations are recorded separately below.
 
 ## Agreed Scope
 
@@ -43,3 +43,9 @@ The final browser run passed all twelve recorded checks with no page errors: GLB
 ## Feedback And Implementation
 
 Record the accepted version and concrete visual/interaction corrections here. Preserve v1 when preparing v2. Product implementation follows the existing experience-design and engineering flow, using the accepted experience as evidence and the agreed public test interfaces; rewrite the prototype into owned Lab code and verify the actual application against it.
+
+## Application Evidence
+
+The actual application is available at <http://127.0.0.1:5173/lab> with the real API and identity. Sidebar entries are Lab and Asset Library. File selection/drop, original-scale centering, full camera framing, orbit/zoom/pan, selection, local HDR and render counters follow the accepted experience. The catalog shares the user's browser-session cache across both routes and clears with identity replacement; legacy document URLs remain available.
+
+Real browser checks captured desktop/narrow and light/dark states, verified actual canvas pixels and camera movement, and confirmed warnings cannot trigger refresh. Focused regressions cover box framing, deep parse failure across route changes, delayed-import cancellation and mesh/line/point resource disposal. The public page tests and isolated real-stack browser journey pass. See the [validation record](../reviews/2026-10-02-lab-viewer-implementation.md) for the exact scope, code-review fixes, bundle results and existing repository-gate failures.

@@ -20,6 +20,10 @@ _Avoid_: Digital Twin、场景编辑器
 实验室空间中设备与家具的摆放及相互位置关系。
 _Avoid_: 设备模型、整份数字孪生
 
+**Asset Library（资产库）**：
+供 Lab 查找、选择与复用的三维资产集合，包含模型文件及其名称、来源与许可信息。
+_Avoid_: Knowledge Base、设备实例列表
+
 **Equipment Model（设备模型）**：
 表达设备外观与结构的可复用三维资产，同一个设备模型可以用于多个设备实例。
 _Avoid_: Equipment Instance、具体设备
