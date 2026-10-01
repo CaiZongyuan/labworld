@@ -27,7 +27,15 @@ function collect(directory) {
 try {
   const contract = execFileSync(
     'cargo',
-    ['run', '--quiet', '--locked', '-p', 'labos-threejs-api', '--bin', 'openapi'],
+    [
+      'run',
+      '--quiet',
+      '--locked',
+      '-p',
+      'labos-threejs-api',
+      '--bin',
+      'openapi',
+    ],
     {
       cwd: root,
       encoding: 'utf8',

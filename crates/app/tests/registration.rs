@@ -112,10 +112,11 @@ async fn concurrent_registration_has_one_initial_owner_and_one_account_per_norma
     assert_eq!(codes, [201, 409]);
     // Storage invariants: every successful account has exactly one related row.
     for table in ["users", "credentials", "memberships", "audit_events"] {
-        let count: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM labos_threejs_core.{table}"))
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let count: i64 =
+            sqlx::query_scalar(&format!("SELECT count(*) FROM labos_threejs_core.{table}"))
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count, 3, "{table}");
     }
 }
@@ -150,10 +151,11 @@ async fn audit_failure_rolls_back_registration_and_preserves_first_owner_initial
         "organizations",
         "audit_events",
     ] {
-        let count: i64 = sqlx::query_scalar(&format!("SELECT count(*) FROM labos_threejs_core.{table}"))
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let count: i64 =
+            sqlx::query_scalar(&format!("SELECT count(*) FROM labos_threejs_core.{table}"))
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert_eq!(count, 0, "{table}");
     }
     sqlx::query("DROP TRIGGER reject_audit ON labos_threejs_core.audit_events")
@@ -236,20 +238,23 @@ async fn duplicate_registration_cannot_replace_credentials_or_reactivate_members
     .unwrap();
     assert!(old_hash.starts_with("$argon2id$v=19$m=19456,t=2,p=1$"));
     assert!(!old_hash.contains("a-long-test-password"));
-    let session_hash: Vec<u8> =
-        sqlx::query_scalar("SELECT secret_hash FROM labos_threejs_core.sessions WHERE user_id = $1::uuid")
-            .bind(&user_id)
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+    let session_hash: Vec<u8> = sqlx::query_scalar(
+        "SELECT secret_hash FROM labos_threejs_core.sessions WHERE user_id = $1::uuid",
+    )
+    .bind(&user_id)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
     assert_eq!(session_hash.len(), 32);
     assert_ne!(hex::encode(session_hash), cookie.split_once('=').unwrap().1);
     // Set up a stopped membership before the member-management UI is introduced.
-    sqlx::query("UPDATE labos_threejs_core.memberships SET active = false WHERE user_id = $1::uuid")
-        .bind(&user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE labos_threejs_core.memberships SET active = false WHERE user_id = $1::uuid",
+    )
+    .bind(&user_id)
+    .execute(&pool)
+    .await
+    .unwrap();
     let repeated = app
         .clone()
         .oneshot(

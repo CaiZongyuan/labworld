@@ -11,7 +11,11 @@ run(
   ['compose', 'up', '-d', '--wait', 'postgres', 'rustfs', 'redis', 'mailpit'],
   env,
 );
-run('cargo', ['run', '--locked', '-p', 'labos-threejs-api', '--bin', 'migrate'], env);
+run(
+  'cargo',
+  ['run', '--locked', '-p', 'labos-threejs-api', '--bin', 'migrate'],
+  env,
+);
 run(
   'cargo',
   ['run', '--locked', '-p', 'labos-threejs-api', '--bin', 'bootstrap-storage'],
@@ -22,7 +26,11 @@ let api = launch(
   ['run', '--locked', '-p', 'labos-threejs-api', '--bin', 'labos-threejs-api'],
   env,
 );
-let worker = launch('cargo', ['run', '--locked', '-p', 'labos-threejs-worker'], env);
+let worker = launch(
+  'cargo',
+  ['run', '--locked', '-p', 'labos-threejs-worker'],
+  env,
+);
 const telemetryGrace = env.TELEMETRY_ENDPOINT ? 10_000 : 1500;
 const apiGrace = 5000 + telemetryGrace;
 const workerGrace =
@@ -41,10 +49,21 @@ async function restartRust() {
     changed = false;
     await Promise.all([stop(api, apiGrace), stop(worker, workerGrace)]);
     if (!closing) {
-      worker = launch('cargo', ['run', '--locked', '-p', 'labos-threejs-worker'], env);
+      worker = launch(
+        'cargo',
+        ['run', '--locked', '-p', 'labos-threejs-worker'],
+        env,
+      );
       api = launch(
         'cargo',
-        ['run', '--locked', '-p', 'labos-threejs-api', '--bin', 'labos-threejs-api'],
+        [
+          'run',
+          '--locked',
+          '-p',
+          'labos-threejs-api',
+          '--bin',
+          'labos-threejs-api',
+        ],
         env,
       );
     }

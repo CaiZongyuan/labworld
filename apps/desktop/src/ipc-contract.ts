@@ -91,11 +91,11 @@ export function normalizeDeepLinkPath(raw: string): string | null {
   return path;
 }
 
-/** The custom scheme of `labos_threejs://open/...` deep links; shared with the shell. */
-export const DEEP_LINK_SCHEME = 'labos_threejs';
+/** The URL-compatible custom scheme shared with the shell's protocol registration. */
+export const DEEP_LINK_SCHEME = 'labos-threejs';
 const DEEP_LINK_HOST = 'open';
 
-/** Parse a `labos_threejs://open/...` deep link into a validated in-app path. */
+/** Parse a `labos-threejs://open/...` deep link into a validated in-app path. */
 export function parseDeepLink(raw: string): string | null {
   if (typeof raw !== 'string' || raw.length > MAX_PATH_LENGTH) return null;
   let parsed: URL;

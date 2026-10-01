@@ -227,7 +227,9 @@ async fn deleted_attachments_are_immediately_invisible_and_worker_removes_the_ac
     );
     let worker = labos_threejs_app::modules::jobs::Worker::new(
         pool.clone(),
-        vec![labos_threejs_app::modules::files::cleanup_handler(pool, files)],
+        vec![labos_threejs_app::modules::files::cleanup_handler(
+            pool, files,
+        )],
         Default::default(),
     );
     assert!(worker.run_once().await.unwrap());
@@ -304,7 +306,9 @@ async fn deletion_audit_failure_keeps_the_attachment_visible_and_does_not_enqueu
     );
     let worker = labos_threejs_app::modules::jobs::Worker::new(
         pool.clone(),
-        vec![labos_threejs_app::modules::files::cleanup_handler(pool, files)],
+        vec![labos_threejs_app::modules::files::cleanup_handler(
+            pool, files,
+        )],
         Default::default(),
     );
     assert!(!worker.run_once().await.unwrap());
@@ -1118,7 +1122,9 @@ async fn cleanup_failure_keeps_its_budget_and_an_operator_can_resume_it_with_a_n
     );
     let replacement = labos_threejs_app::modules::jobs::Worker::new(
         pool.clone(),
-        vec![labos_threejs_app::modules::files::cleanup_handler(pool, files)],
+        vec![labos_threejs_app::modules::files::cleanup_handler(
+            pool, files,
+        )],
         Default::default(),
     );
     assert!(replacement.run_once().await.unwrap());

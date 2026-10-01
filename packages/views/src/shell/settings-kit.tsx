@@ -1,6 +1,10 @@
 import { useId, type ReactNode } from 'react';
 import { Laptop, UserRound } from 'lucide-react';
-import { Card, CardContent, CardDescription } from '@labos-threejs/ui/components/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+} from '@labos-threejs/ui/components/card';
 
 // The settings layout kit (docs/ui/design.md §3, after the multica
 // reference): a page-level tab wrapper, anchored sections, label/control

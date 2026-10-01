@@ -232,10 +232,11 @@ async fn a_real_worker_exports_original_markdown_and_attachment_bytes(pool: PgPo
         .status(),
         StatusCode::OK
     );
-    let lease = labos_threejs_app::modules::jobs::claim(&pool, &["knowledge.export"], "test-worker", 60)
-        .await
-        .unwrap()
-        .unwrap();
+    let lease =
+        labos_threejs_app::modules::jobs::claim(&pool, &["knowledge.export"], "test-worker", 60)
+            .await
+            .unwrap()
+            .unwrap();
     let running = data(
         request(
             &app,
@@ -603,11 +604,13 @@ async fn a_missing_snapshot_object_is_an_explicit_failed_export(pool: PgPool) {
         StatusCode::OK
     );
     // A controlled storage metadata fixture points to an actually absent RustFS object.
-    sqlx::query("UPDATE labos_threejs_core.files SET ready_key = 'test-absent-object' WHERE id = $1::uuid")
-        .bind(file_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE labos_threejs_core.files SET ready_key = 'test-absent-object' WHERE id = $1::uuid",
+    )
+    .bind(file_id)
+    .execute(&pool)
+    .await
+    .unwrap();
     let export =
         data(request(&app, &writer, "POST", &format!("{path}/exports"), json!({})).await).await;
     let worker = labos_threejs_app::modules::jobs::Worker::new(
@@ -666,7 +669,8 @@ async fn snapshot_and_zip_size_limits_produce_controlled_failures(pool: PgPool) 
             ..Default::default()
         },
     );
-    let limited = labos_threejs_app::compose_routes(pool.clone(), auth, routes, labos_threejs_api::openapi());
+    let limited =
+        labos_threejs_app::compose_routes(pool.clone(), auth, routes, labos_threejs_api::openapi());
     assert_eq!(
         request(&limited, &writer, "POST", &path, json!({}))
             .await
@@ -949,9 +953,7 @@ async fn deleted_export_sources_still_produce_a_failure_notice_without_a_resourc
     );
     let worker = labos_threejs_app::modules::jobs::Worker::new(
         pool.clone(),
-        vec![labos_threejs_app::modules::knowledge::document_cleanup_handler(
-            pool.clone(),
-        )],
+        vec![labos_threejs_app::modules::knowledge::document_cleanup_handler(pool.clone())],
         Default::default(),
     );
     assert!(worker.run_once().await.unwrap());

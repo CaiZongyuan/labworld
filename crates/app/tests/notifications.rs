@@ -263,11 +263,13 @@ async fn only_terminal_failure_notifies_and_admin_retries_deduplicate_without_re
         .unwrap();
     assert_eq!(inbox(&app, &actor).await["unread_count"], 0);
     // Advance only the adapter's scheduling clock, without relying on wall-clock sleep.
-    sqlx::query("UPDATE labos_threejs_core.jobs SET scheduled_at = clock_timestamp() WHERE id = $1::uuid")
-        .bind(&job)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE labos_threejs_core.jobs SET scheduled_at = clock_timestamp() WHERE id = $1::uuid",
+    )
+    .bind(&job)
+    .execute(&pool)
+    .await
+    .unwrap();
     let lease = jobs::claim(&pool, &["test.notice"], "worker", 60)
         .await
         .unwrap()

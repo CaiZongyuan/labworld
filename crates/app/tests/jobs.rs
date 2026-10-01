@@ -1,4 +1,6 @@
-use labos_threejs_app::modules::jobs::{self, Handler, JobError, Lease, NewJob, Worker, WorkerPolicy};
+use labos_threejs_app::modules::jobs::{
+    self, Handler, JobError, Lease, NewJob, Worker, WorkerPolicy,
+};
 use sqlx::PgPool;
 use std::{sync::Arc, time::Duration};
 use tokio::sync::Notify;

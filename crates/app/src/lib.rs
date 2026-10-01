@@ -39,10 +39,16 @@ async fn ready(
 }
 
 pub fn router(pool: PgPool) -> Router {
-    router_with_auth(pool, labos_threejs_platform::config::AuthSettings::default())
+    router_with_auth(
+        pool,
+        labos_threejs_platform::config::AuthSettings::default(),
+    )
 }
 
-pub fn router_with_auth(pool: PgPool, auth: labos_threejs_platform::config::AuthSettings) -> Router {
+pub fn router_with_auth(
+    pool: PgPool,
+    auth: labos_threejs_platform::config::AuthSettings,
+) -> Router {
     compose_routes(pool, auth, Router::new(), openapi())
 }
 

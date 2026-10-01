@@ -11,7 +11,11 @@ import {
 } from '@labos-threejs/sdk';
 import { errorCodeOf } from '@labos-threejs/core';
 import { Button } from '@labos-threejs/ui/components/button';
-import { Empty, EmptyHeader, EmptyTitle } from '@labos-threejs/ui/components/empty';
+import {
+  Empty,
+  EmptyHeader,
+  EmptyTitle,
+} from '@labos-threejs/ui/components/empty';
 import {
   Field,
   FieldGroup,

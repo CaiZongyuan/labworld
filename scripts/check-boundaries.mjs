@@ -11,7 +11,9 @@ const metadata = JSON.parse(
     { cwd: root, encoding: 'utf8' },
   ),
 );
-const platform = metadata.packages.find((pkg) => pkg.name === 'labos-threejs-platform');
+const platform = metadata.packages.find(
+  (pkg) => pkg.name === 'labos-threejs-platform',
+);
 if (platform.dependencies.some((dep) => dep.name === 'labos-threejs-app'))
   throw new Error('Platform must not depend on app');
 const allowed = {
@@ -19,7 +21,12 @@ const allowed = {
   sdk: ['@labos-threejs/contracts'],
   core: ['@labos-threejs/contracts'],
   ui: [],
-  views: ['@labos-threejs/contracts', '@labos-threejs/sdk', '@labos-threejs/core', '@labos-threejs/ui'],
+  views: [
+    '@labos-threejs/contracts',
+    '@labos-threejs/sdk',
+    '@labos-threejs/core',
+    '@labos-threejs/ui',
+  ],
 };
 function files(directory, extension = /\.(ts|tsx)$/) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {

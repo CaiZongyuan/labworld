@@ -10,7 +10,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@labos-threejs/ui/components/alert-dialog';
-import { DocumentGuardContext, useAppMessage } from '@labos-threejs/views';
+import { useAppMessage } from '@labos-threejs/views';
+import { DocumentGuardContext } from '@labos-threejs/views/knowledge';
 
 // The app adapter's router-backed implementation of the knowledge
 // example's dirty-document guard: the example consumes the guard through

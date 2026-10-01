@@ -124,16 +124,18 @@ impl Worker {
         else {
             return Ok(());
         };
-        let span = labos_threejs_platform::telemetry::job_span(labos_threejs_platform::telemetry::JobContext {
-            id: &lease.id,
-            kind: handler.kind(),
-            attempt: lease.attempt,
-            request: lease.request_id.as_deref(),
-            actor: lease.actor_id.as_deref(),
-            correlation: &lease.correlation_id,
-            causation: lease.causation_id.as_deref(),
-            parent: lease.traceparent.as_deref(),
-        });
+        let span = labos_threejs_platform::telemetry::job_span(
+            labos_threejs_platform::telemetry::JobContext {
+                id: &lease.id,
+                kind: handler.kind(),
+                attempt: lease.attempt,
+                request: lease.request_id.as_deref(),
+                actor: lease.actor_id.as_deref(),
+                correlation: &lease.correlation_id,
+                causation: lease.causation_id.as_deref(),
+                parent: lease.traceparent.as_deref(),
+            },
+        );
         let correlation = labos_threejs_platform::telemetry::Correlation {
             request_id: lease.request_id.clone(),
             actor_id: lease.actor_id.clone(),
@@ -178,7 +180,11 @@ impl Worker {
                     Err(JobError::Transient(code)) => ("transient", Some(*code)),
                     Err(JobError::LostLease) => ("lost_lease", Some("jobs.lost_lease")),
                 };
-                labos_threejs_platform::telemetry::job_completed(handler.kind(), outcome, started.elapsed());
+                labos_threejs_platform::telemetry::job_completed(
+                    handler.kind(),
+                    outcome,
+                    started.elapsed(),
+                );
                 tracing::info!(outcome, error_code = code, "job attempt finished");
                 if let Err(error) = result {
                     tokio::time::timeout(Duration::from_secs(3), lease.fail(&self.pool, &error))

@@ -15,7 +15,11 @@ import {
   EmptyTitle,
 } from '@labos-threejs/ui/components/empty';
 import { ScrollTextIcon } from 'lucide-react';
-import { Field, FieldGroup, FieldLabel } from '@labos-threejs/ui/components/field';
+import {
+  Field,
+  FieldGroup,
+  FieldLabel,
+} from '@labos-threejs/ui/components/field';
 import { Input } from '@labos-threejs/ui/components/input';
 import {
   Card,

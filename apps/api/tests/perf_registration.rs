@@ -81,9 +81,16 @@ async fn registration_does_not_fund_other_contracts(pool: PgPool) {
     );
     // Registration never seeds a personal workspace for the example domain
     // and never enqueues work: no documents exist until a document is created.
-    assert_eq!(count(&pool, "SELECT count(*) FROM labos_threejs_core.jobs").await, 0);
     assert_eq!(
-        count(&pool, "SELECT count(*) FROM labos_threejs_core.notifications").await,
+        count(&pool, "SELECT count(*) FROM labos_threejs_core.jobs").await,
+        0
+    );
+    assert_eq!(
+        count(
+            &pool,
+            "SELECT count(*) FROM labos_threejs_core.notifications"
+        )
+        .await,
         0
     );
 }

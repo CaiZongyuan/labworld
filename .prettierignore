@@ -20,3 +20,6 @@ docs/testing/strategy.md
 docs/labos-threejs-template-*.md
 Cargo.lock
 pnpm-lock.yaml
+# Upstream decoders and original asset files retain their published bytes.
+apps/web/public/lab-assets/decoders/
+assets/source/

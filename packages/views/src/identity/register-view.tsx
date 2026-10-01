@@ -1,7 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { registerUser, type ApiClient, type Registration } from '@labos-threejs/sdk';
-import { errorCodeOf, requestIdFromError, retryAfterSeconds } from '@labos-threejs/core';
-import { Alert, AlertDescription, AlertTitle } from '@labos-threejs/ui/components/alert';
+import {
+  registerUser,
+  type ApiClient,
+  type Registration,
+} from '@labos-threejs/sdk';
+import {
+  errorCodeOf,
+  requestIdFromError,
+  retryAfterSeconds,
+} from '@labos-threejs/core';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@labos-threejs/ui/components/alert';
 import { Button } from '@labos-threejs/ui/components/button';
 import {
   Card,

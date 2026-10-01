@@ -25,13 +25,14 @@ pub fn router_with_cache(
     // example:knowledge:routes:start
     let mut key_scopes = key_scopes;
     key_scopes.push(labos_threejs_app::modules::knowledge::api_key_scope());
-    let domain_routes = domain_routes.merge(labos_threejs_app::modules::knowledge::router_with_cache(
-        pool.clone(),
-        auth.clone(),
-        _files,
-        Default::default(),
-        cache.clone(),
-    ));
+    let domain_routes =
+        domain_routes.merge(labos_threejs_app::modules::knowledge::router_with_cache(
+            pool.clone(),
+            auth.clone(),
+            _files,
+            Default::default(),
+            cache.clone(),
+        ));
     // example:knowledge:routes:end
     labos_threejs_app::compose_routes_with_options(
         pool,

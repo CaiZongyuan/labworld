@@ -1,4 +1,4 @@
-import type { FileTransfer } from '@labos-threejs/views';
+import type { FileTransfer } from '@labos-threejs/views/knowledge';
 
 // Covers the entire transfer, including a response body that stops progressing.
 async function withTransferDeadline<T>(

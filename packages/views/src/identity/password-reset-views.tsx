@@ -6,7 +6,11 @@ import {
   type ApiClient,
 } from '@labos-threejs/sdk';
 import { errorCodeOf, requestIdFromError } from '@labos-threejs/core';
-import { Alert, AlertDescription, AlertTitle } from '@labos-threejs/ui/components/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@labos-threejs/ui/components/alert';
 import { Button } from '@labos-threejs/ui/components/button';
 import {
   Card,

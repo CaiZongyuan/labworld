@@ -32,3 +32,4 @@ pub(super) struct KeyInfo {
     last_used_at: Option<DateTime<Utc>>,
 }
 pub(super) const COLUMNS: &str = "id::text, user_id::text, name, prefix, scopes, created_at, expires_at, revoked_at, last_used_at";
+pub(super) const SECRET_PREFIX: &str = "labos_threejs_key_";

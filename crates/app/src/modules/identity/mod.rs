@@ -415,9 +415,10 @@ async fn logout(
             id,
         );
     }
-    let revoke = sqlx::query("UPDATE labos_threejs_core.sessions SET revoked = true WHERE secret_hash = $1")
-        .bind(crypto::secret_hash(secret))
-        .execute(&state.pool);
+    let revoke =
+        sqlx::query("UPDATE labos_threejs_core.sessions SET revoked = true WHERE secret_hash = $1")
+            .bind(crypto::secret_hash(secret))
+            .execute(&state.pool);
     if !matches!(
         tokio::time::timeout(Duration::from_secs(3), revoke).await,
         Ok(Ok(_))

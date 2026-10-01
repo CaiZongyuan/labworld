@@ -3,7 +3,11 @@ import { usePageTitle } from '../shell/page-title';
 import { roleMessageKeys, useAppMessage } from '../shell/messages';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { logoutUser, type ApiClient } from '@labos-threejs/sdk';
-import { Alert, AlertDescription, AlertTitle } from '@labos-threejs/ui/components/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@labos-threejs/ui/components/alert';
 import { Badge } from '@labos-threejs/ui/components/badge';
 import { Button, buttonVariants } from '@labos-threejs/ui/components/button';
 import {

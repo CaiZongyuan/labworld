@@ -44,10 +44,12 @@ impl Handler for ResetMail {
         let (expires,active):(chrono::DateTime<chrono::Utc>,bool)=sqlx::query_as("SELECT expires_at,used_at IS NULL AND revoked_at IS NULL AND expires_at > clock_timestamp() FROM labos_threejs_core.password_resets WHERE id=$1::uuid AND job_id=$2::uuid FOR SHARE").bind(&reset_id).bind(&lease.id).fetch_one(&mut *tx).await?;
         if !member || !active || credential.is_none() {
             lease.lock_current(&mut tx).await?;
-            sqlx::query("DELETE FROM labos_threejs_core.password_reset_mail WHERE reset_id=$1::uuid")
-                .bind(&reset_id)
-                .execute(&mut *tx)
-                .await?;
+            sqlx::query(
+                "DELETE FROM labos_threejs_core.password_reset_mail WHERE reset_id=$1::uuid",
+            )
+            .bind(&reset_id)
+            .execute(&mut *tx)
+            .await?;
             lease.succeed(&mut tx).await?;
             tx.commit().await?;
             return Ok(());

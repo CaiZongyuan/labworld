@@ -123,9 +123,9 @@ pub fn start(
     } else {
         (None, None)
     };
-    let layer = traces
-        .as_ref()
-        .map(|provider| tracing_opentelemetry::layer().with_tracer(provider.tracer("labos_threejs")));
+    let layer = traces.as_ref().map(|provider| {
+        tracing_opentelemetry::layer().with_tracer(provider.tracer("labos_threejs"))
+    });
     // Third-party transport debug fields can contain URLs/credentials. Only our
     // deliberately safe application events enter either output, even at TRACE.
     let safe_targets =

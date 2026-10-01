@@ -60,7 +60,12 @@ async fn real_otlp_carries_the_http_parent_without_exporting_raw_request_content
         ..Default::default()
     };
     let guard = tokio::task::spawn_blocking(move || {
-        labos_threejs_platform::telemetry::start(settings, "labos-threejs-api", "trace".parse().unwrap()).unwrap()
+        labos_threejs_platform::telemetry::start(
+            settings,
+            "labos-threejs-api",
+            "trace".parse().unwrap(),
+        )
+        .unwrap()
     })
     .await
     .unwrap();
@@ -198,10 +203,9 @@ impl labos_threejs_app::modules::jobs::Handler for Probe {
         lease: &labos_threejs_app::modules::jobs::Lease,
     ) -> Result<(), labos_threejs_app::modules::jobs::JobError> {
         use labos_threejs_platform::object_storage::ObjectStorage;
-        self.storage
-            .delete(&self.location)
-            .await
-            .map_err(|_| labos_threejs_app::modules::jobs::JobError::Transient("storage.unavailable"))?;
+        self.storage.delete(&self.location).await.map_err(|_| {
+            labos_threejs_app::modules::jobs::JobError::Transient("storage.unavailable")
+        })?;
         assert!(matches!(
             self.storage.head(&self.location).await,
             Err(labos_threejs_platform::object_storage::StorageError::NotFound)
@@ -242,7 +246,8 @@ async fn exercise_job(pool: PgPool) -> (String, String, String) {
         "/api/v1/test-job",
         post({
             let pool = pool.clone();
-            move |headers: HeaderMap, Extension(id): Extension<labos_threejs_app::http::RequestId>| {
+            move |headers: HeaderMap,
+                  Extension(id): Extension<labos_threejs_app::http::RequestId>| {
                 let pool = pool.clone();
                 async move {
                     let session =
@@ -356,12 +361,13 @@ async fn exercise_job(pool: PgPool) -> (String, String, String) {
     let worker = jobs::Worker::new(pool.clone(), vec![Arc::new(probe)], Default::default());
     assert!(worker.run_once().await.unwrap());
     // Audit is its public Application transaction boundary, including persisted trace association.
-    let traces: Vec<Option<String>> =
-        sqlx::query_scalar("SELECT trace_id FROM labos_threejs_core.audit_events WHERE resource_id=$1")
-            .bind(&job)
-            .fetch_all(&pool)
-            .await
-            .unwrap();
+    let traces: Vec<Option<String>> = sqlx::query_scalar(
+        "SELECT trace_id FROM labos_threejs_core.audit_events WHERE resource_id=$1",
+    )
+    .bind(&job)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
     assert_eq!(traces.len(), 2);
     assert!(
         traces

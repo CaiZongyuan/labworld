@@ -15,7 +15,11 @@ import {
   type CurrentSession,
 } from '@labos-threejs/sdk';
 import { errorCodeOf, requestIdFromError } from '@labos-threejs/core';
-import { Alert, AlertDescription, AlertTitle } from '@labos-threejs/ui/components/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@labos-threejs/ui/components/alert';
 import { Badge } from '@labos-threejs/ui/components/badge';
 import { Button } from '@labos-threejs/ui/components/button';
 import {

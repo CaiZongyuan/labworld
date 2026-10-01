@@ -25,11 +25,12 @@ pub async fn mark_deleting(
     id: &str,
     correlation_id: &str,
 ) -> Result<(), Error> {
-    let state: Option<String> =
-        sqlx::query_scalar("SELECT state FROM labos_threejs_core.files WHERE id = $1::uuid FOR UPDATE")
-            .bind(id)
-            .fetch_optional(&mut *connection)
-            .await?;
+    let state: Option<String> = sqlx::query_scalar(
+        "SELECT state FROM labos_threejs_core.files WHERE id = $1::uuid FOR UPDATE",
+    )
+    .bind(id)
+    .fetch_optional(&mut *connection)
+    .await?;
     let state = state.ok_or(Error::NotFound)?;
     if matches!(state.as_str(), "deleting" | "deleted") {
         return Ok(());
@@ -53,11 +54,13 @@ pub async fn mark_deleting(
         },
     )
     .await?;
-    sqlx::query("UPDATE labos_threejs_core.files SET cleanup_job_id = $2::uuid WHERE id = $1::uuid")
-        .bind(id)
-        .bind(job)
-        .execute(connection)
-        .await?;
+    sqlx::query(
+        "UPDATE labos_threejs_core.files SET cleanup_job_id = $2::uuid WHERE id = $1::uuid",
+    )
+    .bind(id)
+    .bind(job)
+    .execute(connection)
+    .await?;
     Ok(())
 }
 

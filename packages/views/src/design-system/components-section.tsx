@@ -30,7 +30,11 @@ import {
 import { Progress } from '@labos-threejs/ui/components/progress';
 import { Skeleton } from '@labos-threejs/ui/components/skeleton';
 import { Badge } from '@labos-threejs/ui/components/badge';
-import { Alert, AlertDescription, AlertTitle } from '@labos-threejs/ui/components/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@labos-threejs/ui/components/alert';
 import { useAppMessage } from '../shell/messages';
 
 // The components tab operates real @labos-threejs/ui components in their production

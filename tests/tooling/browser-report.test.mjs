@@ -12,7 +12,9 @@ import { join } from 'node:path';
 import SafeBrowserReporter from '../../scripts/safe-browser-reporter.mjs';
 
 test('retained browser evidence omits raw errors and discards sensitive page context', () => {
-  const directory = mkdtempSync(join(tmpdir(), 'labos-threejs-browser-report-'));
+  const directory = mkdtempSync(
+    join(tmpdir(), 'labos-threejs-browser-report-'),
+  );
   try {
     const secret = 'test-session-secret-must-not-be-retained';
     const context = join(directory, 'error-context.md');

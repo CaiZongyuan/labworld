@@ -1,3 +1,4 @@
+use super::SECRET_PREFIX;
 use crate::{
     http::{RequestId, public_error},
     modules::{
@@ -78,10 +79,10 @@ pub async fn require_read(
             return None;
         }
         let token = parts.next()?;
+        let random = token.strip_prefix(SECRET_PREFIX)?;
         if parts.next().is_some()
-            || token.len() != 73
-            || !token.starts_with("labos_threejs_key_")
-            || !token[9..].bytes().all(|b| b.is_ascii_hexdigit())
+            || random.len() != 64
+            || !random.bytes().all(|b| b.is_ascii_hexdigit())
         {
             return None;
         }

@@ -68,7 +68,8 @@ export async function launchApp(
   // scoped to this run. A caller-owned directory (restart journeys) is kept
   // on cleanup and removed by the caller.
   const userDataDir =
-    options.userDataDir ?? mkdtempSync(join(tmpdir(), 'labos-threejs-desktop-profile-'));
+    options.userDataDir ??
+    mkdtempSync(join(tmpdir(), 'labos-threejs-desktop-profile-'));
   const createdDir = options.userDataDir ? null : userDataDir;
   const app = await _electron.launch({
     executablePath,
@@ -76,7 +77,9 @@ export async function launchApp(
     env: {
       ...process.env,
       LABOS_THREEJS_DESKTOP_ORIGIN: requireSmokeEnv('E2E_WEB_URL'),
-      LABOS_THREEJS_DESKTOP_DOWNLOADS_DIR: requireSmokeEnv('LABOS_THREEJS_DESKTOP_DOWNLOADS_DIR'),
+      LABOS_THREEJS_DESKTOP_DOWNLOADS_DIR: requireSmokeEnv(
+        'LABOS_THREEJS_DESKTOP_DOWNLOADS_DIR',
+      ),
       LABOS_THREEJS_DESKTOP_USER_DATA_DIR: userDataDir,
       ELECTRON_ENABLE_LOGGING: '1',
     },

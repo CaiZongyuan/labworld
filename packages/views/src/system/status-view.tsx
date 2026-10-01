@@ -1,6 +1,10 @@
 import { RateLimitHint } from './rate-limit';
 import { requestIdFromError } from '@labos-threejs/core';
-import { Alert, AlertDescription, AlertTitle } from '@labos-threejs/ui/components/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@labos-threejs/ui/components/alert';
 import { useQuery } from '@tanstack/react-query';
 import { getSystemStatus, type ApiClient } from '@labos-threejs/sdk';
 import { Badge } from '@labos-threejs/ui/components/badge';

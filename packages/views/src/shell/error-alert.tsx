@@ -1,5 +1,9 @@
 import { errorCodeOf, requestIdFromError } from '@labos-threejs/core';
-import { Alert, AlertDescription, AlertTitle } from '@labos-threejs/ui/components/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from '@labos-threejs/ui/components/alert';
 import { RateLimitHint } from '../system/rate-limit';
 import { useAppMessage } from './messages';
 

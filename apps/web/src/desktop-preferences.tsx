@@ -21,7 +21,8 @@ type ShellBridge = {
 // ipc-contract.ts); the structural type keeps the app independent of the
 // desktop package.
 function shellBridge(): ShellBridge | null {
-  const candidate = (globalThis as { labosThreejsDesktop?: unknown }).labosThreejsDesktop;
+  const candidate = (globalThis as { labosThreejsDesktop?: unknown })
+    .labosThreejsDesktop;
   if (
     candidate &&
     typeof candidate === 'object' &&

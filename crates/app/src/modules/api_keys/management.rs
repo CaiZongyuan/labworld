@@ -1,4 +1,4 @@
-use super::{COLUMNS, KeyInfo, KeyScope};
+use super::{COLUMNS, KeyInfo, KeyScope, SECRET_PREFIX};
 use crate::{
     http::{ApiPath, ApiQuery, BoundedJson, RequestId, public_error},
     modules::{audit, identity, organization},
@@ -115,8 +115,8 @@ async fn create_api_key(
     let Ok(random) = crate::secrets::secret() else {
         return unavailable(id);
     };
-    let secret = format!("labos_threejs_key_{random}");
-    let prefix = format!("labos_threejs_key_{}", &random[..8]);
+    let secret = format!("{SECRET_PREFIX}{random}");
+    let prefix = format!("{SECRET_PREFIX}{}", &random[..8]);
     let hash = crate::secrets::secret_hash(&secret);
     let result = tokio::time::timeout(std::time::Duration::from_secs(3), async {
         let mut tx = state.pool.begin().await?;

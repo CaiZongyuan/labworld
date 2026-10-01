@@ -47,9 +47,7 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     // example:knowledge:worker:start
     let export_policy = labos_threejs_app::modules::knowledge::ExportPolicy::from_env()?;
     let mut maintenance = maintenance;
-    handlers.push(labos_threejs_app::modules::knowledge::document_cleanup_handler(
-        pool.clone(),
-    ));
+    handlers.push(labos_threejs_app::modules::knowledge::document_cleanup_handler(pool.clone()));
     handlers.push(labos_threejs_app::modules::knowledge::base_cleanup_handler(
         pool.clone(),
     ));

@@ -72,19 +72,22 @@ describe('normalizeDeepLinkPath', () => {
 });
 
 describe('parseDeepLink', () => {
-  it('accepts the labos_threejs open protocol and extracts the in-app path', () => {
-    expect(DEEP_LINK_SCHEME).toBe('labos_threejs');
-    expect(parseDeepLink('labos_threejs://open/documents/abc')).toBe('/documents/abc');
-    expect(parseDeepLink('labos_threejs://open/notifications?after=1')).toBe(
+  it('accepts the registered open protocol and extracts the in-app path', () => {
+    expect(DEEP_LINK_SCHEME).toBe('labos-threejs');
+    expect(parseDeepLink('labos-threejs://open/documents/abc')).toBe(
+      '/documents/abc',
+    );
+    expect(parseDeepLink('labos-threejs://open/notifications?after=1')).toBe(
       '/notifications?after=1',
     );
   });
 
   it('rejects other hosts, protocols and external targets', () => {
-    expect(parseDeepLink('labos_threejs://close/documents')).toBeNull();
+    expect(parseDeepLink('labos-threejs://close/documents')).toBeNull();
     expect(parseDeepLink('https://open/documents')).toBeNull();
-    expect(parseDeepLink('labos_threejs://open//evil.example')).toBeNull();
-    expect(parseDeepLink('labos_threejs://open/\\evil.example')).toBeNull();
+    expect(parseDeepLink('labos-threejs://open//evil.example')).toBeNull();
+    expect(parseDeepLink('labos-threejs://open/\\evil.example')).toBeNull();
+    expect(parseDeepLink('labos_threejs://open/documents')).toBeNull();
     expect(parseDeepLink('not a url')).toBeNull();
   });
 });

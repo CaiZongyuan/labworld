@@ -1,7 +1,7 @@
 import { assembleApp, type ExampleContribution } from '@labos-threejs/views';
 import { createLabExample } from '@labos-threejs/views/lab';
 // example:knowledge:assembly:start
-import { createKnowledgeExample } from '@labos-threejs/views';
+import { createKnowledgeExample } from '@labos-threejs/views/knowledge';
 import { browserFileTransfer } from './knowledge-files';
 import { DocumentGuardProvider } from './knowledge-navigation';
 // example:knowledge:assembly:end

@@ -29,7 +29,9 @@ export async function withDesktopStack(
     async ({ postgresName, storageName, env: services }) => {
       const apiPort = await freePort();
       const webPort = await freePort();
-      const downloadsDir = mkdtempSync(join(tmpdir(), 'labos-threejs-desktop-dl-'));
+      const downloadsDir = mkdtempSync(
+        join(tmpdir(), 'labos-threejs-desktop-dl-'),
+      );
       const webOrigin = `http://127.0.0.1:${webPort}`;
       const env = {
         ...process.env,

@@ -276,18 +276,25 @@ async fn expired_keys_and_disabled_creators_stop_working_and_invalid_bearer_neve
     );
     let active = create_key(&app, &member).await;
     let secret = active["secret"].as_str().unwrap();
-    let rejected = app
-        .clone()
-        .oneshot(
-            Request::get("/api/v1/profile")
-                .header("cookie", &owner.cookie)
-                .header("authorization", "Bearer invalid")
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-    assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
+    for invalid in [
+        "invalid".to_owned(),
+        secret[..secret.len() - 1].to_owned(),
+        format!("{secret}0"),
+        format!("{}g", &secret[..secret.len() - 1]),
+    ] {
+        let rejected = app
+            .clone()
+            .oneshot(
+                Request::get("/api/v1/profile")
+                    .header("cookie", &owner.cookie)
+                    .header("authorization", format!("Bearer {invalid}"))
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(rejected.status(), StatusCode::UNAUTHORIZED);
+    }
     let rejected = app
         .clone()
         .oneshot(

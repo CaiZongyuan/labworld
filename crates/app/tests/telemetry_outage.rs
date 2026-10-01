@@ -72,7 +72,12 @@ async fn a_stalled_collector_drops_bounded_backlog_without_stalling_http_and_rec
         ..Default::default()
     };
     let guard = tokio::task::spawn_blocking(move || {
-        labos_threejs_platform::telemetry::start(settings, "labos-threejs-api", "info".parse().unwrap()).unwrap()
+        labos_threejs_platform::telemetry::start(
+            settings,
+            "labos-threejs-api",
+            "info".parse().unwrap(),
+        )
+        .unwrap()
     })
     .await
     .unwrap();

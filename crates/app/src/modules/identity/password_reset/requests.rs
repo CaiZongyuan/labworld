@@ -11,12 +11,13 @@ pub(super) async fn issue(
     request: &str,
 ) -> Result<(), ()> {
     let mut tx = pool.begin().await.map_err(|_| ())?;
-    let profile: Option<(String, String)> =
-        sqlx::query_as("SELECT id::text,email FROM labos_threejs_core.users WHERE normalized_email = $1")
-            .bind(email.to_lowercase())
-            .fetch_optional(&mut *tx)
-            .await
-            .map_err(|_| ())?;
+    let profile: Option<(String, String)> = sqlx::query_as(
+        "SELECT id::text,email FROM labos_threejs_core.users WHERE normalized_email = $1",
+    )
+    .bind(email.to_lowercase())
+    .fetch_optional(&mut *tx)
+    .await
+    .map_err(|_| ())?;
     let Some((user_id, recipient)) = profile else {
         return Ok(());
     };

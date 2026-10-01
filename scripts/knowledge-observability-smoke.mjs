@@ -100,7 +100,11 @@ try {
         run(resolve(root, 'target/debug/migrate'), [], env);
         run(resolve(root, 'target/debug/bootstrap-storage'), [], env);
         api = launch(resolve(root, 'target/debug/labos-threejs-api'), [], env);
-        worker = launch(resolve(root, 'target/debug/labos-threejs-worker'), [], env);
+        worker = launch(
+          resolve(root, 'target/debug/labos-threejs-worker'),
+          [],
+          env,
+        );
         await Promise.all([
           waitFor(`${env.APP_ORIGIN}/health/ready`, api),
           waitFor(`http://${env.WORKER_BIND}/health/ready`, worker),
@@ -199,7 +203,11 @@ try {
           email: 'observer@example.test',
           password: secret,
         });
-        worker = launch(resolve(root, 'target/debug/labos-threejs-worker'), [], env);
+        worker = launch(
+          resolve(root, 'target/debug/labos-threejs-worker'),
+          [],
+          env,
+        );
         await waitFor(`http://${env.WORKER_BIND}/health/ready`, worker);
         const failure = await eventually(async () => {
           const result = (await request(`${path}/exports/${failed.body.id}`))

@@ -174,10 +174,11 @@ async fn known_and_missing_emails_have_identical_feedback_and_a_real_worker_deli
     assert!(worker.run_once().await.unwrap());
     assert!(!worker.run_once().await.unwrap());
     assert!(reset.handler(pool.clone()).run(&abandoned).await.is_err());
-    let materials: i64 = sqlx::query_scalar("SELECT count(*) FROM labos_threejs_core.password_reset_mail")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let materials: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM labos_threejs_core.password_reset_mail")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(materials, 0);
     let client = reqwest::Client::new();
     let base = std::env::var("MAILPIT_HTTP_URL").unwrap();
@@ -389,10 +390,11 @@ async fn expired_deliveries_are_not_sent_and_expired_material_is_purged(pool: Pg
         .schedule()
         .await
         .unwrap();
-    let remaining: i64 = sqlx::query_scalar("SELECT count(*) FROM labos_threejs_core.password_reset_mail")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let remaining: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM labos_threejs_core.password_reset_mail")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(remaining, 0);
     let worker = labos_threejs_app::modules::jobs::Worker::new(
         pool.clone(),
@@ -628,10 +630,11 @@ async fn disabling_a_member_revokes_issued_links_and_suppresses_queued_delivery_
         .await
         .expect("capture response failed");
     assert_eq!(search["messages"].as_array().unwrap().len(), 1);
-    let materials: i64 = sqlx::query_scalar("SELECT count(*) FROM labos_threejs_core.password_reset_mail")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let materials: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM labos_threejs_core.password_reset_mail")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(materials, 0);
 }
 
@@ -776,11 +779,13 @@ async fn a_login_using_the_old_hash_cannot_issue_a_session_after_password_reset(
     let token = captured_token(&email).await;
     // Real row-lock barrier: queue the reset first, then let login verify the still-visible old hash.
     let mut gate = pool.begin().await.unwrap();
-    sqlx::query("SELECT user_id FROM labos_threejs_core.credentials WHERE user_id=$1::uuid FOR UPDATE")
-        .bind(&owner.id)
-        .execute(&mut *gate)
-        .await
-        .unwrap();
+    sqlx::query(
+        "SELECT user_id FROM labos_threejs_core.credentials WHERE user_id=$1::uuid FOR UPDATE",
+    )
+    .bind(&owner.id)
+    .execute(&mut *gate)
+    .await
+    .unwrap();
     let resetting = tokio::spawn({
         let app = app.clone();
         async move {

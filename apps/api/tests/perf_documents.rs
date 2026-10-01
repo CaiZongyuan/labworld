@@ -355,9 +355,16 @@ async fn creating_in_an_existing_workspace_costs_one_document_and_one_audit(pool
         "each create costs exactly one document-create audit"
     );
     // A create answers synchronously: no consumer-less work rows.
-    assert_eq!(count(&pool, "SELECT count(*) FROM labos_threejs_core.jobs").await, 0);
     assert_eq!(
-        count(&pool, "SELECT count(*) FROM labos_threejs_core.notifications").await,
+        count(&pool, "SELECT count(*) FROM labos_threejs_core.jobs").await,
+        0
+    );
+    assert_eq!(
+        count(
+            &pool,
+            "SELECT count(*) FROM labos_threejs_core.notifications"
+        )
+        .await,
         0
     );
 }
@@ -475,7 +482,11 @@ async fn an_export_request_costs_one_export_one_job_and_one_audit_even_retried(p
     // The notification intent is a job_notifications row waiting on the
     // worker — the notifications table itself stays empty at request time.
     assert_eq!(
-        count(&pool, "SELECT count(*) FROM labos_threejs_core.notifications").await,
+        count(
+            &pool,
+            "SELECT count(*) FROM labos_threejs_core.notifications"
+        )
+        .await,
         0
     );
 }

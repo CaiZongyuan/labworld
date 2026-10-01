@@ -56,7 +56,12 @@ async fn collector_rejection_and_a_hanging_shutdown_do_not_become_business_depen
         metrics_interval: Duration::from_secs(1),
     };
     let guard = tokio::task::spawn_blocking(move || {
-        labos_threejs_platform::telemetry::start(settings, "labos-threejs-api", "info".parse().unwrap()).unwrap()
+        labos_threejs_platform::telemetry::start(
+            settings,
+            "labos-threejs-api",
+            "info".parse().unwrap(),
+        )
+        .unwrap()
     })
     .await
     .unwrap();

@@ -151,7 +151,8 @@
       }
 
       document.getElementById('retry').addEventListener('click', () => {
-        if (window.labosThreejsDesktop?.retryLoad) void window.labosThreejsDesktop.retryLoad();
+        if (window.labosThreejsDesktop?.retryLoad)
+          void window.labosThreejsDesktop.retryLoad();
         else document.getElementById('hint').hidden = false;
       });
 

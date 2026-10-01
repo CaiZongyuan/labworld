@@ -40,15 +40,19 @@ pub(super) async fn change(
     }
     let reset:Option<String>=sqlx::query_scalar("SELECT id::text FROM labos_threejs_core.password_resets WHERE token_hash=$1 AND user_id=$2::uuid AND used_at IS NULL AND revoked_at IS NULL AND expires_at > clock_timestamp() FOR UPDATE").bind(token_hash).bind(user).fetch_optional(&mut *tx).await?;
     let reset = reset.ok_or(Error::Invalid)?;
-    sqlx::query("UPDATE labos_threejs_core.credentials SET password_hash=$2 WHERE user_id=$1::uuid")
-        .bind(user)
-        .bind(password_hash)
-        .execute(&mut *tx)
-        .await?;
-    sqlx::query("UPDATE labos_threejs_core.password_resets SET used_at=clock_timestamp() WHERE id=$1::uuid")
-        .bind(reset)
-        .execute(&mut *tx)
-        .await?;
+    sqlx::query(
+        "UPDATE labos_threejs_core.credentials SET password_hash=$2 WHERE user_id=$1::uuid",
+    )
+    .bind(user)
+    .bind(password_hash)
+    .execute(&mut *tx)
+    .await?;
+    sqlx::query(
+        "UPDATE labos_threejs_core.password_resets SET used_at=clock_timestamp() WHERE id=$1::uuid",
+    )
+    .bind(reset)
+    .execute(&mut *tx)
+    .await?;
     super::super::revoke_user_sessions(&mut tx, user).await?;
     revoke(&mut tx, user).await?;
     audit::append(

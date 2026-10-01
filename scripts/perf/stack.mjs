@@ -89,7 +89,17 @@ export function startSampler(
   const psql = (sql) =>
     execFileSync(
       'docker',
-      ['exec', container, 'psql', '-U', 'labos_threejs', '-d', 'labos_threejs', '-tAc', sql],
+      [
+        'exec',
+        container,
+        'psql',
+        '-U',
+        'labos_threejs',
+        '-d',
+        'labos_threejs',
+        '-tAc',
+        sql,
+      ],
       {
         encoding: 'utf8',
         env: currentEnv ?? process.env,
@@ -166,7 +176,15 @@ export async function startStack() {
   );
   execFileSync(
     'cargo',
-    ['build', '--locked', '--release', '-p', 'labos-threejs-api', '-p', 'labos-threejs-worker'],
+    [
+      'build',
+      '--locked',
+      '--release',
+      '-p',
+      'labos-threejs-api',
+      '-p',
+      'labos-threejs-worker',
+    ],
     {
       cwd: root,
       env: process.env,

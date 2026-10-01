@@ -16,6 +16,8 @@ export default tseslint.config(
       'apps/docs/.vitepress/cache/**',
       'packages/sdk/src/generated/**',
       'packages/contracts/src/generated/**',
+      // Published third-party decoders are copied verbatim with their licenses.
+      'apps/web/public/lab-assets/decoders/**',
     ],
   },
   js.configs.recommended,

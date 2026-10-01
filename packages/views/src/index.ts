@@ -51,24 +51,3 @@ export { BusinessNavigation } from './shell/app-navigation';
 // Session query options for app adapters: the shell's role-aware
 // navigation derives from the session the adapter resolves (UI06).
 export { sessionQuery } from './identity';
-// example:knowledge:views:start
-export {
-  DocumentExportView,
-  KnowledgeBaseView,
-  KnowledgeBasesView,
-  DocumentsView,
-  NewDocumentView,
-  DocumentView,
-  EditDocumentView,
-} from './knowledge';
-export type { FileTransfer } from './knowledge';
-export { createKnowledgeExample } from './knowledge/app-example';
-export {
-  DocumentGuardContext,
-  useDocumentGuard,
-  type DocumentGuardValue,
-} from './knowledge/document-guard';
-// example:knowledge:views:end
-// example:notes:views:start
-export { createNotesExample } from './notes/example';
-// example:notes:views:end

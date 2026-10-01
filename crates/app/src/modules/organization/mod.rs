@@ -29,17 +29,21 @@ pub async fn enroll(
     };
     sqlx::query("INSERT INTO labos_threejs_core.memberships (user_id, organization_id, role) VALUES ($1::uuid, 1, $2)")
         .bind(user_id).bind(role).execute(&mut *connection).await?;
-    sqlx::query("UPDATE labos_threejs_core.organizations SET owner_initialized = true WHERE id = 1")
-        .execute(connection)
-        .await?;
+    sqlx::query(
+        "UPDATE labos_threejs_core.organizations SET owner_initialized = true WHERE id = 1",
+    )
+    .execute(connection)
+    .await?;
     Ok(role)
 }
 
 pub async fn active_role(pool: &PgPool, user_id: &str) -> Result<Option<MemberRole>, sqlx::Error> {
-    sqlx::query_scalar("SELECT role FROM labos_threejs_core.memberships WHERE user_id = $1::uuid AND active")
-        .bind(user_id)
-        .fetch_optional(pool)
-        .await
+    sqlx::query_scalar(
+        "SELECT role FROM labos_threejs_core.memberships WHERE user_id = $1::uuid AND active",
+    )
+    .bind(user_id)
+    .fetch_optional(pool)
+    .await
 }
 
 /// Hold membership stable for a caller's mutation; disabling/changing roles waits.

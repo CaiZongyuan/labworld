@@ -76,7 +76,8 @@ test('stays a no-op outside the desktop shell', async () => {
   // Without the bridge there is nothing to mirror into; the click above
   // passing without an error is the assertion.
   expect(
-    (window as typeof window & { labosThreejsDesktop?: unknown }).labosThreejsDesktop,
+    (window as typeof window & { labosThreejsDesktop?: unknown })
+      .labosThreejsDesktop,
   ).toBeUndefined();
   view.unmount();
 });

@@ -151,15 +151,15 @@ test('shell loads shared views, signs in and out, and constrains navigation', as
     expect(new URL(window.url()).origin).toBe(appOrigin);
 
     // Deep links navigate within the app only for in-app targets.
-    await emitOpenUrl(app, 'labos_threejs://open/notifications');
+    await emitOpenUrl(app, 'labos-threejs://open/notifications');
     await window.waitForURL(/\/notifications$/);
     await expect(window.getByRole('heading', { name: '通知' })).toBeVisible();
-    await emitSecondInstance(app, 'labos_threejs://open/notifications');
+    await emitSecondInstance(app, 'labos-threejs://open/notifications');
     expect(new URL(window.url()).pathname).toBe('/notifications');
 
     const beforeInvalid = window.url();
-    await emitOpenUrl(app, 'labos_threejs://close/notifications');
-    await emitOpenUrl(app, 'labos_threejs://open//evil.example');
+    await emitOpenUrl(app, 'labos-threejs://close/notifications');
+    await emitOpenUrl(app, 'labos-threejs://open//evil.example');
     await emitSecondInstance(app, 'https://evil.example/replace');
     expect(window.url()).toBe(beforeInvalid);
     expect(new URL(window.url()).origin).toBe(appOrigin);

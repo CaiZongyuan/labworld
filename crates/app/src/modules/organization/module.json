@@ -1,4 +1,7 @@
 {
   "kind": "core",
-  "tables": ["labos_threejs_core.organizations", "labos_threejs_core.memberships"]
+  "tables": [
+    "labos_threejs_core.organizations",
+    "labos_threejs_core.memberships"
+  ]
 }

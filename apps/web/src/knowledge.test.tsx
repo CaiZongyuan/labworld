@@ -1,6 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createMemoryHistory, RouterProvider } from '@tanstack/react-router';
-import { createApiClient, type CurrentSession, type Document } from '@labos-threejs/sdk';
+import {
+  createApiClient,
+  type CurrentSession,
+  type Document,
+} from '@labos-threejs/sdk';
 import { act, render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
