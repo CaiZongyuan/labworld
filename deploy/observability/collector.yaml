@@ -1,0 +1,82 @@
+extensions:
+  file_storage:
+    directory: /var/otel
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+  filelog/api:
+    include: [/logs/labos-threejs-api.*.jsonl]
+    start_at: beginning
+    storage: file_storage
+    max_log_size: 16KiB
+    resource: { service.name: labos-threejs-api }
+    operators:
+      - type: json_parser
+        parse_to: body
+        timestamp:
+          parse_from: body.timestamp
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+        severity: { parse_from: body.level }
+  filelog/worker:
+    include: [/logs/labos-threejs-worker.*.jsonl]
+    start_at: beginning
+    storage: file_storage
+    max_log_size: 16KiB
+    resource: { service.name: labos-threejs-worker }
+    operators:
+      - type: json_parser
+        parse_to: body
+        timestamp:
+          parse_from: body.timestamp
+          layout_type: gotime
+          layout: '2006-01-02T15:04:05.999999999Z07:00'
+        severity: { parse_from: body.level }
+processors:
+  memory_limiter: { check_interval: 1s, limit_mib: 128, spike_limit_mib: 32 }
+  batch: { timeout: 1s, send_batch_size: 128, send_batch_max_size: 256 }
+exporters:
+  otlp_http/tempo:
+    endpoint: http://tempo:4318
+    timeout: 2s
+    sending_queue:
+      {
+        queue_size: 1024,
+        sizer: items,
+        num_consumers: 2,
+        block_on_overflow: false,
+      }
+    retry_on_failure:
+      { initial_interval: 1s, max_interval: 5s, max_elapsed_time: 10s }
+  otlp_http/loki:
+    endpoint: http://loki:3100/otlp
+    timeout: 2s
+    sending_queue:
+      {
+        queue_size: 1024,
+        sizer: items,
+        num_consumers: 2,
+        block_on_overflow: false,
+      }
+    retry_on_failure:
+      { initial_interval: 1s, max_interval: 5s, max_elapsed_time: 10s }
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    translation_strategy: UnderscoreEscapingWithSuffixes
+service:
+  extensions: [file_storage]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [prometheus]
+    logs:
+      receivers: [filelog/api, filelog/worker]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http/loki]

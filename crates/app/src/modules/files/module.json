@@ -1,0 +1,9 @@
+{
+  "kind": "core",
+  "tables": [
+    "labos_threejs_core.files",
+    "labos_threejs_core.file_candidates",
+    "labos_threejs_core.object_cleanup",
+    "labos_threejs_core.file_cleanup_control"
+  ]
+}

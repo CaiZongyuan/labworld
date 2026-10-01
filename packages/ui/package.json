@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "name": "@labos-threejs/ui",
+  "exports": {
+    "./components/*": "./src/components/*.tsx",
+    "./lib/*": "./src/lib/*.ts",
+    "./styles.css": "./src/styles.css"
+  },
+  "dependencies": {
+    "@base-ui/react": "1.8.0",
+    "class-variance-authority": "0.7.1",
+    "cn": "^0.4.0",
+    "lucide-react": "1.48.0",
+    "tailwindcss": "4.3.3"
+  },
+  "peerDependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}

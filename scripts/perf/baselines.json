@@ -1,0 +1,63 @@
+{
+  "budgets": {
+    "bundle": {
+      "initialGzipKiB": 400,
+      "asyncChunkGzipKiB": 500,
+      "lazyPatterns": ["markdown", "design-system-view", "icon-catalog"]
+    }
+  },
+  "firstMeasured": {
+    "note": "First recorded baseline (2026-09-27, local x86_64 WSL2, node 24, vite build). Adjusting a budget requires PR evidence per spec §17.1 — a failing gate is never silenced by raising the number in the same change that broke it.",
+    "bundle": {
+      "initialGzipKiB": 174.4,
+      "chunks": [
+        { "name": "index.js", "role": "initial", "gzipKiB": 174.4 },
+        { "name": "markdown-content.js", "role": "async", "gzipKiB": 46.7 }
+      ]
+    },
+    "queryPlans": {
+      "note": "First recorded query-plan baseline (2026-09-27, local x86_64 WSL2, postgres from the compose config, EXPLAIN ANALYZE). Regenerate with `just perf`; this is review material, never a gate — a Seq Scan is recorded, not failed. Parameters are inlined as literals, so plans may differ from sqlx's prepared-statement path.",
+      "tiers": [
+        {
+          "rows": 10,
+          "personalList": {
+            "executionMs": 0.1,
+            "rootNode": "Limit",
+            "seqScans": 1
+          },
+          "byBaseList": {
+            "executionMs": 0.23,
+            "rootNode": "Limit",
+            "seqScans": 1
+          }
+        },
+        {
+          "rows": 1000,
+          "personalList": {
+            "executionMs": 0.74,
+            "rootNode": "Limit",
+            "seqScans": 1
+          },
+          "byBaseList": {
+            "executionMs": 0.27,
+            "rootNode": "Limit",
+            "seqScans": 0
+          }
+        },
+        {
+          "rows": 100000,
+          "personalList": {
+            "executionMs": 56.57,
+            "rootNode": "Limit",
+            "seqScans": 1
+          },
+          "byBaseList": {
+            "executionMs": 0.27,
+            "rootNode": "Limit",
+            "seqScans": 0
+          }
+        }
+      ]
+    }
+  }
+}

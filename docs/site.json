@@ -1,0 +1,203 @@
+{
+  "title": "Lab Word",
+  "titleEn": "Lab Word",
+  "description": "Lab Word 实验室数字孪生：项目启动、设备模型预览、业务边界与开发验证。",
+  "descriptionEn": "Lab Word laboratory digital twin: setup, equipment model preview, module boundaries and development checks.",
+  "repository": "CaiZongyuan/labworld",
+  "groupLabels": {
+    "开始": "Start",
+    "实验室": "Laboratory",
+    "开发": "Development",
+    "参考": "Reference",
+    "维护文档": "Documentation",
+    "公开站": "Public site"
+  },
+  "pages": [
+    {
+      "id": "landing",
+      "source": "docs/index.md",
+      "sourceEn": "docs/index.en.md",
+      "route": "index.md",
+      "title": "首页",
+      "titleEn": "Home",
+      "group": "公开站",
+      "layout": "page",
+      "pageTitle": "Lab Word",
+      "pageTitleEn": "Lab Word",
+      "pageDescription": "实验室数字孪生。三维查看器预览已接受，正式应用接入与验证待完成。",
+      "pageDescriptionEn": "Laboratory digital twin. The 3D viewer preview is accepted; application integration and validation are pending."
+    },
+    {
+      "id": "blog",
+      "source": "docs/blog.md",
+      "sourceEn": "docs/blog.en.md",
+      "route": "blog/index.md",
+      "title": "博客",
+      "titleEn": "Blog",
+      "group": "公开站",
+      "layout": "page",
+      "pageTitle": "博客 · 即将推出",
+      "pageTitleEn": "Blog · Coming soon",
+      "pageDescription": "Lab Word 博客尚未开始实现。",
+      "pageDescriptionEn": "The Lab Word blog is not implemented yet."
+    },
+    {
+      "id": "downloads",
+      "source": "docs/downloads.md",
+      "sourceEn": "docs/downloads.en.md",
+      "route": "downloads/index.md",
+      "title": "下载",
+      "titleEn": "Downloads",
+      "group": "公开站",
+      "layout": "page",
+      "pageTitle": "下载 · 即将推出",
+      "pageTitleEn": "Downloads · Coming soon",
+      "pageDescription": "Lab Word 安装包发布尚未开始实现。",
+      "pageDescriptionEn": "Lab Word installer releases are not implemented yet."
+    },
+    {
+      "id": "documentation",
+      "source": "docs/getting-started/documentation.md",
+      "sourceEn": "docs/getting-started/documentation.en.md",
+      "route": "docs/index.md",
+      "title": "项目文档",
+      "titleEn": "Project documentation",
+      "group": "开始",
+      "type": "overview",
+      "next": "quickstart"
+    },
+    {
+      "id": "quickstart",
+      "source": "docs/getting-started/quickstart.md",
+      "sourceEn": "docs/getting-started/quickstart.en.md",
+      "route": "getting-started/quickstart.md",
+      "title": "快速开始",
+      "titleEn": "Quick start",
+      "group": "开始",
+      "type": "guide",
+      "previous": "documentation",
+      "next": "lab-viewer"
+    },
+    {
+      "id": "lab-viewer",
+      "source": "docs/guides/lab-viewer.md",
+      "sourceEn": "docs/guides/lab-viewer.en.md",
+      "route": "guides/lab-viewer.md",
+      "title": "运行 Lab Viewer 预览",
+      "titleEn": "Run the Lab Viewer preview",
+      "group": "实验室",
+      "type": "guide",
+      "previous": "quickstart"
+    },
+    {
+      "id": "lab-architecture",
+      "source": "docs/architecture/lab-word.md",
+      "sourceEn": "docs/architecture/lab-word.en.md",
+      "route": "architecture/lab-word.md",
+      "title": "产品范围与架构",
+      "titleEn": "Product scope and architecture",
+      "group": "实验室",
+      "type": "concept"
+    },
+    {
+      "id": "project-structure",
+      "source": "docs/architecture/project-structure.md",
+      "sourceEn": "docs/architecture/project-structure.en.md",
+      "route": "architecture/project-structure.md",
+      "title": "项目结构",
+      "titleEn": "Project structure",
+      "group": "开发",
+      "type": "concept",
+      "next": "boundaries"
+    },
+    {
+      "id": "boundaries",
+      "source": "docs/architecture/module-boundaries.md",
+      "sourceEn": "docs/architecture/module-boundaries.en.md",
+      "route": "architecture/module-boundaries.md",
+      "title": "模块边界",
+      "titleEn": "Module boundaries",
+      "group": "开发",
+      "type": "concept",
+      "previous": "project-structure"
+    },
+    {
+      "id": "platform",
+      "source": "docs/guides/platform.md",
+      "sourceEn": "docs/guides/platform.en.md",
+      "route": "guides/platform.md",
+      "title": "现有平台能力",
+      "titleEn": "Existing platform capabilities",
+      "group": "开发",
+      "type": "guide"
+    },
+    {
+      "id": "testing",
+      "source": "docs/testing/t01-feedback-loop.md",
+      "sourceEn": "docs/testing/t01-feedback-loop.en.md",
+      "route": "testing/feedback-loop.md",
+      "title": "开发与验证",
+      "titleEn": "Development and validation",
+      "group": "开发",
+      "type": "guide"
+    },
+    {
+      "id": "appearance-language",
+      "source": "docs/guides/appearance-language.md",
+      "sourceEn": "docs/guides/appearance-language.en.md",
+      "route": "tutorials/appearance-language.md",
+      "title": "外观与语言",
+      "titleEn": "Appearance and language",
+      "group": "开发",
+      "type": "guide"
+    },
+    {
+      "id": "design-system",
+      "source": "docs/guides/design-system.md",
+      "sourceEn": "docs/guides/design-system.en.md",
+      "route": "tutorials/design-system.md",
+      "title": "共享界面组件",
+      "titleEn": "Shared interface components",
+      "group": "开发",
+      "type": "guide"
+    },
+    {
+      "id": "maintain-docs",
+      "source": "docs/guides/maintain-docs.md",
+      "sourceEn": "docs/guides/maintain-docs.en.md",
+      "route": "guides/documentation.md",
+      "title": "维护项目文档",
+      "titleEn": "Maintain project documentation",
+      "group": "维护文档",
+      "type": "guide",
+      "next": "publish-docs"
+    },
+    {
+      "id": "publish-docs",
+      "source": "docs/getting-started/publish-docs.md",
+      "sourceEn": "docs/getting-started/publish-docs.en.md",
+      "route": "getting-started/publish-docs.md",
+      "title": "发布文档",
+      "titleEn": "Publish documentation",
+      "group": "维护文档",
+      "type": "guide",
+      "previous": "maintain-docs"
+    }
+  ],
+  "references": [
+    {
+      "id": "api-reference",
+      "route": "reference/api.md",
+      "title": "API 合同",
+      "titleEn": "API contract",
+      "group": "参考"
+    },
+    {
+      "id": "config-reference",
+      "route": "reference/config.md",
+      "title": "API 配置",
+      "titleEn": "API configuration",
+      "group": "参考"
+    }
+  ]
+}

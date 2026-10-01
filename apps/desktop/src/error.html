@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+    />
+    <title>无法连接到应用</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        font-family:
+          system-ui,
+          -apple-system,
+          'Segoe UI',
+          'Noto Sans SC',
+          sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        --bg: #f6f6f4;
+        --fg: #1f2937;
+        --muted: #4b5563;
+        --btn-bg: #ffffff;
+        --btn-hover: #f3f4f6;
+        --border: #9ca3af;
+      }
+      /* The saved desktop theme picks the palette; system mode follows the
+         OS through the matchMedia listener in the script below. The colors
+         mirror the app's token palette (packages/ui/src/styles.css) and are
+         updated together with it — this standalone page cannot import it. */
+      body.dark {
+        --bg: #111827;
+        --fg: #f3f4f6;
+        --muted: #9ca3af;
+        --btn-bg: #1f2937;
+        --btn-hover: #374151;
+        --border: #4b5563;
+      }
+      main {
+        text-align: center;
+        max-width: 26rem;
+        padding: 2rem;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 0.75rem;
+      }
+      p {
+        margin: 0 0 1.5rem;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+      button {
+        font: inherit;
+        padding: 0.5rem 1.5rem;
+        border-radius: 0.5rem;
+        border: 1px solid var(--border);
+        background: var(--btn-bg);
+        color: var(--fg);
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--btn-hover);
+      }
+      button:focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 2px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1 id="heading">暂时无法连接到应用</h1>
+      <p id="description">
+        请确认开发组合正在运行（`just dev`），然后重试。
+        会话保留在本机的独立分区中，恢复后无需重新登录。
+      </p>
+      <button type="button" id="retry" autofocus>重新连接</button>
+      <p id="hint" hidden>壳内桥未就绪，请关闭窗口后重新打开应用。</p>
+    </main>
+    <script>
+      // Same narrow contract as the preload: only the language and theme
+      // enums reach this page; it never sees session or business data. The
+      // app mirrors its choice over the preference channels because this
+      // file:// page cannot read the app origin's localStorage.
+      const TEXTS = {
+        zh: {
+          docTitle: '无法连接到应用',
+          heading: '暂时无法连接到应用',
+          description:
+            '请确认开发组合正在运行（`just dev`），然后重试。会话保留在本机的独立分区中，恢复后无需重新登录。',
+          retry: '重新连接',
+          hint: '壳内桥未就绪，请关闭窗口后重新打开应用。',
+        },
+        en: {
+          docTitle: 'Cannot reach the app',
+          heading: 'The app is unreachable right now',
+          description:
+            'Make sure the development stack is running (`just dev`), then retry. Your session stays in the local partition, so no new sign-in is needed after recovery.',
+          retry: 'Reconnect',
+          hint: 'The shell bridge is not ready; close the window and reopen the app.',
+        },
+      };
+
+      const systemDark = window.matchMedia('(prefers-color-scheme: dark)');
+      let locale = 'zh';
+      let theme = 'system';
+
+      function deviceLocale() {
+        for (const tag of navigator.languages ?? [navigator.language]) {
+          if (/^zh/i.test(tag)) return 'zh';
+          if (/^en/i.test(tag)) return 'en';
+        }
+        return 'en';
+      }
+
+      function apply() {
+        const texts = TEXTS[locale] ?? TEXTS.en;
+        document.documentElement.lang = locale === 'zh' ? 'zh-CN' : 'en';
+        document.title = texts.docTitle;
+        document.getElementById('description').textContent = texts.description;
+        document.getElementById('heading').textContent = texts.heading;
+        document.getElementById('retry').textContent = texts.retry;
+        document.getElementById('hint').textContent = texts.hint;
+        const dark =
+          theme === 'dark' || (theme === 'system' && systemDark.matches);
+        document.body.classList.toggle('dark', dark);
+      }
+
+      async function start() {
+        let saved = null;
+        try {
+          saved = await window.labosThreejsDesktop?.getPreferences?.();
+        } catch {
+          // Bridge not ready: the device defaults below still render.
+        }
+        // Before the app has ever run (or without the bridge) the device
+        // preferences decide; otherwise the mirrored choice wins.
+        locale = saved && TEXTS[saved.locale] ? saved.locale : deviceLocale();
+        theme = saved?.theme ?? 'system';
+        apply();
+        // Only system mode follows OS theme changes, matching the app's
+        // own preference rules.
+        systemDark.addEventListener('change', () => {
+          if (theme === 'system') apply();
+        });
+      }
+
+      document.getElementById('retry').addEventListener('click', () => {
+        if (window.labosThreejsDesktop?.retryLoad) void window.labosThreejsDesktop.retryLoad();
+        else document.getElementById('hint').hidden = false;
+      });
+
+      start();
+    </script>
+  </body>
+</html>
