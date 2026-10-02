@@ -669,3 +669,48 @@
     display: none;
   }
 }
+.asset-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+}
+.asset-card-visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  height: 132px;
+  background: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.asset-card-visual img {
+  width: 144px;
+  height: 108px;
+  object-fit: contain;
+}
+.asset-card-visual [data-slot='badge'] {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+}
+.asset-metadata {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  font-size: 12px;
+}
+.asset-metadata dt {
+  color: var(--muted-foreground);
+}
+.asset-metadata dd {
+  overflow-wrap: anywhere;
+}
+.asset-schema {
+  padding: 12px;
+  background: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 12px;
+  overflow: auto;
+  max-width: 100%;
+}

@@ -1,5 +1,5 @@
 mod authentication;
-pub use authentication::{ReadActor, require_read};
+pub use authentication::{ReadActor, credential_is_current, require_access, require_read};
 mod management;
 pub use management::{openapi, router};
 

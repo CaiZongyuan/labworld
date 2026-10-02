@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import type { ApiClient } from '@labos-threejs/sdk';
+import type { ApiClient, CurrentSession } from '@labos-threejs/sdk';
 import { Fragment, type ReactNode } from 'react';
 import { Button } from '@labos-threejs/ui/components/button';
 import { Skeleton } from '@labos-threejs/ui/components/skeleton';
@@ -17,7 +17,7 @@ export function LabAccess({
   apiClient: ApiClient;
   title: string;
   onLogin: () => void;
-  children: (userId: string) => ReactNode;
+  children: (identity: CurrentSession) => ReactNode;
 }) {
   const client = useQueryClient();
   const identity = useQuery(sessionQuery(apiClient, client));
@@ -25,9 +25,7 @@ export function LabAccess({
   usePageTitle(`lab.${title}`);
   if (identity.data?.user)
     return (
-      <Fragment key={identity.data.user.id}>
-        {children(identity.data.user.id)}
-      </Fragment>
+      <Fragment key={identity.data.user.id}>{children(identity.data)}</Fragment>
     );
   return (
     <section className="flex flex-col gap-4 p-6">

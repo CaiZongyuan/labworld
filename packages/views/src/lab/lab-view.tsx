@@ -32,6 +32,7 @@ import { ImportFeedback, ModelFileInput, useModelImport } from './model-import';
 import { AssetInspector, PerformancePanel, Tool } from './view-controls';
 import type { RenderMetrics, ViewSettings, ViewStatus } from './viewport-state';
 import type { ModelErrorKey } from './glb';
+import type { ApiClient, CurrentSession } from '@labos-threejs/sdk';
 import './lab.css';
 
 const Viewport = lazy(() => import('./viewport'));
@@ -52,8 +53,14 @@ class ViewportBoundary extends Component<
   }
 }
 
-export default function LabView({ userId }: { userId: string }) {
-  const catalog = useCatalog(userId);
+export default function LabView({
+  apiClient,
+  identity,
+}: {
+  apiClient: ApiClient;
+  identity: CurrentSession;
+}) {
+  const catalog = useCatalog(apiClient, identity);
   const { addFile, activate } = catalog;
   const asset =
     catalog.assets.find((entry) => entry.id === catalog.activeId) ??
@@ -80,13 +87,14 @@ export default function LabView({ userId }: { userId: string }) {
   const dragDepth = useRef(0);
   const activeId = useRef(asset.id);
   const importAsset = useCallback(
-    (file: File) => {
+    async (file: File, buffer: ArrayBuffer, signal: AbortSignal) => {
       setRenderError(null);
-      activate(addFile(file));
+      const id = await addFile(file, buffer, signal);
+      if (!signal.aborted) activate(id);
     },
     [addFile, activate],
   );
-  const importer = useModelImport(importAsset);
+  const importer = useModelImport(importAsset, catalog.maxUploadBytes);
   const settings = useMemo<ViewSettings>(
     () => ({
       dark: resolvedTheme === 'dark',
@@ -148,7 +156,12 @@ export default function LabView({ userId }: { userId: string }) {
           <Button
             size="sm"
             aria-label={message('import.title')}
-            disabled={importer.pending}
+            disabled={
+              importer.pending ||
+              catalog.query.isPending ||
+              catalog.query.isError ||
+              !catalog.maxUploadBytes
+            }
             onClick={() => importer.input.current?.click()}
           >
             <Upload data-icon="inline-start" />

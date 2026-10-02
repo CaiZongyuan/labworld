@@ -1,5 +1,12 @@
 export type ModelErrorKey =
-  'format' | 'invalid' | 'external' | 'empty' | 'failed';
+  | 'format'
+  | 'invalid'
+  | 'external'
+  | 'empty'
+  | 'failed'
+  | 'tooLarge'
+  | 'denied'
+  | 'storage';
 
 export class ModelImportError extends Error {
   constructor(public readonly key: ModelErrorKey) {

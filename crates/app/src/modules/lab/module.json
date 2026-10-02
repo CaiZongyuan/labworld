@@ -1,0 +1,46 @@
+{
+  "kind": "reference",
+  "tables": ["lab.assets", "lab.asset_uploads", "lab.asset_representations"],
+  "viewPath": "packages/views/src/lab",
+  "exclusiveDependencies": [
+    "gltf",
+    "draco-core",
+    "awsm-renderer-codec-meshopt",
+    "basisu",
+    "image",
+    "data-url",
+    "ktx2"
+  ],
+  "migrations": ["migrations/0018_lab_assets.sql"],
+  "tests": [
+    "apps/api/tests/lab_assets.rs",
+    "apps/web/src/lab.test.tsx",
+    "tests/e2e/lab.spec.ts",
+    "tests/fixtures/lab"
+  ],
+  "tutorials": [
+    "docs/tutorials/persistent-assets.md",
+    "docs/tutorials/persistent-assets.en.md",
+    "examples/lab/import-asset.mjs"
+  ],
+  "contractSymbols": [
+    "LabAsset",
+    "AssetRepresentation",
+    "AssetPage",
+    "CreateAssetUpload",
+    "RenameAsset",
+    "listLabAssets",
+    "getLabAsset",
+    "renameLabAsset",
+    "deleteLabAsset",
+    "startAssetUpload",
+    "completeAssetUpload",
+    "getLabAssetDownload",
+    "AssetDefinition",
+    "DefinitionCapability",
+    "DefinitionInterface",
+    "DefinitionPage",
+    "listAssetDefinitions",
+    "getAssetDefinition"
+  ]
+}

@@ -16,10 +16,10 @@ Open <http://127.0.0.1:5173/lab>. Sign in or register at `/register`; both login
 1. Expect the industrial microscope, HDR lighting and a grid.
 2. Orbit, zoom and pan. Fit preserves the viewing direction and reset restores the original direction. Click the model to select it, or empty space to clear selection.
 3. Select or drop a self-contained glTF 2.0 `.glb`; it is centered and framed while preserving its scale.
-4. Search names or filenames in Asset library, open a model in Lab, or confirm removal of a local entry.
+4. In Asset library, provide name, source, license and version when importing. Publish, search by name or filename, open in Lab, or confirm deletion of an unreferenced asset.
 5. Invalid imports show feedback and preserve the previous usable model; a valid retry recovers.
 
-The catalog belongs to the current browser session. Reload or identity changes clear local files; the preset remains available. Legacy document and knowledge-base URLs retain their meaning. FPS, draw calls, triangles, object counts and available JS heap are observed live. GPU timing is not sampled and object counts do not measure GPU memory bytes.
+The catalog and GLB bytes persist on the server and can be reopened after a reload or in another browser. The preset remains available. Built-in definitions expose specifications, capabilities and state structures; backend device programs follow in later stages. The [persistent assets tutorial](../tutorials/persistent-assets.en.md) covers Member/Agent imports, failure recovery and the file lifecycle. Legacy document and knowledge-base URLs retain their meaning. FPS, draw calls, triangles, object counts and available JS heap are observed live. GPU timing is not sampled and object counts do not measure GPU memory bytes.
 
 Start at the [assembly](../../apps/web/src/app-examples.tsx), [Lab contribution](../../packages/views/src/lab/app-example.tsx) and [viewer](../../packages/views/src/lab/lab-view.tsx). The [asset record](../../assets/README.md) retains originals, runtime files and licenses.
 

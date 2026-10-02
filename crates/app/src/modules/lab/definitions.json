@@ -1,0 +1,205 @@
+[
+  {
+    "id": "centrifuge",
+    "version": "1.0",
+    "name": "冷冻离心机",
+    "name_en": "Refrigerated centrifuge",
+    "category": "instrument",
+    "specifications": {
+      "speed": { "unit": "rpm", "minimum": 0, "maximum": 15000 },
+      "temperature": { "unit": "degC", "minimum": -10, "maximum": 40 }
+    },
+    "capabilities": [
+      {
+        "id": "centrifuge.start",
+        "parameters": {
+          "type": "object",
+          "required": ["rpm", "temperature", "duration_seconds"],
+          "additionalProperties": false,
+          "properties": {
+            "rpm": { "type": "integer", "minimum": 500, "maximum": 15000 },
+            "temperature": { "type": "number", "minimum": -10, "maximum": 40 },
+            "duration_seconds": {
+              "type": "integer",
+              "minimum": 6,
+              "maximum": 3600
+            }
+          }
+        },
+        "implemented": false
+      },
+      {
+        "id": "centrifuge.stop",
+        "parameters": { "type": "object", "additionalProperties": false },
+        "implemented": false
+      }
+    ],
+    "state": {
+      "type": "object",
+      "properties": {
+        "speed": { "type": "number", "unit": "rpm" },
+        "temperature": { "type": "number", "unit": "degC" },
+        "phase": { "enum": ["idle", "preparing", "running", "decelerating"] }
+      }
+    },
+    "interfaces": [
+      { "id": "lab.asset-definitions.v1", "implemented": true },
+      { "id": "lab.device-commands.v1", "implemented": false }
+    ]
+  },
+  {
+    "id": "light",
+    "version": "1.0",
+    "name": "智能照明",
+    "name_en": "Smart light",
+    "category": "iot",
+    "specifications": {
+      "brightness": { "minimum": 0, "maximum": 100, "unit": "percent" }
+    },
+    "capabilities": [
+      {
+        "id": "light.set_power",
+        "parameters": {
+          "type": "object",
+          "required": ["on"],
+          "additionalProperties": false,
+          "properties": { "on": { "type": "boolean" } }
+        },
+        "implemented": false
+      },
+      {
+        "id": "light.set_brightness",
+        "parameters": {
+          "type": "object",
+          "required": ["brightness"],
+          "additionalProperties": false,
+          "properties": {
+            "brightness": { "type": "number", "minimum": 0, "maximum": 100 }
+          }
+        },
+        "implemented": false
+      }
+    ],
+    "state": {
+      "type": "object",
+      "properties": {
+        "on": { "type": "boolean" },
+        "brightness": { "type": "number", "unit": "percent" }
+      }
+    },
+    "interfaces": [
+      { "id": "lab.asset-definitions.v1", "implemented": true },
+      { "id": "lab.device-commands.v1", "implemented": false }
+    ]
+  },
+  {
+    "id": "sensor",
+    "version": "1.0",
+    "name": "环境温度传感器",
+    "name_en": "Environmental temperature sensor",
+    "category": "sensor",
+    "specifications": {
+      "sample_frequency": { "value": 1, "unit": "Hz" },
+      "temperature": { "unit": "degC" }
+    },
+    "capabilities": [],
+    "state": {
+      "type": "object",
+      "properties": { "temperature": { "type": "number", "unit": "degC" } }
+    },
+    "interfaces": [
+      { "id": "lab.asset-definitions.v1", "implemented": true },
+      { "id": "lab.observations.v1", "implemented": false }
+    ]
+  },
+  {
+    "id": "robot",
+    "version": "1.0",
+    "name": "协作机械臂",
+    "name_en": "Collaborative robot arm",
+    "category": "robot",
+    "specifications": {
+      "representation": "static",
+      "physical_integration": false
+    },
+    "capabilities": [
+      {
+        "id": "robot.move",
+        "parameters": {
+          "type": "object",
+          "required": ["position"],
+          "additionalProperties": false,
+          "properties": {
+            "position": {
+              "type": "array",
+              "minItems": 3,
+              "maxItems": 3,
+              "items": { "type": "number" }
+            }
+          }
+        },
+        "implemented": false
+      }
+    ],
+    "state": { "type": "object", "properties": {} },
+    "interfaces": [
+      { "id": "lab.asset-definitions.v1", "implemented": true },
+      { "id": "lab.device-commands.v1", "implemented": false }
+    ]
+  },
+  {
+    "id": "labware",
+    "version": "1.0",
+    "name": "玻璃烧杯 · 250 mL",
+    "name_en": "Glass beaker · 250 mL",
+    "category": "labware",
+    "specifications": {
+      "capacity": { "value": 250, "unit": "mL" },
+      "material": "glass",
+      "runtime_binding_required": false
+    },
+    "capabilities": [],
+    "state": { "type": "object", "properties": {} },
+    "interfaces": [{ "id": "lab.asset-definitions.v1", "implemented": true }]
+  },
+  {
+    "id": "bench",
+    "version": "1.0",
+    "name": "模块化实验台",
+    "name_en": "Modular lab bench",
+    "category": "furniture",
+    "specifications": { "runtime_binding_required": false },
+    "capabilities": [],
+    "state": { "type": "object", "properties": {} },
+    "interfaces": [{ "id": "lab.asset-definitions.v1", "implemented": true }]
+  },
+  {
+    "id": "environment",
+    "version": "1.0",
+    "name": "实验室空间",
+    "name_en": "Laboratory space",
+    "category": "location",
+    "specifications": { "runtime_binding_required": false },
+    "capabilities": [],
+    "state": { "type": "object", "properties": {} },
+    "interfaces": [{ "id": "lab.asset-definitions.v1", "implemented": true }]
+  },
+  {
+    "id": "model",
+    "version": "1.0",
+    "name": "自定义模型",
+    "name_en": "Custom model",
+    "category": "model",
+    "specifications": {
+      "format": "glTF 2.0 GLB",
+      "self_contained": true,
+      "runtime_binding_required": false
+    },
+    "capabilities": [],
+    "state": { "type": "object", "properties": {} },
+    "interfaces": [
+      { "id": "lab.asset-definitions.v1", "implemented": true },
+      { "id": "lab.assets.v1", "implemented": true }
+    ]
+  }
+]
