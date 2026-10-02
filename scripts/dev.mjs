@@ -1,10 +1,26 @@
 import { observabilityEnv, startObservability } from './lib/observability.mjs';
+import { busyDevPorts } from './lib/dev-ports.mjs';
 import { watch } from 'node:fs';
 import { join } from 'node:path';
 import { developmentEnv, launch, root, run, stop } from './lib/process.mjs';
 
 const observing = process.argv.includes('--observability');
 const env = observing ? observabilityEnv(developmentEnv()) : developmentEnv();
+const busy = await busyDevPorts(env);
+if (busy.length > 0) {
+  const webPort = env.WEB_PORT ?? 5173;
+  console.error(
+    [
+      `Dev ports already in use: ${busy.map(({ name, port }) => `${name} ${port}`).join(', ')}.`,
+      '',
+      'A dev stack may already be running:',
+      `  1. Open http://127.0.0.1:${webPort}/ — if it loads, keep using it; nothing to restart.`,
+      '  2. Otherwise run `just dev-stop` to stop leftovers from an earlier run, then `just dev` again.',
+      `  3. If both fail, another program owns the ports — inspect with \`ss -tlnp | grep -E '(:${busy.map(({ port }) => port).join('|')})\\b'\`.`,
+    ].join('\n'),
+  );
+  process.exit(1);
+}
 if (observing) await startObservability(env);
 run(
   'docker',

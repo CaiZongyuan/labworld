@@ -8,6 +8,10 @@ default:
 dev:
     node scripts/dev.mjs
 
+# Stop leftover dev processes (API/Worker/Web) still holding the dev ports.
+dev-stop:
+    node scripts/dev-stop.mjs
+
 services-down:
     docker compose stop postgres rustfs redis mailpit
 
