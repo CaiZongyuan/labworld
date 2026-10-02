@@ -1,0 +1,91 @@
+{
+  "at": "2026-10-02T14:41:23.106Z",
+  "url": "http://127.0.0.1:5191/prototype/lab-foundation",
+  "environment": "Headless Chromium, SwiftShader software rendering",
+  "scope": "Isolated browser prototype; no application backend, actual device, performance or production acceptance claim",
+  "checks": [
+    {
+      "name": "Real WebGL scene, complete inspector and eight independent entities",
+      "passed": true
+    },
+    {
+      "name": "Centrifuge prepares before counting; second instance stays idle",
+      "passed": true
+    },
+    {
+      "name": "Stop decelerates, records cancelled, then returns the device to idle",
+      "passed": true
+    },
+    {
+      "name": "Normal completion is distinct from cancellation",
+      "passed": true
+    },
+    {
+      "name": "Light switch changes the independent device observation",
+      "passed": true
+    },
+    {
+      "name": "Placement and manually registered location are independent",
+      "passed": true
+    },
+    {
+      "name": "Saved scene survives an actual browser refresh",
+      "passed": true
+    },
+    {
+      "name": "Asset to named entity registration is operable end to end",
+      "passed": true
+    },
+    {
+      "name": "Actual canvas pointer dragging edits placement without changing location",
+      "passed": true
+    },
+    {
+      "name": "Conflict retains draft and the recovery action can save it",
+      "passed": true
+    },
+    {
+      "name": "Agent creates an entity in the same world and can start and stop a task",
+      "passed": true
+    },
+    {
+      "name": "Disconnected and expired-session scenarios recover without losing layout",
+      "passed": true
+    },
+    {
+      "name": "Runtime restart interrupts the task and requires explicit program start",
+      "passed": true
+    },
+    {
+      "name": "Removing a scene node retains identity and can be undone by placement",
+      "passed": true
+    },
+    {
+      "name": "Unimplemented robot capabilities are explicitly descriptive",
+      "passed": true
+    },
+    {
+      "name": "GLB import, registration and saved model survive refresh",
+      "passed": true
+    },
+    {
+      "name": "Bad GLB is rejected and catalog remains intact",
+      "passed": true
+    },
+    {
+      "name": "Empty and loading scenes are recoverable",
+      "passed": true
+    },
+    {
+      "name": "English, dark mode and narrow-screen controls remain usable",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "warnings": [
+    "THREE.Clock: This module has been deprecated. Please use THREE.Timer instead.",
+    "THREE.WebGLShadowMap: PCFSoftShadowMap has been removed. Using PCFShadowMap instead.",
+    "[.WebGL-0x13ac00eaac00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+    "[.WebGL-0x13ac0e649e00]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels"
+  ]
+}

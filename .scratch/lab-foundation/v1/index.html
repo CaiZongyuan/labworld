@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#fcfcfc" />
+    <title>Lab Word · Digital Twin Foundation · Preview v1</title>
+    <script>
+      try {
+        if (!localStorage.getItem('labos-threejs.locale'))
+          localStorage.setItem('labos-threejs.locale', 'zh');
+        const theme = localStorage.getItem('labos-threejs.theme');
+        document.documentElement.classList.toggle(
+          'dark',
+          theme === 'dark' ||
+            (theme !== 'light' &&
+              matchMedia('(prefers-color-scheme: dark)').matches),
+        );
+      } catch {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

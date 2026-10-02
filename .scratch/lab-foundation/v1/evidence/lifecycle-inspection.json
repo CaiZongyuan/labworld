@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checks": [
+    "Running program blocks archive; stopping permits archive and archived identity remains discoverable",
+    "Referenced imported asset rejects deletion",
+    "English toolbar and registration buttons fit 320px and registration completes"
+  ],
+  "errors": []
+}
