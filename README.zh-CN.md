@@ -6,11 +6,11 @@
 
 ## 当前阶段
 
-首阶段包含预置设备、浏览器本地 GLB 导入、相机操作、点击选择与渲染指标。[Lab Viewer v1 交互预览](docs/guides/lab-viewer.md)已在隔离环境运行这些交互，画面已接受，正式应用接入与验证仍待完成。
+正式应用已集成预置设备、浏览器本地 GLB 导入、相机操作、点击选择、渲染指标和会话内资产库。使用方式见 [Lab Viewer 指南](docs/guides/lab-viewer.md)。
 
-当前应用保留 Rust/Axum API、React Web、Electron 壳，以及身份、成员、权限、文件、后台任务与知识库等基础能力。Lab 正式接入正在进行，仍待验收；真实设备数据与场景摆放编辑属于后续范围。
+Rust/Axum API、React Web、Electron 壳，以及身份、成员、文件、后台任务与知识库提供基础能力。下一阶段是持久世界与后端虚拟设备：Foundation v1 体验已接受，[规格 #1](https://github.com/CaiZongyuan/labworld/issues/1)与实施票 #2–#11 已发布，正式 Foundation 业务代码尚未开始编写。
 
-进一步阅读[呈现层方案](docs/plans/lab-viewer-m0.md)、[产品架构](docs/architecture/lab-word.md)和[词汇表](CONTEXT.md)。
+接手 Foundation 请先读[开发交接](docs/handoffs/digital-twin-foundation-v1.md)，再按需要查阅[产品架构](docs/architecture/lab-word.md)和[词汇表](CONTEXT.md)。
 
 ## 运行应用
 
@@ -25,7 +25,7 @@ just dev
 
 打开 <http://127.0.0.1:5173/register>。`just dev` 启动 PostgreSQL、Redis、RustFS、Mailpit，执行迁移、初始化存储，再启动 API、Worker 与 Web。使用 `curl -i http://127.0.0.1:3000/health/ready` 验证就绪。
 
-首个成功注册账号为 Owner，后续为 Member。上述命令运行现有应用；查看独立的三维预览请按 [Lab Viewer 指南](docs/guides/lab-viewer.md)操作。
+首个成功注册账号为 Owner，后续为 Member；登录后的默认业务入口为 Lab。`just dev-stop` 停止本工作树的 API、Worker 和 Web，Docker 数据服务通过 `just services-down` 管理。已接受的 Foundation 预览可按交接文档在独立 worktree 中运行。
 
 ## 项目文档
 
@@ -33,7 +33,7 @@ just dev
 
 - [快速开始](docs/getting-started/quickstart.md)
 - [项目结构](docs/architecture/project-structure.md)与[模块边界](docs/architecture/module-boundaries.md)
-- [Lab Viewer 预览](docs/guides/lab-viewer.md)
+- [Lab Viewer 与资产库](docs/guides/lab-viewer.md)
 - [现有平台能力](docs/guides/platform.md)
 - [测试](docs/testing/t01-feedback-loop.md)与[文档维护](docs/guides/maintain-docs.md)
 

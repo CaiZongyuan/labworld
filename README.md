@@ -6,11 +6,11 @@ English | [简体中文](README.zh-CN.md)
 
 ## Current Stage
 
-The product starts with a preset equipment model, browser-local GLB import, camera controls, click selection and renderer metrics. The [Lab Viewer v1 preview](docs/guides/lab-viewer.en.md) runs these interactions in isolation. The preview is accepted; production integration and validation are pending.
+The application includes a preset equipment model, browser-local GLB import, camera controls, click selection and renderer metrics. Lab Viewer and the session-local Asset Library are integrated; follow the [Lab Viewer guide](docs/guides/lab-viewer.en.md) to use them.
 
-The application contains the inherited Rust/Axum API, React Web client, Electron shell, identity, membership, permissions, files, background jobs and knowledge base. Production Lab integration is in progress and awaits acceptance. Live equipment data and scene placement editing are future work.
+The Rust/Axum API, React Web client, Electron shell, identity, membership, files, background jobs and knowledge base provide the foundation. Persistent worlds and server-owned virtual devices are the next stage: the Foundation v1 experience is accepted, and [spec #1](https://github.com/CaiZongyuan/labworld/issues/1) with implementation issues #2–#11 is published. Foundation business implementation has not started.
 
-See the [development plan](docs/plans/lab-viewer-m0.md), [product architecture](docs/architecture/lab-word.en.md) and [glossary](CONTEXT.md).
+Start Foundation work with the [developer handoff](docs/handoffs/digital-twin-foundation-v1.md). See also [product architecture](docs/architecture/lab-word.en.md) and the [glossary](CONTEXT.md).
 
 ## Run The Application
 
@@ -25,7 +25,7 @@ just dev
 
 Open <http://127.0.0.1:5173/register>. `just dev` starts PostgreSQL, Redis, RustFS and Mailpit, applies migrations, initializes storage, then starts API, Worker and Web. Verify readiness with `curl -i http://127.0.0.1:3000/health/ready`.
 
-The first registered account becomes Owner; later accounts are Members. This runs the existing application. To inspect the separate 3D preview, follow the [Lab Viewer guide](docs/guides/lab-viewer.en.md).
+The first registered account becomes Owner; later accounts are Members. After login, Lab is the default business entry. `just dev-stop` stops this worktree's API, Worker and Web processes; Docker data services are managed separately with `just services-down`. The handoff explains how to run the accepted Foundation preview in its own worktree.
 
 ## Documentation
 
@@ -33,7 +33,7 @@ Run `just docs` and open <http://127.0.0.1:5174/labworld/en/docs/>. The Chinese 
 
 - [Quick start](docs/getting-started/quickstart.en.md)
 - [Project structure](docs/architecture/project-structure.en.md) and [module boundaries](docs/architecture/module-boundaries.en.md)
-- [Lab Viewer preview](docs/guides/lab-viewer.en.md)
+- [Lab Viewer and Asset Library](docs/guides/lab-viewer.en.md)
 - [Existing platform capabilities](docs/guides/platform.en.md)
 - [Testing](docs/testing/t01-feedback-loop.en.md) and [documentation maintenance](docs/guides/maintain-docs.en.md)
 

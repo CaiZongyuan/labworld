@@ -16,6 +16,8 @@ docs/agents/
 docs/adr/
 docs/plans/
 docs/research/
+# Original research exports retain their source formatting and examples.
+docs/draft/
 docs/testing/strategy.md
 docs/labos-threejs-template-*.md
 Cargo.lock

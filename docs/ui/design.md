@@ -1,6 +1,6 @@
 # Lab Word 界面约定
 
-现有应用壳沿用[已接受的 Web 体验](web-experience.md)。Lab Viewer 的业务范围与画面接受状态见[预览记录](lab-viewer-experience.md)；v1 画面已接受，正式集成验证仍待完成。
+现有应用壳沿用[已接受的 Web 体验](web-experience.md)。Lab Viewer 已接入正式应用，验证见[体验记录](lab-viewer-experience.md)。下一阶段沿用[已接受的 Foundation v1 体验](lab-foundation-experience.md)，正式持久化与运行能力按实施票交付。
 
 ## 应用壳与业务
 

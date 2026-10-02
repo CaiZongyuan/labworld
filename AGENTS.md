@@ -4,6 +4,8 @@ Read CONTEXT.md before changing domain terminology and the relevant docs/adr/ de
 
 ## Agent skills
 
+For Digital Twin Foundation V1 work, start with [the development handoff](docs/handoffs/digital-twin-foundation-v1.md) for the approved scope, published tickets, accepted preview and current implementation baseline.
+
 ### Issue tracker
 
 Use GitHub Issues in CaiZongyuan/labworld. Before planning, publishing, claiming or completing tickets, read docs/agents/issue-tracker.md.

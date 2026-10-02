@@ -10,7 +10,7 @@ Choose the route from the agreed task scope; this project is a multi-session bui
 4. Show the numbered breakdown, full acceptance criteria and test strategy. Obtain the user's approval of granularity/dependencies before publishing.
 5. Publish the spec and approved implementation tickets to GitHub; create and verify native blocking edges. Leave source/parent issues unchanged thereafter.
 
-Current Lab scope is recorded in [product architecture](../architecture/lab-word.md), [the presentation plan](../plans/lab-viewer-m0.md) and [the experience record](../ui/lab-viewer-experience.md). The plan is not a published implementation ticket. Historical template tickets and autonomous-build approvals do not authorize work in Lab Word.
+The integrated viewer is described in [product architecture](../architecture/lab-word.md). Digital Twin Foundation V1 has an approved experience and published implementation tickets; start with [the development handoff](../handoffs/digital-twin-foundation-v1.md). Its GitHub spec and child tickets own implementation scope and dependencies. Historical template tickets and autonomous-build approvals do not authorize work in Lab Word.
 
 ## Per implementation ticket
 
