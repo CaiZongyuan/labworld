@@ -60,7 +60,14 @@ function Cylinder({
     </mesh>
   );
 }
-function Builtin({ definition }: { definition: string }) {
+function Builtin({ entity }: { entity: LabEntity }) {
+  const definition = entity.definition_id;
+  const light = entity.observation?.values as
+    { on?: boolean; brightness?: number } | undefined;
+  const intensity =
+    light?.on === true && typeof light.brightness === 'number'
+      ? light.brightness / 100
+      : 0;
   if (definition === 'bench')
     return (
       <group>
@@ -132,7 +139,12 @@ function Builtin({ definition }: { definition: string }) {
         <Cylinder position={[0, 0.59, 0]} radius={0.035} height={1.1} />
         <mesh position={[0, 1.15, 0]}>
           <cylinderGeometry args={[0.19, 0.28, 0.2, 32]} />
-          <meshStandardMaterial color="#d6dfbd" roughness={0.6} />
+          <meshStandardMaterial
+            color={entity.observation ? '#d6dfbd' : '#a6b0ae'}
+            emissive="#fff3a3"
+            emissiveIntensity={intensity * 2}
+            roughness={0.6}
+          />
         </mesh>
       </group>
     );
@@ -319,7 +331,7 @@ const NodeModel = memo(function NodeModel({
             onError={onError}
           />
         ) : (
-          <Builtin definition={entity.definition_id} />
+          <Builtin entity={entity} />
         )}
       </group>
       {selected && bounds ? (

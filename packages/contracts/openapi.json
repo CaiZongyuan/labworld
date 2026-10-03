@@ -5480,6 +5480,18 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "description": "Required for implemented actions: reuse the same key and parameters after an uncertain response",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
           }
         ],
         "requestBody": {
@@ -5493,6 +5505,379 @@
           "required": true
         },
         "responses": {
+          "202": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommand"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/commands/{command_id}": {
+      "get": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "getLabDeviceCommand",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "command_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceCommand"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/start": {
+      "post": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "startLabDeviceProgram",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceProgramRun"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceProgramRun"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/stop": {
+      "post": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "stopLabDeviceProgram",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceProgramRun"
+                }
+              }
+            }
+          },
           "400": {
             "description": "",
             "content": {
@@ -7152,7 +7537,11 @@
           "implemented": {
             "type": "boolean"
           },
-          "parameters": {}
+          "parameters": {},
+          "result": {},
+          "version": {
+            "type": "string"
+          }
         }
       },
       "DefinitionInterface": {
@@ -7181,6 +7570,150 @@
             "items": {
               "$ref": "#/components/schemas/AssetDefinition"
             }
+          }
+        }
+      },
+      "DeviceCommand": {
+        "type": "object",
+        "required": [
+          "id",
+          "entity_id",
+          "run_id",
+          "actor_id",
+          "actor_source",
+          "request_key",
+          "capability",
+          "parameters",
+          "status",
+          "created_at",
+          "updated_at"
+        ],
+        "properties": {
+          "actor_id": {
+            "type": "string"
+          },
+          "actor_source": {
+            "type": "string"
+          },
+          "capability": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "parameters": {},
+          "request_key": {
+            "type": "string"
+          },
+          "result": {},
+          "run_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DeviceObservation": {
+        "type": "object",
+        "required": [
+          "entity_id",
+          "run_id",
+          "sequence",
+          "source",
+          "values",
+          "received_at",
+          "updated_at",
+          "quality",
+          "freshness"
+        ],
+        "properties": {
+          "entity_id": {
+            "type": "string"
+          },
+          "freshness": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "quality": {
+            "type": "string"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "values": {}
+        }
+      },
+      "DeviceProgramRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "entity_id",
+          "binding_id",
+          "configuration",
+          "status",
+          "started_by",
+          "started_at"
+        ],
+        "properties": {
+          "binding_id": {
+            "type": "string"
+          },
+          "configuration": {},
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "started_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "started_by": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
           }
         }
       },
@@ -7376,11 +7909,13 @@
         "type": "object",
         "required": [
           "id",
+          "version",
           "definition_supported",
           "binding_implemented",
           "executable",
           "reason",
-          "parameters"
+          "parameters",
+          "result"
         ],
         "properties": {
           "binding_implemented": {
@@ -7397,6 +7932,10 @@
           },
           "parameters": {},
           "reason": {
+            "type": "string"
+          },
+          "result": {},
+          "version": {
             "type": "string"
           }
         }
@@ -7997,7 +8536,16 @@
           "capabilities"
         ],
         "properties": {
-          "binding": {},
+          "binding": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RuntimeBinding"
+              }
+            ]
+          },
           "capabilities": {
             "type": "array",
             "items": {
@@ -8039,7 +8587,26 @@
           "name": {
             "type": "string"
           },
-          "observation": {},
+          "observation": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeviceObservation"
+              }
+            ]
+          },
+          "program_run": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/DeviceProgramRun"
+              }
+            ]
+          },
           "reality": {
             "type": "string"
           },
@@ -8610,6 +9177,29 @@
           }
         },
         "additionalProperties": false
+      },
+      "RuntimeBinding": {
+        "type": "object",
+        "required": [
+          "id",
+          "entity_id",
+          "program_id",
+          "source"
+        ],
+        "properties": {
+          "entity_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "program_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          }
+        }
       },
       "SceneNode": {
         "type": "object",

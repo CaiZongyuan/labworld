@@ -4,6 +4,29 @@
   flex: 1;
   min-height: 0;
 }
+.device-panel [data-slot='field-group'] {
+  margin-top: 14px;
+}
+.device-brightness {
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+.device-brightness input {
+  min-width: 0;
+  flex: 1;
+}
+.device-command {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.device-command code,
+.device-command small {
+  overflow-wrap: anywhere;
+}
 .world-directory {
   border-right: 1px solid var(--border);
   display: flex;

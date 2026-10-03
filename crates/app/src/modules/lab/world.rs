@@ -2,6 +2,7 @@ use super::{
     Failure, Lab,
     assets::{self, LabAsset},
     definitions::{self, AssetDefinition},
+    devices::{self, DeviceObservation, DeviceProgramRun, RuntimeBinding},
 };
 use crate::{
     http::{ApiPath, ApiQuery, BoundedJson, RequestId},
@@ -89,11 +90,13 @@ pub struct ConfigureEntity {
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct EntityCapability {
     pub id: String,
+    pub version: String,
     pub definition_supported: bool,
     pub binding_implemented: bool,
     pub executable: bool,
     pub reason: String,
     pub parameters: Value,
+    pub result: Value,
 }
 #[derive(Serialize, ToSchema, sqlx::FromRow)]
 pub struct LabEntity {
@@ -113,26 +116,71 @@ pub struct LabEntity {
     pub updated_by: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    #[sqlx(skip)]
-    pub binding: Option<Value>,
-    #[sqlx(skip)]
-    pub observation: Option<Value>,
+    #[sqlx(json(nullable))]
+    pub binding: Option<RuntimeBinding>,
+    #[sqlx(json(nullable))]
+    pub program_run: Option<DeviceProgramRun>,
+    #[sqlx(json(nullable))]
+    pub observation: Option<DeviceObservation>,
     #[sqlx(skip)]
     pub capabilities: Vec<EntityCapability>,
 }
 impl LabEntity {
+    fn with_runtime_availability(mut self, available: bool) -> Self {
+        if !available {
+            for capability in &mut self.capabilities {
+                if capability.binding_implemented {
+                    capability.executable = false;
+                    capability.reason = "runtime_unavailable".into();
+                }
+            }
+        }
+        self
+    }
     fn with_capabilities(mut self) -> Self {
+        let implementation = if self
+            .binding
+            .as_ref()
+            .is_some_and(|binding| binding.program_id == "light.v1")
+        {
+            definitions::catalog()
+                .iter()
+                .find(|definition| definition.id == "light" && definition.version == "1.0")
+                .map(|definition| definition.capabilities.as_slice())
+                .unwrap_or(&[])
+        } else {
+            &[]
+        };
+        let running = self
+            .program_run
+            .as_ref()
+            .is_some_and(|run| run.status == "running");
         self.capabilities = self
             .definition
             .capabilities
             .iter()
-            .map(|capability| EntityCapability {
-                id: capability.id.clone(),
-                definition_supported: true,
-                binding_implemented: false,
-                executable: false,
-                reason: "binding_not_implemented".into(),
-                parameters: capability.parameters.clone(),
+            .map(|capability| {
+                let implemented = implementation
+                    .iter()
+                    .find(|entry| entry.id == capability.id);
+                let contract = implemented.unwrap_or(capability);
+                EntityCapability {
+                    id: capability.id.clone(),
+                    version: contract.version.clone(),
+                    definition_supported: true,
+                    binding_implemented: implemented.is_some(),
+                    executable: implemented.is_some() && running,
+                    reason: if implemented.is_none() {
+                        "binding_not_implemented"
+                    } else if running {
+                        "ready"
+                    } else {
+                        "program_not_running"
+                    }
+                    .into(),
+                    parameters: contract.parameters.clone(),
+                    result: contract.result.clone(),
+                }
             })
             .collect();
         self
@@ -176,7 +224,18 @@ pub struct EntityAction {
 }
 
 const LAB_COLUMNS: &str = "id::text, name, layout_version, created_by::text, created_at";
-const ENTITY_COLUMNS: &str = "id::text, lab_id::text, name, kind, reality, definition_id, definition_version, definition, configuration, representation_id::text, created_by::text, updated_by::text, created_at, updated_at";
+const ENTITY_COLUMNS: &str = "
+    id::text, lab_id::text, name, kind, reality, definition_id, definition_version,
+    definition, configuration, representation_id::text, created_by::text,
+    updated_by::text, created_at, updated_at,
+    (SELECT to_jsonb(b) FROM lab.runtime_bindings b WHERE b.entity_id=entities.id) AS binding,
+    (SELECT to_jsonb(r) FROM lab.program_runs r WHERE r.entity_id=entities.id
+        ORDER BY started_at DESC,id DESC LIMIT 1) AS program_run,
+    (SELECT to_jsonb(o)||jsonb_build_object('freshness',
+        CASE WHEN r.status<>'running' THEN r.status
+             WHEN o.observed_at IS NULL THEN 'source_time_unknown' ELSE 'current' END)
+        FROM lab.current_observations o JOIN lab.program_runs r ON r.id=o.run_id
+        WHERE o.entity_id=entities.id) AS observation";
 const NODE_COLUMNS: &str =
     "id::text, lab_id::text, entity_id::text, representation_id::text, placement";
 
@@ -212,7 +271,7 @@ pub(super) fn openapi() -> utoipa::openapi::OpenApi {
     WorldApi::openapi()
 }
 
-fn uuid(value: &str) -> Result<uuid::Uuid, Failure> {
+pub(super) fn uuid(value: &str) -> Result<uuid::Uuid, Failure> {
     uuid::Uuid::parse_str(value).map_err(|_| Failure::InvalidReference)
 }
 fn valid_name(value: &str) -> bool {
@@ -230,7 +289,7 @@ async fn load_lab(connection: &mut PgConnection, id: &str) -> Result<PersistentL
     .await?
     .ok_or(Failure::WorldNotFound)
 }
-async fn load_entity(
+pub(super) async fn load_entity(
     connection: &mut PgConnection,
     lab: &str,
     entity: &str,
@@ -363,8 +422,8 @@ async fn get_world(
         // Authentication already completed; session refresh locks cannot share this snapshot.
         sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").execute(&mut *tx).await?;
         let lab = load_lab(&mut tx, &lab_id).await?;
-        let entities = sqlx::query_as::<_, LabEntity>(&format!("SELECT {ENTITY_COLUMNS} FROM lab.entities WHERE lab_id=$1::uuid AND ($2::text IS NULL OR kind=$2) AND ($3::text IS NULL OR EXISTS(SELECT 1 FROM jsonb_array_elements(definition->'capabilities') c WHERE c->>'id'=$3)) AND ($4::text IS NULL OR $4='unknown') ORDER BY id"))
-            .bind(&lab_id).bind(query.kind).bind(query.capability).bind(query.state).fetch_all(&mut *tx).await?.into_iter().map(LabEntity::with_capabilities).collect::<Vec<_>>();
+        let entities = sqlx::query_as::<_, LabEntity>(&format!("SELECT {ENTITY_COLUMNS} FROM lab.entities WHERE lab_id=$1::uuid AND ($2::text IS NULL OR kind=$2) AND ($3::text IS NULL OR EXISTS(SELECT 1 FROM jsonb_array_elements(definition->'capabilities') c WHERE c->>'id'=$3)) AND ($4::text IS NULL OR ($4='unknown' AND NOT EXISTS(SELECT 1 FROM lab.current_observations o WHERE o.entity_id=entities.id)) OR EXISTS(SELECT 1 FROM lab.current_observations o WHERE o.entity_id=entities.id AND (o.values->>'on'=$4 OR o.values->>'phase'=$4))) ORDER BY id"))
+            .bind(&lab_id).bind(query.kind).bind(query.capability).bind(query.state).fetch_all(&mut *tx).await?.into_iter().map(|entity|entity.with_capabilities().with_runtime_availability(state.runtime_available())).collect::<Vec<_>>();
         let entity_ids = entities.iter().map(|entity| entity.id.clone()).collect::<Vec<_>>();
         let nodes: Vec<SceneNode> = sqlx::query_as(&format!("SELECT {NODE_COLUMNS} FROM lab.scene_nodes WHERE lab_id=$1::uuid AND entity_id::text=ANY($2) ORDER BY id"))
             .bind(&lab_id).bind(entity_ids).fetch_all(&mut *tx).await?;
@@ -393,7 +452,7 @@ async fn register_entity(
     let result = async {
         let lab = uuid(&lab)?.to_string();
         if !valid_name(&input.name) || !valid_configuration(&input.configuration) { return Err(Failure::InvalidInput); }
-        let definition = definitions::catalog().into_iter().find(|definition| definition.id==input.definition_id && definition.version==input.definition_version).ok_or(Failure::InvalidReference)?;
+        let definition = definitions::catalog().iter().find(|definition| definition.id==input.definition_id && definition.version==input.definition_version).ok_or(Failure::InvalidReference)?;
         let mut tx = state.pool.begin().await?;
         state.authorize(&mut tx, &headers, &actor).await?;
         sqlx::query("SELECT id FROM lab.labs WHERE id=$1::uuid FOR UPDATE").bind(&lab).fetch_optional(&mut *tx).await?.ok_or(Failure::WorldNotFound)?;
@@ -404,7 +463,8 @@ async fn register_entity(
         let entity = uuid::Uuid::now_v7().to_string();
         let reality = match input.reality { EntityReality::Simulated => "simulated", EntityReality::Physical => "physical" };
         sqlx::query("INSERT INTO lab.entities(id,lab_id,name,kind,reality,definition_id,definition_version,definition,configuration,representation_id,created_by,updated_by) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10::uuid,$11::uuid,$11::uuid)")
-            .bind(&entity).bind(&lab).bind(input.name.trim()).bind(&definition.category).bind(reality).bind(&definition.id).bind(&definition.version).bind(serde_json::to_value(&definition).map_err(|_| Failure::Unavailable)?).bind(json!(input.configuration)).bind(&input.representation_id).bind(&actor).execute(&mut *tx).await?;
+            .bind(&entity).bind(&lab).bind(input.name.trim()).bind(&definition.category).bind(reality).bind(&definition.id).bind(&definition.version).bind(serde_json::to_value(definition).map_err(|_| Failure::Unavailable)?).bind(json!(input.configuration)).bind(&input.representation_id).bind(&actor).execute(&mut *tx).await?;
+        devices::register_binding(&mut tx,&entity,&definition.id,reality).await?;
         let placement = Placement { position: [(count % 5) as f64 * 1.5, 0.0, (count / 5) as f64 * 1.5], ..Default::default() };
         insert_node(&mut tx, &lab, &entity, input.representation_id.as_deref(), placement).await?;
         event(&mut tx, &actor, "lab.entity.register", &entity, &id).await?;
@@ -431,7 +491,9 @@ async fn get_entity(
         let lab = uuid(&lab)?.to_string();
         let entity = uuid(&entity)?.to_string();
         let mut connection = state.pool.acquire().await?;
-        load_entity(&mut connection, &lab, &entity).await
+        load_entity(&mut connection, &lab, &entity)
+            .await
+            .map(|entity| entity.with_runtime_availability(state.runtime_available()))
     }
     .await;
     match result {
@@ -550,7 +612,7 @@ async fn create_node(
         Err(error) => error.response(id),
     }
 }
-#[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions", operation_id="invokeLabEntityAction", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), request_body=EntityAction, responses((status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=422, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
+#[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions", operation_id="invokeLabEntityAction", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path), ("Idempotency-Key"=Option<String>, Header, description="Required for implemented actions: reuse the same key and parameters after an uncertain response")), request_body=EntityAction, responses((status=202, body=devices::DeviceCommand), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=409, body=crate::http::ApiErrorResponse), (status=422, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
 async fn entity_action(
     State(state): State<Lab>,
     Extension(id): Extension<RequestId>,
@@ -562,27 +624,9 @@ async fn entity_action(
         Ok(actor) => actor,
         Err(response) => return response,
     };
-    let result = async {
-        let lab = uuid(&lab)?.to_string();
-        let entity = uuid(&entity)?.to_string();
-        if !input.parameters.is_object() {
-            return Err(Failure::InvalidInput);
-        }
-        let mut tx = state.pool.begin().await?;
-        state.authorize(&mut tx, &headers, &actor).await?;
-        let entity = load_entity(&mut tx, &lab, &entity).await?;
-        if !entity
-            .capabilities
-            .iter()
-            .any(|capability| capability.id == input.capability)
-        {
-            return Err(Failure::InvalidInput);
-        }
-        Err::<(), _>(Failure::NotImplemented)
-    }
-    .await;
+    let result = devices::accept(&state, &headers, &actor, &lab, &entity, input, &id).await;
     match result {
         Err(error) => error.response(id),
-        Ok(()) => unreachable!(),
+        Ok(command) => (StatusCode::ACCEPTED, Json(command)).into_response(),
     }
 }

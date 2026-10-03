@@ -67,6 +67,7 @@ pub fn configured_router(
     pool: PgPool,
     auth: AuthSettings,
     _files: Option<labos_threejs_app::modules::files::FileService>,
+    runtime: labos_threejs_app::modules::lab::RuntimeAvailability,
 ) -> Result<Router, labos_threejs_platform::config::ConfigError> {
     let password_reset = labos_threejs_app::modules::identity::PasswordReset::from_env()?;
     let limiter = labos_threejs_app::modules::rate_limit::RateLimiter::from_env()?;
@@ -86,10 +87,11 @@ pub fn configured_router(
     ));
     // example:knowledge:configured-routes:end
     key_scopes.push(labos_threejs_app::modules::lab::api_key_scope());
-    let routes = routes.merge(labos_threejs_app::modules::lab::router(
+    let routes = routes.merge(labos_threejs_app::modules::lab::router_with_runtime(
         pool.clone(),
         auth.clone(),
         _files,
+        Some(runtime),
     ));
     Ok(labos_threejs_app::compose_routes_with_options(
         pool,

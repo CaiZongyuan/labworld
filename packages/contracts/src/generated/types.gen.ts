@@ -160,6 +160,8 @@ export type DefinitionCapability = {
     id: string;
     implemented: boolean;
     parameters: unknown;
+    result?: unknown;
+    version?: string;
 };
 
 export type DefinitionInterface = {
@@ -169,6 +171,45 @@ export type DefinitionInterface = {
 
 export type DefinitionPage = {
     data: Array<AssetDefinition>;
+};
+
+export type DeviceCommand = {
+    actor_id: string;
+    actor_source: string;
+    capability: string;
+    created_at: string;
+    entity_id: string;
+    id: string;
+    parameters: unknown;
+    request_key: string;
+    result?: unknown;
+    run_id: string;
+    status: string;
+    updated_at: string;
+};
+
+export type DeviceObservation = {
+    entity_id: string;
+    freshness: string;
+    observed_at?: string | null;
+    quality: string;
+    received_at: string;
+    run_id: string;
+    sequence: number;
+    source: string;
+    updated_at: string;
+    values: unknown;
+};
+
+export type DeviceProgramRun = {
+    binding_id: string;
+    configuration: unknown;
+    ended_at?: string | null;
+    entity_id: string;
+    id: string;
+    started_at: string;
+    started_by: string;
+    status: string;
 };
 
 export type Document = {
@@ -227,6 +268,8 @@ export type EntityCapability = {
     id: string;
     parameters: unknown;
     reason: string;
+    result: unknown;
+    version: string;
 };
 
 export type EntityReality = 'simulated' | 'physical';
@@ -375,7 +418,7 @@ export type LabAsset = {
 };
 
 export type LabEntity = {
-    binding?: unknown;
+    binding?: null | RuntimeBinding;
     capabilities: Array<EntityCapability>;
     configuration: {
         [key: string]: unknown;
@@ -389,7 +432,8 @@ export type LabEntity = {
     kind: string;
     lab_id: string;
     name: string;
-    observation?: unknown;
+    observation?: null | DeviceObservation;
+    program_run?: null | DeviceProgramRun;
     reality: string;
     representation_id?: string | null;
     updated_at: string;
@@ -547,6 +591,13 @@ export type ResetRequest = {
      * with `auth.invalid_input`.
      */
     locale?: string | null;
+};
+
+export type RuntimeBinding = {
+    entity_id: string;
+    id: string;
+    program_id: string;
+    source: string;
 };
 
 export type SceneNode = {
@@ -2156,6 +2207,12 @@ export type ConfigureLabEntityResponse = ConfigureLabEntityResponses[keyof Confi
 
 export type InvokeLabEntityActionData = {
     body: EntityAction;
+    headers?: {
+        /**
+         * Required for implemented actions: reuse the same key and parameters after an uncertain response
+         */
+        'Idempotency-Key'?: string | null;
+    };
     path: {
         lab_id: string;
         entity_id: string;
@@ -2169,6 +2226,7 @@ export type InvokeLabEntityActionErrors = {
     401: ApiErrorResponse;
     403: ApiErrorResponse;
     404: ApiErrorResponse;
+    409: ApiErrorResponse;
     422: ApiErrorResponse;
     /**
      * Request budget exceeded; retry after the specified seconds
@@ -2178,6 +2236,106 @@ export type InvokeLabEntityActionErrors = {
 };
 
 export type InvokeLabEntityActionError = InvokeLabEntityActionErrors[keyof InvokeLabEntityActionErrors];
+
+export type InvokeLabEntityActionResponses = {
+    202: DeviceCommand;
+};
+
+export type InvokeLabEntityActionResponse = InvokeLabEntityActionResponses[keyof InvokeLabEntityActionResponses];
+
+export type GetLabDeviceCommandData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+        command_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/commands/{command_id}';
+};
+
+export type GetLabDeviceCommandErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabDeviceCommandError = GetLabDeviceCommandErrors[keyof GetLabDeviceCommandErrors];
+
+export type GetLabDeviceCommandResponses = {
+    200: DeviceCommand;
+};
+
+export type GetLabDeviceCommandResponse = GetLabDeviceCommandResponses[keyof GetLabDeviceCommandResponses];
+
+export type StartLabDeviceProgramData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/start';
+};
+
+export type StartLabDeviceProgramErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StartLabDeviceProgramError = StartLabDeviceProgramErrors[keyof StartLabDeviceProgramErrors];
+
+export type StartLabDeviceProgramResponses = {
+    200: DeviceProgramRun;
+    201: DeviceProgramRun;
+};
+
+export type StartLabDeviceProgramResponse = StartLabDeviceProgramResponses[keyof StartLabDeviceProgramResponses];
+
+export type StopLabDeviceProgramData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/stop';
+};
+
+export type StopLabDeviceProgramErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StopLabDeviceProgramError = StopLabDeviceProgramErrors[keyof StopLabDeviceProgramErrors];
+
+export type StopLabDeviceProgramResponses = {
+    200: DeviceProgramRun;
+};
+
+export type StopLabDeviceProgramResponse = StopLabDeviceProgramResponses[keyof StopLabDeviceProgramResponses];
 
 export type CreateLabSceneNodeData = {
     body: CreateSceneNode;

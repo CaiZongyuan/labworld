@@ -6,7 +6,12 @@
     "lab.asset_representations",
     "lab.labs",
     "lab.entities",
-    "lab.scene_nodes"
+    "lab.scene_nodes",
+    "lab.runtime_generation",
+    "lab.runtime_bindings",
+    "lab.program_runs",
+    "lab.device_commands",
+    "lab.current_observations"
   ],
   "viewPath": "packages/views/src/lab",
   "exclusiveDependencies": [
@@ -20,14 +25,19 @@
   ],
   "migrations": [
     "migrations/0018_lab_assets.sql",
-    "migrations/0019_lab_world.sql"
+    "migrations/0019_lab_world.sql",
+    "migrations/0020_lab_devices.sql",
+    "migrations/0021_lab_observation_order.sql"
   ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
     "apps/api/tests/lab_world.rs",
+    "apps/api/tests/lab_devices.rs",
+    "apps/web/src/lab-devices.test.tsx",
     "apps/web/src/lab-world.test.tsx",
     "apps/web/src/lab.test.tsx",
     "tests/e2e/lab.spec.ts",
+    "tests/e2e/lab-devices.spec.ts",
     "tests/fixtures/lab"
   ],
   "tutorials": [
@@ -36,7 +46,10 @@
     "examples/lab/import-asset.mjs",
     "docs/tutorials/persistent-world.md",
     "docs/tutorials/persistent-world.en.md",
-    "examples/lab/register-world.mjs"
+    "examples/lab/register-world.mjs",
+    "docs/tutorials/backend-lights.md",
+    "docs/tutorials/backend-lights.en.md",
+    "examples/lab/control-lights.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -77,6 +90,13 @@
     "getLabEntity",
     "configureLabEntity",
     "createLabSceneNode",
-    "invokeLabEntityAction"
+    "invokeLabEntityAction",
+    "RuntimeBinding",
+    "DeviceProgramRun",
+    "DeviceCommand",
+    "DeviceObservation",
+    "startLabDeviceProgram",
+    "stopLabDeviceProgram",
+    "getLabDeviceCommand"
   ]
 }

@@ -111,7 +111,19 @@
       "titleEn": "Persistent Labs and objects",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "persistent-assets"
+      "previous": "persistent-assets",
+      "next": "backend-lights"
+    },
+    {
+      "id": "backend-lights",
+      "source": "docs/tutorials/backend-lights.md",
+      "sourceEn": "docs/tutorials/backend-lights.en.md",
+      "route": "tutorials/backend-lights.md",
+      "title": "后端照明控制",
+      "titleEn": "Backend lighting control",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "persistent-world"
     },
     {
       "id": "lab-architecture",

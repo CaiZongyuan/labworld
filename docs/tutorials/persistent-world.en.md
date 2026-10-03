@@ -24,7 +24,7 @@ Open <http://127.0.0.1:5173/lab>, sign in as an ordinary Member, click **Create 
 5. Click **Add representation of this object**. A new node UUID appears while the Entity UUID remains unchanged. Registering another object creates a new Entity.
 6. Reload, or sign in as another Member in a separate browser and select `Identity lab` in **Open Lab**. Objects, definition snapshots, nodes and basic placements return.
 
-The Robot declares `move/pick/place`, but Binding implementation and current executability are both “No”. Without observations, it shows **Unknown · No observation**. Choosing “Physical object · Not connected” creates a separate identity without connecting any physical protocol. Relationships and device programs follow in later stages.
+The Robot declares `move/pick/place`, but Binding implementation and current executability are both “No”. Without observations, it shows **Unknown · No observation**. Choosing “Physical object · Not connected” creates a separate identity without connecting any physical protocol. Relationships follow later; lighting programs are in the [next chapter](backend-lights.md).
 
 Upload a GLB in the asset library, then select it under **Appearance** during registration. One asset can serve two independent objects; representation, file, node and Entity UUIDs remain separate. Deleting a referenced asset returns 409 and its file stays available. **Open in Lab** in the library previews the file at `/lab/asset`; it does not register an Entity.
 
@@ -46,7 +46,7 @@ Complete executable requests:
 
 <<< ../../examples/lab/register-world.mjs
 
-`GET /api/v1/lab/labs/{lab_id}/world` returns the Lab layout version, Entities, nodes and their referenced assets. Combine `kind`, `capability` and `state=unknown` filters. No runtime Binding exists yet, so all objects lack observations; other state filters return an empty set. `kind` uses the definition catalog category. Configuration is an instance JSON object with an 8192-byte limit; names have at most 120 characters; a Lab has at most 1000 Entities and 1000 nodes. The Lab list defaults to 50 entries per page, accepts `limit` from 1–100 and uses `next_cursor` to continue; the browser offers “Load more”. Placement uses meters, radians and positive scale. Registration persists a basic arrangement; interactive editing follows later.
+`GET /api/v1/lab/labs/{lab_id}/world` returns the Lab layout version, Entities, nodes and their referenced assets. Combine `kind`, `capability` and `state=unknown` filters. This chapter's Robots have no runtime Binding or observations. Once lights report, `state=true/false` filters reported power. `kind` uses the definition catalog category. Configuration is an instance JSON object with an 8192-byte limit; names have at most 120 characters; a Lab has at most 1000 Entities and 1000 nodes. The Lab list defaults to 50 entries per page, accepts `limit` from 1–100 and uses `next_cursor` to continue; the browser offers “Load more”. Placement uses meters, radians and positive scale. Registration persists a basic arrangement; interactive editing follows later.
 
 ## Failure and Recovery
 
@@ -62,4 +62,4 @@ pnpm exec vitest run apps/web/src/lab-world.test.tsx apps/web/src/lab.test.tsx
 node scripts/e2e.mjs tests/e2e/lab.spec.ts
 ```
 
-HTTP uses the real Router and isolated PostgreSQL, with real object storage for files. Components replace only HTTP with MSW. Browsers use real GLB/WebGL for directory/canvas identity, cross-context recovery, compressed loading and resource isolation. [Issue #4](https://github.com/CaiZongyuan/labworld/issues/4) adds independent backend light programs, commands and observations. Layout and instance configuration in this chapter never stand in for measured runtime state.
+HTTP uses the real Router and isolated PostgreSQL, with real object storage for files. Components replace only HTTP with MSW. Browsers use real GLB/WebGL for directory/canvas identity, cross-context recovery, compressed loading and resource isolation. Continue with [backend lighting control](backend-lights.md) for independent programs, commands and observations. Layout and instance configuration never stand in for measured runtime state.
