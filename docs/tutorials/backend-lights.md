@@ -65,4 +65,4 @@ pnpm test:frontend apps/web/src/lab-devices.test.tsx
 node scripts/e2e.mjs tests/e2e/lab-devices.spec.ts
 ```
 
-HTTP 用真实 Router 与隔离 PostgreSQL；公开运行入口覆盖报告顺序和重启；组件仅用 MSW 替代 HTTP；浏览器使用真实应用、独立 Agent 和 WebGL。接下来 [Issue #5](https://github.com/CaiZongyuan/labworld/issues/5) 添加布局编辑与登记关系，[Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) 添加连续传感器与过期判定；本章保持布局版本与运行观测分离。
+HTTP 用真实 Router 与隔离 PostgreSQL；公开运行入口覆盖报告顺序和重启；组件仅用 MSW 替代 HTTP；浏览器使用真实应用、独立 Agent 和 WebGL。接下来按[编辑布局与登记位置](edit-layout.md)操作布局和人工关系；[Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) 添加连续传感器与过期判定。本章保持布局版本与运行观测分离。

@@ -123,7 +123,19 @@
       "titleEn": "Backend lighting control",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "persistent-world"
+      "previous": "persistent-world",
+      "next": "edit-layout"
+    },
+    {
+      "id": "edit-layout",
+      "source": "docs/tutorials/edit-layout.md",
+      "sourceEn": "docs/tutorials/edit-layout.en.md",
+      "route": "tutorials/edit-layout.md",
+      "title": "编辑布局与登记位置",
+      "titleEn": "Edit Layout and Register Location",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "backend-lights"
     },
     {
       "id": "lab-architecture",

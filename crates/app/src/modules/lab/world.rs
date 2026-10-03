@@ -62,6 +62,18 @@ pub struct Placement {
     pub rotation: [f64; 3],
     pub scale: [f64; 3],
 }
+impl Placement {
+    pub(super) fn valid(&self) -> bool {
+        self.position
+            .iter()
+            .chain(self.rotation.iter())
+            .all(|value| value.is_finite() && value.abs() <= 10000.0)
+            && self
+                .scale
+                .iter()
+                .all(|value| value.is_finite() && *value >= 0.001 && *value <= 1000.0)
+    }
+}
 impl Default for Placement {
     fn default() -> Self {
         Self {
@@ -86,6 +98,13 @@ pub struct RegisterEntity {
 pub struct ConfigureEntity {
     pub name: String,
     pub configuration: Map<String, Value>,
+}
+#[derive(Deserialize, ToSchema)]
+#[serde(deny_unknown_fields)]
+pub struct CopyLabEntity {
+    pub expected_version: i64,
+    pub name: String,
+    pub placement: Placement,
 }
 #[derive(Serialize, Deserialize, ToSchema)]
 pub struct EntityCapability {
@@ -208,6 +227,7 @@ pub struct LabWorld {
     pub entities: Vec<LabEntity>,
     pub nodes: Vec<SceneNode>,
     pub assets: Vec<LabAsset>,
+    pub relationships: Vec<super::relationships::EntityRelationship>,
 }
 #[derive(Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
@@ -250,6 +270,10 @@ pub(super) fn routes() -> Router<Lab> {
         )
         .route("/api/v1/lab/labs/{lab_id}/nodes", post(create_node))
         .route(
+            "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies",
+            post(copy_entity),
+        )
+        .route(
             "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions",
             post(entity_action),
         )
@@ -264,6 +288,7 @@ pub(super) fn routes() -> Router<Lab> {
     get_entity,
     configure_entity,
     create_node,
+    copy_entity,
     entity_action
 ))]
 struct WorldApi;
@@ -280,7 +305,10 @@ fn valid_name(value: &str) -> bool {
 fn valid_configuration(value: &Map<String, Value>) -> bool {
     json!(value).to_string().len() <= 8192
 }
-async fn load_lab(connection: &mut PgConnection, id: &str) -> Result<PersistentLab, Failure> {
+pub(super) async fn load_lab(
+    connection: &mut PgConnection,
+    id: &str,
+) -> Result<PersistentLab, Failure> {
     sqlx::query_as(&format!(
         "SELECT {LAB_COLUMNS} FROM lab.labs WHERE id=$1::uuid"
     ))
@@ -318,7 +346,7 @@ async fn representation(connection: &mut PgConnection, id: Option<&str>) -> Resu
     }
     Ok(())
 }
-async fn event(
+pub(super) async fn event(
     connection: &mut PgConnection,
     actor: &str,
     action: &str,
@@ -426,11 +454,12 @@ async fn get_world(
             .bind(&lab_id).bind(query.kind).bind(query.capability).bind(query.state).fetch_all(&mut *tx).await?.into_iter().map(|entity|entity.with_capabilities().with_runtime_availability(state.runtime_available())).collect::<Vec<_>>();
         let entity_ids = entities.iter().map(|entity| entity.id.clone()).collect::<Vec<_>>();
         let nodes: Vec<SceneNode> = sqlx::query_as(&format!("SELECT {NODE_COLUMNS} FROM lab.scene_nodes WHERE lab_id=$1::uuid AND entity_id::text=ANY($2) ORDER BY id"))
-            .bind(&lab_id).bind(entity_ids).fetch_all(&mut *tx).await?;
-        let representations = nodes.iter().filter_map(|node| node.representation_id.clone()).collect::<Vec<_>>();
+            .bind(&lab_id).bind(&entity_ids).fetch_all(&mut *tx).await?;
+        let representations = nodes.iter().filter_map(|node| node.representation_id.clone()).chain(entities.iter().filter_map(|entity|entity.representation_id.clone())).collect::<Vec<_>>();
         let assets = assets::load_representations(&mut tx, &representations).await?;
+        let relationships = super::relationships::load(&mut tx,&lab_id).await?.into_iter().filter(|relation|entity_ids.contains(&relation.source_id) && entity_ids.contains(&relation.target_id)).collect();
         tx.commit().await?;
-        Ok::<_, Failure>(LabWorld { lab, entities, nodes, assets })
+        Ok::<_, Failure>(LabWorld { lab, entities, nodes, assets, relationships })
     }.await;
     match result {
         Ok(world) => Json(world).into_response(),
@@ -527,6 +556,42 @@ async fn configure_entity(
         Err(error) => error.response(id),
     }
 }
+#[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies", operation_id="copyLabEntity", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), request_body=CopyLabEntity, responses((status=201, body=LabEntity), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=409, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
+async fn copy_entity(
+    State(state): State<Lab>,
+    Extension(id): Extension<RequestId>,
+    headers: HeaderMap,
+    ApiPath((lab, entity)): ApiPath<(String, String)>,
+    BoundedJson(input): BoundedJson<CopyLabEntity>,
+) -> Response {
+    let actor = match state.actor(&headers, &id, true).await {
+        Ok(actor) => actor,
+        Err(response) => return response,
+    };
+    let result=async {
+        let lab=uuid(&lab)?.to_string(); let entity=uuid(&entity)?.to_string();
+        if !valid_name(&input.name) || !input.placement.valid() || input.expected_version<0 { return Err(Failure::InvalidInput); }
+        let mut tx=state.pool.begin().await?;
+        state.authorize(&mut tx,&headers,&actor).await?;
+        super::layout::lock_version(&mut tx,&lab,input.expected_version).await?;
+        let source=load_entity(&mut tx,&lab,&entity).await?;
+        let (entity_count,node_count):(i64,i64)=sqlx::query_as("SELECT (SELECT count(*) FROM lab.entities WHERE lab_id=$1::uuid),(SELECT count(*) FROM lab.scene_nodes WHERE lab_id=$1::uuid)").bind(&lab).fetch_one(&mut *tx).await?;
+        if entity_count>=1000 || node_count>=1000 { return Err(Failure::InvalidInput); }
+        let copied=uuid::Uuid::now_v7().to_string();
+        sqlx::query("INSERT INTO lab.entities(id,lab_id,name,kind,reality,definition_id,definition_version,definition,configuration,representation_id,created_by,updated_by) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$9,$10::uuid,$11::uuid,$11::uuid)")
+            .bind(&copied).bind(&lab).bind(input.name.trim()).bind(&source.kind).bind(&source.reality).bind(&source.definition_id).bind(&source.definition_version).bind(json!(source.definition)).bind(json!(source.configuration)).bind(&source.representation_id).bind(&actor).execute(&mut *tx).await?;
+        devices::register_binding(&mut tx,&copied,&source.definition_id,&source.reality).await?;
+        insert_node(&mut tx,&lab,&copied,source.representation_id.as_deref(),input.placement).await?;
+        event(&mut tx,&actor,"lab.entity.copy",&copied,&id).await?;
+        let copied=load_entity(&mut tx,&lab,&copied).await?;
+        tx.commit().await?;
+        Ok::<_,Failure>(copied)
+    }.await;
+    match result {
+        Ok(entity) => (StatusCode::CREATED, Json(entity)).into_response(),
+        Err(error) => error.response(id),
+    }
+}
 async fn insert_node(
     connection: &mut PgConnection,
     lab: &str,
@@ -558,18 +623,7 @@ async fn create_node(
     let result = async {
         let lab = uuid(&lab)?.to_string();
         let entity = uuid(&input.entity_id)?.to_string();
-        if input
-            .placement
-            .position
-            .iter()
-            .chain(input.placement.rotation.iter())
-            .any(|value| !value.is_finite() || value.abs() > 10000.0)
-            || input
-                .placement
-                .scale
-                .iter()
-                .any(|value| !value.is_finite() || *value < 0.001 || *value > 1000.0)
-        {
+        if !input.placement.valid() {
             return Err(Failure::InvalidInput);
         }
         let mut tx = state.pool.begin().await?;

@@ -16,6 +16,14 @@ import {
   Plus,
   RefreshCw,
   Search,
+  Save,
+  Play,
+  Undo2,
+  Minus,
+  Copy,
+  Move,
+  RotateCw,
+  Scaling,
 } from 'lucide-react';
 import {
   createLab,
@@ -25,13 +33,21 @@ import {
   listLabs,
   listAssetDefinitions,
   registerLabEntity,
+  saveLabLayout,
+  copyLabEntity,
   type ApiClient,
   type CurrentSession,
   type LabEntity,
+  type Placement,
 } from '@labos-threejs/sdk';
 import { Button } from '@labos-threejs/ui/components/button';
 import { Badge } from '@labos-threejs/ui/components/badge';
 import { Input } from '@labos-threejs/ui/components/input';
+import { Tabs, TabsList, TabsTrigger } from '@labos-threejs/ui/components/tabs';
+import {
+  ToggleGroup,
+  ToggleGroupItem,
+} from '@labos-threejs/ui/components/toggle-group';
 import {
   Empty,
   EmptyHeader,
@@ -57,6 +73,13 @@ import WorldDialog, {
   type WorldSubmission,
 } from './world-dialog';
 import DevicePanel, { type CommandAttempt } from './device-panel';
+import RelationshipPanel from './relationship-panel';
+import {
+  layoutDraft,
+  rebaseLayout,
+  PlacementEditor,
+  type LayoutDraft,
+} from './layout-editor';
 import './lab.css';
 import './world.css';
 
@@ -128,6 +151,7 @@ export default function WorldView({
   const [selection, setSelection] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
+  const [unplacedOnly, setUnplacedOnly] = useState(false);
   const [dialog, setDialog] = useState<WorldDialogMode | null>(null);
   const [grid, setGrid] = useState(true);
   const [fit, setFit] = useState(0);
@@ -137,6 +161,25 @@ export default function WorldView({
   const [metrics, setMetrics] = useState<RenderMetrics | null>(null);
   const [error, setError] = useState<unknown>(null);
   const [nodePending, setNodePending] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [transformMode, setTransformMode] = useState<
+    'translate' | 'rotate' | 'scale'
+  >('translate');
+  const [drafts, setDrafts] = useState<Record<string, LayoutDraft>>({});
+  const [layoutStatus, setLayoutStatus] = useState<
+    'idle' | 'saved' | 'conflict'
+  >('idle');
+  const [layoutPending, setLayoutPending] = useState(false);
+  const [nodeSelection, setNodeSelection] = useState<string | null>(null);
+  const draft = drafts[labId];
+  const nodes = useMemo(
+    () => draft?.nodes ?? world.data?.nodes ?? [],
+    [draft?.nodes, world.data?.nodes],
+  );
+  const placedIds = useMemo(
+    () => new Set(nodes.map((node) => node.entity_id)),
+    [nodes],
+  );
   const entities = world.data?.entities ?? [];
   const modelAssets = useMemo(
     () =>
@@ -152,24 +195,114 @@ export default function WorldView({
     [world.data?.assets, apiClient],
   );
   const selected = entities.find((entity) => entity.id === selection.at(-1));
+  const activeNode =
+    nodes.find(
+      (node) => node.id === nodeSelection && node.entity_id === selected?.id,
+    ) ?? nodes.find((node) => node.entity_id === selected?.id);
   const visible = entities.filter(
     (entity) =>
       (!kind || entity.kind === kind) &&
+      (!unplacedOnly || !placedIds.has(entity.id)) &&
       entity.name.toLowerCase().includes(search.toLowerCase()),
   );
-  const select = useCallback((id: string | null, additive: boolean) => {
-    if (id === null) {
-      setSelection([]);
-      return;
-    }
-    setSelection((previous) =>
-      additive
-        ? previous.includes(id)
-          ? previous.filter((entry) => entry !== id)
-          : [...previous, id]
-        : [id],
+  const select = useCallback(
+    (id: string | null, additive: boolean, nodeId?: string) => {
+      setNodeSelection(nodeId ?? null);
+      if (id === null) {
+        setSelection([]);
+        return;
+      }
+      setSelection((previous) =>
+        additive
+          ? previous.includes(id)
+            ? previous.filter((entry) => entry !== id)
+            : [...previous, id]
+          : [id],
+      );
+    },
+    [],
+  );
+  function changeDraft(change: (current: LayoutDraft) => LayoutDraft) {
+    if (!world.data || layoutPending) return;
+    const snapshot = world.data;
+    setDrafts((previous) => ({
+      ...previous,
+      [labId]: change(previous[labId] ?? layoutDraft(snapshot)),
+    }));
+    setLayoutStatus((previous) =>
+      previous === 'conflict' ? 'conflict' : 'idle',
     );
-  }, []);
+  }
+  function changePlacement(id: string, placement: Placement) {
+    changeDraft((current) => ({
+      ...current,
+      nodes: current.nodes.map((node) =>
+        node.id === id ? { ...node, placement } : node,
+      ),
+    }));
+  }
+  async function saveLayout() {
+    if (!draft || layoutPending) return;
+    setLayoutPending(true);
+    setError(null);
+    try {
+      await mutation(() =>
+        saveLabLayout({
+          client: apiClient,
+          headers: { 'x-csrf-token': identity.csrf_token },
+          path: { lab_id: labId },
+          body: {
+            expected_version: draft.version,
+            nodes: draft.nodes.map(
+              ({ id, entity_id, representation_id, placement }) => ({
+                id,
+                entity_id,
+                representation_id,
+                placement,
+              }),
+            ),
+            relationships: draft.relationships,
+          },
+          throwOnError: true,
+        }),
+      );
+      setDrafts((previous) => {
+        const next = { ...previous };
+        delete next[labId];
+        return next;
+      });
+      setLayoutStatus('saved');
+    } catch (cause) {
+      if (errorCodeOf(cause) === 'lab.layout_conflict')
+        setLayoutStatus('conflict');
+      else setError(cause);
+    } finally {
+      setLayoutPending(false);
+    }
+  }
+  async function reloadLayout(keep: boolean) {
+    setLayoutPending(true);
+    setError(null);
+    try {
+      const latest = await world.refetch();
+      if (latest.error) throw latest.error;
+      if (latest.data) {
+        const snapshot = latest.data;
+        setDrafts((previous) => {
+          const next = { ...previous };
+          if (keep && previous[labId])
+            next[labId] = rebaseLayout(previous[labId], snapshot);
+          else delete next[labId];
+          return next;
+        });
+        if (!keep) setLayoutStatus('idle');
+      }
+    } catch (cause) {
+      setError(cause);
+    } finally {
+      setLayoutPending(false);
+    }
+  }
   async function mutation(operation: () => Promise<unknown>) {
     try {
       await operation();
@@ -213,6 +346,30 @@ export default function WorldView({
     });
   }
   async function addRepresentation(entity: LabEntity) {
+    if (editing) {
+      const node = {
+        id: crypto.randomUUID(),
+        lab_id: labId,
+        entity_id: entity.id,
+        representation_id:
+          activeNode?.representation_id ?? entity.representation_id,
+        placement: {
+          position: activeNode
+            ? activeNode.placement.position.map((value, index) =>
+                index === 0 ? value + 0.8 : value,
+              )
+            : [0, 0, 0],
+          rotation: [0, 0, 0],
+          scale: [1, 1, 1],
+        },
+      };
+      changeDraft((current) => ({
+        ...current,
+        nodes: [...current.nodes, node],
+      }));
+      setNodeSelection(node.id);
+      return;
+    }
     setNodePending(true);
     setError(null);
     const offset = (world.data?.nodes.length ?? 0) * 1.5;
@@ -234,6 +391,43 @@ export default function WorldView({
           throwOnError: true,
         }),
       );
+    } catch (cause) {
+      setError(cause);
+    } finally {
+      setNodePending(false);
+    }
+  }
+  async function copyEntity(entity: LabEntity) {
+    if (!world.data || draft || nodePending) return;
+    const snapshot = world.data;
+    setNodePending(true);
+    setError(null);
+    try {
+      await mutation(async () => {
+        const { data } = await copyLabEntity({
+          client: apiClient,
+          headers: { 'x-csrf-token': identity.csrf_token },
+          path: { lab_id: labId, entity_id: entity.id },
+          body: {
+            expected_version: snapshot.lab.layout_version,
+            name: message('layout.copyName', {
+              name: Array.from(entity.name).slice(0, 110).join(''),
+            }),
+            placement: {
+              position: activeNode
+                ? activeNode.placement.position.map((value, index) =>
+                    index === 0 ? value + 0.8 : value,
+                  )
+                : [0, 0, 0],
+              rotation: activeNode?.placement.rotation ?? [0, 0, 0],
+              scale: activeNode?.placement.scale ?? [1, 1, 1],
+            },
+          },
+          throwOnError: true,
+        });
+        setSelection([data.id]);
+        setNodeSelection(null);
+      });
     } catch (cause) {
       setError(cause);
     } finally {
@@ -267,6 +461,7 @@ export default function WorldView({
               onChange={(event) => {
                 setActiveLab(event.target.value);
                 setSelection([]);
+                setLayoutStatus('idle');
               }}
             >
               {labList.map((lab) => (
@@ -296,6 +491,7 @@ export default function WorldView({
             onClick={() => setDialog('register')}
             disabled={
               !world.data ||
+              !!draft ||
               !definitions.data ||
               catalog.query.isPending ||
               catalog.query.isError
@@ -316,6 +512,66 @@ export default function WorldView({
           />
         </div>
       </header>
+      <div className="world-layout-toolbar">
+        <Tabs
+          value={editing ? 'layout' : 'runtime'}
+          onValueChange={(value) => setEditing(value === 'layout')}
+        >
+          <TabsList aria-label={message('layout.mode')}>
+            <TabsTrigger value="runtime">
+              <Play data-icon="inline-start" />
+              {message('layout.runtime')}
+            </TabsTrigger>
+            <TabsTrigger value="layout">
+              <Pencil data-icon="inline-start" />
+              {message('layout.edit')}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <span role="status" aria-label={message('layout.status')}>
+          {message(
+            draft
+              ? 'layout.unsaved'
+              : layoutStatus === 'saved'
+                ? 'layout.saved'
+                : 'layout.clean',
+          )}
+        </span>
+        {editing ? (
+          <div className="world-layout-actions">
+            <Tool
+              icon={Save}
+              label={message(
+                layoutStatus === 'conflict'
+                  ? 'layout.retrySave'
+                  : 'layout.save',
+              )}
+              disabled={!draft || layoutPending}
+              onClick={() => void saveLayout()}
+            />
+            <Tool
+              icon={Undo2}
+              label={message('layout.discard')}
+              disabled={!draft || layoutPending}
+              onClick={() => void reloadLayout(false)}
+            />
+          </div>
+        ) : null}
+      </div>
+      {layoutStatus === 'conflict' && draft ? (
+        <Alert className="world-layout-conflict">
+          <AlertDescription>{message('layout.conflict')}</AlertDescription>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={layoutPending}
+            onClick={() => void reloadLayout(true)}
+          >
+            <RefreshCw data-icon="inline-start" />
+            {message('layout.reloadKeep')}
+          </Button>
+        </Alert>
+      ) : null}
       {failure ? (
         <div className="lab-error">
           <ErrorAlert error={failure} title={message('assets.error')} />
@@ -365,6 +621,14 @@ export default function WorldView({
               ))}
             </NativeSelect>
           </div>
+          <label className="world-unplaced-filter">
+            <input
+              type="checkbox"
+              checked={unplacedOnly}
+              onChange={(event) => setUnplacedOnly(event.target.checked)}
+            />
+            {message('layout.unplacedOnly')}
+          </label>
           <div className="world-object-list">
             {visible.map((entity) => (
               <div
@@ -396,6 +660,9 @@ export default function WorldView({
                     <strong>{entity.name}</strong>
                     <small>
                       {entity.definition_id} · {entity.definition_version}
+                      {!placedIds.has(entity.id)
+                        ? ` · ${message('layout.unplaced')}`
+                        : ''}
                     </small>
                   </span>
                   <i />
@@ -437,10 +704,15 @@ export default function WorldView({
                 >
                   <WorldViewport
                     key={`${labId}-${renderVersion}`}
-                    world={world.data}
+                    world={draft ? { ...world.data, nodes } : world.data}
                     assets={modelAssets}
                     selected={selection}
                     onSelect={select}
+                    activeNodeId={activeNode?.id}
+                    transformMode={
+                      editing && !layoutPending ? transformMode : null
+                    }
+                    onPlacement={changePlacement}
                     dark={resolvedTheme === 'dark'}
                     grid={grid}
                     fit={fit}
@@ -488,6 +760,40 @@ export default function WorldView({
               onClick={() => setPerformance(!performance)}
             />
           </div>
+          {editing ? (
+            <ToggleGroup
+              className="world-transform-tools"
+              multiple={false}
+              value={[transformMode]}
+              onValueChange={(value) => {
+                if (value[0])
+                  setTransformMode(value[0] as typeof transformMode);
+              }}
+              aria-label={message('layout.transform')}
+            >
+              <ToggleGroupItem
+                value="translate"
+                aria-label={message('layout.translate')}
+                title={message('layout.translate')}
+              >
+                <Move />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="rotate"
+                aria-label={message('layout.rotation')}
+                title={message('layout.rotation')}
+              >
+                <RotateCw />
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value="scale"
+                aria-label={message('layout.scale')}
+                title={message('layout.scale')}
+              >
+                <Scaling />
+              </ToggleGroupItem>
+            </ToggleGroup>
+          ) : null}
           {performance ? <PerformancePanel metrics={metrics} /> : null}
         </div>
         <aside
@@ -555,13 +861,53 @@ export default function WorldView({
                 }
                 onRefresh={world.refetch}
               />
+              {world.data ? (
+                <RelationshipPanel
+                  key={`relationships-${selected.id}`}
+                  world={world.data}
+                  entity={selected}
+                  relationships={
+                    draft?.relationships ??
+                    layoutDraft(world.data).relationships
+                  }
+                  editing={editing}
+                  disabled={layoutPending}
+                  onChange={(relationships) =>
+                    changeDraft((current) => ({ ...current, relationships }))
+                  }
+                />
+              ) : null}
               <section className="lab-inspector-section">
                 <h3>{message('world.nodes')}</h3>
-                {world.data?.nodes
+                {nodes
                   .filter((node) => node.entity_id === selected.id)
                   .map((node) => (
                     <div className="world-node" key={node.id}>
                       <code>{node.id}</code>
+                      {editing ? (
+                        <div className="world-node-actions">
+                          <Tool
+                            icon={Pencil}
+                            label={message('layout.selectNode')}
+                            active={node.id === activeNode?.id}
+                            disabled={layoutPending}
+                            onClick={() => setNodeSelection(node.id)}
+                          />
+                          <Tool
+                            icon={Minus}
+                            label={message('layout.removeNode')}
+                            disabled={layoutPending}
+                            onClick={() =>
+                              changeDraft((current) => ({
+                                ...current,
+                                nodes: current.nodes.filter(
+                                  (entry) => entry.id !== node.id,
+                                ),
+                              }))
+                            }
+                          />
+                        </div>
+                      ) : null}
                       <span>{node.placement.position.join(', ')} m</span>
                       <small>
                         {node.representation_id ??
@@ -569,15 +915,38 @@ export default function WorldView({
                       </small>
                     </div>
                   ))}
+                {editing && activeNode ? (
+                  <PlacementEditor
+                    node={activeNode}
+                    disabled={layoutPending}
+                    onChange={(placement) =>
+                      changePlacement(activeNode.id, placement)
+                    }
+                  />
+                ) : null}
                 <Button
                   variant="outline"
                   size="sm"
-                  disabled={nodePending}
+                  disabled={
+                    nodePending || layoutPending || (!editing && !!draft)
+                  }
                   onClick={() => void addRepresentation(selected)}
                 >
                   <Plus data-icon="inline-start" />
                   {message('world.addRepresentation')}
                 </Button>
+                {editing ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="world-copy"
+                    disabled={!!draft || nodePending || layoutPending}
+                    onClick={() => void copyEntity(selected)}
+                  >
+                    <Copy data-icon="inline-start" />
+                    {message('layout.copy')}
+                  </Button>
+                ) : null}
               </section>
               <section className="lab-inspector-section">
                 <h3>{message('assets.capabilities')}</h3>
@@ -668,11 +1037,11 @@ export default function WorldView({
       <footer className="lab-status">
         <span>
           <i />
-          {entities.length} {message('world.objects')} /{' '}
-          {world.data?.nodes.length ?? 0} {message('world.nodes')}
+          {entities.length} {message('world.objects')} / {nodes.length}{' '}
+          {message('world.nodes')}
         </span>
         <span>{selected?.name ?? message('viewer.unselected')}</span>
-        <span>{message('assets.saved')}</span>
+        <span>{message(draft ? 'layout.unsaved' : 'assets.saved')}</span>
       </footer>
       {dialog ? (
         <WorldDialog

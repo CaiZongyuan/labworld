@@ -5718,6 +5718,131 @@
         }
       }
     },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies": {
+      "post": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "copyLabEntity",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CopyLabEntity"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabEntity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/start": {
       "post": {
         "tags": [
@@ -5919,6 +6044,123 @@
             }
           },
           "422": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/layout": {
+      "put": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "saveLabLayout",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLabLayout"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabLayout"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -7342,6 +7584,27 @@
         },
         "additionalProperties": false
       },
+      "CopyLabEntity": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "name",
+          "placement"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "name": {
+            "type": "string"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/Placement"
+          }
+        },
+        "additionalProperties": false
+      },
       "CreateApiKey": {
         "type": "object",
         "required": [
@@ -7946,6 +8209,46 @@
           "simulated",
           "physical"
         ]
+      },
+      "EntityRelationship": {
+        "type": "object",
+        "required": [
+          "id",
+          "lab_id",
+          "source_id",
+          "target_id",
+          "kind",
+          "source",
+          "registered_by",
+          "registered_at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "lab_id": {
+            "type": "string"
+          },
+          "registered_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "registered_by": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          }
+        }
       },
       "ExportPage": {
         "type": "object",
@@ -8625,6 +8928,32 @@
           }
         }
       },
+      "LabLayout": {
+        "type": "object",
+        "required": [
+          "layout_version",
+          "nodes",
+          "relationships"
+        ],
+        "properties": {
+          "layout_version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SceneNode"
+            }
+          },
+          "relationships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntityRelationship"
+            }
+          }
+        }
+      },
       "LabPage": {
         "type": "object",
         "required": [
@@ -8655,7 +8984,8 @@
           "lab",
           "entities",
           "nodes",
-          "assets"
+          "assets",
+          "relationships"
         ],
         "properties": {
           "assets": {
@@ -8678,8 +9008,64 @@
             "items": {
               "$ref": "#/components/schemas/SceneNode"
             }
+          },
+          "relationships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EntityRelationship"
+            }
           }
         }
+      },
+      "LayoutNode": {
+        "type": "object",
+        "required": [
+          "id",
+          "entity_id",
+          "placement"
+        ],
+        "properties": {
+          "entity_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "placement": {
+            "$ref": "#/components/schemas/Placement"
+          },
+          "representation_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "LayoutRelationship": {
+        "type": "object",
+        "required": [
+          "id",
+          "source_id",
+          "target_id",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/RelationshipKind"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
       },
       "Login": {
         "type": "object",
@@ -9124,6 +9510,14 @@
         },
         "additionalProperties": false
       },
+      "RelationshipKind": {
+        "type": "string",
+        "enum": [
+          "located_in",
+          "contains",
+          "simulates"
+        ]
+      },
       "RenameAsset": {
         "type": "object",
         "required": [
@@ -9200,6 +9594,36 @@
             "type": "string"
           }
         }
+      },
+      "SaveLabLayout": {
+        "type": "object",
+        "required": [
+          "expected_version",
+          "nodes"
+        ],
+        "properties": {
+          "expected_version": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "nodes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LayoutNode"
+            }
+          },
+          "relationships": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/LayoutRelationship"
+            },
+            "description": "Omit to retain registered relationships; an array explicitly replaces them."
+          }
+        },
+        "additionalProperties": false
       },
       "SceneNode": {
         "type": "object",
