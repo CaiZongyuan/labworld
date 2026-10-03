@@ -1,6 +1,13 @@
 {
   "kind": "reference",
-  "tables": ["lab.assets", "lab.asset_uploads", "lab.asset_representations"],
+  "tables": [
+    "lab.assets",
+    "lab.asset_uploads",
+    "lab.asset_representations",
+    "lab.labs",
+    "lab.entities",
+    "lab.scene_nodes"
+  ],
   "viewPath": "packages/views/src/lab",
   "exclusiveDependencies": [
     "gltf",
@@ -11,9 +18,14 @@
     "data-url",
     "ktx2"
   ],
-  "migrations": ["migrations/0018_lab_assets.sql"],
+  "migrations": [
+    "migrations/0018_lab_assets.sql",
+    "migrations/0019_lab_world.sql"
+  ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
+    "apps/api/tests/lab_world.rs",
+    "apps/web/src/lab-world.test.tsx",
     "apps/web/src/lab.test.tsx",
     "tests/e2e/lab.spec.ts",
     "tests/fixtures/lab"
@@ -21,7 +33,10 @@
   "tutorials": [
     "docs/tutorials/persistent-assets.md",
     "docs/tutorials/persistent-assets.en.md",
-    "examples/lab/import-asset.mjs"
+    "examples/lab/import-asset.mjs",
+    "docs/tutorials/persistent-world.md",
+    "docs/tutorials/persistent-world.en.md",
+    "examples/lab/register-world.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -41,6 +56,27 @@
     "DefinitionInterface",
     "DefinitionPage",
     "listAssetDefinitions",
-    "getAssetDefinition"
+    "getAssetDefinition",
+    "PersistentLab",
+    "LabPage",
+    "CreateLab",
+    "LabEntity",
+    "RegisterEntity",
+    "ConfigureEntity",
+    "EntityReality",
+    "EntityCapability",
+    "SceneNode",
+    "CreateSceneNode",
+    "Placement",
+    "LabWorld",
+    "EntityAction",
+    "listLabs",
+    "createLab",
+    "getLabWorld",
+    "registerLabEntity",
+    "getLabEntity",
+    "configureLabEntity",
+    "createLabSceneNode",
+    "invokeLabEntityAction"
   ]
 }

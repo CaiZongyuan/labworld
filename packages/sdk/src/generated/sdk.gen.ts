@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { CompleteAssetUploadData, CompleteAssetUploadErrors, CompleteAssetUploadResponses, CompleteAttachmentUploadData, CompleteAttachmentUploadErrors, CompleteAttachmentUploadResponses, CompletePasswordResetData, CompletePasswordResetErrors, CompletePasswordResetResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDocumentData, CreateDocumentErrors, CreateDocumentResponses, CreateKnowledgeBaseData, CreateKnowledgeBaseErrors, CreateKnowledgeBaseResponses, DeleteAttachmentData, DeleteAttachmentErrors, DeleteAttachmentResponses, DeleteDocumentData, DeleteDocumentErrors, DeleteDocumentResponses, DeleteKnowledgeBaseData, DeleteKnowledgeBaseErrors, DeleteKnowledgeBaseResponses, DeleteLabAssetData, DeleteLabAssetErrors, DeleteLabAssetResponses, DownloadDocumentExportData, DownloadDocumentExportErrors, DownloadDocumentExportResponses, GetAssetDefinitionData, GetAssetDefinitionErrors, GetAssetDefinitionResponses, GetAttachmentDownloadData, GetAttachmentDownloadErrors, GetAttachmentDownloadResponses, GetCacheStatusData, GetCacheStatusErrors, GetCacheStatusResponses, GetCurrentSessionData, GetCurrentSessionErrors, GetCurrentSessionResponses, GetDocumentData, GetDocumentErrors, GetDocumentExportData, GetDocumentExportErrors, GetDocumentExportResponses, GetDocumentResponses, GetJobData, GetJobErrors, GetJobResponses, GetKnowledgeBaseData, GetKnowledgeBaseErrors, GetKnowledgeBaseResponses, GetLabAssetData, GetLabAssetDownloadData, GetLabAssetDownloadErrors, GetLabAssetDownloadResponses, GetLabAssetErrors, GetLabAssetResponses, GetLivenessData, GetLivenessResponses, GetProfileData, GetProfileErrors, GetProfileResponses, GetRateLimitStatusData, GetRateLimitStatusErrors, GetRateLimitStatusResponses, GetReadinessData, GetReadinessErrors, GetReadinessResponses, GetSystemStatusData, GetSystemStatusErrors, GetSystemStatusResponses, ListApiKeyScopesData, ListApiKeyScopesErrors, ListApiKeyScopesResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAssetDefinitionsData, ListAssetDefinitionsErrors, ListAssetDefinitionsResponses, ListAttachmentsData, ListAttachmentsErrors, ListAttachmentsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListDocumentExportsData, ListDocumentExportsErrors, ListDocumentExportsResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListKnowledgeBaseGrantsData, ListKnowledgeBaseGrantsErrors, ListKnowledgeBaseGrantsResponses, ListKnowledgeBasesData, ListKnowledgeBasesErrors, ListKnowledgeBasesResponses, ListLabAssetsData, ListLabAssetsErrors, ListLabAssetsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListNotificationsData, ListNotificationsErrors, ListNotificationsResponses, ListPersonalDocumentsData, ListPersonalDocumentsErrors, ListPersonalDocumentsResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserErrors, LogoutUserResponses, ReadNotificationData, ReadNotificationErrors, ReadNotificationResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RenameKnowledgeBaseData, RenameKnowledgeBaseErrors, RenameKnowledgeBaseResponses, RenameLabAssetData, RenameLabAssetErrors, RenameLabAssetResponses, RequestDocumentExportData, RequestDocumentExportErrors, RequestDocumentExportResponses, RequestPasswordResetData, RequestPasswordResetErrors, RequestPasswordResetResponses, RetryJobData, RetryJobErrors, RetryJobResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, RevokeKnowledgeBaseGrantData, RevokeKnowledgeBaseGrantErrors, RevokeKnowledgeBaseGrantResponses, SetKnowledgeBaseGrantData, SetKnowledgeBaseGrantErrors, SetKnowledgeBaseGrantResponses, StartAssetUploadData, StartAssetUploadErrors, StartAssetUploadResponses, StartAttachmentUploadData, StartAttachmentUploadErrors, StartAttachmentUploadResponses, UpdateDocumentData, UpdateDocumentErrors, UpdateDocumentResponses, UpdateMemberData, UpdateMemberErrors, UpdateMemberResponses } from './types.gen';
+import type { CompleteAssetUploadData, CompleteAssetUploadErrors, CompleteAssetUploadResponses, CompleteAttachmentUploadData, CompleteAttachmentUploadErrors, CompleteAttachmentUploadResponses, CompletePasswordResetData, CompletePasswordResetErrors, CompletePasswordResetResponses, ConfigureLabEntityData, ConfigureLabEntityErrors, ConfigureLabEntityResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDocumentData, CreateDocumentErrors, CreateDocumentResponses, CreateKnowledgeBaseData, CreateKnowledgeBaseErrors, CreateKnowledgeBaseResponses, CreateLabData, CreateLabErrors, CreateLabResponses, CreateLabSceneNodeData, CreateLabSceneNodeErrors, CreateLabSceneNodeResponses, DeleteAttachmentData, DeleteAttachmentErrors, DeleteAttachmentResponses, DeleteDocumentData, DeleteDocumentErrors, DeleteDocumentResponses, DeleteKnowledgeBaseData, DeleteKnowledgeBaseErrors, DeleteKnowledgeBaseResponses, DeleteLabAssetData, DeleteLabAssetErrors, DeleteLabAssetResponses, DownloadDocumentExportData, DownloadDocumentExportErrors, DownloadDocumentExportResponses, GetAssetDefinitionData, GetAssetDefinitionErrors, GetAssetDefinitionResponses, GetAttachmentDownloadData, GetAttachmentDownloadErrors, GetAttachmentDownloadResponses, GetCacheStatusData, GetCacheStatusErrors, GetCacheStatusResponses, GetCurrentSessionData, GetCurrentSessionErrors, GetCurrentSessionResponses, GetDocumentData, GetDocumentErrors, GetDocumentExportData, GetDocumentExportErrors, GetDocumentExportResponses, GetDocumentResponses, GetJobData, GetJobErrors, GetJobResponses, GetKnowledgeBaseData, GetKnowledgeBaseErrors, GetKnowledgeBaseResponses, GetLabAssetData, GetLabAssetDownloadData, GetLabAssetDownloadErrors, GetLabAssetDownloadResponses, GetLabAssetErrors, GetLabAssetResponses, GetLabEntityData, GetLabEntityErrors, GetLabEntityResponses, GetLabWorldData, GetLabWorldErrors, GetLabWorldResponses, GetLivenessData, GetLivenessResponses, GetProfileData, GetProfileErrors, GetProfileResponses, GetRateLimitStatusData, GetRateLimitStatusErrors, GetRateLimitStatusResponses, GetReadinessData, GetReadinessErrors, GetReadinessResponses, GetSystemStatusData, GetSystemStatusErrors, GetSystemStatusResponses, InvokeLabEntityActionData, InvokeLabEntityActionErrors, ListApiKeyScopesData, ListApiKeyScopesErrors, ListApiKeyScopesResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAssetDefinitionsData, ListAssetDefinitionsErrors, ListAssetDefinitionsResponses, ListAttachmentsData, ListAttachmentsErrors, ListAttachmentsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListDocumentExportsData, ListDocumentExportsErrors, ListDocumentExportsResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListKnowledgeBaseGrantsData, ListKnowledgeBaseGrantsErrors, ListKnowledgeBaseGrantsResponses, ListKnowledgeBasesData, ListKnowledgeBasesErrors, ListKnowledgeBasesResponses, ListLabAssetsData, ListLabAssetsErrors, ListLabAssetsResponses, ListLabsData, ListLabsErrors, ListLabsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListNotificationsData, ListNotificationsErrors, ListNotificationsResponses, ListPersonalDocumentsData, ListPersonalDocumentsErrors, ListPersonalDocumentsResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserErrors, LogoutUserResponses, ReadNotificationData, ReadNotificationErrors, ReadNotificationResponses, RegisterLabEntityData, RegisterLabEntityErrors, RegisterLabEntityResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RenameKnowledgeBaseData, RenameKnowledgeBaseErrors, RenameKnowledgeBaseResponses, RenameLabAssetData, RenameLabAssetErrors, RenameLabAssetResponses, RequestDocumentExportData, RequestDocumentExportErrors, RequestDocumentExportResponses, RequestPasswordResetData, RequestPasswordResetErrors, RequestPasswordResetResponses, RetryJobData, RetryJobErrors, RetryJobResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, RevokeKnowledgeBaseGrantData, RevokeKnowledgeBaseGrantErrors, RevokeKnowledgeBaseGrantResponses, SetKnowledgeBaseGrantData, SetKnowledgeBaseGrantErrors, SetKnowledgeBaseGrantResponses, StartAssetUploadData, StartAssetUploadErrors, StartAssetUploadResponses, StartAttachmentUploadData, StartAttachmentUploadErrors, StartAttachmentUploadResponses, UpdateDocumentData, UpdateDocumentErrors, UpdateDocumentResponses, UpdateMemberData, UpdateMemberErrors, UpdateMemberResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -198,6 +198,57 @@ export const renameLabAsset = <ThrowOnError extends boolean = false>(options: Op
 });
 
 export const getLabAssetDownload = <ThrowOnError extends boolean = false>(options: Options<GetLabAssetDownloadData, ThrowOnError>): RequestResult<GetLabAssetDownloadResponses, GetLabAssetDownloadErrors, ThrowOnError> => (options.client ?? client).get<GetLabAssetDownloadResponses, GetLabAssetDownloadErrors, ThrowOnError>({ url: '/api/v1/lab/assets/{id}/download', ...options });
+
+export const listLabs = <ThrowOnError extends boolean = false>(options?: Options<ListLabsData, ThrowOnError>): RequestResult<ListLabsResponses, ListLabsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabsResponses, ListLabsErrors, ThrowOnError>({ url: '/api/v1/lab/labs', ...options });
+
+export const createLab = <ThrowOnError extends boolean = false>(options: Options<CreateLabData, ThrowOnError>): RequestResult<CreateLabResponses, CreateLabErrors, ThrowOnError> => (options.client ?? client).post<CreateLabResponses, CreateLabErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const registerLabEntity = <ThrowOnError extends boolean = false>(options: Options<RegisterLabEntityData, ThrowOnError>): RequestResult<RegisterLabEntityResponses, RegisterLabEntityErrors, ThrowOnError> => (options.client ?? client).post<RegisterLabEntityResponses, RegisterLabEntityErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/entities',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getLabEntity = <ThrowOnError extends boolean = false>(options: Options<GetLabEntityData, ThrowOnError>): RequestResult<GetLabEntityResponses, GetLabEntityErrors, ThrowOnError> => (options.client ?? client).get<GetLabEntityResponses, GetLabEntityErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}', ...options });
+
+export const configureLabEntity = <ThrowOnError extends boolean = false>(options: Options<ConfigureLabEntityData, ThrowOnError>): RequestResult<ConfigureLabEntityResponses, ConfigureLabEntityErrors, ThrowOnError> => (options.client ?? client).patch<ConfigureLabEntityResponses, ConfigureLabEntityErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const invokeLabEntityAction = <ThrowOnError extends boolean = false>(options: Options<InvokeLabEntityActionData, ThrowOnError>): RequestResult<unknown, InvokeLabEntityActionErrors, ThrowOnError> => (options.client ?? client).post<unknown, InvokeLabEntityActionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const createLabSceneNode = <ThrowOnError extends boolean = false>(options: Options<CreateLabSceneNodeData, ThrowOnError>): RequestResult<CreateLabSceneNodeResponses, CreateLabSceneNodeErrors, ThrowOnError> => (options.client ?? client).post<CreateLabSceneNodeResponses, CreateLabSceneNodeErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/nodes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getLabWorld = <ThrowOnError extends boolean = false>(options: Options<GetLabWorldData, ThrowOnError>): RequestResult<GetLabWorldResponses, GetLabWorldErrors, ThrowOnError> => (options.client ?? client).get<GetLabWorldResponses, GetLabWorldErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/world', ...options });
 
 export const listNotifications = <ThrowOnError extends boolean = false>(options?: Options<ListNotificationsData, ThrowOnError>): RequestResult<ListNotificationsResponses, ListNotificationsErrors, ThrowOnError> => (options?.client ?? client).get<ListNotificationsResponses, ListNotificationsErrors, ThrowOnError>({ url: '/api/v1/notifications', ...options });
 

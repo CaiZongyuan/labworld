@@ -1,6 +1,7 @@
 mod assets;
 mod definitions;
 mod glb;
+mod world;
 
 use crate::{
     http::{RequestId, public_error},
@@ -25,12 +26,14 @@ const KEY_SCOPE: &str = "lab:full";
 pub fn router(pool: PgPool, auth: AuthSettings, files: Option<files::FileService>) -> Router {
     assets::routes()
         .merge(definitions::routes())
+        .merge(world::routes())
         .with_state(Lab { pool, auth, files })
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut document = assets::openapi();
     document.merge(definitions::openapi());
+    document.merge(world::openapi());
     document
 }
 
@@ -47,6 +50,9 @@ enum Failure {
     NotFound,
     Unauthorized,
     InUse,
+    InvalidReference,
+    WorldNotFound,
+    NotImplemented,
     Unavailable,
     Idempotency(crate::modules::idempotency::Error),
 }
@@ -74,6 +80,21 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::InvalidReference => (
+                StatusCode::BAD_REQUEST,
+                "lab.invalid_reference",
+                "Use an existing definition version, representation and Entity in this Lab",
+            ),
+            Self::WorldNotFound => (
+                StatusCode::NOT_FOUND,
+                "lab.world_not_found",
+                "Lab or Entity not found",
+            ),
+            Self::NotImplemented => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "lab.capability_not_implemented",
+                "This Entity has no Binding implementing this capability",
+            ),
             Self::File(error) => return error.response(id),
             Self::Idempotency(crate::modules::idempotency::Error::InvalidKey) => (
                 StatusCode::BAD_REQUEST,
@@ -93,7 +114,7 @@ impl Failure {
             Self::InvalidInput => (
                 StatusCode::BAD_REQUEST,
                 "lab.invalid_input",
-                "Use valid asset metadata and pagination",
+                "Use valid Lab input and pagination",
             ),
             Self::NotFound => (
                 StatusCode::NOT_FOUND,

@@ -1,13 +1,4 @@
-import {
-  Component,
-  Suspense,
-  lazy,
-  useCallback,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from 'react';
+import { Suspense, lazy, useCallback, useMemo, useRef, useState } from 'react';
 import {
   Activity,
   Box,
@@ -32,26 +23,11 @@ import { ImportFeedback, ModelFileInput, useModelImport } from './model-import';
 import { AssetInspector, PerformancePanel, Tool } from './view-controls';
 import type { RenderMetrics, ViewSettings, ViewStatus } from './viewport-state';
 import type { ModelErrorKey } from './glb';
+import { ViewportBoundary } from './viewport-boundary';
 import type { ApiClient, CurrentSession } from '@labos-threejs/sdk';
 import './lab.css';
 
 const Viewport = lazy(() => import('./viewport'));
-class ViewportBoundary extends Component<
-  { children: ReactNode; fallback: ReactNode; resetKey: string },
-  { failed: boolean }
-> {
-  state = { failed: false };
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-  componentDidUpdate(previous: { resetKey: string }) {
-    if (this.state.failed && previous.resetKey !== this.props.resetKey)
-      this.setState({ failed: false });
-  }
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
 
 export default function LabView({
   apiClient,

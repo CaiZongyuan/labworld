@@ -879,6 +879,88 @@ async fn start(app: &Router, actor: &Browser, bytes: &[u8]) -> Value {
     data(response).await
 }
 
+#[sqlx::test(migrations = "../../migrations")]
+async fn entity_and_node_references_protect_asset_bytes_and_restore_in_world(pool: PgPool) {
+    let app = application(pool).await;
+    let actor = register(&app, "asset-references@example.test").await;
+    let pending = start(&app, &actor, microscope()).await;
+    upload(&pending, microscope()).await;
+    let asset = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            &format!(
+                "/api/v1/lab/asset-uploads/{}/complete",
+                pending["upload_id"].as_str().unwrap()
+            ),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    let lab = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            "/api/v1/lab/labs",
+            json!({"name":"Asset references"}),
+        )
+        .await,
+    )
+    .await;
+    let lab_id = lab["id"].as_str().unwrap();
+    let entity=request(&app,&actor,"POST",&format!("/api/v1/lab/labs/{lab_id}/entities"),json!({"name":"Microscope A","definition_id":"model","definition_version":"1.0","reality":"simulated","configuration":{},"representation_id":asset["representation"]["id"]})).await;
+    assert_eq!(entity.status(), StatusCode::CREATED);
+    let entity = data(entity).await;
+    let response = request(
+        &app,
+        &actor,
+        "DELETE",
+        &format!("/api/v1/lab/assets/{}", asset["id"].as_str().unwrap()),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::CONFLICT);
+    assert_eq!(data(response).await["error"]["code"], "lab.asset_in_use");
+    let world = data(
+        request(
+            &app,
+            &actor,
+            "GET",
+            &format!("/api/v1/lab/labs/{lab_id}/world"),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(world["entities"][0]["id"], entity["id"]);
+    assert_eq!(
+        world["nodes"][0]["representation_id"],
+        asset["representation"]["id"]
+    );
+    assert_eq!(world["assets"][0], asset);
+    assert_eq!(
+        request(
+            &app,
+            &actor,
+            "GET",
+            &format!(
+                "/api/v1/lab/assets/{}/download",
+                asset["id"].as_str().unwrap()
+            ),
+            Value::Null
+        )
+        .await
+        .status(),
+        StatusCode::OK
+    );
+    let static_entity=data(request(&app,&actor,"POST",&format!("/api/v1/lab/labs/{lab_id}/entities"),json!({"name":"Static bench","definition_id":"bench","definition_version":"1.0","reality":"simulated","configuration":{},"representation_id":null})).await).await;
+    assert_eq!(static_entity["binding"], Value::Null);
+    assert_eq!(request(&app,&actor,"POST",&format!("/api/v1/lab/labs/{lab_id}/nodes"),json!({"entity_id":static_entity["id"],"representation_id":asset["representation"]["id"],"placement":{"position":[3,0,0],"rotation":[0,0,0],"scale":[1,1,1]}})).await.status(),StatusCode::CREATED);
+}
+
 async fn bearer(app: &Router, secret: &str, method: &str, path: &str, body: Value) -> Response {
     app.clone()
         .oneshot(

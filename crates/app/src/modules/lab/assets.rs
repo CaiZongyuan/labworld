@@ -131,6 +131,19 @@ async fn load(connection: &mut sqlx::PgConnection, id: &str) -> Result<LabAsset,
     .map_err(Into::into)
 }
 
+pub(super) async fn load_representations(
+    connection: &mut sqlx::PgConnection,
+    ids: &[String],
+) -> Result<Vec<LabAsset>, Failure> {
+    sqlx::query_as(&format!(
+        "SELECT {COLUMNS} FROM {JOIN} WHERE r.id::text=ANY($1) ORDER BY a.id"
+    ))
+    .bind(ids)
+    .fetch_all(connection)
+    .await
+    .map_err(Into::into)
+}
+
 #[utoipa::path(get, path = "/api/v1/lab/assets", operation_id = "listLabAssets", tag = "Lab", params(PageQuery), responses((status = 200, body = AssetPage), (status = 400, body = crate::http::ApiErrorResponse), (status = 401, body = crate::http::ApiErrorResponse), (status = 403, body = crate::http::ApiErrorResponse), (status = 503, body = crate::http::ApiErrorResponse)))]
 async fn list_assets(
     State(state): State<Lab>,
