@@ -432,3 +432,86 @@
     min-height: 40px;
   }
 }
+.world-history {
+  border-top: 1px solid var(--border);
+  padding: 12px;
+  min-width: 0;
+  flex-shrink: 0;
+  max-height: 300px;
+  overflow: auto;
+}
+.world-page:has(.world-history) .world-body {
+  min-height: 320px;
+}
+.world-history-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.world-history-heading h2 {
+  font-size: 14px;
+  font-weight: 600;
+}
+.world-history-heading small {
+  color: var(--muted-foreground);
+}
+.world-history-filters {
+  display: grid;
+  grid-template-columns:
+    minmax(140px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr)
+    auto;
+  align-items: end;
+  gap: 12px;
+  margin: 12px 0;
+}
+.world-history-records {
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+  max-height: 360px;
+  overflow-y: auto;
+}
+.world-history-record {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.world-history-record-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.world-history-values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.world-history-values div {
+  display: flex;
+  gap: 6px;
+}
+.world-history details {
+  margin-top: 6px;
+}
+.world-history .world-properties {
+  max-width: 100%;
+}
+@media (max-width: 700px) {
+  .world-history {
+    max-height: none;
+    overflow: visible;
+  }
+  .world-history-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .world-history [role='tablist'] {
+    width: 100%;
+  }
+  .world-history [role='tab'] {
+    padding-inline: 6px;
+    flex: 1;
+  }
+}

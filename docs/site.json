@@ -171,7 +171,19 @@
       "titleEn": "Centrifuge Tasks and Restart Recovery",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "continuous-temperature"
+      "previous": "continuous-temperature",
+      "next": "run-history"
+    },
+    {
+      "id": "run-history",
+      "source": "docs/tutorials/run-history.md",
+      "sourceEn": "docs/tutorials/run-history.en.md",
+      "route": "tutorials/run-history.md",
+      "title": "运行历史与保留策略",
+      "titleEn": "Run History and Retention",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "centrifuge-tasks"
     },
     {
       "id": "lab-architecture",

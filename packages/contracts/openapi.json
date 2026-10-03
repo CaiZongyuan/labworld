@@ -5492,7 +5492,7 @@
           {
             "name": "Idempotency-Key",
             "in": "header",
-            "description": "Required for implemented actions: reuse the same key and parameters after an uncertain response",
+            "description": "Required for implemented actions: reuse the same key and parameters after an uncertain response. An expired original Command returns 410 without re-execution. Changed parameters still return 409.",
             "required": false,
             "schema": {
               "type": [
@@ -5564,6 +5564,16 @@
             }
           },
           "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "410": {
             "description": "",
             "content": {
               "application/json": {
@@ -5812,6 +5822,158 @@
             }
           },
           "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/history": {
+      "get": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "listLabDeviceHistory",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "record_type",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/HistoryRecordType"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
             "description": "",
             "content": {
               "application/json": {
@@ -6366,6 +6528,200 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DeviceTask"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/history/cleanup": {
+      "post": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "cleanupLabHistory",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryCleanup"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/history/retention": {
+      "get": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "getLabHistoryRetention",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RetentionPolicy"
                 }
               }
             }
@@ -8945,6 +9301,155 @@
           }
         }
       },
+      "HistoryCleanup": {
+        "type": "object",
+        "required": [
+          "observations",
+          "commands",
+          "tasks",
+          "events",
+          "more",
+          "observation_cutoff",
+          "record_cutoff"
+        ],
+        "properties": {
+          "commands": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "events": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "more": {
+            "type": "boolean"
+          },
+          "observation_cutoff": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "observations": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "record_cutoff": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "tasks": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          }
+        }
+      },
+      "HistoryPage": {
+        "type": "object",
+        "required": [
+          "record_type",
+          "from",
+          "to",
+          "available_since",
+          "gap",
+          "retention",
+          "max_range_seconds",
+          "max_response_bytes",
+          "items"
+        ],
+        "properties": {
+          "available_since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "gap": {
+            "type": "boolean"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoryRecord"
+            }
+          },
+          "max_range_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "max_response_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "record_type": {
+            "$ref": "#/components/schemas/HistoryRecordType"
+          },
+          "retention": {
+            "$ref": "#/components/schemas/RetentionPolicy"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "HistoryRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "entity_id",
+          "run_id",
+          "recorded_at",
+          "received_at",
+          "data"
+        ],
+        "properties": {
+          "data": {},
+          "entity_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "run_id": {
+            "type": "string"
+          }
+        }
+      },
+      "HistoryRecordType": {
+        "type": "string",
+        "enum": [
+          "observation",
+          "command",
+          "task",
+          "event"
+        ]
+      },
       "JobAttempt": {
         "type": "object",
         "required": [
@@ -10235,6 +10740,25 @@
           }
         },
         "additionalProperties": false
+      },
+      "RetentionPolicy": {
+        "type": "object",
+        "required": [
+          "observation_seconds",
+          "record_seconds"
+        ],
+        "properties": {
+          "observation_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "record_seconds": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
       },
       "RuntimeBinding": {
         "type": "object",

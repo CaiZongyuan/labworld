@@ -350,6 +350,41 @@ export type HealthResponse = {
     status: string;
 };
 
+export type HistoryCleanup = {
+    commands: number;
+    events: number;
+    more: boolean;
+    observation_cutoff: string;
+    observations: number;
+    record_cutoff: string;
+    tasks: number;
+};
+
+export type HistoryPage = {
+    available_since: string;
+    from: string;
+    gap: boolean;
+    items: Array<HistoryRecord>;
+    max_range_seconds: number;
+    max_response_bytes: number;
+    next_cursor?: string | null;
+    record_type: HistoryRecordType;
+    retention: RetentionPolicy;
+    to: string;
+};
+
+export type HistoryRecord = {
+    data: unknown;
+    entity_id: string;
+    id: string;
+    observed_at?: string | null;
+    received_at: string;
+    recorded_at: string;
+    run_id: string;
+};
+
+export type HistoryRecordType = 'observation' | 'command' | 'task' | 'event';
+
 export type JobAttempt = {
     batch: number;
     ended_at?: string | null;
@@ -678,6 +713,11 @@ export type ResetRequest = {
      * with `auth.invalid_input`.
      */
     locale?: string | null;
+};
+
+export type RetentionPolicy = {
+    observation_seconds: number;
+    record_seconds: number;
 };
 
 export type RuntimeBinding = {
@@ -2338,7 +2378,7 @@ export type InvokeLabEntityActionData = {
     body: EntityAction;
     headers?: {
         /**
-         * Required for implemented actions: reuse the same key and parameters after an uncertain response
+         * Required for implemented actions: reuse the same key and parameters after an uncertain response. An expired original Command returns 410 without re-execution. Changed parameters still return 409.
          */
         'Idempotency-Key'?: string | null;
     };
@@ -2356,6 +2396,7 @@ export type InvokeLabEntityActionErrors = {
     403: ApiErrorResponse;
     404: ApiErrorResponse;
     409: ApiErrorResponse;
+    410: ApiErrorResponse;
     422: ApiErrorResponse;
     /**
      * Request budget exceeded; retry after the specified seconds
@@ -2433,6 +2474,42 @@ export type CopyLabEntityResponses = {
 };
 
 export type CopyLabEntityResponse = CopyLabEntityResponses[keyof CopyLabEntityResponses];
+
+export type ListLabDeviceHistoryData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query: {
+        record_type: HistoryRecordType;
+        from: string;
+        to: string;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/history';
+};
+
+export type ListLabDeviceHistoryErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabDeviceHistoryError = ListLabDeviceHistoryErrors[keyof ListLabDeviceHistoryErrors];
+
+export type ListLabDeviceHistoryResponses = {
+    200: HistoryPage;
+};
+
+export type ListLabDeviceHistoryResponse = ListLabDeviceHistoryResponses[keyof ListLabDeviceHistoryResponses];
 
 export type StartLabDeviceProgramData = {
     body?: never;
@@ -2590,6 +2667,64 @@ export type GetLabDeviceTaskResponses = {
 };
 
 export type GetLabDeviceTaskResponse = GetLabDeviceTaskResponses[keyof GetLabDeviceTaskResponses];
+
+export type CleanupLabHistoryData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/history/cleanup';
+};
+
+export type CleanupLabHistoryErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CleanupLabHistoryError = CleanupLabHistoryErrors[keyof CleanupLabHistoryErrors];
+
+export type CleanupLabHistoryResponses = {
+    200: HistoryCleanup;
+};
+
+export type CleanupLabHistoryResponse = CleanupLabHistoryResponses[keyof CleanupLabHistoryResponses];
+
+export type GetLabHistoryRetentionData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/history/retention';
+};
+
+export type GetLabHistoryRetentionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabHistoryRetentionError = GetLabHistoryRetentionErrors[keyof GetLabHistoryRetentionErrors];
+
+export type GetLabHistoryRetentionResponses = {
+    200: RetentionPolicy;
+};
+
+export type GetLabHistoryRetentionResponse = GetLabHistoryRetentionResponses[keyof GetLabHistoryRetentionResponses];
 
 export type SaveLabLayoutData = {
     body: SaveLabLayout;

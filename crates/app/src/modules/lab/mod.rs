@@ -2,6 +2,7 @@ mod assets;
 mod definitions;
 mod devices;
 mod glb;
+mod history;
 mod layout;
 mod relationships;
 mod runtime;
@@ -9,6 +10,9 @@ mod sync;
 mod tasks;
 mod world;
 
+pub use history::retention::{
+    HistoryMaintenance, RETENTION_FIELDS, RetentionPolicy, run_history_maintenance,
+};
 pub use runtime::{
     DeviceRuntime, ObservationAcceptance, ObservationClock, ObservationReport, ObservationSink,
     RuntimeAvailability, run_device_programs,
@@ -32,6 +36,7 @@ struct Lab {
     auth: AuthSettings,
     files: Option<files::FileService>,
     runtime: Option<RuntimeAvailability>,
+    retention: RetentionPolicy,
 }
 const KEY_SCOPE: &str = "lab:full";
 
@@ -44,18 +49,29 @@ pub fn router_with_runtime(
     files: Option<files::FileService>,
     runtime: Option<RuntimeAvailability>,
 ) -> Router {
+    router_with_retention(pool, auth, files, runtime, RetentionPolicy::default())
+}
+pub fn router_with_retention(
+    pool: PgPool,
+    auth: AuthSettings,
+    files: Option<files::FileService>,
+    runtime: Option<RuntimeAvailability>,
+    retention: RetentionPolicy,
+) -> Router {
     assets::routes()
         .merge(definitions::routes())
         .merge(world::routes())
         .merge(layout::routes())
         .merge(devices::routes())
         .merge(tasks::routes())
+        .merge(history::routes())
         .merge(sync::routes())
         .with_state(Lab {
             pool,
             auth,
             files,
             runtime,
+            retention,
         })
 }
 
@@ -66,6 +82,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     document.merge(layout::openapi());
     document.merge(devices::openapi());
     document.merge(tasks::openapi());
+    document.merge(history::openapi());
     document.merge(sync::openapi());
     document
 }
@@ -89,6 +106,7 @@ enum Failure {
     ProgramNotRunning,
     DeviceBusy,
     InvalidParameters,
+    CommandExpired,
     RuntimeUnavailable,
     LayoutConflict,
     SnapshotTooLarge,
@@ -119,6 +137,11 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::CommandExpired => (
+                StatusCode::GONE,
+                "lab.command_expired",
+                "The original Command record expired; this request was not executed again",
+            ),
             Self::DeviceBusy => (
                 StatusCode::CONFLICT,
                 "lab.device_busy",

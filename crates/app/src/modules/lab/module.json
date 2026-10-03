@@ -15,7 +15,11 @@
     "lab.device_task_results",
     "lab.current_observations",
     "lab.entity_relationships",
-    "lab.world_clock"
+    "lab.world_clock",
+    "lab.observation_history",
+    "lab.device_events",
+    "lab.history_bounds",
+    "lab.command_receipts"
   ],
   "viewPath": "packages/views/src/lab",
   "sdkPaths": ["packages/sdk/src/lab-world.ts"],
@@ -37,7 +41,9 @@
     "migrations/0022_lab_relationships.sql",
     "migrations/0023_lab_world_version.sql",
     "migrations/0024_lab_observation_properties.sql",
-    "migrations/0025_lab_device_tasks.sql"
+    "migrations/0025_lab_device_tasks.sql",
+    "migrations/0026_lab_history.sql",
+    "migrations/0027_lab_command_receipts.sql"
   ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
@@ -46,6 +52,9 @@
     "apps/api/tests/lab_sync.rs",
     "apps/api/tests/lab_sensors.rs",
     "apps/api/tests/lab_centrifuges.rs",
+    "apps/api/tests/lab_history.rs",
+    "apps/web/src/lab-history.test.tsx",
+    "tests/e2e/lab-history.spec.ts",
     "packages/sdk/src/lab-world.test.ts",
     "tests/tooling/sdk-ownership.test.mjs",
     "apps/web/src/lab-sync.test.tsx",
@@ -83,7 +92,10 @@
     "examples/lab/observe-temperature.mjs",
     "docs/tutorials/centrifuge-tasks.md",
     "docs/tutorials/centrifuge-tasks.en.md",
-    "examples/lab/run-centrifuges.mjs"
+    "examples/lab/run-centrifuges.mjs",
+    "docs/tutorials/run-history.md",
+    "docs/tutorials/run-history.en.md",
+    "examples/lab/query-history.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -153,6 +165,14 @@
     "streamLabWorld",
     "subscribeLabWorld",
     "applyLabWorldEvent",
-    "WorldSyncError"
+    "WorldSyncError",
+    "HistoryRecordType",
+    "HistoryRecord",
+    "HistoryPage",
+    "RetentionPolicy",
+    "HistoryCleanup",
+    "listLabDeviceHistory",
+    "getLabHistoryRetention",
+    "cleanupLabHistory"
   ]
 }

@@ -73,6 +73,7 @@ import WorldDialog, {
   type WorldSubmission,
 } from './world-dialog';
 import DevicePanel, { type CommandAttempt } from './device-panel';
+import HistoryPanel from './history-panel';
 import RelationshipPanel from './relationship-panel';
 import { useWorldSubscription } from './world-subscription';
 import {
@@ -1052,6 +1053,15 @@ export default function WorldView({
           )}
         </aside>
       </div>
+      {labId ? (
+        <HistoryPanel
+          key={`${labId}-${selected?.id ?? ''}`}
+          labId={labId}
+          entities={entities}
+          selectedId={selected?.id}
+          apiClient={apiClient}
+        />
+      ) : null}
       <footer className="lab-status">
         <span aria-label={message('sync.version')}>
           W{world.data?.version ?? '0'}

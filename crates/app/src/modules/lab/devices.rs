@@ -16,6 +16,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use sha2::{Digest, Sha256};
 use sqlx::PgConnection;
 use utoipa::{OpenApi, ToSchema};
 
@@ -271,6 +272,16 @@ pub(super) async fn accept(
         }
         return Ok(previous.0);
     }
+    let expired:Option<String>=sqlx::query_scalar("SELECT fingerprint FROM lab.command_receipts WHERE actor_id=$1::uuid AND entity_id=$2::uuid AND request_key=$3").bind(actor).bind(&entity.id).bind(key).fetch_optional(&mut *tx).await?;
+    if let Some(fingerprint) = expired {
+        return Err(
+            if fingerprint == request_fingerprint(&input.capability, &input.parameters) {
+                Failure::CommandExpired
+            } else {
+                crate::modules::idempotency::Error::Conflict.into()
+            },
+        );
+    }
     let running = entity
         .program_run
         .filter(|run| run.status == "running")
@@ -332,6 +343,34 @@ pub(super) async fn accept(
     let command = load_command(&mut tx, &entity.id, &command).await?;
     tx.commit().await?;
     Ok(command)
+}
+fn request_fingerprint(capability: &str, parameters: &Value) -> String {
+    let mut parameters = parameters.clone();
+    // Built-in inputs are flat; numeric encodings such as 22 and 22.0 have the same JSONB meaning.
+    if let Some(parameters) = parameters.as_object_mut() {
+        for value in parameters.values_mut() {
+            if let Some(number) = value.as_f64() {
+                *value = json!(if number == 0.0 { 0.0 } else { number });
+            }
+        }
+    }
+    format!(
+        "{:x}",
+        Sha256::digest(
+            json!({"capability":capability,"parameters":parameters})
+                .to_string()
+                .as_bytes()
+        )
+    )
+}
+pub(super) async fn remember_expired_commands(
+    connection: &mut PgConnection,
+    ids: &[String],
+) -> Result<(), sqlx::Error> {
+    let commands:Vec<(String,String,String,String,String,Value)>=sqlx::query_as("SELECT actor_id::text,entity_id::text,request_key,id::text,capability,parameters FROM lab.device_commands WHERE id=ANY($1::text[]::uuid[])").bind(ids).fetch_all(&mut *connection).await?;
+    let receipts:Vec<Value>=commands.into_iter().map(|(actor,entity,key,command,capability,parameters)|json!({"actor_id":actor,"entity_id":entity,"request_key":key,"command_id":command,"fingerprint":request_fingerprint(&capability,&parameters)})).collect();
+    sqlx::query("INSERT INTO lab.command_receipts(actor_id,entity_id,request_key,command_id,fingerprint) SELECT actor_id,entity_id,request_key,command_id,fingerprint FROM jsonb_to_recordset($1) AS receipt(actor_id uuid,entity_id uuid,request_key text,command_id uuid,fingerprint text) ON CONFLICT(actor_id,entity_id,request_key) DO NOTHING").bind(json!(receipts)).execute(connection).await?;
+    Ok(())
 }
 async fn load_command(
     connection: &mut PgConnection,

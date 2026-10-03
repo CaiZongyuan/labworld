@@ -1,5 +1,29 @@
 export const labMessages = {
   zh: {
+    'device.commandExpired':
+      '原命令记录已过期。本次重试没有再次执行。先检查设备当前状态。',
+    'history.title': '运行历史',
+    'history.event': '事件',
+    'history.task': '任务',
+    'history.command': '命令',
+    'history.observation': '观测',
+    'history.device': '设备',
+    'history.from': '开始时间',
+    'history.to': '结束时间',
+    'history.query': '查询历史',
+    'history.refresh': '刷新历史',
+    'history.retry': '重试历史查询',
+    'history.more': '更早记录',
+    'history.empty': '没有保留期内记录',
+    'history.error': '历史查询失败',
+    'history.gap': '历史缺口',
+    'history.gapSince':
+      '{time} 之前的记录不完整或已清理。空记录不能证明没有活动。',
+    'history.retention': '原始观测 {observations} · 结束记录和事件 {records}',
+    'history.invalidRange': '开始时间必须早于结束时间。单次范围最多 31 天。',
+    'history.details': '记录详情',
+    'history.sourceTime': '来源时间',
+    'history.receivedTime': '接收时间',
     'task.title': '离心任务',
     'task.busy': '设备忙碌。停止离心并等待空闲后再试。',
     'device.invalidParameters': '参数无效。请使用能力声明的类型和范围。',
@@ -251,6 +275,32 @@ export const labMessages = {
     'import.single': '一次导入一个 GLB 文件。',
   },
   en: {
+    'device.commandExpired':
+      'The original Command record expired. This retry did not execute again. Check the current device state.',
+    'history.title': 'Run history',
+    'history.event': 'Events',
+    'history.task': 'Tasks',
+    'history.command': 'Commands',
+    'history.observation': 'Observations',
+    'history.device': 'Device',
+    'history.from': 'From',
+    'history.to': 'To',
+    'history.query': 'Query history',
+    'history.refresh': 'Refresh history',
+    'history.retry': 'Retry history query',
+    'history.more': 'Earlier records',
+    'history.empty': 'No records within retention',
+    'history.error': 'History query failed',
+    'history.gap': 'History gap',
+    'history.gapSince':
+      'Records before {time} are incomplete or removed. Empty records do not prove that no activity occurred.',
+    'history.retention':
+      'Raw observations {observations} · Ended records and events {records}',
+    'history.invalidRange':
+      'From must be earlier than To. Each query covers at most 31 days.',
+    'history.details': 'Record details',
+    'history.sourceTime': 'Source time',
+    'history.receivedTime': 'Received time',
     'task.title': 'Centrifuge task',
     'task.busy':
       'Device busy. Stop the centrifuge and wait for idle before retrying.',

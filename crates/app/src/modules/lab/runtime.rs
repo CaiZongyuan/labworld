@@ -434,6 +434,7 @@ impl ObservationSink<'_> {
             return Err(sqlx::Error::Protocol("invalid device observation".into()));
         }
         if report.values.as_object().unwrap().is_empty() {
+            Self::record_report(connection, source, report, now, json!({})).await?;
             sqlx::query("UPDATE lab.program_runs SET sequence=$2 WHERE id=$1::uuid")
                 .bind(&source.run)
                 .bind(report.sequence)
@@ -517,9 +518,26 @@ impl ObservationSink<'_> {
         } else {
             "current"
         };
+        let reported_properties: BTreeMap<_, _> = state
+            .properties
+            .iter()
+            .filter(|(name, _)| report.values.get(*name).is_some())
+            .collect();
+        Self::record_report(connection, source, report, now, json!(reported_properties)).await?;
         sqlx::query("INSERT INTO lab.current_observations(entity_id,run_id,sequence,source,values,observed_at,quality,received_at,updated_at,properties,observed_times,freshness) VALUES($1::uuid,$2::uuid,$3,$4,$5,$6,$7,$8,$8,$9,$10,$11) ON CONFLICT(entity_id) DO UPDATE SET run_id=excluded.run_id,sequence=excluded.sequence,source=excluded.source,values=excluded.values,observed_at=excluded.observed_at,received_at=excluded.received_at,updated_at=excluded.updated_at,quality=excluded.quality,properties=excluded.properties,observed_times=excluded.observed_times,freshness=excluded.freshness")
         .bind(&source.entity).bind(&source.run).bind(report.sequence).bind(&source.source).bind(json!(state.values)).bind(report.observed_at).bind(&report.quality).bind(now).bind(json!(state.properties)).bind(json!(state.observed_times)).bind(freshness).execute(connection).await?;
         Ok(true)
+    }
+    async fn record_report(
+        connection: &mut PgConnection,
+        source: &RunSource,
+        report: &ObservationReport,
+        now: DateTime<Utc>,
+        properties: Value,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("INSERT INTO lab.observation_history(entity_id,run_id,observed_at,received_at,data) VALUES($1::uuid,$2::uuid,$3,$4,$5)")
+            .bind(&source.entity).bind(&source.run).bind(report.observed_at).bind(now).bind(json!({"source":source.source,"binding_id":source.binding,"sequence":report.sequence,"values":report.values,"properties":properties,"quality":report.quality})).execute(connection).await?;
+        Ok(())
     }
 }
 async fn lock_entity(connection: &mut PgConnection, entity: &str) -> Result<(), sqlx::Error> {
