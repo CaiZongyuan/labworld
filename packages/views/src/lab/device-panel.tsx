@@ -25,6 +25,7 @@ import {
 import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
 import { ErrorAlert } from '../shell/error-alert';
 import { useAppMessage } from '../shell/messages';
+import ObservationReading from './observation-reading';
 
 export type CommandAttempt = {
   key: string;
@@ -197,62 +198,64 @@ export default function DevicePanel({
           {programError ? (
             <ErrorAlert error={programError} title={message('assets.error')} />
           ) : null}
-          <FieldGroup>
-            <Field orientation="horizontal">
-              <FieldLabel htmlFor={`power-${entity.id}`}>
-                {message('device.power')}
-              </FieldLabel>
-              <Switch
-                id={`power-${entity.id}`}
-                nativeButton
-                render={<button />}
-                checked={values?.on === true}
-                disabled={!executable || locked || programPending}
-                onCheckedChange={(on) =>
-                  void submit({
-                    capability: 'light.set_power',
-                    parameters: { on },
-                  })
-                }
-              />
-            </Field>
-            <form
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submit({
-                  capability: 'light.set_brightness',
-                  parameters: { brightness: Number(brightness) },
-                });
-              }}
-            >
-              <Field>
-                <FieldLabel htmlFor={`brightness-${entity.id}`}>
-                  {message('device.targetBrightness')}
+          {entity.binding.program_id === 'light.v1' ? (
+            <FieldGroup>
+              <Field orientation="horizontal">
+                <FieldLabel htmlFor={`power-${entity.id}`}>
+                  {message('device.power')}
                 </FieldLabel>
-                <div className="device-brightness">
-                  <Input
-                    id={`brightness-${entity.id}`}
-                    type="number"
-                    min={0}
-                    max={100}
-                    step="any"
-                    required
-                    value={brightness}
-                    onChange={(event) => setBrightness(event.target.value)}
-                    disabled={!executable || locked}
-                  />
-                  <Button
-                    type="submit"
-                    size="sm"
-                    disabled={!executable || locked}
-                  >
-                    <Check data-icon="inline-start" />
-                    {message('device.apply')}
-                  </Button>
-                </div>
+                <Switch
+                  id={`power-${entity.id}`}
+                  nativeButton
+                  render={<button />}
+                  checked={values?.on === true}
+                  disabled={!executable || locked || programPending}
+                  onCheckedChange={(on) =>
+                    void submit({
+                      capability: 'light.set_power',
+                      parameters: { on },
+                    })
+                  }
+                />
               </Field>
-            </form>
-          </FieldGroup>
+              <form
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void submit({
+                    capability: 'light.set_brightness',
+                    parameters: { brightness: Number(brightness) },
+                  });
+                }}
+              >
+                <Field>
+                  <FieldLabel htmlFor={`brightness-${entity.id}`}>
+                    {message('device.targetBrightness')}
+                  </FieldLabel>
+                  <div className="device-brightness">
+                    <Input
+                      id={`brightness-${entity.id}`}
+                      type="number"
+                      min={0}
+                      max={100}
+                      step="any"
+                      required
+                      value={brightness}
+                      onChange={(event) => setBrightness(event.target.value)}
+                      disabled={!executable || locked}
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={!executable || locked}
+                    >
+                      <Check data-icon="inline-start" />
+                      {message('device.apply')}
+                    </Button>
+                  </div>
+                </Field>
+              </form>
+            </FieldGroup>
+          ) : null}
           {attempt ? (
             <div className="device-command" role="status">
               <strong>{message(`device.command.${status}`)}</strong>
@@ -300,27 +303,40 @@ export default function DevicePanel({
       {entity.observation ? (
         <section className="lab-inspector-section">
           <h3>{message('world.observation')}</h3>
-          <dl className="world-properties">
-            <dt>{message('device.actualPower')}</dt>
-            <dd>{message(values?.on ? 'device.on' : 'device.off')}</dd>
-            <dt>{message('device.actualBrightness')}</dt>
-            <dd>{values?.brightness ?? '-'} %</dd>
-            <dt>{message('assets.source')}</dt>
-            <dd>{entity.observation.source}</dd>
-            <dt>{message('device.observedAt')}</dt>
-            <dd>{time(entity.observation.observed_at)}</dd>
-            <dt>{message('device.receivedAt')}</dt>
-            <dd>{time(entity.observation.received_at)}</dd>
-            <dt>{message('device.updatedAt')}</dt>
-            <dd>{time(entity.observation.updated_at)}</dd>
-            <dt>{message('device.quality')}</dt>
-            <dd>{message(`device.quality.${entity.observation.quality}`)}</dd>
-            <dt>{message('device.freshness')}</dt>
-            <dd>
-              {message(`device.freshness.${entity.observation.freshness}`)}
-            </dd>
-          </dl>
-          {entity.observation.freshness !== 'current' ? (
+          {entity.observation.properties ? (
+            Object.entries(entity.observation.properties).map(
+              ([name, property]) => (
+                <ObservationReading
+                  key={name}
+                  name={name}
+                  property={property}
+                />
+              ),
+            )
+          ) : (
+            <dl className="world-properties">
+              <dt>{message('device.actualPower')}</dt>
+              <dd>{message(values?.on ? 'device.on' : 'device.off')}</dd>
+              <dt>{message('device.actualBrightness')}</dt>
+              <dd>{values?.brightness ?? '-'} %</dd>
+              <dt>{message('assets.source')}</dt>
+              <dd>{entity.observation.source}</dd>
+              <dt>{message('device.observedAt')}</dt>
+              <dd>{time(entity.observation.observed_at)}</dd>
+              <dt>{message('device.receivedAt')}</dt>
+              <dd>{time(entity.observation.received_at)}</dd>
+              <dt>{message('device.updatedAt')}</dt>
+              <dd>{time(entity.observation.updated_at)}</dd>
+              <dt>{message('device.quality')}</dt>
+              <dd>{message(`device.quality.${entity.observation.quality}`)}</dd>
+              <dt>{message('device.freshness')}</dt>
+              <dd>
+                {message(`device.freshness.${entity.observation.freshness}`)}
+              </dd>
+            </dl>
+          )}
+          {!entity.observation.properties &&
+          entity.observation.freshness !== 'current' ? (
             <Alert>
               <AlertDescription>
                 {message(`device.freshness.${entity.observation.freshness}`)}

@@ -13,6 +13,7 @@ import {
   Edges,
   Environment,
   Grid,
+  Html,
   OrbitControls,
   TransformControls,
 } from '@react-three/drei';
@@ -22,6 +23,8 @@ import {
   PerspectiveCamera,
   Vector3,
   type WebGLRenderer,
+  type Object3D,
+  type Camera,
 } from 'three';
 import type {
   LabEntity,
@@ -35,6 +38,7 @@ import { useAppMessage } from '../shell/messages';
 import { MetricSampler } from './metric-sampler';
 import type { RenderMetrics } from './viewport-state';
 import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
+import { observationValue } from './observation-reading';
 
 type Tuple = [number, number, number];
 function Block({
@@ -69,6 +73,66 @@ function Cylinder({
       <cylinderGeometry args={[radius, radius, height, 32]} />
       <meshStandardMaterial color={color} roughness={0.4} metalness={0.25} />
     </mesh>
+  );
+}
+function readingPosition(
+  object: Object3D,
+  camera: Camera,
+  size: { width: number; height: number },
+): [number, number] {
+  const projected = new Vector3()
+    .setFromMatrixPosition(object.matrixWorld)
+    .project(camera);
+  return [
+    Math.max(
+      90,
+      Math.min(size.width - 90, ((projected.x + 1) * size.width) / 2),
+    ),
+    Math.max(
+      70,
+      Math.min(size.height - 50, ((1 - projected.y) * size.height) / 2),
+    ),
+  ];
+}
+function SensorReading({
+  entity,
+  position,
+}: {
+  entity: LabEntity;
+  position: Tuple;
+}) {
+  const message = useAppMessage('lab');
+  const temperature = entity.observation?.properties?.temperature;
+  return (
+    <Html
+      center
+      position={position}
+      calculatePosition={readingPosition}
+      zIndexRange={[10, 0]}
+    >
+      <div
+        className="world-sensor-reading"
+        role="img"
+        aria-label={`${entity.name}: ${temperature ? observationValue(temperature) : message('world.unknown')}`}
+        title={
+          temperature
+            ? [
+                temperature.source,
+                temperature.observed_at ?? message('device.sourceTimeUnknown'),
+                temperature.received_at,
+                message(`device.quality.${temperature.quality}`),
+              ].join('\n')
+            : message('world.unknown')
+        }
+      >
+        <strong>{temperature ? observationValue(temperature) : '-'}</strong>
+        <small>
+          {temperature
+            ? message(`device.freshness.${temperature.freshness}`)
+            : message('world.unknown')}
+        </small>
+      </div>
+    </Html>
   );
 }
 function Builtin({ entity }: { entity: LabEntity }) {
@@ -290,6 +354,7 @@ const NodeModel = memo(function NodeModel({
   asset,
   renderer,
   selected,
+  showReading,
   onSelect,
   onReady,
   onError,
@@ -301,6 +366,7 @@ const NodeModel = memo(function NodeModel({
   asset?: ModelAsset;
   renderer: WebGLRenderer | null;
   selected: boolean;
+  showReading: boolean;
   onSelect: (id: string, additive: boolean, nodeId?: string) => void;
   onReady: (id: string) => void;
   onError: (id: string, error: boolean) => void;
@@ -356,6 +422,20 @@ const NodeModel = memo(function NodeModel({
           <Builtin entity={entity} />
         )}
       </group>
+      {showReading && entity.definition_id === 'sensor' ? (
+        <SensorReading
+          entity={entity}
+          position={
+            bounds
+              ? [
+                  bounds.center[0],
+                  bounds.center[1] + bounds.size[1] / 2 + 0.2,
+                  bounds.center[2],
+                ]
+              : [0, 0.76, 0]
+          }
+        />
+      ) : null}
       {selected && bounds ? (
         <mesh position={bounds.center}>
           <boxGeometry
@@ -508,6 +588,7 @@ function Scene({
               asset={asset}
               renderer={renderer}
               selected={selected.includes(entity.id)}
+              showReading={node.id === activeNodeId}
               onSelect={onSelect}
               onReady={ready}
               onError={onError}

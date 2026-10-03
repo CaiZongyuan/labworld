@@ -33,16 +33,19 @@
     "migrations/0020_lab_devices.sql",
     "migrations/0021_lab_observation_order.sql",
     "migrations/0022_lab_relationships.sql",
-    "migrations/0023_lab_world_version.sql"
+    "migrations/0023_lab_world_version.sql",
+    "migrations/0024_lab_observation_properties.sql"
   ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
     "apps/api/tests/lab_world.rs",
     "apps/api/tests/lab_devices.rs",
     "apps/api/tests/lab_sync.rs",
+    "apps/api/tests/lab_sensors.rs",
     "packages/sdk/src/lab-world.test.ts",
     "tests/tooling/sdk-ownership.test.mjs",
     "apps/web/src/lab-sync.test.tsx",
+    "apps/web/src/lab-sensors.test.tsx",
     "apps/web/src/lab-devices.test.tsx",
     "apps/web/src/lab-world.test.tsx",
     "apps/web/src/lab.test.tsx",
@@ -50,6 +53,7 @@
     "tests/e2e/lab-devices.spec.ts",
     "tests/e2e/lab-layout.spec.ts",
     "tests/e2e/lab-sync.spec.ts",
+    "tests/e2e/lab-sensors.spec.ts",
     "tests/fixtures/lab"
   ],
   "tutorials": [
@@ -67,7 +71,10 @@
     "examples/lab/edit-layout.mjs",
     "docs/tutorials/reliable-sync.md",
     "docs/tutorials/reliable-sync.en.md",
-    "examples/lab/observe-world.mjs"
+    "examples/lab/observe-world.mjs",
+    "docs/tutorials/continuous-temperature.md",
+    "docs/tutorials/continuous-temperature.en.md",
+    "examples/lab/observe-temperature.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -113,6 +120,7 @@
     "DeviceProgramRun",
     "DeviceCommand",
     "DeviceObservation",
+    "ObservationProperty",
     "startLabDeviceProgram",
     "stopLabDeviceProgram",
     "getLabDeviceCommand",

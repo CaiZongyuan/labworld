@@ -198,6 +198,9 @@ export type DeviceObservation = {
     entity_id: string;
     freshness: string;
     observed_at?: string | null;
+    properties: {
+        [key: string]: ObservationProperty;
+    };
     quality: string;
     received_at: string;
     run_id: string;
@@ -558,6 +561,21 @@ export type ObjectCapability = {
     };
     method: string;
     url: string;
+};
+
+export type ObservationProperty = {
+    binding_id: string;
+    expires_at: string;
+    freshness: string;
+    observed_at?: string | null;
+    quality: string;
+    received_at: string;
+    run_id: string;
+    sequence: number;
+    source: string;
+    unit?: string | null;
+    updated_at: string;
+    value: unknown;
 };
 
 export type Outcome = 'succeeded' | 'failed';

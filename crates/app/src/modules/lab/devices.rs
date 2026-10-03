@@ -53,6 +53,21 @@ pub struct DeviceCommand {
     pub updated_at: DateTime<Utc>,
 }
 #[derive(Clone, Serialize, Deserialize, ToSchema)]
+pub struct ObservationProperty {
+    pub value: Value,
+    pub unit: Option<String>,
+    pub binding_id: String,
+    pub run_id: String,
+    pub sequence: i64,
+    pub source: String,
+    pub observed_at: Option<DateTime<Utc>>,
+    pub received_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
+    pub quality: String,
+    pub freshness: String,
+}
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct DeviceObservation {
     pub entity_id: String,
     pub run_id: String,
@@ -64,6 +79,7 @@ pub struct DeviceObservation {
     pub updated_at: DateTime<Utc>,
     pub quality: String,
     pub freshness: String,
+    pub properties: std::collections::BTreeMap<String, ObservationProperty>,
 }
 const RUN_COLUMNS: &str = "id::text,entity_id::text,binding_id::text,configuration,status,started_by::text,started_at,ended_at";
 const COMMAND_COLUMNS: &str = "id::text,entity_id::text,run_id::text,actor_id::text,actor_source,request_key,capability,parameters,status,result,created_at,updated_at";
@@ -74,10 +90,11 @@ pub(super) async fn register_binding(
     definition: &str,
     reality: &str,
 ) -> Result<(), Failure> {
-    if definition == "light" && reality == "simulated" {
+    if matches!(definition, "light" | "sensor") && reality == "simulated" {
         let binding = uuid::Uuid::now_v7().to_string();
-        sqlx::query("INSERT INTO lab.runtime_bindings(id,entity_id,program_id,source) VALUES($1::uuid,$2::uuid,'light.v1',$3)")
-            .bind(&binding).bind(entity).bind(format!("simulated:light.v1:{binding}")).execute(connection).await?;
+        let program = format!("{definition}.v1");
+        sqlx::query("INSERT INTO lab.runtime_bindings(id,entity_id,program_id,source) VALUES($1::uuid,$2::uuid,$3,$4)")
+            .bind(&binding).bind(entity).bind(&program).bind(format!("simulated:{program}:{binding}")).execute(connection).await?;
     }
     Ok(())
 }
@@ -176,7 +193,8 @@ async fn start_program(
         let binding = entity.binding.ok_or(Failure::NotImplemented)?;
         if let Some(run) = entity.program_run.filter(|run| run.status == "running") { return Ok((StatusCode::OK,run)); }
         let configuration = json!(entity.configuration);
-        if !valid_light_configuration(&configuration) { return Err(Failure::InvalidParameters); }
+        if (binding.program_id=="light.v1" && !valid_light_configuration(&configuration)) ||
+            (binding.program_id=="sensor.v1" && configuration.get("baseline_temperature").is_some_and(|value| !value.as_f64().is_some_and(|value|(-50.0..=100.0).contains(&value)))) { return Err(Failure::InvalidParameters); }
         let id_run = uuid::Uuid::now_v7().to_string();
         sqlx::query("INSERT INTO lab.program_runs(id,entity_id,binding_id,generation,configuration,status,started_by) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,'running',$6::uuid)")
             .bind(&id_run).bind(&entity.id).bind(&binding.id).bind(generation).bind(configuration).bind(&actor).execute(&mut *tx).await?;

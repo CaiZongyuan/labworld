@@ -8022,7 +8022,8 @@
           "received_at",
           "updated_at",
           "quality",
-          "freshness"
+          "freshness",
+          "properties"
         ],
         "properties": {
           "entity_id": {
@@ -8037,6 +8038,15 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "properties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ObservationProperty"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
           },
           "quality": {
             "type": "string"
@@ -9417,6 +9427,68 @@
           "url": {
             "type": "string"
           }
+        }
+      },
+      "ObservationProperty": {
+        "type": "object",
+        "required": [
+          "value",
+          "binding_id",
+          "run_id",
+          "sequence",
+          "source",
+          "received_at",
+          "updated_at",
+          "expires_at",
+          "quality",
+          "freshness"
+        ],
+        "properties": {
+          "binding_id": {
+            "type": "string"
+          },
+          "expires_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "freshness": {
+            "type": "string"
+          },
+          "observed_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "quality": {
+            "type": "string"
+          },
+          "received_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "sequence": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "source": {
+            "type": "string"
+          },
+          "unit": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "value": {}
         }
       },
       "Outcome": {

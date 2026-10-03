@@ -9,8 +9,8 @@ mod sync;
 mod world;
 
 pub use runtime::{
-    DeviceRuntime, ObservationAcceptance, ObservationReport, RuntimeAvailability,
-    run_device_programs,
+    DeviceRuntime, ObservationAcceptance, ObservationClock, ObservationReport, ObservationSink,
+    RuntimeAvailability, run_device_programs,
 };
 
 use crate::{
