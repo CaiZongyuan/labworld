@@ -145,17 +145,6 @@ pub struct LabEntity {
     pub capabilities: Vec<EntityCapability>,
 }
 impl LabEntity {
-    fn with_runtime_availability(mut self, available: bool) -> Self {
-        if !available {
-            for capability in &mut self.capabilities {
-                if capability.binding_implemented {
-                    capability.executable = false;
-                    capability.reason = "runtime_unavailable".into();
-                }
-            }
-        }
-        self
-    }
     fn with_capabilities(mut self) -> Self {
         let implementation = if self
             .binding
@@ -223,15 +212,17 @@ pub struct CreateSceneNode {
 }
 #[derive(Serialize, ToSchema)]
 pub struct LabWorld {
+    /// Deployment-wide committed world revision, compared only within the same Lab/query.
+    pub version: String,
     pub lab: PersistentLab,
     pub entities: Vec<LabEntity>,
     pub nodes: Vec<SceneNode>,
     pub assets: Vec<LabAsset>,
     pub relationships: Vec<super::relationships::EntityRelationship>,
 }
-#[derive(Deserialize, utoipa::IntoParams)]
+#[derive(Default, Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Query)]
-struct WorldQuery {
+pub(super) struct WorldQuery {
     kind: Option<String>,
     capability: Option<String>,
     state: Option<String>,
@@ -433,7 +424,7 @@ async fn create_lab(
         Err(error) => error.response(id),
     }
 }
-#[utoipa::path(get, path="/api/v1/lab/labs/{lab_id}/world", operation_id="getLabWorld", tag="Lab", params(("lab_id"=String, Path), WorldQuery), responses((status=200, body=LabWorld), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
+#[utoipa::path(get, path="/api/v1/lab/labs/{lab_id}/world", operation_id="getLabWorld", tag="Lab", params(("lab_id"=String, Path), WorldQuery), responses((status=200, body=LabWorld, headers(("X-Lab-Runtime"=String, description="ready or unavailable: immediate execution service status. Combine with persistent capability permission; this header is outside the world version."))), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
 async fn get_world(
     State(state): State<Lab>,
     Extension(id): Extension<RequestId>,
@@ -444,27 +435,74 @@ async fn get_world(
     if let Err(response) = state.actor(&headers, &id, false).await {
         return response;
     }
-    let result = async {
-        let lab_id = uuid(&lab)?.to_string();
-        let mut tx = state.pool.begin().await?;
-        // Authentication already completed; session refresh locks cannot share this snapshot.
-        sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ").execute(&mut *tx).await?;
-        let lab = load_lab(&mut tx, &lab_id).await?;
-        let entities = sqlx::query_as::<_, LabEntity>(&format!("SELECT {ENTITY_COLUMNS} FROM lab.entities WHERE lab_id=$1::uuid AND ($2::text IS NULL OR kind=$2) AND ($3::text IS NULL OR EXISTS(SELECT 1 FROM jsonb_array_elements(definition->'capabilities') c WHERE c->>'id'=$3)) AND ($4::text IS NULL OR ($4='unknown' AND NOT EXISTS(SELECT 1 FROM lab.current_observations o WHERE o.entity_id=entities.id)) OR EXISTS(SELECT 1 FROM lab.current_observations o WHERE o.entity_id=entities.id AND (o.values->>'on'=$4 OR o.values->>'phase'=$4))) ORDER BY id"))
-            .bind(&lab_id).bind(query.kind).bind(query.capability).bind(query.state).fetch_all(&mut *tx).await?.into_iter().map(|entity|entity.with_capabilities().with_runtime_availability(state.runtime_available())).collect::<Vec<_>>();
-        let entity_ids = entities.iter().map(|entity| entity.id.clone()).collect::<Vec<_>>();
-        let nodes: Vec<SceneNode> = sqlx::query_as(&format!("SELECT {NODE_COLUMNS} FROM lab.scene_nodes WHERE lab_id=$1::uuid AND entity_id::text=ANY($2) ORDER BY id"))
-            .bind(&lab_id).bind(&entity_ids).fetch_all(&mut *tx).await?;
-        let representations = nodes.iter().filter_map(|node| node.representation_id.clone()).chain(entities.iter().filter_map(|entity|entity.representation_id.clone())).collect::<Vec<_>>();
-        let assets = assets::load_representations(&mut tx, &representations).await?;
-        let relationships = super::relationships::load(&mut tx,&lab_id).await?.into_iter().filter(|relation|entity_ids.contains(&relation.source_id) && entity_ids.contains(&relation.target_id)).collect();
-        tx.commit().await?;
-        Ok::<_, Failure>(LabWorld { lab, entities, nodes, assets, relationships })
-    }.await;
+    let result = load_world(&state, &lab, query).await;
     match result {
-        Ok(world) => Json(world).into_response(),
+        Ok(world) => (
+            [(
+                "x-lab-runtime",
+                if state.runtime_available() {
+                    "ready"
+                } else {
+                    "unavailable"
+                },
+            )],
+            Json(world),
+        )
+            .into_response(),
         Err(error) => error.response(id),
     }
+}
+
+pub(super) async fn load_world(
+    state: &Lab,
+    lab: &str,
+    query: WorldQuery,
+) -> Result<LabWorld, Failure> {
+    let lab_id = uuid(lab)?.to_string();
+    let mut tx = state.pool.begin().await?;
+    // Authentication already completed; session refresh locks cannot share this snapshot.
+    sqlx::query("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ")
+        .execute(&mut *tx)
+        .await?;
+    let version: String =
+        sqlx::query_scalar("SELECT version::text FROM lab.world_clock WHERE singleton")
+            .fetch_one(&mut *tx)
+            .await?;
+    let lab = load_lab(&mut tx, &lab_id).await?;
+    let entities = sqlx::query_as::<_, LabEntity>(&format!("SELECT {ENTITY_COLUMNS} FROM lab.entities WHERE lab_id=$1::uuid AND ($2::text IS NULL OR kind=$2) AND ($3::text IS NULL OR EXISTS(SELECT 1 FROM jsonb_array_elements(definition->'capabilities') c WHERE c->>'id'=$3)) AND ($4::text IS NULL OR ($4='unknown' AND NOT EXISTS(SELECT 1 FROM lab.current_observations o WHERE o.entity_id=entities.id)) OR EXISTS(SELECT 1 FROM lab.current_observations o WHERE o.entity_id=entities.id AND (o.values->>'on'=$4 OR o.values->>'phase'=$4))) ORDER BY id"))
+            .bind(&lab_id).bind(query.kind).bind(query.capability).bind(query.state).fetch_all(&mut *tx).await?.into_iter().map(LabEntity::with_capabilities).collect::<Vec<_>>();
+    let entity_ids = entities
+        .iter()
+        .map(|entity| entity.id.clone())
+        .collect::<Vec<_>>();
+    let nodes: Vec<SceneNode> = sqlx::query_as(&format!("SELECT {NODE_COLUMNS} FROM lab.scene_nodes WHERE lab_id=$1::uuid AND entity_id::text=ANY($2) ORDER BY id"))
+            .bind(&lab_id).bind(&entity_ids).fetch_all(&mut *tx).await?;
+    let representations = nodes
+        .iter()
+        .filter_map(|node| node.representation_id.clone())
+        .chain(
+            entities
+                .iter()
+                .filter_map(|entity| entity.representation_id.clone()),
+        )
+        .collect::<Vec<_>>();
+    let assets = assets::load_representations(&mut tx, &representations).await?;
+    let relationships = super::relationships::load(&mut tx, &lab_id)
+        .await?
+        .into_iter()
+        .filter(|relation| {
+            entity_ids.contains(&relation.source_id) && entity_ids.contains(&relation.target_id)
+        })
+        .collect();
+    tx.commit().await?;
+    Ok(LabWorld {
+        version,
+        lab,
+        entities,
+        nodes,
+        assets,
+        relationships,
+    })
 }
 #[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities", operation_id="registerLabEntity", tag="Lab", params(("lab_id"=String, Path)), request_body=RegisterEntity, responses((status=201, body=LabEntity), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
 async fn register_entity(
@@ -506,7 +544,7 @@ async fn register_entity(
         Err(error) => error.response(id),
     }
 }
-#[utoipa::path(get, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}", operation_id="getLabEntity", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), responses((status=200, body=LabEntity), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
+#[utoipa::path(get, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}", operation_id="getLabEntity", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), responses((status=200, body=LabEntity, headers(("X-Lab-Runtime"=String, description="ready or unavailable: immediate execution service status. Combine with persistent capability permission."))), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
 async fn get_entity(
     State(state): State<Lab>,
     Extension(id): Extension<RequestId>,
@@ -520,13 +558,22 @@ async fn get_entity(
         let lab = uuid(&lab)?.to_string();
         let entity = uuid(&entity)?.to_string();
         let mut connection = state.pool.acquire().await?;
-        load_entity(&mut connection, &lab, &entity)
-            .await
-            .map(|entity| entity.with_runtime_availability(state.runtime_available()))
+        load_entity(&mut connection, &lab, &entity).await
     }
     .await;
     match result {
-        Ok(entity) => Json(entity).into_response(),
+        Ok(entity) => (
+            [(
+                "x-lab-runtime",
+                if state.runtime_available() {
+                    "ready"
+                } else {
+                    "unavailable"
+                },
+            )],
+            Json(entity),
+        )
+            .into_response(),
         Err(error) => error.response(id),
     }
 }

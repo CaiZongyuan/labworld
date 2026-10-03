@@ -475,6 +475,10 @@ export type LabWorld = {
     lab: PersistentLab;
     nodes: Array<SceneNode>;
     relationships: Array<EntityRelationship>;
+    /**
+     * Deployment-wide committed world revision, compared only within the same Lab/query.
+     */
+    version: string;
 };
 
 export type LayoutNode = {
@@ -694,6 +698,39 @@ export type UploadInput = {
     file_name: string;
     sha256: string;
     size: number;
+};
+
+export type WorldChange = {
+    collection: WorldCollection;
+    id: string;
+    /**
+     * Changed top-level properties; null removes the item. New items carry all properties.
+     */
+    patch?: unknown;
+};
+
+export type WorldCollection = 'entities' | 'nodes' | 'assets' | 'relationships';
+
+export type WorldEvent = {
+    type: 'snapshot';
+    world: LabWorld;
+} | {
+    base_version: string;
+    changes: Array<WorldChange>;
+    lab?: null | PersistentLab;
+    type: 'update';
+    version: string;
+} | {
+    type: 'heartbeat';
+    version: string;
+} | {
+    reason: string;
+    type: 'resync';
+} | {
+    type: 'access_ended';
+} | {
+    available: boolean;
+    type: 'runtime_status';
 };
 
 export type ListApiKeysData = {
@@ -2508,6 +2545,39 @@ export type GetLabWorldResponses = {
 };
 
 export type GetLabWorldResponse = GetLabWorldResponses[keyof GetLabWorldResponses];
+
+export type StreamLabWorldData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/world/subscribe';
+};
+
+export type StreamLabWorldErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StreamLabWorldError = StreamLabWorldErrors[keyof StreamLabWorldErrors];
+
+export type StreamLabWorldResponses = {
+    /**
+     * SSE snapshot then versioned property updates. 1 MiB/event, 8 queued events; resync discards the queue and closes. Credentials are checked on each 250ms polling cycle and before queued frame delivery; source/check timeouts close the stream.
+     */
+    200: WorldEvent;
+};
+
+export type StreamLabWorldResponse = StreamLabWorldResponses[keyof StreamLabWorldResponses];
 
 export type ListNotificationsData = {
     body?: never;

@@ -42,7 +42,7 @@ Furniture, locations, and Labware can be spatial containers. Self-references, cr
 
 Switching Labs or runtime view retains each Lab's draft in this page. Unsaved drafts are kept only in the current page; save before leaving or refreshing. Cross-browser restoration uses server-saved results.
 
-Start a light, change its coordinates in edit mode, then toggle power. Observation polling updates the device snapshot while keeping the coordinate draft. Saving retains the Run and observation. Layout saves do not submit runtime data, and observations do not increment `layout_version`.
+Start a light, change its coordinates in edit mode, then toggle power. Subscriptions update the device snapshot while keeping the coordinate draft. Saving retains the Run and observation. Layout saves do not submit runtime data, and observations do not increment `layout_version`.
 
 ## Use the Same Operations as an Agent
 
@@ -73,4 +73,4 @@ pnpm test:frontend apps/web/src/lab-world.test.tsx
 node scripts/e2e.mjs tests/e2e/lab-layout.spec.ts
 ```
 
-HTTP checks use the real Router and isolated PostgreSQL. Page tests replace only HTTP with MSW. Browser checks use real application services, independent contexts, and WebGL pointers. Next, [Issue #8](https://github.com/CaiZongyuan/labworld/issues/8) adds reliable realtime updates and disconnection recovery; current observations use the bounded snapshot polling from the lighting chapter.
+HTTP checks use the real Router and isolated PostgreSQL. Page tests replace only HTTP with MSW. Browser checks use real application services, independent contexts, and WebGL pointers. Continue with [reliable synchronization and recovery](reliable-sync.md) to observe one world from two browsers and an Agent and verify connection recovery and revocation.

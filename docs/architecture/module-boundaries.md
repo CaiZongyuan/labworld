@@ -31,4 +31,6 @@ pnpm typecheck
 
 “独立业务”表示源码和职责边界，不表示新的企业或租户。当前沿用[单企业部署](../adr/0001-single-organization-deployment.md)。历史模板的完整所有权清单与删例工具在此副本中并不存在，不把目标架构视为已完成的命令。
 
+Lab 的 [ownership](../../crates/app/src/modules/lab/module.json) 以 `sdkPaths` 精确登记订阅 helper，以 `assemblyPoints` 登记 SDK facade 接入位置，`contractSymbols` 包含相应导出。移除 Lab 时一并移除这些 helper、测试、教程及 facade 的 Lab 导出，随后重新生成合同和 SDK；共享 HTTP/SSE 生命周期仍属于 SDK。边界检查仅允许已登记的业务 SDK 文件导入该业务合同，未登记 SDK 文件与 Core 仍受原规则约束。
+
 后续 Lab 的导入失败、资源释放、快速切换与懒加载在正式应用验收，见[产品范围](lab-word.md)。

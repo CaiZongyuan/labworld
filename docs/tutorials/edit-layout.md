@@ -42,7 +42,7 @@ just dev
 
 切换 Lab 或运行查看会保留本页各 Lab 的草稿。未保存草稿只在当前页面内保留，离开或刷新前应保存；跨浏览器恢复的是服务器保存结果。
 
-启动照明后，在编辑模式改坐标，再切换电源。观测轮询更新设备快照，坐标草稿仍在；保存成功后 Run 与观测保留。布局保存不提交运行态，设备观测不递增 `layout_version`。
+启动照明后，在编辑模式改坐标，再切换电源。订阅更新设备快照，坐标草稿仍在；保存成功后 Run 与观测保留。布局保存不提交运行态，设备观测不递增 `layout_version`。
 
 ## 用 Agent 执行同一业务操作
 
@@ -73,4 +73,4 @@ pnpm test:frontend apps/web/src/lab-world.test.tsx
 node scripts/e2e.mjs tests/e2e/lab-layout.spec.ts
 ```
 
-HTTP 使用真实 Router 和隔离 PostgreSQL；页面仅用 MSW 替代 HTTP；浏览器使用真实应用、独立上下文与 WebGL 指针。下一阶段 [Issue #8](https://github.com/CaiZongyuan/labworld/issues/8) 扩展可靠实时同步与断线恢复；当前运行观测使用后端照明章节中的有界快照轮询。
+HTTP 使用真实 Router 和隔离 PostgreSQL；页面仅用 MSW 替代 HTTP；浏览器使用真实应用、独立上下文与 WebGL 指针。接下来按[可靠同步与恢复](reliable-sync.md)让两个浏览器和 Agent 观察同一世界，并验证断线恢复与撤权。

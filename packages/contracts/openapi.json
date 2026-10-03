@@ -5267,6 +5267,14 @@
         "responses": {
           "200": {
             "description": "",
+            "headers": {
+              "X-Lab-Runtime": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "ready or unavailable: immediate execution service status. Combine with persistent capability permission."
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6350,6 +6358,14 @@
         "responses": {
           "200": {
             "description": "",
+            "headers": {
+              "X-Lab-Runtime": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "ready or unavailable: immediate execution service status. Combine with persistent capability permission; this header is outside the world version."
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
@@ -6389,6 +6405,113 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/world/subscribe": {
+      "get": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "streamLabWorld",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE snapshot then versioned property updates. 1 MiB/event, 8 queued events; resync discards the queue and closes. Credentials are checked on each 250ms polling cycle and before queued frame delivery; source/check timeouts close the stream.",
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorldEvent"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
             "description": "",
             "content": {
               "application/json": {
@@ -8981,6 +9104,7 @@
       "LabWorld": {
         "type": "object",
         "required": [
+          "version",
           "lab",
           "entities",
           "nodes",
@@ -9014,6 +9138,10 @@
             "items": {
               "$ref": "#/components/schemas/EntityRelationship"
             }
+          },
+          "version": {
+            "type": "string",
+            "description": "Deployment-wide committed world revision, compared only within the same Lab/query."
           }
         }
       },
@@ -9798,6 +9926,162 @@
           }
         },
         "additionalProperties": false
+      },
+      "WorldChange": {
+        "type": "object",
+        "required": [
+          "collection",
+          "id"
+        ],
+        "properties": {
+          "collection": {
+            "$ref": "#/components/schemas/WorldCollection"
+          },
+          "id": {
+            "type": "string"
+          },
+          "patch": {
+            "description": "Changed top-level properties; null removes the item. New items carry all properties."
+          }
+        }
+      },
+      "WorldCollection": {
+        "type": "string",
+        "enum": [
+          "entities",
+          "nodes",
+          "assets",
+          "relationships"
+        ]
+      },
+      "WorldEvent": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "world",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "snapshot"
+                ]
+              },
+              "world": {
+                "$ref": "#/components/schemas/LabWorld"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "base_version",
+              "changes",
+              "type"
+            ],
+            "properties": {
+              "base_version": {
+                "type": "string"
+              },
+              "changes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/WorldChange"
+                }
+              },
+              "lab": {
+                "oneOf": [
+                  {
+                    "type": "null"
+                  },
+                  {
+                    "$ref": "#/components/schemas/PersistentLab"
+                  }
+                ]
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "update"
+                ]
+              },
+              "version": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "version",
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "heartbeat"
+                ]
+              },
+              "version": {
+                "type": "string"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "reason",
+              "type"
+            ],
+            "properties": {
+              "reason": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "resync"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": [
+                  "access_ended"
+                ]
+              }
+            }
+          },
+          {
+            "type": "object",
+            "required": [
+              "available",
+              "type"
+            ],
+            "properties": {
+              "available": {
+                "type": "boolean"
+              },
+              "type": {
+                "type": "string",
+                "enum": [
+                  "runtime_status"
+                ]
+              }
+            }
+          }
+        ]
       }
     }
   }

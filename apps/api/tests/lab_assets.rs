@@ -941,6 +941,73 @@ async fn entity_and_node_references_protect_asset_bytes_and_restore_in_world(poo
         asset["representation"]["id"]
     );
     assert_eq!(world["assets"][0], asset);
+    let subscription = request(
+        &app,
+        &actor,
+        "GET",
+        &format!("/api/v1/lab/labs/{lab_id}/world/subscribe"),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(subscription.status(), StatusCode::OK);
+    let mut stream = subscription.into_body();
+    async fn stream_event(stream: &mut Body) -> Value {
+        let frame = tokio::time::timeout(Duration::from_secs(5), stream.frame())
+            .await
+            .unwrap()
+            .unwrap()
+            .unwrap()
+            .into_data()
+            .unwrap();
+        let text = std::str::from_utf8(&frame).unwrap();
+        serde_json::from_str(
+            text.lines()
+                .find_map(|line| line.strip_prefix("data: "))
+                .unwrap(),
+        )
+        .unwrap()
+    }
+    assert_eq!(stream_event(&mut stream).await["world"], world);
+    assert_eq!(
+        request(
+            &app,
+            &actor,
+            "PATCH",
+            &format!("/api/v1/lab/assets/{}", asset["id"].as_str().unwrap()),
+            json!({"name":"Renamed shared microscope"})
+        )
+        .await
+        .status(),
+        StatusCode::OK
+    );
+    loop {
+        let event = stream_event(&mut stream).await;
+        if event["type"] != "update" {
+            continue;
+        }
+        assert!(
+            event["version"].as_str().unwrap().parse::<u64>().unwrap()
+                > world["version"].as_str().unwrap().parse::<u64>().unwrap()
+        );
+        assert!(
+            event["changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|change| change["collection"] == "assets"
+                    && change["id"] == asset["id"]
+                    && change["patch"]["name"] == "Renamed shared microscope")
+        );
+        assert!(
+            event["changes"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .all(|change| change["collection"] == "assets")
+        );
+        break;
+    }
+    drop(stream);
     assert_eq!(
         request(
             &app,

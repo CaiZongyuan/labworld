@@ -5,6 +5,7 @@ mod glb;
 mod layout;
 mod relationships;
 mod runtime;
+mod sync;
 mod world;
 
 pub use runtime::{
@@ -47,6 +48,7 @@ pub fn router_with_runtime(
         .merge(world::routes())
         .merge(layout::routes())
         .merge(devices::routes())
+        .merge(sync::routes())
         .with_state(Lab {
             pool,
             auth,
@@ -61,6 +63,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     document.merge(world::openapi());
     document.merge(layout::openapi());
     document.merge(devices::openapi());
+    document.merge(sync::openapi());
     document
 }
 
@@ -84,6 +87,7 @@ enum Failure {
     InvalidParameters,
     RuntimeUnavailable,
     LayoutConflict,
+    SnapshotTooLarge,
     Unavailable,
     Idempotency(crate::modules::idempotency::Error),
 }
@@ -111,6 +115,11 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::SnapshotTooLarge => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "lab.snapshot_too_large",
+                "World exceeds the subscription payload limit",
+            ),
             Self::LayoutConflict => (
                 StatusCode::CONFLICT,
                 "lab.layout_conflict",
@@ -217,6 +226,17 @@ impl Lab {
     }
 
     async fn authorize(
+        &self,
+        connection: &mut PgConnection,
+        headers: &HeaderMap,
+        actor_id: &str,
+    ) -> Result<(), Failure> {
+        self.access_current(connection, headers, actor_id).await?;
+        sync::lock_world(connection).await?;
+        Ok(())
+    }
+
+    async fn access_current(
         &self,
         connection: &mut PgConnection,
         headers: &HeaderMap,

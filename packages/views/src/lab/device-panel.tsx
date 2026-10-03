@@ -41,6 +41,7 @@ export default function DevicePanel({
   attempt,
   onAttempt,
   onRefresh,
+  runtimeAvailable,
 }: {
   entity: LabEntity;
   apiClient: ApiClient;
@@ -48,6 +49,7 @@ export default function DevicePanel({
   attempt?: CommandAttempt;
   onAttempt: (attempt: CommandAttempt) => void;
   onRefresh: () => Promise<unknown>;
+  runtimeAvailable: boolean;
 }) {
   const message = useAppMessage('lab');
   const [programPending, setProgramPending] = useState(false);
@@ -55,9 +57,9 @@ export default function DevicePanel({
   const [brightness, setBrightness] = useState('100');
   const path = { lab_id: entity.lab_id, entity_id: entity.id };
   const running = entity.program_run?.status === 'running';
-  const executable = entity.capabilities.some(
-    (capability) => capability.executable,
-  );
+  const executable =
+    entity.capabilities.some((capability) => capability.executable) &&
+    runtimeAvailable;
   const command = useQuery({
     queryKey: [
       'lab',
@@ -160,6 +162,13 @@ export default function DevicePanel({
               {message(`device.${entity.program_run?.status ?? 'not_started'}`)}
             </Badge>
           </div>
+          {!runtimeAvailable ? (
+            <Alert>
+              <AlertDescription>
+                {message('device.runtimeUnavailable')}
+              </AlertDescription>
+            </Alert>
+          ) : null}
           <dl className="world-properties">
             <dt>Binding</dt>
             <dd>{entity.binding.id}</dd>
@@ -175,7 +184,7 @@ export default function DevicePanel({
           <Button
             size="sm"
             variant="outline"
-            disabled={programPending}
+            disabled={programPending || !runtimeAvailable}
             onClick={() => void program()}
           >
             {running ? (
