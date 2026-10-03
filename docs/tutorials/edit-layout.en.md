@@ -4,7 +4,7 @@ Place a beaker, explicitly register it on a bench, and keep a draft after anothe
 
 ## Starting Version and Changes
 
-Start at `b707bc9`, after [persistent Lab and objects](persistent-world.md) and [backend lighting](backend-lights.md). This chapter implements [Issue #5](https://github.com/CaiZongyuan/labworld/issues/5). Use a checkout containing this implementation. Run commands from the repository root; browser actions and the script write persistent development data.
+Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [persistent Lab and objects](persistent-world.en.md) and [backend lighting](backend-lights.en.md) first. Run commands from the repository root. Browser operations and the script write development data.
 
 Sources: [layout HTTP](../../crates/app/src/modules/lab/layout.rs), [relationships](../../crates/app/src/modules/lab/relationships.rs), [migration](../../migrations/0022_lab_relationships.sql), [placement Inspector](../../packages/views/src/lab/layout-editor.tsx), [relationship form](../../packages/views/src/lab/relationship-panel.tsx), [real 3D transforms](../../packages/views/src/lab/world-viewport.tsx), and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) lists the tables, contracts, checks, and tutorial.
 
@@ -46,7 +46,7 @@ Start a light, change its coordinates in edit mode, then toggle power. Subscript
 
 ## Use the Same Operations as an Agent
 
-Obtain an active `lab:full` API key in settings. The script creates its own Lab, bench, beaker, and simulated/physical Robots. It checks stale-version conflicts, unchanged data after a rejected cycle, independent copies, multiple representations, and remove/restore.
+Obtain an active `lab:full` API key in settings. Set `LAB_ID` to continue the previous Lab. Without it, the script creates a Lab. It adds a bench, beaker and simulated/physical Robots. It checks conflicts, rejected cycles, independent copies, multiple representations and remove/restore.
 
 ```bash
 export LAB_API_BASE=http://127.0.0.1:3000

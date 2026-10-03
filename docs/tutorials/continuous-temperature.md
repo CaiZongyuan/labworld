@@ -4,7 +4,7 @@
 
 ## 起始版本
 
-起点是 `fece778`。前章[可靠同步与恢复](reliable-sync.md)已提供持久世界和 SSE。使用包含本章的工作副本。本章对应 [Issue #6](https://github.com/CaiZongyuan/labworld/issues/6)。
+使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[可靠同步与恢复](reliable-sync.md)，取得持久世界和 SSE 订阅。
 
 在仓库根目录运行命令。操作会写入开发数据库。普通 Member 需要有效会话。Agent 需要有效的 `lab:full` API 密钥。
 

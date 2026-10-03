@@ -4,7 +4,7 @@
 
 ## 起始版本
 
-起点为 `ddaf175`。[连续温度](continuous-temperature.md)已提供后端 Run 和属性观测。请使用包含本章的 checkout。本章实现 [Issue #7](https://github.com/CaiZongyuan/labworld/issues/7)。
+使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[连续温度](continuous-temperature.md)，取得后端 Run 和属性观测。
 
 在仓库根目录运行命令。这些操作写入持久开发数据。普通成员需要有效会话。Agent 需要有效的 `lab:full` API key。
 
@@ -178,4 +178,4 @@ Start Command 的 succeeded 表示程序开始了任务，不表示任务已完�
 
 ## 下一阶段
 
-继续阅读[运行历史与保留策略](run-history.md)。该章查询任务和温度，并检查清理结果。清理后，过期已结束 Task、Result 和 Command 返回 404。Entity 归档与外观替换随后交付。
+继续[运行历史与保留策略](run-history.md)，查询任务和温度并检查清理结果。清理后，过期已结束 Task、Result 和 Command 返回 404。之后按[对象生命周期](entity-lifecycle.md)归档 Entity 或独立替换外观。

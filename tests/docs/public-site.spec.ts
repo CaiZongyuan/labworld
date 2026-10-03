@@ -218,19 +218,21 @@ test('the landing CTA and switcher also work from the English home', async ({
   await expect(page).toHaveURL(/\/en\/docs\/$/);
 });
 
-test('the project home renders the actual preview and identifies its status', async ({
+test('the project home renders the actual application and identifies its status', async ({
   page,
 }) => {
   for (const [path, status] of [
-    ['/', '独立预览'],
-    ['/en/', 'isolated preview'],
+    ['/', '真实应用栈'],
+    ['/en/', 'real application stack'],
   ]) {
     await go(page, path);
     await expect(page.locator('.lab-home')).toContainText(status);
-    const preview = page.locator('.lab-home img');
-    await expect(preview).toBeVisible();
+    const application = page.locator('.lab-home img');
+    await expect(application).toBeVisible();
     await expect
-      .poll(() => preview.evaluate((img: HTMLImageElement) => img.naturalWidth))
+      .poll(() =>
+        application.evaluate((img: HTMLImageElement) => img.naturalWidth),
+      )
       .toBe(1440);
   }
   for (const width of [320, 390, 1440, 1920]) {
@@ -292,6 +294,93 @@ test('the three-state appearance control covers system, light and dark', async (
   // …and follows the OS live, without a reload.
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect(page.locator('html')).toHaveClass(/dark/);
+});
+
+test('the complete Foundation path preserves every chapter, language and narrow layout', async ({
+  page,
+}) => {
+  const chapters = [
+    'persistent-assets',
+    'persistent-world',
+    'backend-lights',
+    'edit-layout',
+    'reliable-sync',
+    'continuous-temperature',
+    'centrifuge-tasks',
+    'run-history',
+    'entity-lifecycle',
+    'complete-foundation',
+  ];
+  for (const prefix of ['', '/en']) {
+    await go(page, `${prefix}/tutorials/${chapters[0]}`);
+    for (const [index, chapter] of chapters.entries()) {
+      await expect(page).toHaveURL(
+        new RegExp(`${prefix}/tutorials/${chapter}$`),
+      );
+      await expect(page.locator('.vp-doc h1')).toBeVisible();
+      if (index < chapters.length - 1) {
+        const commonStart = page
+          .locator('.vp-doc')
+          .getByRole('link', {
+            name: prefix ? /complete journey/i : '完整旅程',
+            exact: true,
+          })
+          .first();
+        await expect
+          .poll(() =>
+            commonStart.evaluate(
+              (link: HTMLAnchorElement) => new URL(link.href).pathname,
+            ),
+          )
+          .toBe(
+            site.pathname.replace(/\/$/, '') +
+              `${prefix}/tutorials/complete-foundation`,
+          );
+        await page.locator('.pager-link.next').click();
+      }
+    }
+    await expect(page.locator('.vp-doc')).toContainText(
+      'just perf-lab-reference',
+    );
+    await expect(page.locator('.pager-link.next')).toHaveCount(0);
+    await expect(page.locator('.pager-link.prev')).toHaveAttribute(
+      'href',
+      /\/tutorials\/entity-lifecycle$/,
+    );
+  }
+  await page
+    .getByRole('banner')
+    .getByRole('link', { name: '中文', exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/tutorials\/complete-foundation$/);
+  await page.getByRole('button', { name: '深色', exact: true }).click();
+  await page.setViewportSize({ width: 320, height: 900 });
+  await expect(page.locator('html')).toHaveClass(/dark/);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: '.scratch/foundation-v1/documentation/complete-mobile-zh-dark.png',
+    fullPage: true,
+  });
+  await go(page, '/en/tutorials/complete-foundation');
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Complete Digital Laboratory Journey',
+    }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: '.scratch/foundation-v1/documentation/complete-mobile-en-dark.png',
+    fullPage: true,
+  });
 });
 
 test('the shared chrome keeps gutters, the language pill and the license line', async ({

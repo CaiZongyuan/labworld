@@ -4,7 +4,7 @@ Goal: register two independent Entities from one definition, find the same ident
 
 ## Starting Version and Changes
 
-Start at `e6f80f5`, after [persistent digital assets](persistent-assets.md): server assets, the built-in definition catalog and a `lab:full` Agent credential exist. This chapter implements [Issue #3](https://github.com/CaiZongyuan/labworld/issues/3). Use a checkout containing this implementation. Run commands at the repository root; browser registration and the script below write to the development database.
+Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [persistent digital assets](persistent-assets.en.md) first. You need server assets, the built-in definition catalog and a `lab:full` Agent credential. Run commands from the repository root. Browser registration and the script write development data.
 
 Sources: [World HTTP](../../crates/app/src/modules/lab/world.rs), [persistent model migration](../../migrations/0019_lab_world.sql), [workbench](../../packages/views/src/lab/world-view.tsx), [multi-object scene](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) declares tables, contracts, tests and tutorials. Identity, CSRF, files and audit remain Core public capabilities.
 
@@ -24,7 +24,7 @@ Open <http://127.0.0.1:5173/lab>, sign in as an ordinary Member, click **Create 
 5. Click **Add representation of this object**. A new node UUID appears while the Entity UUID remains unchanged. Registering another object creates a new Entity.
 6. Reload, or sign in as another Member in a separate browser and select `Identity lab` in **Open Lab**. Objects, definition snapshots, nodes and basic placements return.
 
-The Robot declares `move/pick/place`, but Binding implementation and current executability are both “No”. Without observations, it shows **Unknown · No observation**. Choosing “Physical object · Not connected” creates a separate identity without connecting any physical protocol. Relationships follow later; lighting programs are in the [next chapter](backend-lights.md).
+The Robot declares `move/pick/place`. Binding implementation and current executability are both “No”. Without observations, it shows **Unknown · No observation**. **Physical object · Not connected** creates a separate identity without connecting a physical protocol. See [layout relationships](edit-layout.en.md) for implemented registration. Lighting programs are in the [next chapter](backend-lights.en.md).
 
 Upload a GLB in the asset library, then select it under **Appearance** during registration. One asset can serve two independent objects; representation, file, node and Entity UUIDs remain separate. Deleting a referenced asset returns 409 and its file stays available. **Open in Lab** in the library previews the file at `/lab/asset`; it does not register an Entity.
 
@@ -46,7 +46,7 @@ Complete executable requests:
 
 <<< ../../examples/lab/register-world.mjs
 
-`GET /api/v1/lab/labs/{lab_id}/world` returns the Lab layout version, Entities, nodes and their referenced assets. Combine `kind`, `capability` and `state=unknown` filters. This chapter's Robots have no runtime Binding or observations. Once lights report, `state=true/false` filters reported power. `kind` uses the definition catalog category. Configuration is an instance JSON object with an 8192-byte limit; names have at most 120 characters; a Lab has at most 1000 Entities and 1000 nodes. The Lab list defaults to 50 entries per page, accepts `limit` from 1–100 and uses `next_cursor` to continue; the browser offers “Load more”. Placement uses meters, radians and positive scale. Registration persists a basic arrangement; interactive editing follows later.
+`GET /api/v1/lab/labs/{lab_id}/world` returns the world version, Lab layout version, Entities, nodes, referenced assets and relationships. Combine `kind`, `capability` and `state=unknown` filters. This chapter's Robots have no runtime Binding or observations. Once lights report, `state=true/false` filters reported power. `kind` uses the definition catalog category. Instance configuration is a JSON object, limited to 8192 bytes. Names have at most 120 characters. A Lab has at most 1000 Entities and 1000 nodes. The Lab list defaults to 50 entries per page. It accepts `limit` from 1–100 and uses `next_cursor` to continue. The browser offers **Load more**. Placement uses meters, radians and positive scale. Registration persists a basic arrangement. See [layout editing](edit-layout.en.md) for implemented interactive controls.
 
 ## Failure and Recovery
 

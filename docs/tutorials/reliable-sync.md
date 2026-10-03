@@ -4,7 +4,7 @@
 
 ## 起始版本与本章变更
 
-起点是 `240294a`，完成[编辑布局与登记位置](edit-layout.md)后，已有持久世界、独立设备程序与布局草稿。本章对应 [Issue #8](https://github.com/CaiZongyuan/labworld/issues/8)。使用包含本章的工作副本，在仓库根目录运行命令；浏览器操作会写入开发数据库。
+使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[编辑布局与登记位置](edit-layout.md)，建立持久世界、设备程序和布局草稿。命令在仓库根目录运行。浏览器操作会写入开发数据库。
 
 实现入口：[持久世界版本](../../migrations/0023_lab_world_version.sql)、[公开 SSE 接口](../../crates/app/src/modules/lab/sync.rs)、[SDK 订阅和版本应用](../../packages/sdk/src/lab-world.ts)、[页面订阅](../../packages/views/src/lab/world-subscription.ts)、[Lab ownership](../../crates/app/src/modules/lab/module.json)。已有迁移保持原校验和。
 
@@ -43,7 +43,7 @@ node examples/lab/observe-world.mjs --reconnect
 
 `GET /api/v1/lab/labs/{lab_id}/world/subscribe` 接受会话 Cookie 或 `Authorization: Bearer …`，返回 `text/event-stream`。第一条 `snapshot` 带完整 `LabWorld`。后续 `update` 带 `version`、`base_version`、可选的 `lab` 和 `changes`：按 `entities`、`nodes`、`assets`、`relationships` 的独立 id 更新；`patch` 是改变的顶层属性，`null` 删除该项。新增项携带完整属性。设备观测仅更新相关 Entity，不传播渲染帧。
 
-世界版本是部署内事务提交有序的十进制字符串，用 `BigInt` 比较；只比较同一个 Lab 和查询范围。版本覆盖跨 Entity、Run、观测、结构和引用资产变化。它与 `layout_version` 分开，不以某台设备的 `sequence` 代替整个世界版本。同一版本代表相同持久事实；中间状态可以合并为最新状态，这不是历史事件流。历史记录由后续切片提供。
+世界版本是部署内事务提交有序的十进制字符串。使用 `BigInt` 比较同一个 Lab 和查询范围。版本覆盖 Entity、Run、观测、结构和引用资产变化。它独立于 `layout_version`。某台设备的 `sequence` 不能代替世界版本。同一版本代表相同持久事实。中间状态可以合并为最新状态，不能作为完整历史事件流。查询已实现的[运行历史](run-history.md)可获取保留范围内记录。
 
 SDK 的 `subscribeLabWorld({client,labId,signal,headers,onWorld,onEvent})` 使用独立流生命周期，保留 `createApiClient` 的普通 HTTP 5 秒超时，订阅以 10 秒无消息检测连接中断。`onWorld` 只在完整快照或有效更新后调用；重复和旧版本被忽略，缺少匹配 `base_version` 时抛出 `WorldSyncError`，调用者重新订阅以获得快照。页面支持自动与手动重连，离开页面、切换 Lab 或身份时取消旧流。
 
@@ -59,4 +59,4 @@ pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.tes
 node scripts/e2e.mjs tests/e2e/lab-sync.spec.ts
 ```
 
-真实 Router 和隔离 PostgreSQL 验证交接、版本、撤权及有界队列。页面只用 MSW 替代 HTTP。关键旅程使用真实两浏览器、Agent、后端程序及 WebGL。[下一章](continuous-temperature.md)使用相同属性合同读取连续温度与过期状态。[Issue #11](https://github.com/CaiZongyuan/labworld/issues/11) 验收布局草稿与网络恢复的完整组合。
+真实 Router 和隔离 PostgreSQL 验证交接、版本、撤权及有界队列。页面只用 MSW 替代 HTTP。关键旅程使用真实两浏览器、Agent、后端程序及 WebGL。[下一章](continuous-temperature.md)使用相同属性合同读取连续温度与过期状态。[完整旅程](complete-foundation.md)组合布局草稿与网络恢复。

@@ -87,8 +87,8 @@ perf:
     @echo "  just perf-load | perf-saturation | perf-trajectory | perf-soak"
     @echo "Desktop renderer soak (nightly evidence, never a gate):"
     @echo "  just perf-desktop-soak"
-    @echo "1/2 budget contract tests (registration + documents)"
-    node scripts/test-backend.mjs --test perf_registration --test perf_documents
+    @echo "1/2 budget contract tests (registration + documents + Lab)"
+    node scripts/test-backend.mjs --test perf_registration --test perf_documents --test perf_lab
     @echo "2/2 bundle gate + query-plan report"
     just perf-ci
 
@@ -119,6 +119,11 @@ perf-trajectory:
 
 perf-soak:
     node scripts/perf/run-scenario.mjs soak
+
+# Foundation reference load owns a disposable stack, without preceding
+# requests in the per-IP rate-limit window. Never an implicit PR gate.
+perf-lab-reference:
+    E2E_LAB_REFERENCE_LOAD=1 node scripts/e2e.mjs tests/e2e/lab-reference-load.spec.ts
 
 # Desktop soak (spec §17.3): drives the real Electron shell over the shared
 # knowledge views and samples renderer RSS, heap, DOM nodes and listeners

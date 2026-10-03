@@ -4,7 +4,7 @@ Goal: observe one backend device from two browsers and an Agent, keep the last o
 
 ## Starting Version and Changes
 
-Start at `240294a`, after [editing layouts and registering locations](edit-layout.md). Persistent worlds, independent device programs, and layout drafts already exist. This chapter implements [Issue #8](https://github.com/CaiZongyuan/labworld/issues/8). Use a checkout containing this chapter and run commands from the repository root. Browser operations write to the development database.
+Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [editing layouts and registering locations](edit-layout.en.md) first. You need a persistent world, device programs and layout drafts. Run commands from the repository root. Browser operations write development data.
 
 Implementation: [transactional world versions](../../migrations/0023_lab_world_version.sql), [public SSE API](../../crates/app/src/modules/lab/sync.rs), [SDK subscriptions and version application](../../packages/sdk/src/lab-world.ts), [page subscriptions](../../packages/views/src/lab/world-subscription.ts), and [Lab ownership](../../crates/app/src/modules/lab/module.json). Existing migration checksums remain intact.
 
@@ -43,7 +43,7 @@ Complete requests and cancellation:
 
 `GET /api/v1/lab/labs/{lab_id}/world/subscribe` accepts a session Cookie or `Authorization: Bearer …` and returns `text/event-stream`. The first `snapshot` contains a complete `LabWorld`. An `update` contains `version`, `base_version`, an optional `lab`, and `changes` for independently identified `entities`, `nodes`, `assets`, and `relationships`. A `patch` contains changed top-level properties; `null` removes the item. New items contain every property. Observations update their Entity rather than sending render frames.
 
-World versions are deployment-wide, transactionally ordered decimal strings. Compare them with `BigInt` only within the same Lab and query scope. They cover different Entities, Runs, observations, structure, and referenced assets. They remain separate from `layout_version`; one device's `sequence` cannot version the whole world. The same version expresses the same persistent facts. Intermediate states may coalesce into the latest state: this is not a historical event stream. Later work adds history.
+World versions are deployment-wide, transactionally ordered decimal strings. Compare them with `BigInt` within the same Lab and query scope. They cover Entities, Runs, observations, structure and referenced assets. They remain separate from `layout_version`. One device's `sequence` cannot version the whole world. The same version expresses the same persistent facts. Intermediate states may coalesce into the latest state. They do not form a complete historical event stream. Query implemented [run history](run-history.en.md) for records within retention.
 
 The SDK's `subscribeLabWorld({client,labId,signal,headers,onWorld,onEvent})` has a separate stream lifetime. Ordinary `createApiClient` HTTP requests keep their five-second timeout; subscriptions detect a connection with no messages for ten seconds. `onWorld` runs only after a complete snapshot or valid update. Duplicate and old versions are ignored. A mismatched `base_version` throws `WorldSyncError`; reopen the subscription to restore a snapshot. The page reconnects automatically or manually, and cancels the old stream on navigation, Lab changes, or identity changes.
 
@@ -59,4 +59,4 @@ pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.tes
 node scripts/e2e.mjs tests/e2e/lab-sync.spec.ts
 ```
 
-Real Router tests with isolated PostgreSQL cover handoff, versions, revocation, and bounded queues. Page tests replace only HTTP through MSW. The critical journey uses two real browsers, an Agent, backend programs, and WebGL. [The next chapter](continuous-temperature.en.md) uses these property contracts to read continuous temperatures and expiry. [Issue #11](https://github.com/CaiZongyuan/labworld/issues/11) verifies the full combination of drafts and network recovery.
+Real Router tests with isolated PostgreSQL cover handoff, versions, revocation and bounded queues. Page tests replace only HTTP through MSW. The critical journey uses two real browsers, an Agent, backend programs and WebGL. [The next chapter](continuous-temperature.en.md) uses these property contracts for continuous temperatures and expiry. The [complete journey](complete-foundation.en.md) combines drafts and network recovery.

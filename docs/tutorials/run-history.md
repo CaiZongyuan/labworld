@@ -4,7 +4,7 @@
 
 ## 起始版本
 
-起始提交为 `5fe3468`。[离心任务](centrifuge-tasks.md)提供独立的 Command、Run、Task 和结果身份。使用包含本章及迁移 `0026_lab_history.sql`、`0027_lab_command_receipts.sql` 的工作副本。本章实现 [Issue #9](https://github.com/CaiZongyuan/labworld/issues/9)。
+使用[完整旅程](complete-foundation.md)指定的共同版本，其中包含历史迁移 `0026` 和命令 receipt 迁移 `0027`。先完成[离心任务](centrifuge-tasks.md)，取得独立的 Command、Run、Task 和结果身份。
 
 在仓库根目录执行命令。用 `just dev` 启动服务。Member 需要有效会话。Agent 需要有效的 `lab:full` 密钥。清理会删除所选 Lab 的持久历史。短保留期只能用于可丢弃的开发数据。
 
@@ -180,4 +180,4 @@ API 保留在途任务所需的 Start Command，直到任务结束。已结束 C
 
 ## 下一阶段
 
-继续[对象生命周期](entity-lifecycle.md)。归档已停止设备，替换外观并保留身份。规模和完整体验验收随后交付。
+继续[对象生命周期](entity-lifecycle.md)，归档已停止设备或独立替换外观。再按[完整旅程](complete-foundation.md)组合操作，并复现参考负载。

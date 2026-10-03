@@ -4,7 +4,7 @@
 
 ## 起始版本与本章变更
 
-起点是 `e6f80f5`，完成[持久数字资产](persistent-assets.md)后已有服务器资产、内置定义目录和 `lab:full` Agent 凭据。本章对应 [Issue #3](https://github.com/CaiZongyuan/labworld/issues/3)，使用包含本章实现的工作副本。所有命令从仓库根目录运行，浏览器登记和下面的脚本会写入开发数据库。
+使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[持久数字资产](persistent-assets.md)，取得服务器资产、内置定义目录和 `lab:full` Agent 凭据。命令在仓库根目录运行。浏览器登记和脚本会写入开发数据库。
 
 实现位于 [World HTTP](../../crates/app/src/modules/lab/world.rs)、[持久模型迁移](../../migrations/0019_lab_world.sql)、[工作台](../../packages/views/src/lab/world-view.tsx)、[多对象场景](../../packages/views/src/lab/world-viewport.tsx)与[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)登记表、合同、测试和教程；身份、CSRF、文件与审计继续通过 Core 公开能力提供。
 
@@ -24,7 +24,7 @@ just dev
 5. 点击 **新增同一对象表示**。节点 UUID 增加，Entity UUID 保持不变。注册另一对象则生成新 Entity。
 6. 刷新，或在另一浏览器登录企业内另一 Member，从 **打开 Lab** 选择 `Identity lab`。对象、定义快照、节点与基本摆放恢复。
 
-Robot 显示 `move/pick/place` 声明，但绑定实现和当前可执行均为“否”；没有观测时显示 **未知 · 无观测**。选择“真实对象 · 未接入”会创建另一个独立身份，当前不会连接真实协议。对象关系由后续阶段提供，照明程序见[下一章](backend-lights.md)。
+Robot 显示 `move/pick/place` 声明。绑定实现和当前可执行均为“否”。没有观测时显示 **未知 · 无观测**。**真实对象 · 未接入** 创建独立身份，不连接真实协议。已实现的登记关系见[布局章节](edit-layout.md)。照明程序见[下一章](backend-lights.md)。
 
 已有 GLB 可从资产库上传，然后在登记弹窗的 **外观表示** 中选择它。同一资产可用于两个独立对象；表示、文件、节点和 Entity UUID 分开。对象引用的资产删除返回 409，原文件仍可用。资产库的 **在 Lab 中打开** 使用 `/lab/asset` 预览文件；它本身不会登记 Entity。
 
@@ -46,7 +46,7 @@ node examples/lab/register-world.mjs
 
 <<< ../../examples/lab/register-world.mjs
 
-World 查询 `GET /api/v1/lab/labs/{lab_id}/world` 返回 Lab 布局版本、Entity、节点和节点引用的资产；可按 `kind`、`capability`、`state=unknown` 组合筛选。本章的 Robot 无运行 Binding 或观测；照明开始报告后还可用 `state=true/false` 筛选报告电源。`kind` 使用定义目录中的 category。配置 JSON 是实例对象，最大 8192 字节；名称最多 120 字符；单 Lab 最多 1000 Entity 和 1000 节点。Lab 列表默认每页 50 项，`limit` 为 1–100，使用 `next_cursor` 继续；浏览器提供“加载更多”。Placement 使用米、弧度和正尺度；基本注册摆放自动持久化，交互编辑将由后续阶段提供。
+World 查询 `GET /api/v1/lab/labs/{lab_id}/world` 返回世界版本、Lab 布局版本、Entity、节点、引用资产和关系。可组合 `kind`、`capability`、`state=unknown` 筛选。本章的 Robot 无运行 Binding 或观测。照明报告后，可用 `state=true/false` 筛选报告电源。`kind` 使用定义目录中的 category。实例配置是 JSON 对象，最多 8192 字节。名称最多 120 字符。单 Lab 最多 1000 Entity 和 1000 节点。Lab 列表默认每页 50 项，接受 1–100 的 `limit`，使用 `next_cursor` 继续。浏览器提供 **加载更多**。Placement 使用米、弧度和正尺度。注册时保存基本摆放。已实现的交互编辑见[布局章节](edit-layout.md)。
 
 ## 失败与恢复
 

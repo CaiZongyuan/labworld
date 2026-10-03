@@ -4,7 +4,7 @@
 
 ## 起始版本与本章变更
 
-起点是 `b707bc9`，已完成[持久 Lab 与对象](persistent-world.md)及[后端照明](backend-lights.md)。本章对应 [Issue #5](https://github.com/CaiZongyuan/labworld/issues/5)，使用包含本章实现的工作副本。以下命令从仓库根目录运行，浏览器与脚本都会写入开发数据库。
+使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[持久 Lab 与对象](persistent-world.md)及[后端照明](backend-lights.md)。命令在仓库根目录运行。浏览器和脚本都会写入开发数据库。
 
 源码入口是[布局 HTTP](../../crates/app/src/modules/lab/layout.rs)、[对象关系](../../crates/app/src/modules/lab/relationships.rs)、[关系迁移](../../migrations/0022_lab_relationships.sql)、[布局 Inspector](../../packages/views/src/lab/layout-editor.tsx)、[关系表单](../../packages/views/src/lab/relationship-panel.tsx)、[真实三维变换](../../packages/views/src/lab/world-viewport.tsx)和[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)登记新增表、合同、验证和教程。
 
@@ -46,7 +46,7 @@ just dev
 
 ## 用 Agent 执行同一业务操作
 
-从设置取得有效的 `lab:full` API 密钥。脚本创建自己的 Lab、工作台、烧杯和模拟/真实 Robot，实际验证旧版本冲突、非法环后数据不变、独立复制、多表示以及移除/放回。
+从设置取得有效的 `lab:full` API 密钥。设置 `LAB_ID` 可继续使用前章 Lab。未设置时，脚本创建一个 Lab。脚本加入工作台、烧杯和模拟/真实 Robot，并验证冲突、非法环后数据不变、独立复制、多表示和移除/放回。
 
 ```bash
 export LAB_API_BASE=http://127.0.0.1:3000

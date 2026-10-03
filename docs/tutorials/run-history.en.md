@@ -4,7 +4,7 @@ Goal: query a centrifuge task and its temperature reports. Change retention in a
 
 ## Starting Version
 
-The starting revision is `5fe3468`. [Centrifuge tasks](centrifuge-tasks.en.md) provides separate Command, Run, Task and result identities. Use a checkout that includes this chapter and migrations `0026_lab_history.sql` and `0027_lab_command_receipts.sql`. This chapter implements [Issue #9](https://github.com/CaiZongyuan/labworld/issues/9).
+Use the common version specified in the [complete journey](complete-foundation.en.md). It includes history migration `0026` and Command receipt migration `0027`. Complete [centrifuge tasks](centrifuge-tasks.en.md) first. You need separate Command, Run, Task and result identities.
 
 Run commands from the repository root. Start the services with `just dev`. Members need an active session. Agents need an active `lab:full` key. Cleanup deletes persistent history in the selected Lab. Use disposable development data for short retention periods.
 
@@ -180,4 +180,4 @@ For a connection error, select **Retry history query**. An expired or revoked ke
 
 ## Next Stage
 
-Continue with [Entity lifecycle](entity-lifecycle.en.md). Archive a stopped device and replace its appearance while preserving identity. Scale and combined experience validation follow later.
+Continue with [Entity lifecycle](entity-lifecycle.en.md) to archive a stopped device or replace its appearance independently. Then use the [complete journey](complete-foundation.en.md) to combine operations and reproduce the reference load.
