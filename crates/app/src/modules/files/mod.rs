@@ -399,6 +399,15 @@ impl FileService {
         &self,
         attempt: &CompletionAttempt,
     ) -> Result<VerifiedCandidate, Error> {
+        self.verify_candidate_with(attempt, |_| true).await
+    }
+
+    /// Business validation runs on the exact immutable bytes whose hash is verified.
+    pub async fn verify_candidate_with(
+        &self,
+        attempt: &CompletionAttempt,
+        validate: fn(&[u8]) -> bool,
+    ) -> Result<VerifiedCandidate, Error> {
         let permit = self
             .verification_slots
             .clone()
@@ -436,6 +445,7 @@ impl FileService {
                 let _permit = permit;
                 Sha256::digest(&bytes).as_slice() == expected
                     && valid_contents(&content_type, &bytes)
+                    && validate(&bytes)
             })
             .await
             .map_err(|_| Error::Unavailable)?;

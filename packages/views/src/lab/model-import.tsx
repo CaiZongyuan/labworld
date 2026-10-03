@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { CircleAlert, X } from 'lucide-react';
+import { errorCodeOf } from '@labos-threejs/core';
 import {
   Alert,
   AlertDescription,
@@ -9,7 +10,21 @@ import { Button } from '@labos-threejs/ui/components/button';
 import { useAppMessage } from '../shell/messages';
 import { ModelImportError, readModelFile, type ModelErrorKey } from './glb';
 
-export function useModelImport(onFile: (file: File) => void) {
+const importFailures: Record<string, ModelErrorKey> = {
+  'files.too_large': 'tooLarge',
+  'files.upload_rejected': 'invalid',
+  'auth.unauthorized': 'denied',
+  'auth.csrf': 'denied',
+};
+
+export function useModelImport(
+  onFile: (
+    file: File,
+    buffer: ArrayBuffer,
+    signal: AbortSignal,
+  ) => unknown | Promise<unknown>,
+  maxBytes: number,
+) {
   const input = useRef<HTMLInputElement>(null);
   const request = useRef<AbortController | null>(null);
   const [pending, setPending] = useState(false);
@@ -27,16 +42,23 @@ export function useModelImport(onFile: (file: File) => void) {
       setPending(true);
       setError(null);
       try {
-        await readModelFile(file, controller.signal);
-        if (!controller.signal.aborted) onFile(file);
+        if (!maxBytes) throw new ModelImportError('storage');
+        if (file.size > maxBytes) throw new ModelImportError('tooLarge');
+        const buffer = await readModelFile(file, controller.signal);
+        if (!controller.signal.aborted)
+          await onFile(file, buffer, controller.signal);
       } catch (cause) {
         if (!controller.signal.aborted)
-          setError(cause instanceof ModelImportError ? cause.key : 'failed');
+          setError(
+            cause instanceof ModelImportError
+              ? cause.key
+              : (importFailures[errorCodeOf(cause) ?? ''] ?? 'storage'),
+          );
       } finally {
         if (!controller.signal.aborted) setPending(false);
       }
     },
-    [onFile],
+    [onFile, maxBytes],
   );
   return { input, pending, error, setError, importFile, cancel };
 }

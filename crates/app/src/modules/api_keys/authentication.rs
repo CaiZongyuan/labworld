@@ -58,37 +58,27 @@ pub async fn require_read(
     id: &RequestId,
     scope: &str,
 ) -> Result<ReadActor, Response> {
+    require_access(pool, auth, headers, id, scope, false).await
+}
+
+/// Session mutations require CSRF; explicitly scoped keys use the same active membership.
+pub async fn require_access(
+    pool: &PgPool,
+    auth: &AuthSettings,
+    headers: &HeaderMap,
+    id: &RequestId,
+    scope: &str,
+    mutation: bool,
+) -> Result<ReadActor, Response> {
     if !headers.contains_key("authorization") {
-        return identity::require_session(pool, auth, headers, id, false)
+        return identity::require_session(pool, auth, headers, id, mutation)
             .await
             .map(|session| ReadActor {
                 user: session.user,
                 is_api_key: false,
             });
     }
-    let token = (|| {
-        if headers.get_all("authorization").iter().count() != 1 {
-            return None;
-        }
-        let mut parts = headers
-            .get("authorization")?
-            .to_str()
-            .ok()?
-            .split_ascii_whitespace();
-        if !parts.next()?.eq_ignore_ascii_case("bearer") {
-            return None;
-        }
-        let token = parts.next()?;
-        let random = token.strip_prefix(SECRET_PREFIX)?;
-        if parts.next().is_some()
-            || random.len() != 64
-            || !random.bytes().all(|b| b.is_ascii_hexdigit())
-        {
-            return None;
-        }
-        Some(token)
-    })()
-    .ok_or_else(|| Failure::Unauthorized.response(id.clone()))?;
+    let token = bearer_token(headers).ok_or_else(|| Failure::Unauthorized.response(id.clone()))?;
     match tokio::time::timeout(
         std::time::Duration::from_secs(3),
         authenticate(pool, token, scope),
@@ -105,6 +95,52 @@ pub async fn require_read(
         Ok(Err(error)) => Err(error.response(id.clone())),
         Err(_) => Err(Failure::Unavailable.response(id.clone())),
     }
+}
+
+fn bearer_token(headers: &HeaderMap) -> Option<&str> {
+    if headers.get_all("authorization").iter().count() != 1 {
+        return None;
+    }
+    let mut parts = headers
+        .get("authorization")?
+        .to_str()
+        .ok()?
+        .split_ascii_whitespace();
+    if !parts.next()?.eq_ignore_ascii_case("bearer") {
+        return None;
+    }
+    let token = parts.next()?;
+    let random = token.strip_prefix(SECRET_PREFIX)?;
+    if parts.next().is_some()
+        || random.len() != 64
+        || !random.bytes().all(|b| b.is_ascii_hexdigit())
+    {
+        return None;
+    }
+    Some(token)
+}
+
+/// Call after locking the membership, before business locks, in the caller's transaction.
+pub async fn credential_is_current(
+    connection: &mut sqlx::PgConnection,
+    auth: &AuthSettings,
+    headers: &HeaderMap,
+    actor_id: &str,
+    scope: &str,
+) -> Result<bool, sqlx::Error> {
+    if !headers.contains_key("authorization") {
+        return Ok(
+            identity::background_credential(connection, auth, headers, actor_id)
+                .await?
+                .is_some(),
+        );
+    }
+    let Some(token) = bearer_token(headers) else {
+        return Ok(false);
+    };
+    let key: Option<String> = sqlx::query_scalar("SELECT id::text FROM labos_threejs_core.api_keys WHERE user_id = $1::uuid AND secret_hash = $2 AND revoked_at IS NULL AND expires_at > clock_timestamp() AND $3 = ANY(scopes) FOR SHARE")
+        .bind(actor_id).bind(crate::secrets::secret_hash(token)).bind(scope).fetch_optional(connection).await?;
+    Ok(key.is_some())
 }
 async fn authenticate(pool: &PgPool, token: &str, scope: &str) -> Result<CurrentUser, Failure> {
     let hash = crate::secrets::secret_hash(token);

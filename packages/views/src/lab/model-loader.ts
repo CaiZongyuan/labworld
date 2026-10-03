@@ -19,13 +19,9 @@ import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { useEffect, useState } from 'react';
+import { getLabAssetDownload } from '@labos-threejs/sdk';
 import type { ModelAsset, ModelInfo } from './catalog';
-import {
-  ModelImportError,
-  readModelFile,
-  validateGLB,
-  type ModelErrorKey,
-} from './glb';
+import { ModelImportError, validateGLB, type ModelErrorKey } from './glb';
 
 export type LoadedModel = {
   id: string;
@@ -163,7 +159,9 @@ export function useLoadedModel(
   renderer: WebGLRenderer | null,
   onInfo: (id: string, info: ModelInfo) => void,
 ) {
-  const input = asset.source === 'preset' ? asset.url : asset.file;
+  const input = asset.source === 'preset' ? asset.url : asset.id;
+  const remote = asset.source === 'remote';
+  const apiClient = asset.source === 'remote' ? asset.apiClient : null;
   const id = asset.id;
   const [model, setModel] = useState<LoadedModel | null>(null);
   const [loading, setLoading] = useState(false);
@@ -175,12 +173,24 @@ export function useLoadedModel(
     setError(null);
     void (async () => {
       try {
-        let buffer: ArrayBuffer;
-        if (typeof input === 'string') {
-          const response = await fetch(input, { signal: controller.signal });
-          if (!response.ok) throw new ModelImportError('failed');
-          buffer = await response.arrayBuffer();
-        } else buffer = await readModelFile(input, controller.signal);
+        let url = input;
+        let headers: Record<string, string> | undefined;
+        if (remote && apiClient) {
+          const { data } = await getLabAssetDownload({
+            client: apiClient,
+            path: { id },
+            signal: controller.signal,
+            throwOnError: true,
+          });
+          url = data.url;
+          headers = data.headers;
+        }
+        const response = await fetch(url, {
+          headers,
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new ModelImportError('failed');
+        const buffer = await response.arrayBuffer();
         const next = await parseModel(buffer, id, renderer);
         if (controller.signal.aborted) {
           disposeModel(next.scene);
@@ -196,7 +206,7 @@ export function useLoadedModel(
       }
     })();
     return () => controller.abort();
-  }, [id, input, renderer, onInfo]);
+  }, [id, input, apiClient, remote, renderer, onInfo]);
   useEffect(
     () => () => {
       if (model) disposeModel(model.scene);

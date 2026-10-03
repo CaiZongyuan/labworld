@@ -29,11 +29,17 @@ pub fn router_with_cache(
         domain_routes.merge(labos_threejs_app::modules::knowledge::router_with_cache(
             pool.clone(),
             auth.clone(),
-            _files,
+            _files.clone(),
             Default::default(),
             cache.clone(),
         ));
     // example:knowledge:routes:end
+    key_scopes.push(labos_threejs_app::modules::lab::api_key_scope());
+    let domain_routes = domain_routes.merge(labos_threejs_app::modules::lab::router(
+        pool.clone(),
+        auth.clone(),
+        _files,
+    ));
     labos_threejs_app::compose_routes_with_options(
         pool,
         auth,
@@ -53,6 +59,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut document = document;
     document.merge(labos_threejs_app::modules::knowledge::openapi());
     // example:knowledge:openapi:end
+    document.merge(labos_threejs_app::modules::lab::openapi());
     labos_threejs_app::modules::rate_limit::describe(document)
 }
 
@@ -73,11 +80,17 @@ pub fn configured_router(
     let routes = routes.merge(labos_threejs_app::modules::knowledge::router_with_cache(
         pool.clone(),
         auth.clone(),
-        _files,
+        _files.clone(),
         policy,
         cache.clone(),
     ));
     // example:knowledge:configured-routes:end
+    key_scopes.push(labos_threejs_app::modules::lab::api_key_scope());
+    let routes = routes.merge(labos_threejs_app::modules::lab::router(
+        pool.clone(),
+        auth.clone(),
+        _files,
+    ));
     Ok(labos_threejs_app::compose_routes_with_options(
         pool,
         auth,

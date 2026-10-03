@@ -87,7 +87,19 @@
       "titleEn": "Lab and asset library",
       "group": "实验室",
       "type": "guide",
-      "previous": "quickstart"
+      "previous": "quickstart",
+      "next": "persistent-assets"
+    },
+    {
+      "id": "persistent-assets",
+      "source": "docs/tutorials/persistent-assets.md",
+      "sourceEn": "docs/tutorials/persistent-assets.en.md",
+      "route": "tutorials/persistent-assets.md",
+      "title": "持久数字资产",
+      "titleEn": "Persistent digital assets",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "lab-viewer"
     },
     {
       "id": "lab-architecture",

@@ -1,6 +1,6 @@
 # Product Scope And Architecture
 
-Lab Word is a laboratory digital twin. The application currently provides single-model viewing and a session-local Asset Library. Persistent worlds and server-owned virtual devices are the approved next stage. See the [glossary](../../CONTEXT.md).
+Lab Word is a laboratory digital twin. The application currently provides single-model viewing, a server-persisted Asset Library and versioned built-in definitions. Persistent worlds and server-owned virtual devices are the approved next stage. See the [glossary](../../CONTEXT.md).
 
 ## Models And Equipment
 
@@ -17,7 +17,7 @@ This is the Foundation V1 target relationship: an Equipment Model is a 3D repres
 | Area                                             | Current state                               | Future responsibility                         |
 | ------------------------------------------------ | ------------------------------------------- | --------------------------------------------- |
 | Universal shell, identity, membership, knowledge | Existing application code                   | Host Lab and provide shared capabilities      |
-| Lab Viewer and session-local Asset Library       | Integrated with application verification    | Extend persistent assets and multiple objects |
+| Lab Viewer and persistent Asset Library          | Members/Agents share real files and APIs    | Extend persistent worlds and multiple objects |
 | Lab navigation and default entry after login     | Integrated through explicit composition     | Preserve shell and Lab ownership              |
 | Foundation V1                                    | Experience accepted; spec/tickets published | Build persistent worlds and virtual devices   |
 | Physical devices and protocols                   | Future scope                                | Add source adapters and execution contracts   |
@@ -26,7 +26,7 @@ This is the Foundation V1 target relationship: an Equipment Model is a 3D repres
 
 ## Presentation Boundaries
 
-The first version inspects one self-contained GLB, with file selection/drop, automatic centering/framing, orbit/zoom/pan, click selection, return to preset and renderer metrics. Imported files remain in the browser session; server upload and a cloud asset library are outside this stage.
+The current version inspects one self-contained GLB, with file selection/drop, automatic centering/framing, orbit/zoom/pan, click selection, return to preset and renderer metrics. Imports use Core's file lifecycle; Lab owns assets, representations and stable file associations. Other browsers and Agents can query the same catalog. Follow the [persistent assets tutorial](../tutorials/persistent-assets.en.md) for operations and recovery.
 
 The current implementation preserves source scale, reports external-resource dependencies, absent geometry and decoder failures, and keeps the previous usable model on failure. Replacements and page exit release exclusive GPU resources; older loads cannot overwrite newer models. Multiple-instance work must retain these contracts.
 

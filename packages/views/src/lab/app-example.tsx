@@ -21,9 +21,9 @@ export function createLabExample(): ExampleContribution {
             title="viewer.title"
             onLogin={() => navigate({ path: '/login' })}
           >
-            {(userId) => (
+            {(identity) => (
               <Suspense fallback={<Skeleton className="m-6 h-40" />}>
-                <LabView userId={userId} />
+                <LabView identity={identity} apiClient={apiClient} />
               </Suspense>
             )}
           </LabAccess>
@@ -37,10 +37,11 @@ export function createLabExample(): ExampleContribution {
             title="assets.title"
             onLogin={() => navigate({ path: '/login' })}
           >
-            {(userId) => (
+            {(identity) => (
               <Suspense fallback={<Skeleton className="m-6 h-40" />}>
                 <AssetLibrary
-                  userId={userId}
+                  identity={identity}
+                  apiClient={apiClient}
                   onOpen={() => navigate({ path: '/lab' })}
                 />
               </Suspense>

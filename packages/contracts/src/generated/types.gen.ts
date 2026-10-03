@@ -23,6 +23,35 @@ export type ApiKeyPage = {
     next_cursor?: string | null;
 };
 
+export type AssetDefinition = {
+    capabilities: Array<DefinitionCapability>;
+    category: string;
+    id: string;
+    interfaces: Array<DefinitionInterface>;
+    name: string;
+    name_en: string;
+    specifications: unknown;
+    state: unknown;
+    version: string;
+};
+
+export type AssetPage = {
+    data: Array<LabAsset>;
+    has_more: boolean;
+    max_decoded_resource_bytes: number;
+    max_upload_bytes: number;
+    next_cursor?: string | null;
+};
+
+export type AssetRepresentation = {
+    content_type: string;
+    file_id: string;
+    file_name: string;
+    id: string;
+    sha256: string;
+    size: number;
+};
+
 export type AttachmentPage = {
     can_delete: boolean;
     can_upload: boolean;
@@ -75,6 +104,14 @@ export type CreateApiKey = {
     scopes: Array<string>;
 };
 
+export type CreateAssetUpload = {
+    file: UploadInput;
+    license: string;
+    name: string;
+    source: string;
+    version: string;
+};
+
 export type CreateDocument = {
     knowledge_base_id?: string | null;
     markdown: string;
@@ -100,6 +137,21 @@ export type CurrentUser = {
     email: string;
     id: string;
     role: MemberRole;
+};
+
+export type DefinitionCapability = {
+    id: string;
+    implemented: boolean;
+    parameters: unknown;
+};
+
+export type DefinitionInterface = {
+    id: string;
+    implemented: boolean;
+};
+
+export type DefinitionPage = {
+    data: Array<AssetDefinition>;
 };
 
 export type Document = {
@@ -276,6 +328,19 @@ export type KnowledgeBasePage = {
     next_cursor?: string | null;
 };
 
+export type LabAsset = {
+    created_at: string;
+    created_by: string;
+    id: string;
+    license: string;
+    name: string;
+    representation: AssetRepresentation;
+    source: string;
+    updated_at: string;
+    updated_by: string;
+    version: string;
+};
+
 export type Login = {
     email: string;
     password: string;
@@ -367,6 +432,10 @@ export type Registration = {
     display_name?: string | null;
     email: string;
     password: string;
+};
+
+export type RenameAsset = {
+    name: string;
 };
 
 export type RenameKnowledgeBase = {
@@ -1565,6 +1634,280 @@ export type CompleteAttachmentUploadResponses = {
 };
 
 export type CompleteAttachmentUploadResponse = CompleteAttachmentUploadResponses[keyof CompleteAttachmentUploadResponses];
+
+export type ListAssetDefinitionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/asset-definitions';
+};
+
+export type ListAssetDefinitionsErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListAssetDefinitionsError = ListAssetDefinitionsErrors[keyof ListAssetDefinitionsErrors];
+
+export type ListAssetDefinitionsResponses = {
+    200: DefinitionPage;
+};
+
+export type ListAssetDefinitionsResponse = ListAssetDefinitionsResponses[keyof ListAssetDefinitionsResponses];
+
+export type GetAssetDefinitionData = {
+    body?: never;
+    path: {
+        id: string;
+        version: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-definitions/{id}/{version}';
+};
+
+export type GetAssetDefinitionErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetAssetDefinitionError = GetAssetDefinitionErrors[keyof GetAssetDefinitionErrors];
+
+export type GetAssetDefinitionResponses = {
+    200: AssetDefinition;
+};
+
+export type GetAssetDefinitionResponse = GetAssetDefinitionResponses[keyof GetAssetDefinitionResponses];
+
+export type StartAssetUploadData = {
+    body: CreateAssetUpload;
+    headers: {
+        'x-csrf-token': string;
+        'idempotency-key': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/asset-uploads';
+};
+
+export type StartAssetUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    410: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StartAssetUploadError = StartAssetUploadErrors[keyof StartAssetUploadErrors];
+
+export type StartAssetUploadResponses = {
+    201: UploadCapability;
+};
+
+export type StartAssetUploadResponse = StartAssetUploadResponses[keyof StartAssetUploadResponses];
+
+export type CompleteAssetUploadData = {
+    body?: never;
+    headers: {
+        'x-csrf-token': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-uploads/{id}/complete';
+};
+
+export type CompleteAssetUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    410: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CompleteAssetUploadError = CompleteAssetUploadErrors[keyof CompleteAssetUploadErrors];
+
+export type CompleteAssetUploadResponses = {
+    200: LabAsset;
+};
+
+export type CompleteAssetUploadResponse = CompleteAssetUploadResponses[keyof CompleteAssetUploadResponses];
+
+export type ListLabAssetsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/api/v1/lab/assets';
+};
+
+export type ListLabAssetsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabAssetsError = ListLabAssetsErrors[keyof ListLabAssetsErrors];
+
+export type ListLabAssetsResponses = {
+    200: AssetPage;
+};
+
+export type ListLabAssetsResponse = ListLabAssetsResponses[keyof ListLabAssetsResponses];
+
+export type DeleteLabAssetData = {
+    body?: never;
+    headers: {
+        'x-csrf-token': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/assets/{id}';
+};
+
+export type DeleteLabAssetErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type DeleteLabAssetError = DeleteLabAssetErrors[keyof DeleteLabAssetErrors];
+
+export type DeleteLabAssetResponses = {
+    204: void;
+};
+
+export type DeleteLabAssetResponse = DeleteLabAssetResponses[keyof DeleteLabAssetResponses];
+
+export type GetLabAssetData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/assets/{id}';
+};
+
+export type GetLabAssetErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabAssetError = GetLabAssetErrors[keyof GetLabAssetErrors];
+
+export type GetLabAssetResponses = {
+    200: LabAsset;
+};
+
+export type GetLabAssetResponse = GetLabAssetResponses[keyof GetLabAssetResponses];
+
+export type RenameLabAssetData = {
+    body: RenameAsset;
+    headers: {
+        'x-csrf-token': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/assets/{id}';
+};
+
+export type RenameLabAssetErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RenameLabAssetError = RenameLabAssetErrors[keyof RenameLabAssetErrors];
+
+export type RenameLabAssetResponses = {
+    200: LabAsset;
+};
+
+export type RenameLabAssetResponse = RenameLabAssetResponses[keyof RenameLabAssetResponses];
+
+export type GetLabAssetDownloadData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/assets/{id}/download';
+};
+
+export type GetLabAssetDownloadErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabAssetDownloadError = GetLabAssetDownloadErrors[keyof GetLabAssetDownloadErrors];
+
+export type GetLabAssetDownloadResponses = {
+    200: DownloadCapability;
+};
+
+export type GetLabAssetDownloadResponse = GetLabAssetDownloadResponses[keyof GetLabAssetDownloadResponses];
 
 export type ListNotificationsData = {
     body?: never;

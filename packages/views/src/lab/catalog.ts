@@ -1,5 +1,22 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import {
+  useInfiniteQuery,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import { useCallback, useMemo, useRef } from 'react';
+import {
+  completeAssetUpload,
+  deleteLabAsset,
+  listLabAssets,
+  renameLabAsset,
+  startAssetUpload,
+  type ApiClient,
+  type CurrentSession,
+  type LabAsset,
+} from '@labos-threejs/sdk';
+import { ModelImportError } from './glb';
+import { errorCodeOf } from '@labos-threejs/core';
+import { sessionKey } from '../identity/session';
 
 export type ModelInfo = {
   meshes: number;
@@ -26,7 +43,7 @@ export type ModelAsset = AssetDetails &
         author: string;
         license: string;
       }
-    | { source: 'local'; file: File }
+    | { source: 'remote'; asset: LabAsset; apiClient: ApiClient }
   );
 
 export const presetAsset: ModelAsset = {
@@ -48,88 +65,256 @@ export const presetAsset: ModelAsset = {
   },
 };
 
-type Catalog = { assets: ModelAsset[]; activeId: string };
-const key = (userId: string) => ['lab', 'catalog', userId] as const;
-const initialCatalog = (): Catalog => ({
-  assets: [presetAsset],
+type Selection = { activeId: string; info: Record<string, ModelInfo> };
+const initialSelection = (): Selection => ({
   activeId: presetAsset.id,
+  info: {},
 });
+export type AssetMetadata = {
+  name: string;
+  source: string;
+  license: string;
+  version: string;
+};
 
-// The client-only catalog shares the existing identity cache lifecycle.
-// Session replacement removes these queries, including their local files.
-export function useCatalog(userId: string) {
+// Selection and rendered metrics are local; asset identity and bytes belong to the server.
+export function useCatalog(apiClient: ApiClient, identity: CurrentSession) {
   const client = useQueryClient();
+  const userId = identity.user.id;
+  const key = useMemo(
+    () => ['lab', 'assets', apiClient.getConfig().baseUrl, userId] as const,
+    [apiClient, userId],
+  );
+  const selectionKey = useMemo(
+    () => ['lab', 'selection', apiClient.getConfig().baseUrl, userId] as const,
+    [apiClient, userId],
+  );
+  const attempts = useRef<{ fingerprint: string; key: string } | null>(null);
+  const catalog = useInfiniteQuery({
+    queryKey: key,
+    initialPageParam: undefined as string | undefined,
+    queryFn: async ({ pageParam, signal }) =>
+      (
+        await listLabAssets({
+          client: apiClient,
+          query: { limit: 50, cursor: pageParam },
+          signal,
+          throwOnError: true,
+        })
+      ).data,
+    getNextPageParam: (page) => page.next_cursor ?? undefined,
+    retry: false,
+  });
   const { data } = useQuery({
-    queryKey: key(userId),
-    queryFn: initialCatalog,
-    initialData: initialCatalog,
+    queryKey: selectionKey,
+    queryFn: initialSelection,
+    initialData: initialSelection,
     enabled: false,
     staleTime: Infinity,
     gcTime: Infinity,
   });
+  const maxUploadBytes = catalog.data?.pages[0]?.max_upload_bytes ?? 0;
+  const assets = useMemo<ModelAsset[]>(
+    () => [
+      presetAsset,
+      ...(catalog.data?.pages.flatMap((page) => page.data) ?? []).map(
+        (asset): ModelAsset => ({
+          id: asset.id,
+          name: asset.name,
+          fileName: asset.representation.file_name,
+          bytes: asset.representation.size,
+          source: 'remote',
+          asset,
+          apiClient,
+          info: data.info[asset.id],
+        }),
+      ),
+    ],
+    [apiClient, catalog.data, data.info],
+  );
   const activate = useCallback(
     (id: string) => {
-      client.setQueryData<Catalog>(
-        key(userId),
-        (previous = initialCatalog()) =>
-          previous.assets.some((asset) => asset.id === id)
-            ? { ...previous, activeId: id }
-            : previous,
+      client.setQueryData<Selection>(
+        selectionKey,
+        (previous = initialSelection()) => ({ ...previous, activeId: id }),
       );
     },
-    [client, userId],
+    [client, selectionKey],
+  );
+  const onMutationFailure = useCallback(
+    (error: unknown): never => {
+      const code = errorCodeOf(error);
+      if (
+        [
+          'files.upload_expired',
+          'files.upload_rejected',
+          'files.not_found',
+        ].includes(code ?? '')
+      )
+        attempts.current = null;
+      if (['auth.unauthorized', 'auth.csrf'].includes(code ?? ''))
+        void client.invalidateQueries({ queryKey: sessionKey(apiClient) });
+      throw error;
+    },
+    [apiClient, client],
+  );
+  const updateAssetPages = useCallback(
+    (update: (assets: LabAsset[], index: number) => LabAsset[]) => {
+      client.setQueryData<typeof catalog.data>(key, (previous) =>
+        previous
+          ? {
+              ...previous,
+              pages: previous.pages.map((page, index) => ({
+                ...page,
+                data: update(page.data, index),
+              })),
+            }
+          : previous,
+      );
+    },
+    [client, key],
   );
   const addFile = useCallback(
-    (file: File) => {
-      const asset: ModelAsset = {
-        id: crypto.randomUUID(),
-        name: file.name.replace(/\.glb$/i, ''),
-        fileName: file.name,
-        bytes: file.size,
-        source: 'local',
-        file,
-      };
-      client.setQueryData<Catalog>(
-        key(userId),
-        (previous = initialCatalog()) => ({
-          ...previous,
-          assets: [...previous.assets, asset],
+    async (
+      file: File,
+      buffer: ArrayBuffer,
+      signal: AbortSignal,
+      metadata?: AssetMetadata,
+    ) => {
+      if (!maxUploadBytes || file.size > maxUploadBytes)
+        throw new ModelImportError('tooLarge');
+      const digest = await crypto.subtle.digest('SHA-256', buffer);
+      const sha256 = [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, '0'))
+        .join('');
+      const body = {
+        ...(metadata ?? {
+          name: file.name.replace(/\.glb$/i, ''),
+          source: '',
+          license: '',
+          version: '1.0',
         }),
+        file: {
+          file_name: file.name,
+          content_type: 'model/gltf-binary',
+          size: file.size,
+          sha256,
+        },
+      };
+      const fingerprint = JSON.stringify(body);
+      if (attempts.current?.fingerprint !== fingerprint)
+        attempts.current = { fingerprint, key: crypto.randomUUID() };
+      const headers = {
+        'x-csrf-token': identity.csrf_token,
+        'idempotency-key': attempts.current.key,
+      };
+      const { data: upload } = await startAssetUpload({
+        client: apiClient,
+        headers,
+        body,
+        signal,
+        throwOnError: true,
+      }).catch(onMutationFailure);
+      if (upload.upload) {
+        const response = await fetch(upload.upload.url, {
+          method: upload.upload.method,
+          headers: upload.upload.headers,
+          body: buffer,
+          signal: AbortSignal.any([signal, AbortSignal.timeout(60_000)]),
+        });
+        if (!response.ok) throw new ModelImportError('storage');
+      }
+      // Verification may take up to 30 seconds; override the SDK's ordinary 5 second fetch.
+      const { data: asset } = await completeAssetUpload({
+        client: apiClient,
+        path: { id: upload.upload_id },
+        headers: { 'x-csrf-token': identity.csrf_token },
+        signal: AbortSignal.any([signal, AbortSignal.timeout(40_000)]),
+        fetch: globalThis.fetch,
+        throwOnError: true,
+      }).catch(onMutationFailure);
+      if (signal.aborted) throw new DOMException('Cancelled', 'AbortError');
+      updateAssetPages((rows, index) =>
+        index === 0
+          ? [asset, ...rows.filter((old) => old.id !== asset.id)]
+          : rows.filter((old) => old.id !== asset.id),
       );
+      attempts.current = null;
       return asset.id;
     },
-    [client, userId],
+    [
+      apiClient,
+      identity.csrf_token,
+      maxUploadBytes,
+      onMutationFailure,
+      updateAssetPages,
+    ],
   );
   const removeFile = useCallback(
-    (id: string) => {
-      client.setQueryData<Catalog>(
-        key(userId),
-        (previous = initialCatalog()) => {
-          const asset = previous.assets.find((entry) => entry.id === id);
-          if (!asset || asset.source !== 'local') return previous;
-          return {
-            assets: previous.assets.filter((entry) => entry.id !== id),
-            activeId:
-              previous.activeId === id ? presetAsset.id : previous.activeId,
-          };
-        },
+    async (id: string) => {
+      await deleteLabAsset({
+        client: apiClient,
+        path: { id },
+        headers: { 'x-csrf-token': identity.csrf_token },
+        throwOnError: true,
+      }).catch(onMutationFailure);
+      updateAssetPages((rows) => rows.filter((asset) => asset.id !== id));
+      client.setQueryData<Selection>(
+        selectionKey,
+        (previous = initialSelection()) => ({
+          ...previous,
+          activeId:
+            previous.activeId === id ? presetAsset.id : previous.activeId,
+        }),
       );
     },
-    [client, userId],
+    [
+      apiClient,
+      client,
+      identity.csrf_token,
+      onMutationFailure,
+      selectionKey,
+      updateAssetPages,
+    ],
+  );
+  const rename = useCallback(
+    async (id: string, name: string) => {
+      const { data: asset } = await renameLabAsset({
+        client: apiClient,
+        path: { id },
+        body: { name },
+        headers: { 'x-csrf-token': identity.csrf_token },
+        throwOnError: true,
+      }).catch(onMutationFailure);
+      updateAssetPages((rows) =>
+        rows.map((old) => (old.id === id ? asset : old)),
+      );
+    },
+    [apiClient, identity.csrf_token, onMutationFailure, updateAssetPages],
   );
   const updateInfo = useCallback(
     (id: string, info: ModelInfo) => {
-      client.setQueryData<Catalog>(
-        key(userId),
-        (previous = initialCatalog()) => ({
+      client.setQueryData<Selection>(
+        selectionKey,
+        (previous = initialSelection()) => ({
           ...previous,
-          assets: previous.assets.map((asset) =>
-            asset.id === id ? { ...asset, info } : asset,
-          ),
+          info: { ...previous.info, [id]: info },
         }),
       );
     },
-    [client, userId],
+    [client, selectionKey],
   );
-  return { ...data, activate, addFile, removeFile, updateInfo };
+  return {
+    assets,
+    activeId: data.activeId,
+    activate,
+    addFile,
+    removeFile,
+    rename,
+    updateInfo,
+    maxUploadBytes,
+    maxDecodedResourceBytes:
+      catalog.data?.pages[0]?.max_decoded_resource_bytes ?? 0,
+    query: catalog,
+  };
 }

@@ -30,6 +30,13 @@ zip.workspace = true
 tempfile.workspace = true
 pulldown-cmark.workspace = true
 pulldown-cmark-to-cmark.workspace = true
+gltf = { version = "1.4.1", default-features = false, features = ["extensions", "utils"] }
+draco-core = { version = "2.2.1", default-features = false, features = ["decoder", "point_cloud_decode", "edgebreaker_valence_decode", "legacy_bitstream_decode"] }
+awsm-renderer-codec-meshopt = "0.38.0"
+basisu = "0.1.0"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp", "gif"] }
+data-url = "0.3"
+ktx2 = "0.5"
 
 [dev-dependencies]
 opentelemetry-proto.workspace = true
