@@ -11,9 +11,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .storage
         .as_ref()
         .map(|storage| FileService::from_settings(storage, &settings.file_limits));
-    let app = labos_threejs_api::configured_router(pool.clone(), settings.auth, files)?;
+    let availability = labos_threejs_app::modules::lab::RuntimeAvailability::default();
+    let app = labos_threejs_api::configured_router(
+        pool.clone(),
+        settings.auth,
+        files,
+        availability.clone(),
+    )?;
     let listener = tokio::net::TcpListener::bind(settings.bind).await?;
     tracing::info!(address = %listener.local_addr()?, "API listening");
+    let devices = tokio::spawn(labos_threejs_app::modules::lab::run_device_programs(
+        pool.clone(),
+        availability,
+    ));
     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel::<()>();
     // Reference-domain routers will be composed here without changing Core.
     let mut server = Box::pin(
@@ -37,6 +47,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
     drop(server);
+    devices.abort();
+    let _ = devices.await;
     let _ = tokio::time::timeout(Duration::from_secs(1), pool.close()).await;
     let _ = tokio::task::spawn_blocking(move || telemetry.shutdown()).await;
     Ok(())

@@ -59,25 +59,42 @@
     "capabilities": [
       {
         "id": "light.set_power",
+        "version": "1.0",
         "parameters": {
           "type": "object",
           "required": ["on"],
           "additionalProperties": false,
           "properties": { "on": { "type": "boolean" } }
         },
-        "implemented": false
+        "result": {
+          "meaning": "applied_by_device_program",
+          "observation": "on",
+          "unit": "dimensionless"
+        },
+        "implemented": true
       },
       {
         "id": "light.set_brightness",
+        "version": "1.0",
         "parameters": {
           "type": "object",
           "required": ["brightness"],
           "additionalProperties": false,
           "properties": {
-            "brightness": { "type": "number", "minimum": 0, "maximum": 100 }
+            "brightness": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100,
+              "unit": "percent"
+            }
           }
         },
-        "implemented": false
+        "result": {
+          "meaning": "applied_by_device_program",
+          "observation": "brightness",
+          "unit": "percent"
+        },
+        "implemented": true
       }
     ],
     "state": {
@@ -89,7 +106,7 @@
     },
     "interfaces": [
       { "id": "lab.asset-definitions.v1", "implemented": true },
-      { "id": "lab.device-commands.v1", "implemented": false }
+      { "id": "lab.device-commands.v1", "implemented": true }
     ]
   },
   {

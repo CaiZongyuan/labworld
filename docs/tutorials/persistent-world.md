@@ -24,7 +24,7 @@ just dev
 5. 点击 **新增同一对象表示**。节点 UUID 增加，Entity UUID 保持不变。注册另一对象则生成新 Entity。
 6. 刷新，或在另一浏览器登录企业内另一 Member，从 **打开 Lab** 选择 `Identity lab`。对象、定义快照、节点与基本摆放恢复。
 
-Robot 显示 `move/pick/place` 声明，但绑定实现和当前可执行均为“否”；没有观测时显示 **未知 · 无观测**。选择“真实对象 · 未接入”会创建另一个独立身份，当前不会连接真实协议。对象关系与设备程序将在后续阶段实现。
+Robot 显示 `move/pick/place` 声明，但绑定实现和当前可执行均为“否”；没有观测时显示 **未知 · 无观测**。选择“真实对象 · 未接入”会创建另一个独立身份，当前不会连接真实协议。对象关系由后续阶段提供，照明程序见[下一章](backend-lights.md)。
 
 已有 GLB 可从资产库上传，然后在登记弹窗的 **外观表示** 中选择它。同一资产可用于两个独立对象；表示、文件、节点和 Entity UUID 分开。对象引用的资产删除返回 409，原文件仍可用。资产库的 **在 Lab 中打开** 使用 `/lab/asset` 预览文件；它本身不会登记 Entity。
 
@@ -46,7 +46,7 @@ node examples/lab/register-world.mjs
 
 <<< ../../examples/lab/register-world.mjs
 
-World 查询 `GET /api/v1/lab/labs/{lab_id}/world` 返回 Lab 布局版本、Entity、节点和节点引用的资产；可按 `kind`、`capability`、`state=unknown` 组合筛选。当前没有运行 Binding，所有对象无观测，其他状态筛选返回空集合。`kind` 使用定义目录中的 category。配置 JSON 是实例对象，最大 8192 字节；名称最多 120 字符；单 Lab 最多 1000 Entity 和 1000 节点。Lab 列表默认每页 50 项，`limit` 为 1–100，使用 `next_cursor` 继续；浏览器提供“加载更多”。Placement 使用米、弧度和正尺度；基本注册摆放自动持久化，交互编辑将由后续阶段提供。
+World 查询 `GET /api/v1/lab/labs/{lab_id}/world` 返回 Lab 布局版本、Entity、节点和节点引用的资产；可按 `kind`、`capability`、`state=unknown` 组合筛选。本章的 Robot 无运行 Binding 或观测；照明开始报告后还可用 `state=true/false` 筛选报告电源。`kind` 使用定义目录中的 category。配置 JSON 是实例对象，最大 8192 字节；名称最多 120 字符；单 Lab 最多 1000 Entity 和 1000 节点。Lab 列表默认每页 50 项，`limit` 为 1–100，使用 `next_cursor` 继续；浏览器提供“加载更多”。Placement 使用米、弧度和正尺度；基本注册摆放自动持久化，交互编辑将由后续阶段提供。
 
 ## 失败与恢复
 
@@ -62,4 +62,4 @@ pnpm exec vitest run apps/web/src/lab-world.test.tsx apps/web/src/lab.test.tsx
 node scripts/e2e.mjs tests/e2e/lab.spec.ts
 ```
 
-HTTP 使用真实 Router、隔离 PostgreSQL，文件用真实对象存储；组件只用 MSW 替代 HTTP；浏览器用真实 GLB/WebGL 验证目录与画布身份、跨上下文恢复、压缩加载及资源隔离。下一阶段 [Issue #4](https://github.com/CaiZongyuan/labworld/issues/4) 为照明对象加入独立后端设备程序、命令和观测；本章布局与实例配置不会假装成运行测量。
+HTTP 使用真实 Router、隔离 PostgreSQL，文件用真实对象存储；组件只用 MSW 替代 HTTP；浏览器用真实 GLB/WebGL 验证目录与画布身份、跨上下文恢复、压缩加载及资源隔离。继续[后端照明控制](backend-lights.md)，为照明对象加入独立设备程序、命令和观测；本章布局与实例配置不会假装成运行测量。

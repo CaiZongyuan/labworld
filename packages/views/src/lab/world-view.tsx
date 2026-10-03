@@ -56,6 +56,7 @@ import WorldDialog, {
   type WorldDialogMode,
   type WorldSubmission,
 } from './world-dialog';
+import DevicePanel, { type CommandAttempt } from './device-panel';
 import './lab.css';
 import './world.css';
 
@@ -116,7 +117,14 @@ export default function WorldView({
         })
       ).data,
     retry: false,
+    refetchInterval: (query) =>
+      query.state.data?.entities.some(
+        (entity) => entity.program_run?.status === 'running',
+      )
+        ? 1000
+        : false,
   });
+  const [attempts, setAttempts] = useState<Record<string, CommandAttempt>>({});
   const [selection, setSelection] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
@@ -520,11 +528,33 @@ export default function WorldView({
                       : '-'}
                   </dd>
                   <dt>{message('world.binding')}</dt>
-                  <dd>{message('world.noBinding')}</dd>
+                  <dd>
+                    {selected.binding?.program_id ?? message('world.noBinding')}
+                  </dd>
                   <dt>{message('world.observation')}</dt>
-                  <dd>{message('world.unknown')}</dd>
+                  <dd>
+                    {selected.observation
+                      ? message(
+                          `device.freshness.${selected.observation.freshness}`,
+                        )
+                      : message('world.unknown')}
+                  </dd>
                 </dl>
               </section>
+              <DevicePanel
+                key={selected.id}
+                entity={selected}
+                apiClient={apiClient}
+                identity={identity}
+                attempt={attempts[selected.id]}
+                onAttempt={(attempt) =>
+                  setAttempts((previous) => ({
+                    ...previous,
+                    [selected.id]: attempt,
+                  }))
+                }
+                onRefresh={world.refetch}
+              />
               <section className="lab-inspector-section">
                 <h3>{message('world.nodes')}</h3>
                 {world.data?.nodes
@@ -555,6 +585,7 @@ export default function WorldView({
                   selected.capabilities.map((capability) => (
                     <div className="world-capability" key={capability.id}>
                       <code>{capability.id}</code>
+                      <small>v{capability.version}</small>
                       <Badge variant="outline">
                         {message(
                           capability.binding_implemented
@@ -589,6 +620,12 @@ export default function WorldView({
                       {!capability.executable &&
                       capability.reason === 'binding_not_implemented' ? (
                         <small>{message('world.noBinding')}</small>
+                      ) : null}
+                      {capability.reason === 'program_not_running' ? (
+                        <small>{message('device.not_started')}</small>
+                      ) : null}
+                      {capability.reason === 'runtime_unavailable' ? (
+                        <small>{message('device.runtimeUnavailable')}</small>
                       ) : null}
                     </div>
                   ))

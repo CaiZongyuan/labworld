@@ -1,7 +1,14 @@
 mod assets;
 mod definitions;
+mod devices;
 mod glb;
+mod runtime;
 mod world;
+
+pub use runtime::{
+    DeviceRuntime, ObservationAcceptance, ObservationReport, RuntimeAvailability,
+    run_device_programs,
+};
 
 use crate::{
     http::{RequestId, public_error},
@@ -20,20 +27,36 @@ struct Lab {
     pool: PgPool,
     auth: AuthSettings,
     files: Option<files::FileService>,
+    runtime: Option<RuntimeAvailability>,
 }
 const KEY_SCOPE: &str = "lab:full";
 
 pub fn router(pool: PgPool, auth: AuthSettings, files: Option<files::FileService>) -> Router {
+    router_with_runtime(pool, auth, files, None)
+}
+pub fn router_with_runtime(
+    pool: PgPool,
+    auth: AuthSettings,
+    files: Option<files::FileService>,
+    runtime: Option<RuntimeAvailability>,
+) -> Router {
     assets::routes()
         .merge(definitions::routes())
         .merge(world::routes())
-        .with_state(Lab { pool, auth, files })
+        .merge(devices::routes())
+        .with_state(Lab {
+            pool,
+            auth,
+            files,
+            runtime,
+        })
 }
 
 pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut document = assets::openapi();
     document.merge(definitions::openapi());
     document.merge(world::openapi());
+    document.merge(devices::openapi());
     document
 }
 
@@ -53,6 +76,9 @@ enum Failure {
     InvalidReference,
     WorldNotFound,
     NotImplemented,
+    ProgramNotRunning,
+    InvalidParameters,
+    RuntimeUnavailable,
     Unavailable,
     Idempotency(crate::modules::idempotency::Error),
 }
@@ -80,6 +106,21 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::RuntimeUnavailable => (
+                StatusCode::SERVICE_UNAVAILABLE,
+                "lab.runtime_unavailable",
+                "Device runtime is not initialized; no command was accepted",
+            ),
+            Self::ProgramNotRunning => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "lab.program_not_running",
+                "Start the device program explicitly before sending a command",
+            ),
+            Self::InvalidParameters => (
+                StatusCode::UNPROCESSABLE_ENTITY,
+                "lab.invalid_parameters",
+                "Use the capability input types and allowed range",
+            ),
             Self::InvalidReference => (
                 StatusCode::BAD_REQUEST,
                 "lab.invalid_reference",
@@ -142,6 +183,18 @@ impl Failure {
 }
 
 impl Lab {
+    fn runtime_available(&self) -> bool {
+        self.runtime
+            .as_ref()
+            .is_none_or(RuntimeAvailability::is_ready)
+    }
+    fn require_runtime(&self) -> Result<(), Failure> {
+        if self.runtime_available() {
+            Ok(())
+        } else {
+            Err(Failure::RuntimeUnavailable)
+        }
+    }
     async fn actor(
         &self,
         headers: &HeaderMap,
