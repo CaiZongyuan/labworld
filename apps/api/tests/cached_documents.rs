@@ -86,6 +86,20 @@ async fn request_key(
         .unwrap()
 }
 
+async fn observe_cache_hit(app: &Router, actor: &Browser, path: &str, markdown: &str) -> Value {
+    for _ in 0..8 {
+        let response = request(app, actor, "GET", path, json!(null)).await;
+        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(data(response).await["markdown"], markdown);
+        let metrics =
+            data(request(app, actor, "GET", "/api/v1/system/cache", json!(null)).await).await;
+        if metrics["hits"].as_u64().unwrap() > 0 {
+            return metrics;
+        }
+    }
+    panic!("responsive Redis did not produce a cache hit within bounded reads");
+}
+
 #[sqlx::test(migrations = "../../migrations")]
 async fn authorized_document_reads_miss_then_hit_real_redis_and_writes_use_a_new_version(
     pool: PgPool,
@@ -367,17 +381,9 @@ async fn a_live_but_unresponsive_redis_is_bounded_and_recovers_with_fresh_connec
     let metrics =
         data(request(&app, &actor, "GET", "/api/v1/system/cache", json!(null)).await).await;
     assert_eq!(metrics["fallbacks"], 1);
-    for _ in 0..2 {
-        assert_eq!(
-            request(&app, &actor, "GET", &path, json!(null))
-                .await
-                .status(),
-            StatusCode::OK
-        );
-    }
-    let metrics =
-        data(request(&app, &actor, "GET", "/api/v1/system/cache", json!(null)).await).await;
-    assert_eq!(metrics["misses"], 1);
+    // A best-effort fill may miss its budget even after Redis becomes responsive.
+    let metrics = observe_cache_hit(&app, &actor, &path, "from PostgreSQL").await;
+    assert!(metrics["misses"].as_u64().unwrap() >= 1);
     assert_eq!(metrics["hits"], 1);
 }
 
@@ -388,6 +394,8 @@ async fn disconnecting_redis_after_a_hit_still_returns_the_current_database_body
     let cache = Cache::new(CacheSettings {
         url: gate.url.clone(),
         prefix: format!("disconnect:{}", uuid::Uuid::now_v7()),
+        // Establish a hit before disconnecting; lookup and fill share the request budget.
+        budget: std::time::Duration::from_secs(1),
         ..Default::default()
     })
     .unwrap();
@@ -408,14 +416,8 @@ async fn disconnecting_redis_after_a_hit_still_returns_the_current_database_body
         "/api/v1/knowledge/documents/{}",
         doc["id"].as_str().unwrap()
     );
-    for _ in 0..2 {
-        assert_eq!(
-            request(&app, &actor, "GET", &path, json!(null))
-                .await
-                .status(),
-            StatusCode::OK
-        );
-    }
+    let warmup = observe_cache_hit(&app, &actor, &path, "still available").await;
+    assert_eq!(warmup["hits"], 1);
     gate.stop().await;
     let response = request(&app, &actor, "GET", &path, json!(null)).await;
     assert_eq!(response.status(), StatusCode::OK);
