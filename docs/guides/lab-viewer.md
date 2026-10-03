@@ -68,4 +68,4 @@ pnpm --dir ../lab-word-preview/.scratch/lab-viewer/v1 dev
 
 此前 Chromium/SwiftShader 已验证实际渲染、导入、选择、相机和错误恢复。软件渲染的 FPS 不是实际 GPU 性能验收；预览包体也不是生产预算结果。[体验记录](../ui/lab-viewer-experience.md)保留具体范围与证据。
 
-历史预览使用模拟身份与导航。已接受的设计为当前应用提供输入。正式路由、持久导入、布局编辑、设备任务与历史已实现。Entity 归档、外观替换和综合规模验收随后交付。范围见[产品架构](../architecture/lab-word.md)。
+历史预览使用模拟身份与导航。已接受的设计为当前应用提供输入。正式路由、持久导入、布局编辑、设备任务、历史和[对象生命周期](../tutorials/entity-lifecycle.md)已实现。用户可以归档已停止设备，独立替换外观。综合规模验收随后交付。范围见[产品架构](../architecture/lab-word.md)。

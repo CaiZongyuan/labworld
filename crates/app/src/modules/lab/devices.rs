@@ -26,12 +26,22 @@ pub struct RuntimeBinding {
     pub entity_id: String,
     pub program_id: String,
     pub source: String,
+    pub definition_id: String,
+    pub definition_version: String,
+    #[sqlx(json)]
+    pub definition: super::definitions::AssetDefinition,
 }
 #[derive(Clone, Serialize, Deserialize, ToSchema, sqlx::FromRow)]
 pub struct DeviceProgramRun {
     pub id: String,
     pub entity_id: String,
     pub binding_id: String,
+    pub program_id: String,
+    pub source: String,
+    pub definition_id: String,
+    pub definition_version: String,
+    #[sqlx(json)]
+    pub definition: super::definitions::AssetDefinition,
     pub configuration: Value,
     pub status: String,
     pub started_by: String,
@@ -83,7 +93,7 @@ pub struct DeviceObservation {
     pub freshness: String,
     pub properties: std::collections::BTreeMap<String, ObservationProperty>,
 }
-const RUN_COLUMNS: &str = "id::text,entity_id::text,binding_id::text,configuration,status,started_by::text,started_at,ended_at";
+pub(super) const RUN_COLUMNS: &str = "r.id::text,r.entity_id::text,r.binding_id::text,r.configuration,r.status,r.started_by::text,r.started_at,r.ended_at,b.program_id,b.source,b.definition_id,b.definition_version,b.definition";
 const COMMAND_COLUMNS: &str = "id::text,entity_id::text,run_id::text,actor_id::text,actor_source,request_key,capability,parameters,status,result,task_id::text,created_at,updated_at";
 
 pub(super) async fn register_binding(
@@ -95,7 +105,7 @@ pub(super) async fn register_binding(
     if matches!(definition, "light" | "sensor" | "centrifuge") && reality == "simulated" {
         let binding = uuid::Uuid::now_v7().to_string();
         let program = format!("{definition}.v1");
-        sqlx::query("INSERT INTO lab.runtime_bindings(id,entity_id,program_id,source) VALUES($1::uuid,$2::uuid,$3,$4)")
+        sqlx::query("INSERT INTO lab.runtime_bindings(id,entity_id,program_id,source,definition_id,definition_version,definition) SELECT $1::uuid,id,$3,$4,definition_id,definition_version,definition FROM lab.entities WHERE id=$2::uuid")
             .bind(&binding).bind(entity).bind(&program).bind(format!("simulated:{program}:{binding}")).execute(connection).await?;
     }
     Ok(())
@@ -144,7 +154,7 @@ async fn audit(
     .await?;
     Ok(())
 }
-async fn lock_entity(
+pub(super) async fn lock_entity(
     connection: &mut PgConnection,
     lab: &str,
     entity: &str,
@@ -161,7 +171,7 @@ async fn lock_entity(
 }
 async fn run(connection: &mut PgConnection, id: &str) -> Result<DeviceProgramRun, Failure> {
     Ok(sqlx::query_as(&format!(
-        "SELECT {RUN_COLUMNS} FROM lab.program_runs WHERE id=$1::uuid"
+        "SELECT {RUN_COLUMNS} FROM lab.program_runs r JOIN lab.runtime_bindings b ON b.id=r.binding_id WHERE r.id=$1::uuid"
     ))
     .bind(id)
     .fetch_one(connection)
@@ -175,7 +185,7 @@ fn valid_light_configuration(configuration: &Value) -> bool {
     }) && configuration.get("on").is_none_or(Value::is_boolean)
 }
 
-#[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/start", operation_id="startLabDeviceProgram", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), responses((status=201, body=DeviceProgramRun), (status=200, body=DeviceProgramRun), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=422, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
+#[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/start", operation_id="startLabDeviceProgram", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), responses((status=201, body=DeviceProgramRun), (status=200, body=DeviceProgramRun), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=409, body=crate::http::ApiErrorResponse), (status=422, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
 async fn start_program(
     State(state): State<Lab>,
     Extension(id): Extension<RequestId>,
@@ -192,6 +202,7 @@ async fn start_program(
         state.authorize(&mut tx,&headers,&actor).await?;
         let generation: i64 = sqlx::query_scalar("SELECT generation FROM lab.runtime_generation WHERE singleton FOR SHARE").fetch_one(&mut *tx).await?;
         let entity = lock_entity(&mut tx,&lab,&entity).await?;
+        if entity.archived_at.is_some() { return Err(Failure::EntityArchived); }
         let binding = entity.binding.ok_or(Failure::NotImplemented)?;
         if let Some(run) = entity.program_run.filter(|run| run.status == "running") { return Ok((StatusCode::OK,run)); }
         let configuration = json!(entity.configuration);
@@ -246,25 +257,13 @@ pub(super) async fn accept(
     input: EntityAction,
     id: &RequestId,
 ) -> Result<DeviceCommand, Failure> {
-    state.require_runtime()?;
     let mut tx = state.pool.begin().await?;
     state.authorize(&mut tx, headers, actor).await?;
     let entity = lock_entity(&mut tx, lab, entity).await?;
-    let capability = entity
-        .capabilities
-        .iter()
-        .find(|capability| capability.id == input.capability)
-        .ok_or(Failure::InvalidInput)?;
-    if !capability.binding_implemented {
-        return Err(Failure::NotImplemented);
-    }
     let key = headers
         .get("idempotency-key")
         .and_then(|key| key.to_str().ok())
         .unwrap_or("");
-    if key.is_empty() || key.len() > 128 || !key.bytes().all(|byte| (33..=126).contains(&byte)) {
-        return Err(crate::modules::idempotency::Error::InvalidKey.into());
-    }
     let previous: Option<(bool,sqlx::types::Json<DeviceCommand>)> = sqlx::query_as("SELECT capability=$4 AND parameters=$5,to_jsonb(c) FROM lab.device_commands c WHERE actor_id=$1::uuid AND entity_id=$2::uuid AND request_key=$3").bind(actor).bind(&entity.id).bind(key).bind(&input.capability).bind(&input.parameters).fetch_optional(&mut *tx).await?;
     if let Some((same, previous)) = previous {
         if !same {
@@ -281,6 +280,21 @@ pub(super) async fn accept(
                 crate::modules::idempotency::Error::Conflict.into()
             },
         );
+    }
+    if entity.archived_at.is_some() {
+        return Err(Failure::EntityArchived);
+    }
+    state.require_runtime()?;
+    let capability = entity
+        .capabilities
+        .iter()
+        .find(|capability| capability.id == input.capability)
+        .ok_or(Failure::InvalidInput)?;
+    if !capability.binding_implemented {
+        return Err(Failure::NotImplemented);
+    }
+    if key.is_empty() || key.len() > 128 || !key.bytes().all(|byte| (33..=126).contains(&byte)) {
+        return Err(crate::modules::idempotency::Error::InvalidKey.into());
     }
     let running = entity
         .program_run

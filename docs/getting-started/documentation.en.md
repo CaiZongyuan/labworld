@@ -1,21 +1,22 @@
 # Lab Word Documentation
 
-Lab Word is a laboratory digital twin. Current work establishes a Three.js presentation layer for equipment models; placement and live state follow later.
+Lab Word is a laboratory digital twin. The application stores assets, Labs, objects and layouts. Backend programs provide device observations with sources and Tasks.
 
 ## Choose Your Task
 
-| Task                           | Starting point                                                             | Observable result                                            |
-| ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
-| Start the existing application | [Quick start](quickstart.md)                                               | Ready API and accessible Web registration page               |
-| Inspect equipment models       | [Lab Viewer preview](../guides/lab-viewer.md)                              | A rendered model and local GLB import in an isolated preview |
-| Change the project             | [Project structure](../architecture/project-structure.md)                  | Locate application composition and business ownership        |
-| Look up interfaces             | [API](site:reference/api.md) and [configuration](site:reference/config.md) | Find generated contracts and defaults                        |
+| Task                           | Starting point                                                             | Observable result                                     |
+| ------------------------------ | -------------------------------------------------------------------------- | ----------------------------------------------------- |
+| Start the existing application | [Quick start](quickstart.md)                                               | Ready API and accessible Web registration page        |
+| Inspect equipment models       | [Lab and asset library](../guides/lab-viewer.en.md)                        | Render a model and publish a persistent GLB asset     |
+| Manage device lifecycle        | [Entity lifecycle](../tutorials/entity-lifecycle.en.md)                    | Replace appearance and archive a stopped Entity       |
+| Change the project             | [Project structure](../architecture/project-structure.md)                  | Locate application composition and business ownership |
+| Look up interfaces             | [API](site:reference/api.md) and [configuration](site:reference/config.md) | Find generated contracts and defaults                 |
 
 ## Current Capabilities And Plans
 
-The application already has identity, membership, knowledge, files and jobs through its [platform capabilities](../guides/platform.md). Lab Viewer v1 runs independently and its visual experience is accepted. Acceptance of production routing, the Lab entry after login and production lazy loading is pending.
+The application provides identity, membership, knowledge, files and jobs through its [platform capabilities](../guides/platform.md). Lab is the default entry after login. The accepted Viewer and Foundation previews provide the experience baseline.
 
-Local GLB import stays in the browser session and does not upload files. Equipment data integration, control and scene placement follow later. [Product scope](../architecture/lab-word.md) explains the boundary; the [presentation plan](../plans/lab-viewer-m0.md) records future acceptance criteria.
+Follow the paired tutorials from [persistent assets](../tutorials/persistent-assets.en.md) through world identity, layouts, programs, synchronization, Tasks and history. [Entity lifecycle](../tutorials/entity-lifecycle.en.md) completes archiving and appearance replacement. Combined scale validation follows next. Physical equipment integration remains future scope. [Product scope](../architecture/lab-word.en.md) defines these boundaries.
 
 ## Reading And Maintenance
 

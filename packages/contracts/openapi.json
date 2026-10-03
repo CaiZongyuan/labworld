@@ -5623,6 +5623,236 @@
         }
       }
     },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/appearance": {
+      "put": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "changeLabEntityAppearance",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEntityAppearance"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabEntity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/archive": {
+      "post": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "archiveLabEntity",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabEntity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/commands/{command_id}": {
       "get": {
         "tags": [
@@ -5772,6 +6002,131 @@
         },
         "responses": {
           "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabEntity"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/entities/{entity_id}/definition": {
+      "put": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "changeLabEntityDefinition",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChangeEntityDefinition"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
             "description": "",
             "content": {
               "application/json": {
@@ -6089,6 +6444,16 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
             "description": "",
             "content": {
               "application/json": {
@@ -8372,6 +8737,43 @@
           }
         }
       },
+      "ChangeEntityAppearance": {
+        "type": "object",
+        "properties": {
+          "representation_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Null selects the built-in appearance. Applies to the Entity and all its current Scene Nodes."
+          }
+        },
+        "additionalProperties": false
+      },
+      "ChangeEntityDefinition": {
+        "type": "object",
+        "required": [
+          "definition_id",
+          "definition_version",
+          "configuration"
+        ],
+        "properties": {
+          "configuration": {
+            "type": "object",
+            "additionalProperties": {},
+            "propertyNames": {
+              "type": "string"
+            }
+          },
+          "definition_id": {
+            "type": "string"
+          },
+          "definition_version": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
       "CompleteReset": {
         "type": "object",
         "required": [
@@ -8789,6 +9191,11 @@
           "id",
           "entity_id",
           "binding_id",
+          "program_id",
+          "source",
+          "definition_id",
+          "definition_version",
+          "definition",
           "configuration",
           "status",
           "started_by",
@@ -8799,6 +9206,15 @@
             "type": "string"
           },
           "configuration": {},
+          "definition": {
+            "$ref": "#/components/schemas/AssetDefinition"
+          },
+          "definition_id": {
+            "type": "string"
+          },
+          "definition_version": {
+            "type": "string"
+          },
           "ended_at": {
             "type": [
               "string",
@@ -8810,6 +9226,12 @@
             "type": "string"
           },
           "id": {
+            "type": "string"
+          },
+          "program_id": {
+            "type": "string"
+          },
+          "source": {
             "type": "string"
           },
           "started_at": {
@@ -9921,6 +10343,13 @@
           "capabilities"
         ],
         "properties": {
+          "archived_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "binding": {
             "oneOf": [
               {
@@ -10766,9 +11195,21 @@
           "id",
           "entity_id",
           "program_id",
-          "source"
+          "source",
+          "definition_id",
+          "definition_version",
+          "definition"
         ],
         "properties": {
+          "definition": {
+            "$ref": "#/components/schemas/AssetDefinition"
+          },
+          "definition_id": {
+            "type": "string"
+          },
+          "definition_version": {
+            "type": "string"
+          },
           "entity_id": {
             "type": "string"
           },

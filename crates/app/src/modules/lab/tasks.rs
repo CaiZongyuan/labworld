@@ -154,7 +154,7 @@ async fn get_run(
         world::uuid(&lab)?; world::uuid(&entity)?;
         world::uuid(&run)?; let mut connection=state.pool.acquire().await?;
         world::load_entity(&mut connection,&lab,&entity).await?;
-        sqlx::query_as::<_,super::devices::DeviceProgramRun>("SELECT id::text,entity_id::text,binding_id::text,configuration,status,started_by::text,started_at,ended_at FROM lab.program_runs WHERE entity_id=$1::uuid AND id=$2::uuid")
+        sqlx::query_as::<_,super::devices::DeviceProgramRun>(&format!("SELECT {} FROM lab.program_runs r JOIN lab.runtime_bindings b ON b.id=r.binding_id WHERE r.entity_id=$1::uuid AND r.id=$2::uuid",super::devices::RUN_COLUMNS))
             .bind(entity).bind(run).fetch_optional(&mut *connection).await?.ok_or(Failure::WorldNotFound)
     }.await;
     match value {

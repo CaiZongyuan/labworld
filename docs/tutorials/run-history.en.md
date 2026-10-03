@@ -180,4 +180,4 @@ For a connection error, select **Retry history query**. An expired or revoked ke
 
 ## Next Stage
 
-History queries and retention are implemented. The next stage adds Entity archiving and safe appearance replacement. Scale and combined experience validation follow later.
+Continue with [Entity lifecycle](entity-lifecycle.en.md). Archive a stopped device and replace its appearance while preserving identity. Scale and combined experience validation follow later.

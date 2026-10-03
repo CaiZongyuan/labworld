@@ -4,6 +4,7 @@ mod devices;
 mod glb;
 mod history;
 mod layout;
+mod lifecycle;
 mod relationships;
 mod runtime;
 mod sync;
@@ -62,6 +63,7 @@ pub fn router_with_retention(
         .merge(definitions::routes())
         .merge(world::routes())
         .merge(layout::routes())
+        .merge(lifecycle::routes())
         .merge(devices::routes())
         .merge(tasks::routes())
         .merge(history::routes())
@@ -80,6 +82,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     document.merge(definitions::openapi());
     document.merge(world::openapi());
     document.merge(layout::openapi());
+    document.merge(lifecycle::openapi());
     document.merge(devices::openapi());
     document.merge(tasks::openapi());
     document.merge(history::openapi());
@@ -105,6 +108,8 @@ enum Failure {
     NotImplemented,
     ProgramNotRunning,
     DeviceBusy,
+    EntityInUse,
+    EntityArchived,
     InvalidParameters,
     CommandExpired,
     RuntimeUnavailable,
@@ -137,6 +142,16 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::EntityInUse => (
+                StatusCode::CONFLICT,
+                "lab.entity_in_use",
+                "Finish the Task and stop the program before archiving or changing its definition",
+            ),
+            Self::EntityArchived => (
+                StatusCode::CONFLICT,
+                "lab.entity_archived",
+                "This Entity is archived and does not accept new actions",
+            ),
             Self::CommandExpired => (
                 StatusCode::GONE,
                 "lab.command_expired",

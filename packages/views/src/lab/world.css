@@ -4,6 +4,18 @@
   flex: 1;
   min-height: 0;
 }
+.world-directory-mode {
+  margin: 0 12px 10px;
+  display: flex;
+  flex-wrap: wrap;
+}
+.world-directory-mode button {
+  flex: 1;
+  min-width: 0;
+  white-space: normal;
+  height: auto;
+  min-height: 32px;
+}
 .world-layout-toolbar {
   display: flex;
   align-items: center;

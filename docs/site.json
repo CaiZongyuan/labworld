@@ -183,7 +183,19 @@
       "titleEn": "Run History and Retention",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "centrifuge-tasks"
+      "previous": "centrifuge-tasks",
+      "next": "entity-lifecycle"
+    },
+    {
+      "id": "entity-lifecycle",
+      "source": "docs/tutorials/entity-lifecycle.md",
+      "sourceEn": "docs/tutorials/entity-lifecycle.en.md",
+      "route": "tutorials/entity-lifecycle.md",
+      "title": "对象归档与外观替换",
+      "titleEn": "Entity Archiving and Appearance Replacement",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "run-history"
     },
     {
       "id": "lab-architecture",

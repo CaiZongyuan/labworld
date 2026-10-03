@@ -74,6 +74,7 @@ import WorldDialog, {
 } from './world-dialog';
 import DevicePanel, { type CommandAttempt } from './device-panel';
 import HistoryPanel from './history-panel';
+import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
 import { useWorldSubscription } from './world-subscription';
 import {
@@ -156,6 +157,7 @@ export default function WorldView({
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
   const [unplacedOnly, setUnplacedOnly] = useState(false);
+  const [archivedOnly, setArchivedOnly] = useState(false);
   const [dialog, setDialog] = useState<WorldDialogMode | null>(null);
   const [grid, setGrid] = useState(true);
   const [fit, setFit] = useState(0);
@@ -205,6 +207,7 @@ export default function WorldView({
     ) ?? nodes.find((node) => node.entity_id === selected?.id);
   const visible = entities.filter(
     (entity) =>
+      !!entity.archived_at === archivedOnly &&
       (!kind || entity.kind === kind) &&
       (!unplacedOnly || !placedIds.has(entity.id)) &&
       entity.name.toLowerCase().includes(search.toLowerCase()),
@@ -328,6 +331,7 @@ export default function WorldView({
           throwOnError: true,
         });
         setActiveLab(data.id);
+        setArchivedOnly(false);
         setSelection([]);
       } else if (submission.kind === 'register') {
         const { data } = await registerLabEntity({
@@ -338,6 +342,7 @@ export default function WorldView({
           throwOnError: true,
         });
         setSelection([data.id]);
+        setArchivedOnly(false);
       } else {
         await configureLabEntity({
           client: apiClient,
@@ -645,6 +650,22 @@ export default function WorldView({
             />
             {message('layout.unplacedOnly')}
           </label>
+          <ToggleGroup
+            className="world-directory-mode"
+            multiple={false}
+            value={[archivedOnly ? 'archived' : 'active']}
+            onValueChange={(value) => {
+              if (value[0]) setArchivedOnly(value[0] === 'archived');
+            }}
+            aria-label={message('lifecycle.directory')}
+          >
+            <ToggleGroupItem value="active">
+              {message('lifecycle.active')}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="archived">
+              {message('lifecycle.archivedDirectory')}
+            </ToggleGroupItem>
+          </ToggleGroup>
           <div className="world-object-list">
             {visible.map((entity) => (
               <div
@@ -877,6 +898,22 @@ export default function WorldView({
                 }
                 onRefresh={world.refetch}
                 runtimeAvailable={connection.available}
+              />
+              <EntityLifecyclePanel
+                key={`lifecycle-${selected.id}`}
+                entity={selected}
+                definitions={definitions.data ?? []}
+                assets={catalog.assets.flatMap((asset) =>
+                  asset.source === 'remote' ? [asset.asset] : [],
+                )}
+                apiClient={apiClient}
+                identity={identity}
+                disabled={!!draft || layoutPending}
+                onRefresh={world.refetch}
+                onArchived={() => setArchivedOnly(true)}
+                hasMoreAssets={catalog.query.hasNextPage}
+                loadingAssets={catalog.query.isFetchingNextPage}
+                onMoreAssets={() => void catalog.query.fetchNextPage()}
               />
               {world.data ? (
                 <RelationshipPanel
