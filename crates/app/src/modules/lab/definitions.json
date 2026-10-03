@@ -7,31 +7,67 @@
     "category": "instrument",
     "specifications": {
       "speed": { "unit": "rpm", "minimum": 0, "maximum": 15000 },
-      "temperature": { "unit": "degC", "minimum": -10, "maximum": 40 }
+      "temperature": { "unit": "degC", "minimum": -10, "maximum": 40 },
+      "program": {
+        "speed_tolerance_rpm": 50,
+        "temperature_tolerance_degC": 0.5,
+        "acceleration_rpm_per_second": 3000,
+        "deceleration_rpm_per_second": 3000,
+        "temperature_rate_degC_per_second": 2,
+        "sample_frequency_hz": 1
+      },
+      "builtin_representation": {
+        "rotor_node": "centrifuge-rotor",
+        "rotation_axis": [0, 1, 0],
+        "observation_property": "speed",
+        "unit": "rpm",
+        "imported_glb_rotor_mapping": false
+      }
     },
     "capabilities": [
       {
         "id": "centrifuge.start",
+        "version": "1.0",
         "parameters": {
           "type": "object",
           "required": ["rpm", "temperature", "duration_seconds"],
           "additionalProperties": false,
           "properties": {
-            "rpm": { "type": "integer", "minimum": 500, "maximum": 15000 },
-            "temperature": { "type": "number", "minimum": -10, "maximum": 40 },
+            "rpm": {
+              "type": "integer",
+              "minimum": 500,
+              "maximum": 15000,
+              "unit": "rpm"
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": -10,
+              "maximum": 40,
+              "unit": "degC"
+            },
             "duration_seconds": {
               "type": "integer",
+              "unit": "s",
               "minimum": 6,
               "maximum": 3600
             }
           }
         },
-        "implemented": false
+        "result": {
+          "meaning": "task_started",
+          "task_result": "separate_query"
+        },
+        "implemented": true
       },
       {
         "id": "centrifuge.stop",
+        "version": "1.0",
         "parameters": { "type": "object", "additionalProperties": false },
-        "implemented": false
+        "result": {
+          "meaning": "deceleration_requested",
+          "task_result": "cancelled_after_idle"
+        },
+        "implemented": true
       }
     ],
     "state": {
@@ -39,12 +75,14 @@
       "properties": {
         "speed": { "type": "number", "unit": "rpm" },
         "temperature": { "type": "number", "unit": "degC" },
+        "elapsed_seconds": { "type": "number", "unit": "s" },
         "phase": { "enum": ["idle", "preparing", "running", "decelerating"] }
       }
     },
     "interfaces": [
       { "id": "lab.asset-definitions.v1", "implemented": true },
-      { "id": "lab.device-commands.v1", "implemented": false }
+      { "id": "lab.device-commands.v1", "implemented": true },
+      { "id": "lab.device-tasks.v1", "implemented": true }
     ]
   },
   {

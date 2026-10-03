@@ -44,8 +44,9 @@ await withTestServices(async ({ postgresName, storageName, env: services }) => {
   };
   run(resolve(root, 'target/debug/migrate'), [], env);
   run(resolve(root, 'target/debug/bootstrap-storage'), [], env);
-  const api = launch(resolve(root, 'target/debug/labos-threejs-api'), [], env);
   const workerTemp = mkdtempSync(join(tmpdir(), 'labos-threejs-e2e-worker-'));
+  env.E2E_API_PID_FILE = join(workerTemp, 'api.pid');
+  const api = launch('node', ['scripts/lib/test-api.mjs'], env);
   env.TMPDIR = workerTemp;
   env.E2E_WORKER_PID_FILE = join(workerTemp, 'worker.pid');
   const worker = launch('node', ['scripts/lib/test-worker.mjs'], env);

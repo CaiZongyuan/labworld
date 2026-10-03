@@ -8,6 +8,7 @@ use std::sync::{
     atomic::{AtomicI64, Ordering},
 };
 use std::time::Duration;
+mod centrifuge;
 
 pub async fn run_device_programs(pool: PgPool, availability: RuntimeAvailability) {
     let mut runtime = None;
@@ -144,6 +145,22 @@ impl ObservationSink<'_> {
         if !Self::apply(&mut tx, &source, &report, self.runtime.clock.now()).await? {
             return Ok(ObservationAcceptance::OutOfOrder);
         };
+        if source.program == "centrifuge.v1"
+            && report.quality != "good"
+            && !report.values.as_object().unwrap().is_empty()
+        {
+            centrifuge::fail(
+                &mut tx,
+                &source,
+                if report.quality == "bad" {
+                    "failed"
+                } else {
+                    "unknown"
+                },
+                self.runtime.clock.now(),
+            )
+            .await?;
+        }
         tx.commit().await?;
         Ok(ObservationAcceptance::Applied)
     }
@@ -193,6 +210,8 @@ impl DeviceRuntime {
         let generation: i64 = sqlx::query_scalar("UPDATE lab.runtime_generation SET generation=generation+1 WHERE singleton RETURNING generation").fetch_one(&mut *tx).await?;
         sqlx::query("SELECT id FROM lab.entities WHERE EXISTS(SELECT 1 FROM lab.program_runs r WHERE r.entity_id=entities.id AND r.status='running') ORDER BY id FOR UPDATE").fetch_all(&mut *tx).await?;
         sqlx::query("UPDATE lab.program_runs SET status='interrupted',ended_at=now() WHERE status='running'").execute(&mut *tx).await?;
+        sqlx::query("UPDATE lab.device_task_results SET status='interrupted',reason='runtime_interrupted',ended_at=now() WHERE task_id IN (SELECT id FROM lab.device_tasks WHERE status IN ('pending','preparing','running','decelerating'))").execute(&mut *tx).await?;
+        sqlx::query("UPDATE lab.device_tasks SET status='interrupted',ended_at=now() WHERE status IN ('pending','preparing','running','decelerating')").execute(&mut *tx).await?;
         sqlx::query("UPDATE lab.device_commands SET status='unknown',result=jsonb_build_object('reason','runtime_interrupted'),updated_at=now() WHERE status IN ('accepted','executing')").execute(&mut *tx).await?;
         tx.commit().await?;
         availability.0.store(generation, Ordering::Release);
@@ -248,7 +267,7 @@ impl DeviceRuntime {
             tx.commit().await?;
             sampled += 1;
         }
-        Ok(sampled)
+        Ok(sampled + centrifuge::sample_due(self, now).await?)
     }
 
     /// Persist each expired property once, so versioned snapshots never derive facts from wall time.
@@ -307,6 +326,7 @@ impl DeviceRuntime {
         let result = self.execute(&command, &entity, &run).await;
         if result.is_err() {
             let _=sqlx::query("UPDATE lab.device_commands SET status='unknown',result=jsonb_build_object('reason','execution_uncertain'),updated_at=now() WHERE id=$1::uuid AND status='executing'").bind(&command).execute(&self.pool).await;
+            centrifuge::execution_uncertain(self, &command, &entity, &run).await?;
         }
         result.map(|()| true)
     }
@@ -323,6 +343,10 @@ impl DeviceRuntime {
         let Some((capability, parameters)) = action else {
             return Ok(());
         };
+        if source.program == "centrifuge.v1" {
+            centrifuge::execute(&mut tx, &source, command, &capability, self.clock.now()).await?;
+            return tx.commit().await;
+        }
         let previous: Option<Value> = sqlx::query_scalar(
             "SELECT values FROM lab.current_observations WHERE entity_id=$1::uuid AND run_id=$2::uuid",
         )
@@ -390,6 +414,18 @@ impl ObservationSink<'_> {
                         ("light.v1", "brightness") => value
                             .as_f64()
                             .is_some_and(|value| (0.0..=100.0).contains(&value)),
+                        ("centrifuge.v1", "speed") => value
+                            .as_f64()
+                            .is_some_and(|value| (0.0..=15000.0).contains(&value)),
+                        ("centrifuge.v1", "temperature") => value
+                            .as_f64()
+                            .is_some_and(|value| (-10.0..=40.0).contains(&value)),
+                        ("centrifuge.v1", "phase") => value.as_str().is_some_and(|value| {
+                            matches!(value, "idle" | "preparing" | "running" | "decelerating")
+                        }),
+                        ("centrifuge.v1", "elapsed_seconds") => {
+                            value.as_f64().is_some_and(|value| value >= 0.0)
+                        }
                         _ => false,
                     },
                 )
@@ -449,6 +485,8 @@ impl ObservationSink<'_> {
                     unit: match name.as_str() {
                         "temperature" => Some("degC".into()),
                         "brightness" => Some("%".into()),
+                        "speed" => Some("rpm".into()),
+                        "elapsed_seconds" => Some("s".into()),
                         _ => None,
                     },
                     binding_id: source.binding.clone(),

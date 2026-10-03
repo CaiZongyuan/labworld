@@ -191,6 +191,7 @@ export type DeviceCommand = {
     result?: unknown;
     run_id: string;
     status: string;
+    task_id?: string | null;
     updated_at: string;
 };
 
@@ -219,6 +220,28 @@ export type DeviceProgramRun = {
     started_at: string;
     started_by: string;
     status: string;
+};
+
+export type DeviceTask = {
+    command_id: string;
+    created_at: string;
+    elapsed_seconds: number;
+    ended_at?: string | null;
+    entity_id: string;
+    id: string;
+    parameters: unknown;
+    result_id: string;
+    run_id: string;
+    status: string;
+    timer_started_at?: string | null;
+};
+
+export type DeviceTaskResult = {
+    ended_at?: string | null;
+    id: string;
+    reason?: string | null;
+    status: string;
+    task_id: string;
 };
 
 export type Document = {
@@ -456,6 +479,8 @@ export type LabEntity = {
     program_run?: null | DeviceProgramRun;
     reality: string;
     representation_id?: string | null;
+    task?: null | DeviceTask;
+    task_result?: null | DeviceTaskResult;
     updated_at: string;
     updated_by: string;
 };
@@ -2456,6 +2481,7 @@ export type StopLabDeviceProgramErrors = {
     401: ApiErrorResponse;
     403: ApiErrorResponse;
     404: ApiErrorResponse;
+    409: ApiErrorResponse;
     422: ApiErrorResponse;
     /**
      * Request budget exceeded; retry after the specified seconds
@@ -2471,6 +2497,99 @@ export type StopLabDeviceProgramResponses = {
 };
 
 export type StopLabDeviceProgramResponse = StopLabDeviceProgramResponses[keyof StopLabDeviceProgramResponses];
+
+export type GetLabDeviceTaskResultData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+        result_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/results/{result_id}';
+};
+
+export type GetLabDeviceTaskResultErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabDeviceTaskResultError = GetLabDeviceTaskResultErrors[keyof GetLabDeviceTaskResultErrors];
+
+export type GetLabDeviceTaskResultResponses = {
+    200: DeviceTaskResult;
+};
+
+export type GetLabDeviceTaskResultResponse = GetLabDeviceTaskResultResponses[keyof GetLabDeviceTaskResultResponses];
+
+export type GetLabDeviceProgramRunData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+        run_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/runs/{run_id}';
+};
+
+export type GetLabDeviceProgramRunErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabDeviceProgramRunError = GetLabDeviceProgramRunErrors[keyof GetLabDeviceProgramRunErrors];
+
+export type GetLabDeviceProgramRunResponses = {
+    200: DeviceProgramRun;
+};
+
+export type GetLabDeviceProgramRunResponse = GetLabDeviceProgramRunResponses[keyof GetLabDeviceProgramRunResponses];
+
+export type GetLabDeviceTaskData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+        task_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/tasks/{task_id}';
+};
+
+export type GetLabDeviceTaskErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabDeviceTaskError = GetLabDeviceTaskErrors[keyof GetLabDeviceTaskErrors];
+
+export type GetLabDeviceTaskResponses = {
+    200: DeviceTask;
+};
+
+export type GetLabDeviceTaskResponse = GetLabDeviceTaskResponses[keyof GetLabDeviceTaskResponses];
 
 export type SaveLabLayoutData = {
     body: SaveLabLayout;

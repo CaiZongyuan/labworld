@@ -141,19 +141,23 @@ pub struct LabEntity {
     pub program_run: Option<DeviceProgramRun>,
     #[sqlx(json(nullable))]
     pub observation: Option<DeviceObservation>,
+    #[sqlx(json(nullable))]
+    pub task: Option<super::tasks::DeviceTask>,
+    #[sqlx(json(nullable))]
+    pub task_result: Option<super::tasks::DeviceTaskResult>,
     #[sqlx(skip)]
     pub capabilities: Vec<EntityCapability>,
 }
 impl LabEntity {
     fn with_capabilities(mut self) -> Self {
-        let implementation = if self
-            .binding
-            .as_ref()
-            .is_some_and(|binding| binding.program_id == "light.v1")
-        {
+        let implementation = if self.binding.as_ref().is_some_and(|binding| {
+            matches!(binding.program_id.as_str(), "light.v1" | "centrifuge.v1")
+        }) {
             definitions::catalog()
                 .iter()
-                .find(|definition| definition.id == "light" && definition.version == "1.0")
+                .find(|definition| {
+                    definition.id == self.definition_id && definition.version == "1.0"
+                })
                 .map(|definition| definition.capabilities.as_slice())
                 .unwrap_or(&[])
         } else {
@@ -172,14 +176,18 @@ impl LabEntity {
                     .iter()
                     .find(|entry| entry.id == capability.id);
                 let contract = implemented.unwrap_or(capability);
+                let busy = capability.id == "centrifuge.start"
+                    && self.task.as_ref().is_some_and(|task| task.active());
                 EntityCapability {
                     id: capability.id.clone(),
                     version: contract.version.clone(),
                     definition_supported: true,
                     binding_implemented: implemented.is_some(),
-                    executable: implemented.is_some() && running,
+                    executable: implemented.is_some() && running && !busy,
                     reason: if implemented.is_none() {
                         "binding_not_implemented"
+                    } else if busy {
+                        "device_busy"
                     } else if running {
                         "ready"
                     } else {
@@ -246,7 +254,9 @@ const ENTITY_COLUMNS: &str = "
         CASE WHEN o.freshness='stale' THEN 'stale' WHEN r.status<>'running' THEN r.status
              ELSE o.freshness END)
         FROM lab.current_observations o JOIN lab.program_runs r ON r.id=o.run_id
-        WHERE o.entity_id=entities.id) AS observation";
+        WHERE o.entity_id=entities.id) AS observation,
+    (SELECT to_jsonb(t) FROM lab.device_tasks t WHERE t.entity_id=entities.id ORDER BY created_at DESC,id DESC LIMIT 1) AS task,
+    (SELECT to_jsonb(r) FROM lab.device_task_results r JOIN lab.device_tasks t ON t.result_id=r.id WHERE t.entity_id=entities.id ORDER BY t.created_at DESC,t.id DESC LIMIT 1) AS task_result";
 const NODE_COLUMNS: &str =
     "id::text, lab_id::text, entity_id::text, representation_id::text, placement";
 

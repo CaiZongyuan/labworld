@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Check, Play, RefreshCw, Square } from 'lucide-react';
 import {
@@ -26,6 +26,7 @@ import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
 import { ErrorAlert } from '../shell/error-alert';
 import { useAppMessage } from '../shell/messages';
 import ObservationReading from './observation-reading';
+import CentrifugePanel, { activeTask } from './centrifuge-panel';
 
 export type CommandAttempt = {
   key: string;
@@ -53,9 +54,17 @@ export default function DevicePanel({
   runtimeAvailable: boolean;
 }) {
   const message = useAppMessage('lab');
+  const errorCodes = {
+    'lab.device_busy': message('task.busy'),
+    'lab.invalid_parameters': message('device.invalidParameters'),
+    'lab.program_not_running': message('device.startRequired'),
+    'lab.runtime_unavailable': message('device.runtimeUnavailable'),
+    'idempotency.conflict': message('device.keyConflict'),
+  };
   const [programPending, setProgramPending] = useState(false);
   const [programError, setProgramError] = useState<unknown>(null);
   const [brightness, setBrightness] = useState('100');
+  const submission = useRef(0);
   const path = { lab_id: entity.lab_id, entity_id: entity.id };
   const running = entity.program_run?.status === 'running';
   const executable =
@@ -115,6 +124,7 @@ export default function DevicePanel({
     }
   }
   async function submit(input: EntityAction, previous?: CommandAttempt) {
+    const current = ++submission.current;
     const pending: CommandAttempt = {
       key: previous?.key ?? crypto.randomUUID(),
       input,
@@ -133,17 +143,19 @@ export default function DevicePanel({
         body: input,
         throwOnError: true,
       });
-      onAttempt({ ...pending, phase: 'accepted', command: data });
+      if (current === submission.current)
+        onAttempt({ ...pending, phase: 'accepted', command: data });
       await onRefresh();
     } catch (error) {
       const code = errorCodeOf(error);
       const rejected =
         !!code && code !== 'lab.unavailable' && code !== 'auth.unavailable';
-      onAttempt({
-        ...pending,
-        phase: rejected ? 'rejected' : 'uncertain',
-        error,
-      });
+      if (current === submission.current)
+        onAttempt({
+          ...pending,
+          phase: rejected ? 'rejected' : 'uncertain',
+          error,
+        });
     }
   }
   const values = entity.observation?.values as
@@ -185,7 +197,7 @@ export default function DevicePanel({
           <Button
             size="sm"
             variant="outline"
-            disabled={programPending || !runtimeAvailable}
+            disabled={programPending || !runtimeAvailable || activeTask(entity)}
             onClick={() => void program()}
           >
             {running ? (
@@ -196,7 +208,11 @@ export default function DevicePanel({
             {message(running ? 'device.stop' : 'device.start')}
           </Button>
           {programError ? (
-            <ErrorAlert error={programError} title={message('assets.error')} />
+            <ErrorAlert
+              error={programError}
+              title={message('assets.error')}
+              codes={errorCodes}
+            />
           ) : null}
           {entity.binding.program_id === 'light.v1' ? (
             <FieldGroup>
@@ -256,6 +272,14 @@ export default function DevicePanel({
               </form>
             </FieldGroup>
           ) : null}
+          {entity.binding.program_id === 'centrifuge.v1' ? (
+            <CentrifugePanel
+              entity={entity}
+              locked={locked || programPending}
+              available={running && runtimeAvailable}
+              submit={submit}
+            />
+          ) : null}
           {attempt ? (
             <div className="device-command" role="status">
               <strong>{message(`device.command.${status}`)}</strong>
@@ -268,12 +292,14 @@ export default function DevicePanel({
                 <ErrorAlert
                   error={attempt.error}
                   title={message('assets.error')}
+                  codes={errorCodes}
                 />
               ) : null}
               {command.error ? (
                 <ErrorAlert
                   error={command.error}
                   title={message('assets.error')}
+                  codes={errorCodes}
                 />
               ) : null}
               {status === 'uncertain' ? (

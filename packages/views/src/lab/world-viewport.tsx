@@ -8,7 +8,7 @@ import {
   useState,
   type ComponentRef,
 } from 'react';
-import { Canvas, useThree, type RootState } from '@react-three/fiber';
+import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
 import {
   Edges,
   Environment,
@@ -130,6 +130,77 @@ function SensorReading({
           {temperature
             ? message(`device.freshness.${temperature.freshness}`)
             : message('world.unknown')}
+        </small>
+      </div>
+    </Html>
+  );
+}
+function CentrifugeRotor({ entity }: { entity: LabEntity }) {
+  const rotor = useRef<Group>(null);
+  const speed = entity.observation?.properties?.speed;
+  const rpm =
+    entity.program_run?.status === 'running' &&
+    speed?.freshness === 'current' &&
+    speed.quality === 'good' &&
+    typeof speed.value === 'number'
+      ? speed.value
+      : 0;
+  useFrame((_, delta) => {
+    if (rotor.current)
+      rotor.current.rotation.y =
+        (rotor.current.rotation.y + ((rpm * Math.PI * 2) / 60) * delta) %
+        (Math.PI * 2);
+  });
+  return (
+    <group ref={rotor} name="centrifuge-rotor" position={[0, 0.57, 0]}>
+      <Cylinder
+        radius={0.13}
+        height={0.035}
+        color={rpm > 0 ? '#279a79' : '#9eafb2'}
+      />
+      {[0, (Math.PI * 2) / 3, (Math.PI * 4) / 3].map((angle) => (
+        <group key={angle} rotation={[0, angle, 0]}>
+          <Block
+            position={[0.17, 0.01, 0]}
+            size={[0.2, 0.025, 0.07]}
+            color={rpm > 0 ? '#5fbbc7' : '#c4d4d6'}
+          />
+          <Cylinder
+            position={[0.25, 0.018, 0]}
+            radius={0.035}
+            height={0.045}
+            color="#e8f1ef"
+          />
+        </group>
+      ))}
+    </group>
+  );
+}
+function CentrifugeReading({
+  entity,
+  position,
+}: {
+  entity: LabEntity;
+  position: Tuple;
+}) {
+  const message = useAppMessage('lab');
+  const speed = entity.observation?.properties?.speed;
+  const phase = entity.observation?.properties?.phase;
+  return (
+    <Html
+      center
+      position={position}
+      calculatePosition={readingPosition}
+      zIndexRange={[10, 0]}
+    >
+      <div
+        className="world-sensor-reading"
+        role="img"
+        aria-label={`${entity.name}: ${speed ? observationValue(speed) : message('world.unknown')}`}
+      >
+        <strong>{speed ? observationValue(speed) : '-'}</strong>
+        <small>
+          {phase ? message(`task.${phase.value}`) : message('world.unknown')}
         </small>
       </div>
     </Html>
@@ -307,12 +378,7 @@ function Builtin({ entity }: { entity: LabEntity }) {
           height={0.045}
           color="#5d7d83"
         />
-        <Cylinder
-          position={[0, 0.57, 0]}
-          radius={0.13}
-          height={0.035}
-          color="#9eafb2"
-        />
+        <CentrifugeRotor entity={entity} />
       </group>
     );
   return (
@@ -433,6 +499,20 @@ const NodeModel = memo(function NodeModel({
                   bounds.center[2],
                 ]
               : [0, 0.76, 0]
+          }
+        />
+      ) : null}
+      {showReading && entity.definition_id === 'centrifuge' ? (
+        <CentrifugeReading
+          entity={entity}
+          position={
+            bounds
+              ? [
+                  bounds.center[0],
+                  bounds.center[1] + bounds.size[1] / 2 + 0.2,
+                  bounds.center[2],
+                ]
+              : [0, 0.9, 0]
           }
         />
       ) : null}
