@@ -9,7 +9,13 @@ import {
   type ComponentRef,
 } from 'react';
 import { Canvas, useThree, type RootState } from '@react-three/fiber';
-import { Edges, Environment, Grid, OrbitControls } from '@react-three/drei';
+import {
+  Edges,
+  Environment,
+  Grid,
+  OrbitControls,
+  TransformControls,
+} from '@react-three/drei';
 import {
   Box3,
   Group,
@@ -17,7 +23,12 @@ import {
   Vector3,
   type WebGLRenderer,
 } from 'three';
-import type { LabEntity, LabWorld, SceneNode } from '@labos-threejs/sdk';
+import type {
+  LabEntity,
+  LabWorld,
+  SceneNode,
+  Placement,
+} from '@labos-threejs/sdk';
 import type { ModelAsset } from './catalog';
 import { useLoadedModel } from './model-loader';
 import { useAppMessage } from '../shell/messages';
@@ -282,17 +293,27 @@ const NodeModel = memo(function NodeModel({
   onSelect,
   onReady,
   onError,
+  active,
+  onTarget,
 }: {
   node: SceneNode;
   entity: LabEntity;
   asset?: ModelAsset;
   renderer: WebGLRenderer | null;
   selected: boolean;
-  onSelect: (id: string, additive: boolean) => void;
+  onSelect: (id: string, additive: boolean, nodeId?: string) => void;
   onReady: (id: string) => void;
   onError: (id: string, error: boolean) => void;
+  active: boolean;
+  onTarget: (id: string, object: Group | null) => void;
 }) {
   const group = useRef<Group>(null);
+  const outer = useRef<Group>(null);
+  useEffect(() => {
+    if (!active || !outer.current) return;
+    onTarget(node.id, outer.current);
+    return () => onTarget(node.id, null);
+  }, [active, node.id, onTarget]);
   const [bounds, setBounds] = useState<{ center: Tuple; size: Tuple } | null>(
     null,
   );
@@ -311,13 +332,14 @@ const NodeModel = memo(function NodeModel({
   }, [asset, measure]);
   return (
     <group
+      ref={outer}
       position={node.placement.position as Tuple}
       rotation={node.placement.rotation as Tuple}
       scale={node.placement.scale as Tuple}
       onClick={(event) => {
         if (event.delta <= 5) {
           event.stopPropagation();
-          onSelect(entity.id, event.shiftKey);
+          onSelect(entity.id, event.shiftKey, node.id);
         }
       }}
     >
@@ -358,22 +380,44 @@ function Scene({
   fit,
   onError,
   onReady,
+  activeNodeId,
+  transformMode,
+  onPlacement,
 }: {
   world: LabWorld;
   assets: ModelAsset[];
   renderer: WebGLRenderer | null;
   selected: string[];
-  onSelect: (id: string, additive: boolean) => void;
+  onSelect: (id: string, additive: boolean, nodeId?: string) => void;
   dark: boolean;
   grid: boolean;
   fit: number;
   onError: (id: string, error: boolean) => void;
   onReady: (id: string) => void;
+  activeNodeId?: string;
+  transformMode: 'translate' | 'rotate' | 'scale' | null;
+  onPlacement: (id: string, placement: Placement) => void;
 }) {
   const root = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const { camera, size } = useThree();
   const [loaded, setLoaded] = useState(0);
+  const [transformTarget, setTransformTarget] = useState<{
+    id: string;
+    object: Group;
+  } | null>(null);
+  const transformObject =
+    transformTarget && transformTarget.id === activeNodeId
+      ? transformTarget.object
+      : null;
+  const targetReady = useCallback(
+    (id: string, object: Group | null) =>
+      setTransformTarget((previous) =>
+        object ? { id, object } : previous?.id === id ? null : previous,
+      ),
+    [],
+  );
+  const nodeStructure = world.nodes.map((node) => node.id).join(',');
   const entityById = useMemo(
     () => new Map(world.entities.map((entity) => [entity.id, entity])),
     [world.entities],
@@ -425,7 +469,7 @@ function Scene({
     camera.updateProjectionMatrix();
     controls.current.target.copy(center);
     controls.current.update();
-  }, [world.nodes, loaded, camera, size.width, size.height, fit]);
+  }, [nodeStructure, loaded, camera, size.width, size.height, fit]);
   return (
     <>
       <color attach="background" args={[dark ? '#292c2e' : '#edf0f1']} />
@@ -467,10 +511,32 @@ function Scene({
               onSelect={onSelect}
               onReady={ready}
               onError={onError}
+              active={!!transformMode && node.id === activeNodeId}
+              onTarget={targetReady}
             />
           );
         })}
       </group>
+      {transformMode && transformObject && activeNodeId ? (
+        <TransformControls
+          object={transformObject}
+          mode={transformMode}
+          size={0.85}
+          onObjectChange={() => {
+            transformObject.position.clampScalar(-10000, 10000);
+            transformObject.scale.clampScalar(0.001, 1000);
+            onPlacement(activeNodeId, {
+              position: transformObject.position.toArray(),
+              rotation: [
+                transformObject.rotation.x,
+                transformObject.rotation.y,
+                transformObject.rotation.z,
+              ],
+              scale: transformObject.scale.toArray(),
+            });
+          }}
+        />
+      ) : null}
       <OrbitControls
         ref={controls}
         makeDefault
@@ -488,7 +554,10 @@ export default function WorldViewport(props: {
   world: LabWorld;
   assets: ModelAsset[];
   selected: string[];
-  onSelect: (id: string | null, additive: boolean) => void;
+  onSelect: (id: string | null, additive: boolean, nodeId?: string) => void;
+  activeNodeId?: string;
+  transformMode: 'translate' | 'rotate' | 'scale' | null;
+  onPlacement: (id: string, placement: Placement) => void;
   dark: boolean;
   grid: boolean;
   fit: number;

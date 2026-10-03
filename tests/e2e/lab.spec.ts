@@ -594,8 +594,10 @@ test('persistent Draco, Meshopt and Basis models render at their original scale 
     await page
       .getByLabel('GLB 文件')
       .setInputFiles(`tests/fixtures/lab/cube-${codec}.glb`);
+    // Verification already has a 40-second request budget; wait for the rendered model.
     await expect(page.locator('.lab-asset-copy')).toContainText(
       `cube-${codec}.glb`,
+      { timeout: 45000 },
     );
     await expect(page.locator('.lab-page')).toHaveAttribute(
       'aria-busy',

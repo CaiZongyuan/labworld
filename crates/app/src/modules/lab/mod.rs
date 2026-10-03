@@ -2,6 +2,8 @@ mod assets;
 mod definitions;
 mod devices;
 mod glb;
+mod layout;
+mod relationships;
 mod runtime;
 mod world;
 
@@ -43,6 +45,7 @@ pub fn router_with_runtime(
     assets::routes()
         .merge(definitions::routes())
         .merge(world::routes())
+        .merge(layout::routes())
         .merge(devices::routes())
         .with_state(Lab {
             pool,
@@ -56,6 +59,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     let mut document = assets::openapi();
     document.merge(definitions::openapi());
     document.merge(world::openapi());
+    document.merge(layout::openapi());
     document.merge(devices::openapi());
     document
 }
@@ -79,6 +83,7 @@ enum Failure {
     ProgramNotRunning,
     InvalidParameters,
     RuntimeUnavailable,
+    LayoutConflict,
     Unavailable,
     Idempotency(crate::modules::idempotency::Error),
 }
@@ -106,6 +111,11 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::LayoutConflict => (
+                StatusCode::CONFLICT,
+                "lab.layout_conflict",
+                "Layout changed; keep the draft, reload the current version and retry",
+            ),
             Self::RuntimeUnavailable => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 "lab.runtime_unavailable",

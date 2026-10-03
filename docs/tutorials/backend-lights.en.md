@@ -65,4 +65,4 @@ pnpm test:frontend apps/web/src/lab-devices.test.tsx
 node scripts/e2e.mjs tests/e2e/lab-devices.spec.ts
 ```
 
-HTTP uses the real Router and isolated PostgreSQL; the public runtime verifies ordering and restart; component tests mock only HTTP with MSW; the browser uses the real app, an independent Agent and WebGL. [Issue #5](https://github.com/CaiZongyuan/labworld/issues/5) adds layout editing and registered relationships; [Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) adds continuous sensors and stale detection. Layout versions remain separate from runtime observations.
+HTTP uses the real Router and isolated PostgreSQL; the public runtime verifies ordering and restart; component tests mock only HTTP with MSW; the browser uses the real app, an independent Agent and WebGL. Continue with [Edit Layout and Register Location](edit-layout.md) for layout and manual relationship operations. [Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) adds continuous sensors and stale detection. Layout versions remain separate from runtime observations.

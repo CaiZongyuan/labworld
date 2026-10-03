@@ -11,7 +11,8 @@
     "lab.runtime_bindings",
     "lab.program_runs",
     "lab.device_commands",
-    "lab.current_observations"
+    "lab.current_observations",
+    "lab.entity_relationships"
   ],
   "viewPath": "packages/views/src/lab",
   "exclusiveDependencies": [
@@ -27,7 +28,8 @@
     "migrations/0018_lab_assets.sql",
     "migrations/0019_lab_world.sql",
     "migrations/0020_lab_devices.sql",
-    "migrations/0021_lab_observation_order.sql"
+    "migrations/0021_lab_observation_order.sql",
+    "migrations/0022_lab_relationships.sql"
   ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
@@ -38,6 +40,7 @@
     "apps/web/src/lab.test.tsx",
     "tests/e2e/lab.spec.ts",
     "tests/e2e/lab-devices.spec.ts",
+    "tests/e2e/lab-layout.spec.ts",
     "tests/fixtures/lab"
   ],
   "tutorials": [
@@ -49,7 +52,10 @@
     "examples/lab/register-world.mjs",
     "docs/tutorials/backend-lights.md",
     "docs/tutorials/backend-lights.en.md",
-    "examples/lab/control-lights.mjs"
+    "examples/lab/control-lights.mjs",
+    "docs/tutorials/edit-layout.md",
+    "docs/tutorials/edit-layout.en.md",
+    "examples/lab/edit-layout.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -97,6 +103,15 @@
     "DeviceObservation",
     "startLabDeviceProgram",
     "stopLabDeviceProgram",
-    "getLabDeviceCommand"
+    "getLabDeviceCommand",
+    "LayoutNode",
+    "LayoutRelationship",
+    "RelationshipKind",
+    "EntityRelationship",
+    "SaveLabLayout",
+    "LabLayout",
+    "saveLabLayout",
+    "CopyLabEntity",
+    "copyLabEntity"
   ]
 }

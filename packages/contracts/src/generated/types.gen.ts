@@ -105,6 +105,12 @@ export type ConfigureEntity = {
     name: string;
 };
 
+export type CopyLabEntity = {
+    expected_version: number;
+    name: string;
+    placement: Placement;
+};
+
 export type CreateApiKey = {
     expires_in_days: number;
     name: string;
@@ -274,6 +280,17 @@ export type EntityCapability = {
 
 export type EntityReality = 'simulated' | 'physical';
 
+export type EntityRelationship = {
+    id: string;
+    kind: string;
+    lab_id: string;
+    registered_at: string;
+    registered_by: string;
+    source: string;
+    source_id: string;
+    target_id: string;
+};
+
 export type ExportPage = {
     data: Array<DocumentExport>;
     has_more: boolean;
@@ -440,6 +457,12 @@ export type LabEntity = {
     updated_by: string;
 };
 
+export type LabLayout = {
+    layout_version: number;
+    nodes: Array<SceneNode>;
+    relationships: Array<EntityRelationship>;
+};
+
 export type LabPage = {
     data: Array<PersistentLab>;
     has_more: boolean;
@@ -451,6 +474,21 @@ export type LabWorld = {
     entities: Array<LabEntity>;
     lab: PersistentLab;
     nodes: Array<SceneNode>;
+    relationships: Array<EntityRelationship>;
+};
+
+export type LayoutNode = {
+    entity_id: string;
+    id: string;
+    placement: Placement;
+    representation_id?: string | null;
+};
+
+export type LayoutRelationship = {
+    id: string;
+    kind: RelationshipKind;
+    source_id: string;
+    target_id: string;
 };
 
 export type Login = {
@@ -571,6 +609,8 @@ export type Registration = {
     password: string;
 };
 
+export type RelationshipKind = 'located_in' | 'contains' | 'simulates';
+
 export type RenameAsset = {
     name: string;
 };
@@ -598,6 +638,15 @@ export type RuntimeBinding = {
     id: string;
     program_id: string;
     source: string;
+};
+
+export type SaveLabLayout = {
+    expected_version: number;
+    nodes: Array<LayoutNode>;
+    /**
+     * Omit to retain registered relationships; an array explicitly replaces them.
+     */
+    relationships?: Array<LayoutRelationship> | null;
 };
 
 export type SceneNode = {
@@ -2274,6 +2323,37 @@ export type GetLabDeviceCommandResponses = {
 
 export type GetLabDeviceCommandResponse = GetLabDeviceCommandResponses[keyof GetLabDeviceCommandResponses];
 
+export type CopyLabEntityData = {
+    body: CopyLabEntity;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies';
+};
+
+export type CopyLabEntityErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CopyLabEntityError = CopyLabEntityErrors[keyof CopyLabEntityErrors];
+
+export type CopyLabEntityResponses = {
+    201: LabEntity;
+};
+
+export type CopyLabEntityResponse = CopyLabEntityResponses[keyof CopyLabEntityResponses];
+
 export type StartLabDeviceProgramData = {
     body?: never;
     path: {
@@ -2336,6 +2416,36 @@ export type StopLabDeviceProgramResponses = {
 };
 
 export type StopLabDeviceProgramResponse = StopLabDeviceProgramResponses[keyof StopLabDeviceProgramResponses];
+
+export type SaveLabLayoutData = {
+    body: SaveLabLayout;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/layout';
+};
+
+export type SaveLabLayoutErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type SaveLabLayoutError = SaveLabLayoutErrors[keyof SaveLabLayoutErrors];
+
+export type SaveLabLayoutResponses = {
+    200: LabLayout;
+};
+
+export type SaveLabLayoutResponse = SaveLabLayoutResponses[keyof SaveLabLayoutResponses];
 
 export type CreateLabSceneNodeData = {
     body: CreateSceneNode;

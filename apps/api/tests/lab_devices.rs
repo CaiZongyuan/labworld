@@ -96,6 +96,103 @@ fn entity(lab: &str, entity: &str) -> String {
 }
 
 #[sqlx::test(migrations = "../../migrations")]
+async fn layout_saves_preserve_running_devices_and_observations_do_not_conflict_with_the_draft(
+    pool: PgPool,
+) {
+    let runtime = labos_threejs_app::modules::lab::DeviceRuntime::initialize(pool.clone())
+        .await
+        .unwrap();
+    let app = labos_threejs_api::router(pool, Default::default());
+    let actor = register(&app).await;
+    let (lab, ids) = lights(&app, &actor).await;
+    let path = entity(&lab, &ids[0]);
+    let world_path = format!("/api/v1/lab/labs/{lab}/world");
+    let draft = data(request(&app, &actor, "GET", &world_path, "", Value::Null).await).await;
+    let mut nodes = draft["nodes"].as_array().unwrap().clone();
+    for node in &mut nodes {
+        node.as_object_mut().unwrap().remove("lab_id");
+    }
+    nodes[0]["placement"]["position"] = json!([2.0, 0.0, 3.0]);
+    assert_eq!(
+        request(
+            &app,
+            &actor,
+            "POST",
+            &format!("{path}/program/start"),
+            "",
+            json!({})
+        )
+        .await
+        .status(),
+        StatusCode::CREATED
+    );
+    assert_eq!(
+        request(
+            &app,
+            &actor,
+            "POST",
+            &format!("{path}/actions"),
+            "layout-power",
+            json!({"capability":"light.set_power","parameters":{"on":true}})
+        )
+        .await
+        .status(),
+        StatusCode::ACCEPTED
+    );
+    assert!(runtime.process_next().await.unwrap());
+    let running = data(request(&app, &actor, "GET", &path, "", Value::Null).await).await;
+    assert_eq!(
+        running["observation"]["values"],
+        json!({"on":true,"brightness":70})
+    );
+    let saved = request(
+        &app,
+        &actor,
+        "PUT",
+        &format!("/api/v1/lab/labs/{lab}/layout"),
+        "",
+        json!({"expected_version":2,"nodes":nodes,"relationships":[]}),
+    )
+    .await;
+    assert_eq!(saved.status(), StatusCode::OK);
+    assert_eq!(data(saved).await["layout_version"], 3);
+    assert_eq!(
+        running,
+        data(request(&app, &actor, "GET", &path, "", Value::Null).await).await
+    );
+    request(
+        &app,
+        &actor,
+        "POST",
+        &format!("{path}/actions"),
+        "layout-brightness",
+        json!({"capability":"light.set_brightness","parameters":{"brightness":35}}),
+    )
+    .await;
+    assert!(runtime.process_next().await.unwrap());
+    let updated = data(request(&app, &actor, "GET", &world_path, "", Value::Null).await).await;
+    assert_eq!(updated["lab"]["layout_version"], 3);
+    assert_eq!(
+        updated["nodes"][0]["placement"]["position"],
+        json!([2.0, 0.0, 3.0])
+    );
+    assert_eq!(
+        updated["entities"][0]["observation"]["values"]["brightness"],
+        35
+    );
+    let copied=request(&app,&actor,"POST",&format!("{path}/copies"),"",json!({"expected_version":3,"name":"New independent light","placement":{"position":[4,0,0],"rotation":[0,0,0],"scale":[1,1,1]}})).await;
+    assert_eq!(copied.status(), StatusCode::CREATED);
+    let copied = data(copied).await;
+    assert_ne!(copied["binding"]["id"], running["binding"]["id"]);
+    assert_eq!(copied["observation"], Value::Null);
+    assert_eq!(copied["program_run"], Value::Null);
+    assert_eq!(
+        data(request(&app, &actor, "GET", &path, "", Value::Null).await).await["program_run"]["id"],
+        running["program_run"]["id"]
+    );
+}
+
+#[sqlx::test(migrations = "../../migrations")]
 async fn unknown_source_times_do_not_erase_the_last_known_ordering_watermark(pool: PgPool) {
     use labos_threejs_app::modules::lab::{
         DeviceRuntime, ObservationAcceptance, ObservationReport,
