@@ -147,7 +147,19 @@
       "titleEn": "Reliable Synchronization and Recovery",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "edit-layout"
+      "previous": "edit-layout",
+      "next": "continuous-temperature"
+    },
+    {
+      "id": "continuous-temperature",
+      "source": "docs/tutorials/continuous-temperature.md",
+      "sourceEn": "docs/tutorials/continuous-temperature.en.md",
+      "route": "tutorials/continuous-temperature.md",
+      "title": "连续温度与新鲜度",
+      "titleEn": "Continuous Temperature and Freshness",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "reliable-sync"
     },
     {
       "id": "lab-architecture",

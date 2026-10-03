@@ -243,8 +243,8 @@ const ENTITY_COLUMNS: &str = "
     (SELECT to_jsonb(r) FROM lab.program_runs r WHERE r.entity_id=entities.id
         ORDER BY started_at DESC,id DESC LIMIT 1) AS program_run,
     (SELECT to_jsonb(o)||jsonb_build_object('freshness',
-        CASE WHEN r.status<>'running' THEN r.status
-             WHEN o.observed_at IS NULL THEN 'source_time_unknown' ELSE 'current' END)
+        CASE WHEN o.freshness='stale' THEN 'stale' WHEN r.status<>'running' THEN r.status
+             ELSE o.freshness END)
         FROM lab.current_observations o JOIN lab.program_runs r ON r.id=o.run_id
         WHERE o.entity_id=entities.id) AS observation";
 const NODE_COLUMNS: &str =

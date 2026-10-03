@@ -59,4 +59,4 @@ pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.tes
 node scripts/e2e.mjs tests/e2e/lab-sync.spec.ts
 ```
 
-Real Router tests with isolated PostgreSQL cover handoff, versions, revocation, and bounded queues. Page tests replace only HTTP through MSW. The critical journey uses two real browsers, an Agent, backend programs, and WebGL. [Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) adds continuous sensors using these property updates. [Issue #11](https://github.com/CaiZongyuan/labworld/issues/11) verifies the full combination of drafts and network recovery.
+Real Router tests with isolated PostgreSQL cover handoff, versions, revocation, and bounded queues. Page tests replace only HTTP through MSW. The critical journey uses two real browsers, an Agent, backend programs, and WebGL. [The next chapter](continuous-temperature.en.md) uses these property contracts to read continuous temperatures and expiry. [Issue #11](https://github.com/CaiZongyuan/labworld/issues/11) verifies the full combination of drafts and network recovery.

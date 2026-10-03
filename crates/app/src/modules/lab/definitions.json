@@ -117,6 +117,12 @@
     "category": "sensor",
     "specifications": {
       "sample_frequency": { "value": 1, "unit": "Hz" },
+      "baseline_temperature": {
+        "default": 22,
+        "minimum": -50,
+        "maximum": 100,
+        "unit": "degC"
+      },
       "temperature": { "unit": "degC" }
     },
     "capabilities": [],
@@ -126,7 +132,7 @@
     },
     "interfaces": [
       { "id": "lab.asset-definitions.v1", "implemented": true },
-      { "id": "lab.observations.v1", "implemented": false }
+      { "id": "lab.observations.v1", "implemented": true }
     ]
   },
   {

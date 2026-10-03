@@ -59,4 +59,4 @@ pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.tes
 node scripts/e2e.mjs tests/e2e/lab-sync.spec.ts
 ```
 
-真实 Router 和隔离 PostgreSQL 验证交接、版本、撤权及有界队列；页面只用 MSW 替代 HTTP；关键旅程使用真实两浏览器、Agent、后端程序及 WebGL。下一阶段通过 [Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) 增加连续传感器，沿用相同属性更新合同；布局草稿与网络恢复的完整组合在 [Issue #11](https://github.com/CaiZongyuan/labworld/issues/11) 验收。
+真实 Router 和隔离 PostgreSQL 验证交接、版本、撤权及有界队列。页面只用 MSW 替代 HTTP。关键旅程使用真实两浏览器、Agent、后端程序及 WebGL。[下一章](continuous-temperature.md)使用相同属性合同读取连续温度与过期状态。[Issue #11](https://github.com/CaiZongyuan/labworld/issues/11) 验收布局草稿与网络恢复的完整组合。
