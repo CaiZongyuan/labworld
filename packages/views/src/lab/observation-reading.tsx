@@ -16,6 +16,9 @@ export default function ObservationReading({
     temperature: 'device.actualTemperature',
     on: 'device.actualPower',
     brightness: 'device.actualBrightness',
+    speed: 'task.actualRpm',
+    phase: 'task.phase',
+    elapsed_seconds: 'task.elapsed',
   };
   const label = labels[name] ? message(labels[name]) : name;
   const time = (value: string | null | undefined) =>
@@ -32,7 +35,9 @@ export default function ObservationReading({
         <dd>
           {typeof property.value === 'boolean'
             ? message(property.value ? 'device.on' : 'device.off')
-            : observationValue(property)}
+            : name === 'phase'
+              ? message(`task.${property.value}`)
+              : observationValue(property)}
         </dd>
         <dt>{message('assets.source')}</dt>
         <dd>{property.source}</dd>

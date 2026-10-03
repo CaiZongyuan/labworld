@@ -133,4 +133,4 @@ pnpm test:frontend apps/web/src/lab-sensors.test.tsx
 node scripts/e2e.mjs tests/e2e/lab-sensors.spec.ts
 ```
 
-这些检查覆盖真实 Router、隔离数据库、受控时钟、页面操作与真实 WebGL。下一阶段通过 [Issue #7](https://github.com/CaiZongyuan/labworld/issues/7) 增加离心任务。该阶段尚未交付。
+这些检查覆盖真实 Router、隔离数据库、受控时钟、页面操作与真实 WebGL。下一章[离心任务与重启恢复](centrifuge-tasks.md)提供固定任务参数、减速取消和显式重启恢复。

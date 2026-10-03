@@ -133,4 +133,4 @@ pnpm test:frontend apps/web/src/lab-sensors.test.tsx
 node scripts/e2e.mjs tests/e2e/lab-sensors.spec.ts
 ```
 
-These checks cover the real Router, isolated database, controlled clock, page operations and real WebGL. [Issue #7](https://github.com/CaiZongyuan/labworld/issues/7) adds centrifuge tasks next. That stage is not delivered yet.
+These checks cover the real Router, isolated database, controlled clock, page operations and real WebGL. Continue with [centrifuge tasks and restart recovery](centrifuge-tasks.en.md). That chapter provides fixed task parameters, cancellation after deceleration and explicit recovery after restart.

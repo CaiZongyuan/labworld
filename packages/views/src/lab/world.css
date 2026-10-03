@@ -117,6 +117,21 @@
   margin-top: 12px;
   font-size: 12px;
 }
+.centrifuge-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+.centrifuge-actions button {
+  max-width: 100%;
+  white-space: normal;
+  height: auto;
+  min-height: 32px;
+}
+.centrifuge-task {
+  margin-top: 16px;
+}
 .device-command code,
 .device-command small {
   overflow-wrap: anywhere;

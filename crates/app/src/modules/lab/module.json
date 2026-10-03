@@ -11,6 +11,8 @@
     "lab.runtime_bindings",
     "lab.program_runs",
     "lab.device_commands",
+    "lab.device_tasks",
+    "lab.device_task_results",
     "lab.current_observations",
     "lab.entity_relationships",
     "lab.world_clock"
@@ -34,7 +36,8 @@
     "migrations/0021_lab_observation_order.sql",
     "migrations/0022_lab_relationships.sql",
     "migrations/0023_lab_world_version.sql",
-    "migrations/0024_lab_observation_properties.sql"
+    "migrations/0024_lab_observation_properties.sql",
+    "migrations/0025_lab_device_tasks.sql"
   ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
@@ -42,10 +45,12 @@
     "apps/api/tests/lab_devices.rs",
     "apps/api/tests/lab_sync.rs",
     "apps/api/tests/lab_sensors.rs",
+    "apps/api/tests/lab_centrifuges.rs",
     "packages/sdk/src/lab-world.test.ts",
     "tests/tooling/sdk-ownership.test.mjs",
     "apps/web/src/lab-sync.test.tsx",
     "apps/web/src/lab-sensors.test.tsx",
+    "apps/web/src/lab-centrifuges.test.tsx",
     "apps/web/src/lab-devices.test.tsx",
     "apps/web/src/lab-world.test.tsx",
     "apps/web/src/lab.test.tsx",
@@ -54,6 +59,7 @@
     "tests/e2e/lab-layout.spec.ts",
     "tests/e2e/lab-sync.spec.ts",
     "tests/e2e/lab-sensors.spec.ts",
+    "tests/e2e/lab-centrifuges.spec.ts",
     "tests/fixtures/lab"
   ],
   "tutorials": [
@@ -74,7 +80,10 @@
     "examples/lab/observe-world.mjs",
     "docs/tutorials/continuous-temperature.md",
     "docs/tutorials/continuous-temperature.en.md",
-    "examples/lab/observe-temperature.mjs"
+    "examples/lab/observe-temperature.mjs",
+    "docs/tutorials/centrifuge-tasks.md",
+    "docs/tutorials/centrifuge-tasks.en.md",
+    "examples/lab/run-centrifuges.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -119,6 +128,11 @@
     "RuntimeBinding",
     "DeviceProgramRun",
     "DeviceCommand",
+    "DeviceTask",
+    "DeviceTaskResult",
+    "getLabDeviceTask",
+    "getLabDeviceTaskResult",
+    "getLabDeviceProgramRun",
     "DeviceObservation",
     "ObservationProperty",
     "startLabDeviceProgram",

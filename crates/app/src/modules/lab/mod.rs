@@ -6,6 +6,7 @@ mod layout;
 mod relationships;
 mod runtime;
 mod sync;
+mod tasks;
 mod world;
 
 pub use runtime::{
@@ -48,6 +49,7 @@ pub fn router_with_runtime(
         .merge(world::routes())
         .merge(layout::routes())
         .merge(devices::routes())
+        .merge(tasks::routes())
         .merge(sync::routes())
         .with_state(Lab {
             pool,
@@ -63,6 +65,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     document.merge(world::openapi());
     document.merge(layout::openapi());
     document.merge(devices::openapi());
+    document.merge(tasks::openapi());
     document.merge(sync::openapi());
     document
 }
@@ -84,6 +87,7 @@ enum Failure {
     WorldNotFound,
     NotImplemented,
     ProgramNotRunning,
+    DeviceBusy,
     InvalidParameters,
     RuntimeUnavailable,
     LayoutConflict,
@@ -115,6 +119,11 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::DeviceBusy => (
+                StatusCode::CONFLICT,
+                "lab.device_busy",
+                "Stop the current task and wait for idle before starting another task or stopping its program",
+            ),
             Self::SnapshotTooLarge => (
                 StatusCode::PAYLOAD_TOO_LARGE,
                 "lab.snapshot_too_large",

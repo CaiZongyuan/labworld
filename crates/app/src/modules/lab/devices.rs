@@ -49,6 +49,7 @@ pub struct DeviceCommand {
     pub parameters: Value,
     pub status: String,
     pub result: Option<Value>,
+    pub task_id: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -82,7 +83,7 @@ pub struct DeviceObservation {
     pub properties: std::collections::BTreeMap<String, ObservationProperty>,
 }
 const RUN_COLUMNS: &str = "id::text,entity_id::text,binding_id::text,configuration,status,started_by::text,started_at,ended_at";
-const COMMAND_COLUMNS: &str = "id::text,entity_id::text,run_id::text,actor_id::text,actor_source,request_key,capability,parameters,status,result,created_at,updated_at";
+const COMMAND_COLUMNS: &str = "id::text,entity_id::text,run_id::text,actor_id::text,actor_source,request_key,capability,parameters,status,result,task_id::text,created_at,updated_at";
 
 pub(super) async fn register_binding(
     connection: &mut PgConnection,
@@ -90,7 +91,7 @@ pub(super) async fn register_binding(
     definition: &str,
     reality: &str,
 ) -> Result<(), Failure> {
-    if matches!(definition, "light" | "sensor") && reality == "simulated" {
+    if matches!(definition, "light" | "sensor" | "centrifuge") && reality == "simulated" {
         let binding = uuid::Uuid::now_v7().to_string();
         let program = format!("{definition}.v1");
         sqlx::query("INSERT INTO lab.runtime_bindings(id,entity_id,program_id,source) VALUES($1::uuid,$2::uuid,$3,$4)")
@@ -194,6 +195,7 @@ async fn start_program(
         if let Some(run) = entity.program_run.filter(|run| run.status == "running") { return Ok((StatusCode::OK,run)); }
         let configuration = json!(entity.configuration);
         if (binding.program_id=="light.v1" && !valid_light_configuration(&configuration)) ||
+            (binding.program_id=="centrifuge.v1" && configuration.get("initial_temperature").is_some_and(|value| !value.as_f64().is_some_and(|value|(-10.0..=40.0).contains(&value)))) ||
             (binding.program_id=="sensor.v1" && configuration.get("baseline_temperature").is_some_and(|value| !value.as_f64().is_some_and(|value|(-50.0..=100.0).contains(&value)))) { return Err(Failure::InvalidParameters); }
         let id_run = uuid::Uuid::now_v7().to_string();
         sqlx::query("INSERT INTO lab.program_runs(id,entity_id,binding_id,generation,configuration,status,started_by) VALUES($1::uuid,$2::uuid,$3::uuid,$4,$5,'running',$6::uuid)")
@@ -207,7 +209,7 @@ async fn start_program(
         Err(error) => error.response(id),
     }
 }
-#[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/stop", operation_id="stopLabDeviceProgram", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), responses((status=200, body=DeviceProgramRun), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=422, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
+#[utoipa::path(post, path="/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/stop", operation_id="stopLabDeviceProgram", tag="Lab", params(("lab_id"=String, Path), ("entity_id"=String, Path)), responses((status=200, body=DeviceProgramRun), (status=400, body=crate::http::ApiErrorResponse), (status=401, body=crate::http::ApiErrorResponse), (status=403, body=crate::http::ApiErrorResponse), (status=404, body=crate::http::ApiErrorResponse), (status=409, body=crate::http::ApiErrorResponse), (status=422, body=crate::http::ApiErrorResponse), (status=503, body=crate::http::ApiErrorResponse)))]
 async fn stop_program(
     State(state): State<Lab>,
     Extension(id): Extension<RequestId>,
@@ -221,6 +223,7 @@ async fn stop_program(
     let result = async {
         let mut tx = state.pool.begin().await?; state.authorize(&mut tx,&headers,&actor).await?;
         let entity = lock_entity(&mut tx,&lab,&entity).await?;
+        if entity.task.as_ref().is_some_and(|task|task.active()) { return Err(Failure::DeviceBusy); }
         let previous = entity.program_run.ok_or(Failure::ProgramNotRunning)?;
         sqlx::query("UPDATE lab.program_runs SET status='stopped',ended_at=now() WHERE id=$1::uuid AND status='running'").bind(&previous.id).execute(&mut *tx).await?;
         sqlx::query("UPDATE lab.device_commands SET status=CASE WHEN status='executing' THEN 'unknown' ELSE 'failed' END,result=jsonb_build_object('reason','program_stopped'),updated_at=now() WHERE run_id=$1::uuid AND status IN ('accepted','executing')").bind(&previous.id).execute(&mut *tx).await?;
@@ -272,23 +275,59 @@ pub(super) async fn accept(
         .program_run
         .filter(|run| run.status == "running")
         .ok_or(Failure::ProgramNotRunning)?;
-    let valid = input.parameters.as_object().is_some_and(|params| {
-        params.len() == 1
-            && match input.capability.as_str() {
-                "light.set_power" => params.get("on").is_some_and(Value::is_boolean),
-                "light.set_brightness" => params
-                    .get("brightness")
-                    .and_then(Value::as_f64)
-                    .is_some_and(|value| (0.0..=100.0).contains(&value)),
+    let valid =
+        input
+            .parameters
+            .as_object()
+            .is_some_and(|params| match input.capability.as_str() {
+                "centrifuge.start" => super::tasks::valid_parameters(&input.parameters),
+                "centrifuge.stop" => params.is_empty(),
+                "light.set_power" => {
+                    params.len() == 1 && params.get("on").is_some_and(Value::is_boolean)
+                }
+                "light.set_brightness" => {
+                    params.len() == 1
+                        && params
+                            .get("brightness")
+                            .and_then(Value::as_f64)
+                            .is_some_and(|value| (0.0..=100.0).contains(&value))
+                }
                 _ => false,
-            }
-    });
+            });
     if !valid {
         return Err(Failure::InvalidParameters);
     }
+    if input.capability == "centrifuge.start"
+        && entity.task.as_ref().is_some_and(|task| task.active())
+    {
+        return Err(Failure::DeviceBusy);
+    }
     let command = uuid::Uuid::now_v7().to_string();
     sqlx::query("INSERT INTO lab.device_commands(id,entity_id,run_id,actor_id,actor_source,request_key,capability,parameters,status) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5,$6,$7,$8,'accepted')")
-        .bind(&command).bind(&entity.id).bind(&running.id).bind(actor).bind(if headers.contains_key("authorization") {"agent"} else {"member"}).bind(key).bind(input.capability).bind(input.parameters).execute(&mut *tx).await?;
+        .bind(&command).bind(&entity.id).bind(&running.id).bind(actor).bind(if headers.contains_key("authorization") {"agent"} else {"member"}).bind(key).bind(&input.capability).bind(&input.parameters).execute(&mut *tx).await?;
+    let task = if input.capability == "centrifuge.start" {
+        Some(
+            super::tasks::reserve(
+                &mut tx,
+                &entity.id,
+                &running.id,
+                &command,
+                &input.parameters,
+            )
+            .await?,
+        )
+    } else if input.capability == "centrifuge.stop" {
+        entity.task.filter(|task| task.active()).map(|task| task.id)
+    } else {
+        None
+    };
+    if let Some(task) = task {
+        sqlx::query("UPDATE lab.device_commands SET task_id=$2::uuid WHERE id=$1::uuid")
+            .bind(&command)
+            .bind(task)
+            .execute(&mut *tx)
+            .await?;
+    }
     audit(&mut tx, actor, "lab.command.accept", &command, id).await?;
     let command = load_command(&mut tx, &entity.id, &command).await?;
     tx.commit().await?;

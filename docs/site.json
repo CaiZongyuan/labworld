@@ -159,7 +159,19 @@
       "titleEn": "Continuous Temperature and Freshness",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "reliable-sync"
+      "previous": "reliable-sync",
+      "next": "centrifuge-tasks"
+    },
+    {
+      "id": "centrifuge-tasks",
+      "source": "docs/tutorials/centrifuge-tasks.md",
+      "sourceEn": "docs/tutorials/centrifuge-tasks.en.md",
+      "route": "tutorials/centrifuge-tasks.md",
+      "title": "离心任务与重启恢复",
+      "titleEn": "Centrifuge Tasks and Restart Recovery",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "continuous-temperature"
     },
     {
       "id": "lab-architecture",
