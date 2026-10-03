@@ -4,7 +4,7 @@ Goal: a normal Member saves a GLB and its metadata, a new browser and a real Age
 
 ## Starting Version And Changes
 
-The starting revision is `e080eb3`: the production Lab renders GLB files, but its catalog and bytes belong to a browser session. This chapter implements [Issue #2](https://github.com/CaiZongyuan/labworld/issues/2), separating asset, representation and file identities and using the existing file lifecycle. Use a checkout containing this implementation. Run the following commands from the repository root; uploads write development data.
+Use the Foundation V1 checkout specified in the [complete journey](complete-foundation.en.md). Keep the same version throughout the chapters. Asset, representation and file identities are separate. They use the existing file lifecycle. Run commands from the repository root. Uploads write development data.
 
 The complete change lives in [Lab asset operations](../../crates/app/src/modules/lab/assets.rs), the [migration](../../migrations/0018_lab_assets.sql), [built-in definitions](../../crates/app/src/modules/lab/definitions.json), the [asset library](../../packages/views/src/lab/asset-library.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). Lab's [module.json](../../crates/app/src/modules/lab/module.json) declares ownership. Core provides public file and identity interfaces.
 
@@ -21,7 +21,7 @@ After publication the catalog lists the file. Open it in Lab to see the one-mete
 
 Before publication the server decodes Draco, Meshopt, Basis, embedded images and data URIs and validates geometry data. The page also displays the decoded-resource limit. Models above that limit are refused rather than allowing unbounded decoding memory. Original compressed bytes remain unchanged.
 
-Filter built-in definitions by category and inspect specifications, capability parameters, state structures and interface support. At this stage lights, sensors, centrifuges and robots have declared definitions; backend programs are delivered in later chapters. “Not implemented” does not mean an action is currently executable.
+Filter built-in definitions by category. Inspect specifications, capability parameters, state structures and interface support. Lights, sensors and centrifuges have implemented virtual programs. The later chapters show how to start them. Robot actions remain declared but unimplemented. A declaration does not make an action executable.
 
 ## Import And Read As An Agent
 

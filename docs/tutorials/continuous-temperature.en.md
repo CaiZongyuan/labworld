@@ -4,7 +4,7 @@ Goal: read two backend temperature sources. Stop one source and observe expiry w
 
 ## Starting Version
 
-The starting revision is `fece778`. [Reliable synchronization and recovery](reliable-sync.en.md) provides the persistent world and SSE. Use a checkout that includes this chapter. This chapter implements [Issue #6](https://github.com/CaiZongyuan/labworld/issues/6).
+Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [reliable synchronization and recovery](reliable-sync.en.md) first. You need the persistent world and SSE subscription.
 
 Run commands from the repository root. These operations write to the development database. Members need an active session. Agents need an active `lab:full` API key.
 

@@ -4,7 +4,7 @@
 
 ## 起始版本与本章变更
 
-起点是 `e080eb3`：正式 Lab 能渲染 GLB，但目录与文件仅存在于浏览器会话。本章对应 [Issue #2](https://github.com/CaiZongyuan/labworld/issues/2)，把资产定义、表示和文件身份分开，并接入现有文件生命周期。使用包含本章实现的工作副本；从仓库根目录执行以下操作，上传会写入开发数据。
+使用[完整旅程](complete-foundation.md)指定的 Foundation V1 工作副本。全部章节保持同一版本。资产、表示和文件身份独立，并使用现有文件生命周期。以下命令在仓库根目录运行；上传会写入开发数据。
 
 主要源码为 [Lab 资产业务](../../crates/app/src/modules/lab/assets.rs)、[迁移](../../migrations/0018_lab_assets.sql)、[内置定义](../../crates/app/src/modules/lab/definitions.json)、[资产库](../../packages/views/src/lab/asset-library.tsx)与[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。Lab 的 [module.json](../../crates/app/src/modules/lab/module.json)登记业务归属；Core 文件与身份职责沿用公共接口。
 
@@ -21,7 +21,7 @@ just dev
 
 服务器在发布前解码 Draco、Meshopt、Basis、嵌入图像和 data URI，并验证几何数据。页面同时显示展开资源上限；超过该上限的模型也会被拒绝，不占用无界解码内存。原始压缩字节保持不变。
 
-内置定义可按类别查询并打开详情，查看规格、能力参数、状态结构和接口实现状态。当前照明、传感器、离心机和机器人只有已声明定义；后端程序由后续章节实现。“尚未实现”不是当前可执行动作。
+按类别查询内置定义。打开详情可查看规格、能力参数、状态结构和接口实现状态。照明、传感器和离心机已有虚拟程序；后续章节介绍如何启动。Robot 动作仍仅声明，尚未实现。声明存在不代表动作当前可执行。
 
 ## 用 Agent 导入并读取
 

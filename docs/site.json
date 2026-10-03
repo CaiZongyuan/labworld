@@ -24,8 +24,8 @@
       "layout": "page",
       "pageTitle": "Lab Word",
       "pageTitleEn": "Lab Word",
-      "pageDescription": "实验室数字孪生。三维查看器预览已接受，正式应用接入与验证待完成。",
-      "pageDescriptionEn": "Laboratory digital twin. The 3D viewer preview is accepted; application integration and validation are pending."
+      "pageDescription": "实验室数字孪生。持久 Lab、资产、布局、后端虚拟设备和用户/Agent 共用接口已实现。",
+      "pageDescriptionEn": "Laboratory digital twin with persistent Labs, assets, layouts, backend virtual devices and shared Member/Agent interfaces."
     },
     {
       "id": "blog",
@@ -195,7 +195,19 @@
       "titleEn": "Entity Archiving and Appearance Replacement",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "run-history"
+      "previous": "run-history",
+      "next": "complete-foundation"
+    },
+    {
+      "id": "complete-foundation",
+      "source": "docs/tutorials/complete-foundation.md",
+      "sourceEn": "docs/tutorials/complete-foundation.en.md",
+      "route": "tutorials/complete-foundation.md",
+      "title": "完整数字实验室旅程",
+      "titleEn": "Complete Digital Laboratory Journey",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "entity-lifecycle"
     },
     {
       "id": "lab-architecture",

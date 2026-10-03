@@ -4,7 +4,7 @@ Goal: start two independent lights, invoke the same commands as a Member and an 
 
 ## Starting Revision and Changes
 
-Start at `a4354a6`, after [persistent Labs and objects](persistent-world.md): Labs, Entities, separate nodes, pinned definition snapshots and a `lab:full` credential exist. This chapter implements [Issue #4](https://github.com/CaiZongyuan/labworld/issues/4). Use a checkout containing this implementation. Run commands at the repository root; the browser and script write to the development database.
+Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [persistent Labs and objects](persistent-world.en.md) first. You need a Lab, Entities, separate nodes, pinned definitions and a `lab:full` credential. Run commands from the repository root. Browser operations and the script write development data.
 
 Entry points are [device HTTP](../../crates/app/src/modules/lab/devices.rs), the [public device runtime and observation interface](../../crates/app/src/modules/lab/runtime.rs), [migration](../../migrations/0020_lab_devices.sql), [source-order migration](../../migrations/0021_lab_observation_order.sql), [Inspector](../../packages/views/src/lab/device-panel.tsx), [3D appearance](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) registers the new tables, contracts, tests and tutorials.
 
@@ -47,7 +47,7 @@ Complete executable requests:
 
 `GET .../commands/{command_id}` returns `accepted`, `executing`, `succeeded`, `failed` or `unknown`, plus actor, parameters and result. The same actor, Entity, key and equivalent JSON parameters return the same command; different parameters produce 409. Members and Agents share the records. A user's session and Agent credentials share the same key namespace.
 
-`GET .../entities/{entity_id}` and World snapshots return the Binding, current Run, observation and three capability layers. Observations include `source`, `run_id`, `sequence`, `observed_at`, `received_at`, `updated_at`, `quality` and `freshness`. Absent source time remains `observed_at=null` with `source_time_unknown`, never replaced by receipt time. Lights report when state changes; `current` identifies a report from a still-running source. Continuous sampling and stale detection follow later. The page receives world snapshots and property changes through [reliable subscriptions](reliable-sync.md); command polling still stops after 30 seconds. Operations require both persistent capability permission and immediate service readiness from `X-Lab-Runtime` / `runtime_status`.
+`GET .../entities/{entity_id}` and World snapshots return the Binding, current Run, observation and three capability layers. Observations include `source`, `run_id`, `sequence`, `observed_at`, `received_at`, `updated_at`, `quality` and `freshness`. Absent source time remains `observed_at=null` with `source_time_unknown`. Receipt time does not replace it. Lights report when state changes. `current` identifies a report from a still-running source. See [continuous temperature](continuous-temperature.en.md) for implemented sampling and expiry. The page receives snapshots and property changes through [reliable subscriptions](reliable-sync.en.md). Command polling stops after 30 seconds. Operations require persistent capability permission and immediate service readiness from `X-Lab-Runtime` / `runtime_status`.
 
 ## Failure and Recovery
 

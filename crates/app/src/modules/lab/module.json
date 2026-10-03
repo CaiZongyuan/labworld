@@ -23,7 +23,11 @@
   ],
   "viewPath": "packages/views/src/lab",
   "sdkPaths": ["packages/sdk/src/lab-world.ts"],
-  "assemblyPoints": ["packages/sdk/src/index.ts"],
+  "assemblyPoints": [
+    "packages/sdk/src/index.ts",
+    "justfile",
+    "scripts/perf/baselines.json"
+  ],
   "exclusiveDependencies": [
     "gltf",
     "draco-core",
@@ -47,6 +51,10 @@
     "migrations/0028_lab_entity_lifecycle.sql"
   ],
   "tests": [
+    "apps/api/tests/perf_lab.rs",
+    "tests/e2e/lab-foundation.spec.ts",
+    "tests/e2e/lab-foundation-support.ts",
+    "tests/e2e/lab-reference-load.spec.ts",
     "apps/api/tests/lab_assets.rs",
     "apps/api/tests/lab_world.rs",
     "apps/api/tests/lab_devices.rs",
@@ -76,6 +84,9 @@
     "tests/fixtures/lab"
   ],
   "tutorials": [
+    "apps/docs/public/lab-foundation-v1.png",
+    "docs/tutorials/complete-foundation.md",
+    "docs/tutorials/complete-foundation.en.md",
     "docs/tutorials/persistent-assets.md",
     "docs/tutorials/persistent-assets.en.md",
     "examples/lab/import-asset.mjs",

@@ -4,7 +4,7 @@ Goal: remove and restore a device's Scene Node. Replace its GLB appearance. Arch
 
 ## Starting Version
 
-Start from `c79e355`. [Run history](run-history.en.md) provides queryable records and retention. Use a checkout that includes this chapter and migration `0028_lab_entity_lifecycle.sql`.
+Use the common version specified in the [complete journey](complete-foundation.en.md). It includes lifecycle migration `0028_lab_entity_lifecycle.sql`. Complete [run history](run-history.en.md) first. You need queryable records and retention.
 
 Run commands from the repository root. Start services with `just dev`. Use disposable Lab data. These operations change persistent data.
 
@@ -181,4 +181,4 @@ Same-key Command retries retain the earlier contract after definition changes or
 
 ## Next Stage
 
-Lifecycle operations are implemented. Combined journeys and the 100 Entity, 20 device, two-browser scale report follow next. Physical equipment remains future scope.
+Continue with the [complete digital laboratory journey](complete-foundation.en.md). Combine this series in one Lab and reproduce the 100 Entity, 20 device, two-browser reference load. Physical equipment integration remains future scope.

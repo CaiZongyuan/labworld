@@ -17,9 +17,9 @@ This Foundation V1 identity relationship is implemented: an Equipment Model is a
 | Area                                             | Current state                                                                                  | Future responsibility                       |
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | Universal shell, identity, membership, knowledge | Existing application code                                                                      | Host Lab and provide shared capabilities    |
-| Lab and persistent Asset Library                 | Members/Agents share worlds, layouts, files, device programs, history and lifecycle operations | Combined scale validation                   |
+| Lab and persistent Asset Library                 | Members/Agents share worlds, layouts, files, device programs, history and lifecycle operations | Extend measured capacity for larger assets  |
 | Lab navigation and default entry after login     | Integrated through explicit composition                                                        | Preserve shell and Lab ownership            |
-| Foundation V1                                    | Persistent worlds, device programs, synchronization, retention and lifecycle are implemented   | Final combined validation                   |
+| Foundation V1                                    | Implemented combined journey and isolated 100 Entity / 20 device / two-browser report          | Evolve from recorded evidence               |
 | Physical devices and protocols                   | Future scope                                                                                   | Add source adapters and execution contracts |
 
 [ADR 0005](../adr/0005-lab-digital-twin-on-saas-foundation.md)chooses the existing SaaS foundation: Lab owns equipment and layout behavior while Core owns common identity and membership. See [project structure](project-structure.md) for integration locations.
@@ -32,7 +32,7 @@ Definition support, Binding implementation and current executability remain sepa
 
 [History](../tutorials/run-history.en.md) supports device, type, time range and cursor queries. Raw observations default to 24 hours. Ended commands, tasks and events default to 30 days. Cleanup keeps identities, configuration, last property observations and active tasks. Each retained property keeps its actual timestamps and freshness. Deleting expired current task records advances the world version. History gaps remain explicit. The asset library retains preview at `/lab/asset`. Core owns file lifecycles. Lab owns stable references.
 
-[Entity lifecycle](../tutorials/entity-lifecycle.en.md) requires ended Tasks and a stopped program before archive or definition changes. Archive retains identity, nodes, real asset references and records within retention. Appearance replacement works during running programs and Tasks. It updates the Entity and its current nodes without changing device behavior. Explicit catalog selection records the definition version. Supported simulated definitions receive a new current Binding. Other choices leave no current Binding. Old Runs retain the original association and source. Scale and combined experience validation follow later.
+[Entity lifecycle](../tutorials/entity-lifecycle.en.md) requires ended Tasks and a stopped program before archive or definition changes. Archive retains identity, nodes, real asset references and records within retention. Appearance replacement works during running programs and Tasks. It updates the Entity and its current nodes without changing device behavior. Explicit catalog selection records the definition version. Supported simulated definitions receive a new current Binding. Other choices leave no current Binding. Old Runs retain the original association and source. The [complete journey](../tutorials/complete-foundation.en.md) verifies combined recovery and provides the isolated reference-load command.
 
 Backend [temperature sensors](../tutorials/continuous-temperature.en.md) sample independently at 1Hz. Each property retains value, unit, source, timestamps and quality. Heartbeats do not refresh old measurements. Stopping a source keeps its last value. The report deadline determines expiry. Expiry advances the world version and preserves layout drafts.
 
@@ -44,4 +44,4 @@ Three.js code is loaded with the Lab page and checked against production bundle 
 
 ## Continue Development
 
-Follow the [viewer guide](../guides/lab-viewer.md) for current behavior. Foundation V1 continues through [spec #1](https://github.com/CaiZongyuan/labworld/issues/1) and its implementation tickets; start with the [developer handoff](../handoffs/digital-twin-foundation-v1.md). [Module boundaries](module-boundaries.md) define ownership.
+Follow the [complete journey](../tutorials/complete-foundation.en.md) for the delivered Foundation V1 learning path and capacity limits. Physical devices, robot motion and autonomous experiment planning remain future scope. [Module boundaries](module-boundaries.md) define ownership.

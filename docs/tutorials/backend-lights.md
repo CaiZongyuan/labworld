@@ -4,7 +4,7 @@
 
 ## 起始版本与本章变更
 
-起点是 `a4354a6`，完成[持久 Lab 与对象](persistent-world.md)后已有 Lab、Entity、独立节点、固定定义快照和 `lab:full` 凭据。本章对应 [Issue #4](https://github.com/CaiZongyuan/labworld/issues/4)，使用包含本章实现的工作副本。命令在仓库根目录运行，浏览器和脚本会写入开发数据库。
+使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[持久 Lab 与对象](persistent-world.md)，取得 Lab、Entity、独立节点、定义快照和 `lab:full` 凭据。命令在仓库根目录运行。浏览器和脚本会写入开发数据库。
 
 实现入口是 [设备 HTTP](../../crates/app/src/modules/lab/devices.rs)、[公开设备运行与观测入口](../../crates/app/src/modules/lab/runtime.rs)、[持久迁移](../../migrations/0020_lab_devices.sql)、[来源排序迁移](../../migrations/0021_lab_observation_order.sql)、[Inspector](../../packages/views/src/lab/device-panel.tsx)、[三维外观](../../packages/views/src/lab/world-viewport.tsx)及[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)包含新增表、合同、测试和教程。
 
@@ -47,7 +47,7 @@ node examples/lab/control-lights.mjs
 
 `GET .../commands/{command_id}` 查询 `accepted`、`executing`、`succeeded`、`failed` 或 `unknown`、操作者、参数和结果。同一操作者、Entity、键与等价 JSON 参数返回同一命令；不同参数返回 409。记录由用户与 Agent 共用。同一个账号的会话和 Agent 使用相同键空间。
 
-`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时 `observed_at=null`、新鲜度为 `source_time_unknown`，不会借用接收时间。照明变化时才报告，`current` 表示该报告来自仍运行的来源；连续采样的过期判定将在后续章节交付。页面通过[可靠订阅](reliable-sync.md)接收世界快照和属性变化，命令短期读取仍有 30 秒上限。实际操作须同时满足持久能力许可与 `X-Lab-Runtime` / `runtime_status` 表达的即时服务就绪条件。
+`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时，`observed_at=null`、新鲜度为 `source_time_unknown`。接收时间不会替代来源时间。照明变化时才报告。`current` 表示报告来自仍运行的来源。已实现的连续采样与过期判定见[连续温度](continuous-temperature.md)。页面通过[可靠订阅](reliable-sync.md)接收快照和属性变化。命令读取有 30 秒上限。操作须同时满足持久能力许可与 `X-Lab-Runtime` / `runtime_status` 表达的即时服务就绪条件。
 
 ## 失败与恢复
 

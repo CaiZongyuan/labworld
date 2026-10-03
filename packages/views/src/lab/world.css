@@ -388,6 +388,10 @@
   }
 }
 @media (max-width: 560px) {
+  .world-page {
+    height: auto;
+    min-height: calc(100dvh - 56px);
+  }
   .world-page .lab-toolbar {
     flex-wrap: wrap;
     gap: 8px;
@@ -404,6 +408,8 @@
   .world-body {
     grid-template-columns: minmax(0, 1fr);
     display: block;
+    flex: none;
+    overflow: visible;
   }
   .world-directory {
     max-height: 250px;
@@ -435,6 +441,7 @@
   }
   .world-inspector {
     display: block;
+    overflow: visible;
   }
   .world-page .lab-status {
     font-size: 10px;

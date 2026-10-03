@@ -21,7 +21,9 @@ async function request(method, path, body, expected = 200) {
   );
   return response.json();
 }
-const lab = await request('POST', '/labs', { name: 'Layout tutorial' }, 201);
+const lab = process.env.LAB_ID
+  ? { id: process.env.LAB_ID }
+  : await request('POST', '/labs', { name: 'Layout tutorial' }, 201);
 const path = `/labs/${lab.id}`;
 async function register(name, definition, reality = 'simulated') {
   return request(

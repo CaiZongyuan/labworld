@@ -4,7 +4,7 @@ Goal: complete one centrifuge task and cancel another. Query their separate iden
 
 ## Starting Version
 
-The starting revision is `ddaf175`. [Continuous temperature](continuous-temperature.en.md) provides backend Runs and property observations. Use a checkout that includes this chapter. This chapter implements [Issue #7](https://github.com/CaiZongyuan/labworld/issues/7).
+Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [continuous temperature](continuous-temperature.en.md) first. You need backend Runs and property observations.
 
 Run commands from the repository root. The operations write persistent development data. Members need an active session. Agents need an active `lab:full` API key.
 
@@ -178,4 +178,4 @@ For an interrupted program or a failed task:
 
 ## Next Stage
 
-Continue with [run history and retention](run-history.en.md). It queries task and temperature records and checks cleanup. Expired ended Task, Result and Command identities return 404 after cleanup. Entity archiving and appearance replacement follow later.
+Continue with [run history and retention](run-history.en.md) to query task and temperature records and check cleanup. Expired ended Task, Result and Command identities return 404 after cleanup. Then use [Entity lifecycle](entity-lifecycle.en.md) to archive an Entity or replace its appearance independently.
