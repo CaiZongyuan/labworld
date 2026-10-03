@@ -87,11 +87,12 @@ pub fn configured_router(
     ));
     // example:knowledge:configured-routes:end
     key_scopes.push(labos_threejs_app::modules::lab::api_key_scope());
-    let routes = routes.merge(labos_threejs_app::modules::lab::router_with_runtime(
+    let routes = routes.merge(labos_threejs_app::modules::lab::router_with_retention(
         pool.clone(),
         auth.clone(),
         _files,
         Some(runtime),
+        labos_threejs_app::modules::lab::RetentionPolicy::from_env()?,
     ));
     Ok(labos_threejs_app::compose_routes_with_options(
         pool,

@@ -8,6 +8,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .chain(labos_threejs_platform::mail::FIELDS)
         .chain(labos_threejs_app::modules::mail::FIELDS)
         .chain(labos_threejs_app::modules::identity::PASSWORD_RESET_FIELDS)
+        .chain(labos_threejs_app::modules::lab::RETENTION_FIELDS)
         .collect::<Vec<_>>();
     // example:knowledge:config-reference:start
     let fields = fields

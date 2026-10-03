@@ -60,6 +60,7 @@ export default function DevicePanel({
     'lab.program_not_running': message('device.startRequired'),
     'lab.runtime_unavailable': message('device.runtimeUnavailable'),
     'idempotency.conflict': message('device.keyConflict'),
+    'lab.command_expired': message('device.commandExpired'),
   };
   const [programPending, setProgramPending] = useState(false);
   const [programError, setProgramError] = useState<unknown>(null);

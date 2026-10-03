@@ -147,7 +147,7 @@ The old Run, unfinished task and result show interrupted. Parameters and last ob
 12. Select **Start centrifuge** to request a new task explicitly.
 13. Query older records with their recorded identities and the query suffixes above.
 
-    Restart does not change completed or cancelled results. History listing and retention are the next stage.
+    Restart does not change completed or cancelled results. Records remain available within their configured retention period.
 
 ## Check A Failure And Recover
 
@@ -178,4 +178,4 @@ For an interrupted program or a failed task:
 
 ## Next Stage
 
-The next stage adds history queries and retention. Current task and result identities already remain available through their individual queries.
+Continue with [run history and retention](run-history.en.md). It queries task and temperature records and checks cleanup. Expired ended Task, Result and Command identities return 404 after cleanup. Entity archiving and appearance replacement follow later.

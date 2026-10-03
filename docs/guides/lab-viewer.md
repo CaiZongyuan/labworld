@@ -19,7 +19,7 @@ just dev
 4. 在资产库导入时填写名称、来源、许可和版本，发布后搜索名称或文件名，打开模型到 Lab，或确认删除未引用资产。
 5. 导入损坏文件应显示失败反馈并保留前一个可用模型，随后仍能成功导入有效文件。
 
-资产库与 GLB 字节持久保存在服务器，刷新或换浏览器后可以重新打开；预置示例保持可用。内置定义可查看规格、能力与状态结构。后端照明程序和温度传感器已实现。查看[照明教程](../tutorials/backend-lights.md)和[连续温度教程](../tutorials/continuous-temperature.md)。完整 Member/Agent 导入、失败恢复与文件生命周期见[持久数字资产教程](../tutorials/persistent-assets.md)。旧知识库和文档 URL 保留原有含义。FPS、draw calls、triangles、对象计数和可读的 JS heap 实时观察；GPU 时间当前未采样，对象数量也不表示显存字节数。
+资产库与 GLB 字节持久保存在服务器。刷新或换浏览器后可以重新打开。内置定义提供规格、能力与状态结构。后端照明、温度传感器与离心任务已实现。[运行历史](../tutorials/run-history.md)提供时间筛选、分页、缺口与保留策略。[资产教程](../tutorials/persistent-assets.md)提供导入和恢复操作。旧知识库路由保留原有含义。视口显示实时渲染计数与可用 JS heap。它不采样 GPU 时间，也不测量显存字节数。
 
 源码见[业务组装](../../apps/web/src/app-examples.tsx)、[Lab 贡献](../../packages/views/src/lab/app-example.tsx)和[查看页](../../packages/views/src/lab/lab-view.tsx)。[素材记录](../../assets/README.md)保留原件、运行文件和许可。
 
@@ -68,4 +68,4 @@ pnpm --dir ../lab-word-preview/.scratch/lab-viewer/v1 dev
 
 此前 Chromium/SwiftShader 已验证实际渲染、导入、选择、相机和错误恢复。软件渲染的 FPS 不是实际 GPU 性能验收；预览包体也不是生产预算结果。[体验记录](../ui/lab-viewer-experience.md)保留具体范围与证据。
 
-账户与模板导航为模拟，v1 画面已接受。用户进一步要求主业务导航使用 Lab 与资产库，既有知识库路由保留兼容。正式应用的路由、导入生命周期与[公开验证](../testing/t01-feedback-loop.md)仍需完成验收，范围见[产品架构](../architecture/lab-word.md)。
+历史预览使用模拟身份与导航。已接受的设计为当前应用提供输入。正式路由、持久导入、布局编辑、设备任务与历史已实现。Entity 归档、外观替换和综合规模验收随后交付。范围见[产品架构](../architecture/lab-word.md)。
