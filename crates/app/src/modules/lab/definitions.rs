@@ -11,20 +11,20 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use utoipa::{OpenApi, ToSchema};
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct DefinitionCapability {
     pub id: String,
     pub parameters: Value,
     pub implemented: bool,
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct DefinitionInterface {
     pub id: String,
     pub implemented: bool,
 }
 
-#[derive(Serialize, Deserialize, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, ToSchema)]
 pub struct AssetDefinition {
     pub id: String,
     pub version: String,
@@ -42,7 +42,7 @@ struct DefinitionPage {
     data: Vec<AssetDefinition>,
 }
 
-fn catalog() -> Vec<AssetDefinition> {
+pub(super) fn catalog() -> Vec<AssetDefinition> {
     serde_json::from_str(include_str!("definitions.json")).expect("checked built-in catalog")
 }
 

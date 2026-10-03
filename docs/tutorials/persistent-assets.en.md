@@ -61,4 +61,4 @@ node scripts/e2e.mjs tests/e2e/lab.spec.ts
 
 HTTP checks use isolated PostgreSQL and real object storage. Page tests replace only HTTP with MSW. Browser checks cover another context, a real Agent, GLB/WebGL, and Draco, Meshopt and Basis decoding.
 
-Continue with [Issue #3](https://github.com/CaiZongyuan/labworld/issues/3): persistent Labs and separate Entity and Scene Node identities using these stable assets. This chapter opens assets in the single-model viewer; it does not create lab objects or placement relationships.
+Continue with the [persistent Lab and objects tutorial](persistent-world.md) to build Labs and separate Entity and Scene Node identities using these stable assets. The `/lab/asset` single-model preview in this chapter does not create lab objects or placement relationships.

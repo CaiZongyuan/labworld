@@ -124,6 +124,29 @@
     },
     "capabilities": [
       {
+        "id": "robot.pick",
+        "parameters": {
+          "type": "object",
+          "required": ["entity_id"],
+          "additionalProperties": false,
+          "properties": { "entity_id": { "type": "string" } }
+        },
+        "implemented": false
+      },
+      {
+        "id": "robot.place",
+        "parameters": {
+          "type": "object",
+          "required": ["entity_id", "location_id"],
+          "additionalProperties": false,
+          "properties": {
+            "entity_id": { "type": "string" },
+            "location_id": { "type": "string" }
+          }
+        },
+        "implemented": false
+      },
+      {
         "id": "robot.move",
         "parameters": {
           "type": "object",

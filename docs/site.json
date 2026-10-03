@@ -99,7 +99,19 @@
       "titleEn": "Persistent digital assets",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "lab-viewer"
+      "previous": "lab-viewer",
+      "next": "persistent-world"
+    },
+    {
+      "id": "persistent-world",
+      "source": "docs/tutorials/persistent-world.md",
+      "sourceEn": "docs/tutorials/persistent-world.en.md",
+      "route": "tutorials/persistent-world.md",
+      "title": "持久 Lab 与对象",
+      "titleEn": "Persistent Labs and objects",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "persistent-assets"
     },
     {
       "id": "lab-architecture",

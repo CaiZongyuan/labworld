@@ -61,4 +61,4 @@ node scripts/e2e.mjs tests/e2e/lab.spec.ts
 
 HTTP 检查使用隔离 PostgreSQL 与真实对象存储；页面检查仅由 MSW 替代 HTTP；浏览器检查覆盖另一上下文、真实 Agent、GLB/WebGL 与 Draco、Meshopt、Basis 压缩加载。
 
-下一阶段是 [Issue #3](https://github.com/CaiZongyuan/labworld/issues/3)：用这些稳定资产建立持久 Lab 与独立 Entity、Scene Node。本章仍在单模型查看器中打开资产，不生成实验室对象或摆放关系。
+继续[持久 Lab 与对象教程](persistent-world.md)，用这些稳定资产建立 Lab 与独立 Entity、Scene Node。本章的 `/lab/asset` 单模型预览不生成实验室对象或摆放关系。

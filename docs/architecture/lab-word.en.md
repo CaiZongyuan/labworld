@@ -1,6 +1,6 @@
 # Product Scope And Architecture
 
-Lab Word is a laboratory digital twin. The application currently provides single-model viewing, a server-persisted Asset Library and versioned built-in definitions. Persistent worlds and server-owned virtual devices are the approved next stage. See the [glossary](../../CONTEXT.md).
+Lab Word is a laboratory digital twin. The application currently provides persistent Labs, independent Entities, multi-node scenes, a server Asset Library and versioned built-in definitions. Server-owned virtual devices are the approved next stage. See the [glossary](../../CONTEXT.md).
 
 ## Models And Equipment
 
@@ -10,25 +10,25 @@ Lab ──registers──> Entity <──defined by── Asset
                     └──represented by Scene Node <──appearance── Asset Representation
 ```
 
-This is the Foundation V1 target relationship: an Equipment Model is a 3D representation, and an Equipment Instance is a device Entity. Scene Node identity and placement are independent of device identity. Multiple devices can share a model, and one device can have multiple nodes. The current single-model viewer does not establish these persistent objects or layouts.
+This Foundation V1 identity relationship is implemented: an Equipment Model is a 3D representation, and an Equipment Instance is a device Entity. Scene Node identity and placement are independent of device identity. Multiple devices can share a model, and one device can have multiple nodes. Registration pins a definition version and snapshot. Simulated and physical objects have separate identities, and static objects require no Binding.
 
 ## Existing Implementation And Planned Integration
 
-| Area                                             | Current state                               | Future responsibility                         |
-| ------------------------------------------------ | ------------------------------------------- | --------------------------------------------- |
-| Universal shell, identity, membership, knowledge | Existing application code                   | Host Lab and provide shared capabilities      |
-| Lab Viewer and persistent Asset Library          | Members/Agents share real files and APIs    | Extend persistent worlds and multiple objects |
-| Lab navigation and default entry after login     | Integrated through explicit composition     | Preserve shell and Lab ownership              |
-| Foundation V1                                    | Experience accepted; spec/tickets published | Build persistent worlds and virtual devices   |
-| Physical devices and protocols                   | Future scope                                | Add source adapters and execution contracts   |
+| Area                                             | Current state                                    | Future responsibility                              |
+| ------------------------------------------------ | ------------------------------------------------ | -------------------------------------------------- |
+| Universal shell, identity, membership, knowledge | Existing application code                        | Host Lab and provide shared capabilities           |
+| Lab and persistent Asset Library                 | Members/Agents share persistent worlds and files | Layout editing, relationships and runtime Bindings |
+| Lab navigation and default entry after login     | Integrated through explicit composition          | Preserve shell and Lab ownership                   |
+| Foundation V1                                    | Experience accepted; spec/tickets published      | Build persistent worlds and virtual devices        |
+| Physical devices and protocols                   | Future scope                                     | Add source adapters and execution contracts        |
 
 [ADR 0005](../adr/0005-lab-digital-twin-on-saas-foundation.md)chooses the existing SaaS foundation: Lab owns equipment and layout behavior while Core owns common identity and membership. See [project structure](project-structure.md) for integration locations.
 
 ## Presentation Boundaries
 
-The current version inspects one self-contained GLB, with file selection/drop, automatic centering/framing, orbit/zoom/pan, click selection, return to preset and renderer metrics. Imports use Core's file lifecycle; Lab owns assets, representations and stable file associations. Other browsers and Agents can query the same catalog. Follow the [persistent assets tutorial](../tutorials/persistent-assets.en.md) for operations and recovery.
+The Lab entry has an object directory, multi-node scene and Inspector. Basic placement, instance configuration and references persist and can be read by another browser or Agent. Robot definition support, Binding implementation and current executability remain separate; absent observations are unknown. Interactive layout editing, relationships and device execution follow in later slices. See the [persistent world tutorial](../tutorials/persistent-world.md). The asset library retains single-model preview at `/lab/asset`, including GLB imports, camera controls, selection, return to preset and renderer metrics. Core owns file lifecycles; Lab owns stable asset and representation references.
 
-The current implementation preserves source scale, reports external-resource dependencies, absent geometry and decoder failures, and keeps the previous usable model on failure. Replacements and page exit release exclusive GPU resources; older loads cannot overwrite newer models. Multiple-instance work must retain these contracts.
+The implementation preserves source scale, reports external-resource dependencies, absent geometry and decoder failures, and keeps the previous usable model on failure. Each node loads and releases independent model resources; selecting one instance does not rewrite another's materials. World snapshots return every referenced asset, so model recovery does not depend on the first catalog page.
 
 Three.js code is loaded with the Lab page and checked against production bundle budgets. Preview builds and software-rendering measurements do not establish target-hardware performance.
 

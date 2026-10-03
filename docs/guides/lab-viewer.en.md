@@ -13,8 +13,8 @@ just dev
 
 Open <http://127.0.0.1:5173/lab>. Sign in or register at `/register`; both login and registration land on Lab. `just dev` starts services and runs migrations against existing development data, not an isolated test environment.
 
-1. Expect the industrial microscope, HDR lighting and a grid.
-2. Orbit, zoom and pan. Fit preserves the viewing direction and reset restores the original direction. Click the model to select it, or empty space to clear selection.
+1. The Lab entry creates and opens persistent laboratories with an object directory, scene and Inspector. Follow the [persistent Lab and objects tutorial](../tutorials/persistent-world.md) for registration.
+2. Open the bundled industrial microscope from the asset library to preview it at `/lab/asset`. Orbit, zoom and pan. Fit preserves the viewing direction and reset restores the original direction. Click the model to select it, or empty space to clear selection.
 3. Select or drop a self-contained glTF 2.0 `.glb`; it is centered and framed while preserving its scale.
 4. In Asset library, provide name, source, license and version when importing. Publish, search by name or filename, open in Lab, or confirm deletion of an unreferenced asset.
 5. Invalid imports show feedback and preserve the previous usable model; a valid retry recovers.

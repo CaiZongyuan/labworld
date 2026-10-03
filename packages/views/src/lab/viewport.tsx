@@ -8,7 +8,7 @@ import {
   useState,
   type ComponentRef,
 } from 'react';
-import { Canvas, useFrame, useThree, type RootState } from '@react-three/fiber';
+import { Canvas, useThree, type RootState } from '@react-three/fiber';
 import {
   ContactShadows,
   Edges,
@@ -25,43 +25,12 @@ import {
 import type { ModelAsset, ModelInfo } from './catalog';
 import { useLoadedModel, type LoadedModel } from './model-loader';
 import type { RenderMetrics, ViewSettings, ViewStatus } from './viewport-state';
+import { MetricSampler } from './metric-sampler';
 
 const environmentUrl = `${import.meta.env.BASE_URL}lab-assets/hdr/studio.hdr`;
 const cameraOptions = { position: [0.9, 0.6, 1.2] as Vector3Tuple, fov: 38 };
 const rendererOptions = { antialias: true };
 const pixelRatio: [number, number] = [1, 1.5];
-
-function MetricSampler({
-  onMetrics,
-}: {
-  onMetrics: (metrics: RenderMetrics) => void;
-}) {
-  const sample = useRef({ elapsed: 0, frames: 0 });
-  useFrame(({ gl }, delta) => {
-    sample.current.elapsed += delta;
-    sample.current.frames++;
-    if (sample.current.elapsed < 0.6) return;
-    const fps = sample.current.frames / sample.current.elapsed;
-    const memory = (
-      performance as Performance & { memory?: { usedJSHeapSize?: number } }
-    ).memory;
-    const heap = memory?.usedJSHeapSize;
-    onMetrics({
-      fps,
-      frameMs: 1000 / fps,
-      calls: gl.info.render.calls,
-      triangles: gl.info.render.triangles,
-      geometries: gl.info.memory.geometries,
-      textures: gl.info.memory.textures,
-      heapMiB:
-        typeof heap === 'number' && Number.isFinite(heap)
-          ? heap / 1024 / 1024
-          : null,
-    });
-    sample.current = { elapsed: 0, frames: 0 };
-  });
-  return null;
-}
 
 const Scene = memo(function Scene({
   model,

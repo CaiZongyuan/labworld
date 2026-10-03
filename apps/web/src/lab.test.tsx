@@ -171,7 +171,9 @@ test('a local GLB stays in the asset library while opening Lab and navigating ba
   await user.click(
     screen.getByRole('button', { name: '在 Lab 中打开 my-microscope' }),
   );
-  await waitFor(() => expect(router.state.location.pathname).toBe('/lab'));
+  await waitFor(() =>
+    expect(router.state.location.pathname).toBe('/lab/asset'),
+  );
   await user.click(screen.getByRole('link', { name: '资产库' }));
   expect(await screen.findByText('my-microscope.glb')).toBeVisible();
   expect(screen.getByText('工业显微镜')).toBeVisible();

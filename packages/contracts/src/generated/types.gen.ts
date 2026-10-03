@@ -98,6 +98,13 @@ export type CompleteReset = {
     token: string;
 };
 
+export type ConfigureEntity = {
+    configuration: {
+        [key: string]: unknown;
+    };
+    name: string;
+};
+
 export type CreateApiKey = {
     expires_in_days: number;
     name: string;
@@ -120,6 +127,16 @@ export type CreateDocument = {
 
 export type CreateKnowledgeBase = {
     name: string;
+};
+
+export type CreateLab = {
+    name: string;
+};
+
+export type CreateSceneNode = {
+    entity_id: string;
+    placement: Placement;
+    representation_id?: string | null;
 };
 
 export type CreatedApiKey = {
@@ -197,6 +214,22 @@ export type DocumentSummary = {
 export type DownloadCapability = ObjectCapability & {
     file: FileInfo;
 };
+
+export type EntityAction = {
+    capability: string;
+    parameters: unknown;
+};
+
+export type EntityCapability = {
+    binding_implemented: boolean;
+    definition_supported: boolean;
+    executable: boolean;
+    id: string;
+    parameters: unknown;
+    reason: string;
+};
+
+export type EntityReality = 'simulated' | 'physical';
 
 export type ExportPage = {
     data: Array<DocumentExport>;
@@ -341,6 +374,41 @@ export type LabAsset = {
     version: string;
 };
 
+export type LabEntity = {
+    binding?: unknown;
+    capabilities: Array<EntityCapability>;
+    configuration: {
+        [key: string]: unknown;
+    };
+    created_at: string;
+    created_by: string;
+    definition: AssetDefinition;
+    definition_id: string;
+    definition_version: string;
+    id: string;
+    kind: string;
+    lab_id: string;
+    name: string;
+    observation?: unknown;
+    reality: string;
+    representation_id?: string | null;
+    updated_at: string;
+    updated_by: string;
+};
+
+export type LabPage = {
+    data: Array<PersistentLab>;
+    has_more: boolean;
+    next_cursor?: string | null;
+};
+
+export type LabWorld = {
+    assets: Array<LabAsset>;
+    entities: Array<LabEntity>;
+    lab: PersistentLab;
+    nodes: Array<SceneNode>;
+};
+
 export type Login = {
     email: string;
     password: string;
@@ -408,6 +476,20 @@ export type ObjectCapability = {
 
 export type Outcome = 'succeeded' | 'failed';
 
+export type PersistentLab = {
+    created_at: string;
+    created_by: string;
+    id: string;
+    layout_version: number;
+    name: string;
+};
+
+export type Placement = {
+    position: Array<number>;
+    rotation: Array<number>;
+    scale: Array<number>;
+};
+
 export type PolicyMetrics = {
     fallback_limit: number;
     fallbacks: number;
@@ -426,6 +508,17 @@ export type RateLimitMetrics = {
     policies: Array<PolicyMetrics>;
     redis_configured: boolean;
     window_secs: number;
+};
+
+export type RegisterEntity = {
+    configuration: {
+        [key: string]: unknown;
+    };
+    definition_id: string;
+    definition_version: string;
+    name: string;
+    reality: EntityReality;
+    representation_id?: string | null;
 };
 
 export type Registration = {
@@ -454,6 +547,14 @@ export type ResetRequest = {
      * with `auth.invalid_input`.
      */
     locale?: string | null;
+};
+
+export type SceneNode = {
+    entity_id: string;
+    id: string;
+    lab_id: string;
+    placement: Placement;
+    representation_id?: string | null;
 };
 
 export type SetGrant = {
@@ -1908,6 +2009,237 @@ export type GetLabAssetDownloadResponses = {
 };
 
 export type GetLabAssetDownloadResponse = GetLabAssetDownloadResponses[keyof GetLabAssetDownloadResponses];
+
+export type ListLabsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/api/v1/lab/labs';
+};
+
+export type ListLabsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabsError = ListLabsErrors[keyof ListLabsErrors];
+
+export type ListLabsResponses = {
+    200: LabPage;
+};
+
+export type ListLabsResponse = ListLabsResponses[keyof ListLabsResponses];
+
+export type CreateLabData = {
+    body: CreateLab;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/labs';
+};
+
+export type CreateLabErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabError = CreateLabErrors[keyof CreateLabErrors];
+
+export type CreateLabResponses = {
+    201: PersistentLab;
+};
+
+export type CreateLabResponse = CreateLabResponses[keyof CreateLabResponses];
+
+export type RegisterLabEntityData = {
+    body: RegisterEntity;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities';
+};
+
+export type RegisterLabEntityErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RegisterLabEntityError = RegisterLabEntityErrors[keyof RegisterLabEntityErrors];
+
+export type RegisterLabEntityResponses = {
+    201: LabEntity;
+};
+
+export type RegisterLabEntityResponse = RegisterLabEntityResponses[keyof RegisterLabEntityResponses];
+
+export type GetLabEntityData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}';
+};
+
+export type GetLabEntityErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabEntityError = GetLabEntityErrors[keyof GetLabEntityErrors];
+
+export type GetLabEntityResponses = {
+    200: LabEntity;
+};
+
+export type GetLabEntityResponse = GetLabEntityResponses[keyof GetLabEntityResponses];
+
+export type ConfigureLabEntityData = {
+    body: ConfigureEntity;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}';
+};
+
+export type ConfigureLabEntityErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ConfigureLabEntityError = ConfigureLabEntityErrors[keyof ConfigureLabEntityErrors];
+
+export type ConfigureLabEntityResponses = {
+    200: LabEntity;
+};
+
+export type ConfigureLabEntityResponse = ConfigureLabEntityResponses[keyof ConfigureLabEntityResponses];
+
+export type InvokeLabEntityActionData = {
+    body: EntityAction;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions';
+};
+
+export type InvokeLabEntityActionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type InvokeLabEntityActionError = InvokeLabEntityActionErrors[keyof InvokeLabEntityActionErrors];
+
+export type CreateLabSceneNodeData = {
+    body: CreateSceneNode;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/nodes';
+};
+
+export type CreateLabSceneNodeErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabSceneNodeError = CreateLabSceneNodeErrors[keyof CreateLabSceneNodeErrors];
+
+export type CreateLabSceneNodeResponses = {
+    201: SceneNode;
+};
+
+export type CreateLabSceneNodeResponse = CreateLabSceneNodeResponses[keyof CreateLabSceneNodeResponses];
+
+export type GetLabWorldData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: {
+        kind?: string;
+        capability?: string;
+        state?: string;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/world';
+};
+
+export type GetLabWorldErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabWorldError = GetLabWorldErrors[keyof GetLabWorldErrors];
+
+export type GetLabWorldResponses = {
+    200: LabWorld;
+};
+
+export type GetLabWorldResponse = GetLabWorldResponses[keyof GetLabWorldResponses];
 
 export type ListNotificationsData = {
     body?: never;
