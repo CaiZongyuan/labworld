@@ -135,6 +135,7 @@ pub struct LabEntity {
     pub updated_by: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub archived_at: Option<DateTime<Utc>>,
     #[sqlx(json(nullable))]
     pub binding: Option<RuntimeBinding>,
     #[sqlx(json(nullable))]
@@ -183,8 +184,13 @@ impl LabEntity {
                     version: contract.version.clone(),
                     definition_supported: true,
                     binding_implemented: implemented.is_some(),
-                    executable: implemented.is_some() && running && !busy,
-                    reason: if implemented.is_none() {
+                    executable: self.archived_at.is_none()
+                        && implemented.is_some()
+                        && running
+                        && !busy,
+                    reason: if self.archived_at.is_some() {
+                        "entity_archived"
+                    } else if implemented.is_none() {
                         "binding_not_implemented"
                     } else if busy {
                         "device_busy"
@@ -246,10 +252,12 @@ const LAB_COLUMNS: &str = "id::text, name, layout_version, created_by::text, cre
 const ENTITY_COLUMNS: &str = "
     id::text, lab_id::text, name, kind, reality, definition_id, definition_version,
     definition, configuration, representation_id::text, created_by::text,
-    updated_by::text, created_at, updated_at,
-    (SELECT to_jsonb(b) FROM lab.runtime_bindings b WHERE b.entity_id=entities.id) AS binding,
-    (SELECT to_jsonb(r) FROM lab.program_runs r WHERE r.entity_id=entities.id
-        ORDER BY started_at DESC,id DESC LIMIT 1) AS program_run,
+    updated_by::text, created_at, updated_at, archived_at,
+    (SELECT to_jsonb(b) FROM lab.runtime_bindings b WHERE b.entity_id=entities.id AND b.current) AS binding,
+    (SELECT to_jsonb(r)||jsonb_build_object('program_id',b.program_id,'source',b.source,
+        'definition_id',b.definition_id,'definition_version',b.definition_version,'definition',b.definition)
+        FROM lab.program_runs r JOIN lab.runtime_bindings b ON b.id=r.binding_id WHERE r.entity_id=entities.id
+        ORDER BY r.started_at DESC,r.id DESC LIMIT 1) AS program_run,
     (SELECT to_jsonb(o)||jsonb_build_object('freshness',
         CASE WHEN o.freshness='stale' THEN 'stale' WHEN r.status<>'running' THEN r.status
              ELSE o.freshness END)
@@ -303,7 +311,7 @@ pub(super) fn uuid(value: &str) -> Result<uuid::Uuid, Failure> {
 fn valid_name(value: &str) -> bool {
     !value.trim().is_empty() && value.chars().count() <= 120 && !value.chars().any(char::is_control)
 }
-fn valid_configuration(value: &Map<String, Value>) -> bool {
+pub(super) fn valid_configuration(value: &Map<String, Value>) -> bool {
     json!(value).to_string().len() <= 8192
 }
 pub(super) async fn load_lab(
@@ -333,7 +341,10 @@ pub(super) async fn load_entity(
     .map(LabEntity::with_capabilities)
     .ok_or(Failure::WorldNotFound)
 }
-async fn representation(connection: &mut PgConnection, id: Option<&str>) -> Result<(), Failure> {
+pub(super) async fn representation(
+    connection: &mut PgConnection,
+    id: Option<&str>,
+) -> Result<(), Failure> {
     if let Some(id) = id {
         let id = uuid(id)?.to_string();
         if sqlx::query("SELECT id FROM lab.asset_representations WHERE id=$1::uuid FOR KEY SHARE")

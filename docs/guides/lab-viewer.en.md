@@ -68,4 +68,4 @@ The preset is Poly Haven's [Industrial Microscope](https://polyhaven.com/a/indus
 
 Prior Chromium/SwiftShader checks cover rendering, imports, selection, camera and recovery. Software-rendering FPS is not GPU acceptance, and preview bundle size is not production budget evidence. The [experience record](../ui/lab-viewer-experience.md)documents scope and evidence.
 
-The historical preview simulates identity and navigation. Its accepted design informed the current application. Production routing, persistent imports, layout editing, device tasks and history are implemented. Entity archiving, appearance replacement and combined scale validation follow later. See [product architecture](../architecture/lab-word.en.md).
+The historical preview simulates identity and navigation. Its accepted design informed the current application. Production routing, persistent imports, layout editing, device tasks, history and [Entity lifecycle](../tutorials/entity-lifecycle.en.md) are implemented. Users can archive stopped devices and replace appearances independently. Combined scale validation follows later. See [product architecture](../architecture/lab-word.en.md).

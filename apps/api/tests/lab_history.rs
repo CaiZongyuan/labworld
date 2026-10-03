@@ -493,28 +493,39 @@ async fn upgrading_pre_receipt_commands_keeps_their_keys_after_cleanup(pool: PgP
     drop(connection);
     let app = labos_threejs_api::router(pool.clone(), Default::default());
     let member = member(&app).await;
-    let path = entity(&app, &member, "light").await;
-    let lab = path.split('/').nth(5).unwrap();
-    let entity_id = path.split('/').nth(7).unwrap();
-    let run = data(
-        request(
-            &app,
-            &member,
-            "POST",
-            &format!("{path}/program/start"),
-            json!({}),
-        )
-        .await,
-    )
-    .await;
     let actor = data(request(&app, &member, "GET", "/api/v1/auth/session", Value::Null).await)
         .await["user"]["id"]
         .as_str()
         .unwrap()
         .to_owned();
+    let lab = uuid::Uuid::now_v7().to_string();
+    let entity_id = uuid::Uuid::now_v7().to_string();
+    let binding = uuid::Uuid::now_v7().to_string();
+    let run = uuid::Uuid::now_v7().to_string();
+    let definitions: Value = serde_json::from_str(include_str!(
+        "../../../crates/app/src/modules/lab/definitions.json"
+    ))
+    .unwrap();
+    let definition = definitions
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|definition| definition["id"] == "light")
+        .unwrap();
+    // Legacy data must use the legacy schema. The current Router starts only after migration.
+    sqlx::query("INSERT INTO lab.labs(id,name,created_by) VALUES($1::uuid,'Legacy lab',$2::uuid)")
+        .bind(&lab)
+        .bind(&actor)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query("INSERT INTO lab.entities(id,lab_id,name,kind,reality,definition_id,definition_version,definition,configuration,created_by,updated_by) VALUES($1::uuid,$2::uuid,'Legacy light','iot','simulated','light','1.0',$3,'{}',$4::uuid,$4::uuid)").bind(&entity_id).bind(&lab).bind(definition).bind(&actor).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO lab.runtime_bindings(id,entity_id,program_id,source) VALUES($1::uuid,$2::uuid,'light.v1',$3)").bind(&binding).bind(&entity_id).bind(format!("simulated:light.v1:{binding}")).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO lab.program_runs(id,entity_id,binding_id,generation,configuration,status,started_by) VALUES($1::uuid,$2::uuid,$3::uuid,0,'{}','running',$4::uuid)").bind(&run).bind(&entity_id).bind(&binding).bind(&actor).execute(&pool).await.unwrap();
+    let path = format!("/api/v1/lab/labs/{lab}/entities/{entity_id}");
     let command = uuid::Uuid::now_v7().to_string();
     // Provision a legacy fixture before the receipt schema exists; assertions use HTTP and production maintenance.
-    sqlx::query("INSERT INTO lab.device_commands(id,entity_id,run_id,actor_id,actor_source,request_key,capability,parameters,status,result) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,'member','legacy-key','light.set_power',$5,'failed',$6)").bind(&command).bind(entity_id).bind(run["id"].as_str().unwrap()).bind(actor).bind(json!({"on":true})).bind(json!({"reason":"execution_uncertain"})).execute(&pool).await.unwrap();
+    sqlx::query("INSERT INTO lab.device_commands(id,entity_id,run_id,actor_id,actor_source,request_key,capability,parameters,status,result) VALUES($1::uuid,$2::uuid,$3::uuid,$4::uuid,'member','legacy-key','light.set_power',$5,'failed',$6)").bind(&command).bind(&entity_id).bind(&run).bind(actor).bind(json!({"on":true})).bind(json!({"reason":"execution_uncertain"})).execute(&pool).await.unwrap();
     migrations.run(&pool).await.unwrap();
     assert_eq!(
         request(
@@ -529,7 +540,7 @@ async fn upgrading_pre_receipt_commands_keeps_their_keys_after_cleanup(pool: PgP
         StatusCode::OK
     );
     HistoryMaintenance::new(pool, RetentionPolicy::default())
-        .cleanup(lab, Utc::now() + chrono::Duration::days(31))
+        .cleanup(&lab, Utc::now() + chrono::Duration::days(31))
         .await
         .unwrap();
     assert_eq!(

@@ -387,24 +387,35 @@ function Builtin({ entity }: { entity: LabEntity }) {
 }
 
 const ignoreInfo = () => {};
+function appearanceKey(node: SceneNode, entity: LabEntity) {
+  return (
+    node.representation_id ??
+    `${entity.definition_id}@${entity.definition_version}`
+  );
+}
 function Imported({
   asset,
   nodeId,
   renderer,
   onReady,
   onError,
+  appearance,
 }: {
   asset: ModelAsset;
   nodeId: string;
   renderer: WebGLRenderer | null;
   onReady: () => void;
-  onError: (id: string, error: boolean) => void;
+  onError: (id: string, appearance: string, error: boolean) => void;
+  appearance: string;
 }) {
   const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
   useEffect(() => {
-    if (model) onReady();
-  }, [model, onReady]);
-  useEffect(() => onError(nodeId, !!error), [nodeId, error, onError]);
+    if (model?.id === asset.id) onReady();
+  }, [model, asset.id, onReady]);
+  useEffect(
+    () => onError(nodeId, appearance, !!error),
+    [nodeId, appearance, error, onError],
+  );
   if (!model) return null;
   const center = model.bounds.getCenter(new Vector3());
   return (
@@ -434,13 +445,14 @@ const NodeModel = memo(function NodeModel({
   selected: boolean;
   showReading: boolean;
   onSelect: (id: string, additive: boolean, nodeId?: string) => void;
-  onReady: (id: string) => void;
-  onError: (id: string, error: boolean) => void;
+  onReady: (id: string, appearance: string) => void;
+  onError: (id: string, appearance: string, error: boolean) => void;
   active: boolean;
   onTarget: (id: string, object: Group | null) => void;
 }) {
   const group = useRef<Group>(null);
   const outer = useRef<Group>(null);
+  const appearance = appearanceKey(node, entity);
   useEffect(() => {
     if (!active || !outer.current) return;
     onTarget(node.id, outer.current);
@@ -457,8 +469,8 @@ const NodeModel = memo(function NodeModel({
     const worldScale = group.current.getWorldScale(new Vector3());
     const size = box.getSize(new Vector3()).divide(worldScale);
     setBounds({ center: center.toArray(), size: size.toArray() });
-    onReady(node.id);
-  }, [onReady, node.id]);
+    onReady(node.id, appearance);
+  }, [onReady, node.id, appearance]);
   useEffect(() => {
     if (!asset) measure();
   }, [asset, measure]);
@@ -483,6 +495,7 @@ const NodeModel = memo(function NodeModel({
             renderer={renderer}
             onReady={measure}
             onError={onError}
+            appearance={appearance}
           />
         ) : (
           <Builtin entity={entity} />
@@ -552,8 +565,8 @@ function Scene({
   dark: boolean;
   grid: boolean;
   fit: number;
-  onError: (id: string, error: boolean) => void;
-  onReady: (id: string) => void;
+  onError: (id: string, appearance: string, error: boolean) => void;
+  onReady: (id: string, appearance: string) => void;
   activeNodeId?: string;
   transformMode: 'translate' | 'rotate' | 'scale' | null;
   onPlacement: (id: string, placement: Placement) => void;
@@ -577,11 +590,14 @@ function Scene({
       ),
     [],
   );
-  const nodeStructure = world.nodes.map((node) => node.id).join(',');
   const entityById = useMemo(
     () => new Map(world.entities.map((entity) => [entity.id, entity])),
     [world.entities],
   );
+  const nodeStructure = world.nodes
+    .filter((node) => !entityById.get(node.entity_id)?.archived_at)
+    .map((node) => node.id)
+    .join(',');
   const assetByRepresentation = useMemo(
     () =>
       new Map(
@@ -594,9 +610,9 @@ function Scene({
     [assets],
   );
   const ready = useCallback(
-    (id: string) => {
+    (id: string, appearance: string) => {
       setLoaded((value) => value + 1);
-      onReady(id);
+      onReady(id, appearance);
     },
     [onReady],
   );
@@ -656,7 +672,7 @@ function Scene({
       <group ref={root}>
         {world.nodes.map((node) => {
           const entity = entityById.get(node.entity_id);
-          if (!entity) return null;
+          if (!entity || entity.archived_at) return null;
           const asset = node.representation_id
             ? assetByRepresentation.get(node.representation_id)
             : undefined;
@@ -728,13 +744,15 @@ export default function WorldViewport(props: {
 }) {
   const message = useAppMessage('lab');
   const [renderer, setRenderer] = useState<WebGLRenderer | null>(null);
-  const [failed, setFailed] = useState<string[]>([]);
-  const [readyIds, setReadyIds] = useState<string[]>([]);
+  const [failed, setFailed] = useState<Record<string, string>>({});
+  const [readyIds, setReadyIds] = useState<Record<string, string>>({});
   const pointer = useRef({ x: 0, y: 0 });
   const onReady = useCallback(
-    (id: string) =>
+    (id: string, appearance: string) =>
       setReadyIds((previous) =>
-        previous.includes(id) ? previous : [...previous, id],
+        previous[id] === appearance
+          ? previous
+          : { ...previous, [id]: appearance },
       ),
     [],
   );
@@ -743,29 +761,41 @@ export default function WorldViewport(props: {
     setRenderer(gl);
   }, []);
   const onError = useCallback(
-    (id: string, error: boolean) =>
-      setFailed((previous) =>
-        error
-          ? previous.includes(id)
+    (id: string, appearance: string, error: boolean) =>
+      setFailed((previous) => {
+        if (error)
+          return previous[id] === appearance
             ? previous
-            : [...previous, id]
-          : previous.filter((entry) => entry !== id),
-      ),
+            : { ...previous, [id]: appearance };
+        if (!previous[id]) return previous;
+        const next = { ...previous };
+        delete next[id];
+        return next;
+      }),
     [],
   );
   useEffect(() => {
     renderer?.domElement.setAttribute('aria-label', props.label);
   }, [renderer, props.label]);
   const onBusy = props.onBusy;
-  useEffect(
-    () =>
-      onBusy(
-        props.world.nodes.some(
-          (node) => !readyIds.includes(node.id) && !failed.includes(node.id),
-        ),
-      ),
-    [props.world.nodes, readyIds, failed, onBusy],
+  const entityById = new Map(
+    props.world.entities.map((entity) => [entity.id, entity]),
   );
+  const pending = props.world.nodes.some((node) => {
+    const entity = entityById.get(node.entity_id);
+    if (!entity || entity.archived_at) return false;
+    const appearance = appearanceKey(node, entity);
+    return readyIds[node.id] !== appearance && failed[node.id] !== appearance;
+  });
+  const hasFailure = props.world.nodes.some((node) => {
+    const entity = entityById.get(node.entity_id);
+    return (
+      entity &&
+      !entity.archived_at &&
+      failed[node.id] === appearanceKey(node, entity)
+    );
+  });
+  useEffect(() => onBusy(pending), [pending, onBusy]);
   return (
     <>
       <Canvas
@@ -794,7 +824,7 @@ export default function WorldViewport(props: {
         />
         <MetricSampler onMetrics={props.onMetrics} />
       </Canvas>
-      {failed.length ? (
+      {hasFailure ? (
         <Alert className="world-render-error">
           <AlertDescription>{message('import.failed')}</AlertDescription>
         </Alert>

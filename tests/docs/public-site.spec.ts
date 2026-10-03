@@ -129,8 +129,8 @@ test('local search finds the Lab guide and keeps its locale', async ({
   page,
 }) => {
   for (const [path, button, query] of [
-    ['/docs/', '搜索文档', '运行 Lab Viewer 预览'],
-    ['/en/docs/', 'Search docs', 'Run The Lab Viewer Preview'],
+    ['/docs/', '搜索文档', '使用 Lab 与资产库'],
+    ['/en/docs/', 'Search docs', 'Use Lab And The Asset Library'],
   ] as const) {
     await go(page, path);
     await page.getByRole('button', { name: button, exact: true }).click();
@@ -222,7 +222,7 @@ test('the project home renders the actual preview and identifies its status', as
   page,
 }) => {
   for (const [path, status] of [
-    ['/', '独立交互预览'],
+    ['/', '独立预览'],
     ['/en/', 'isolated preview'],
   ]) {
     await go(page, path);
@@ -243,6 +243,30 @@ test('the project home renders the actual preview and identifies its status', as
       ),
     ).toBe(true);
   }
+});
+
+test('history continues to the lifecycle tutorial and language switching keeps that chapter', async ({
+  page,
+}) => {
+  await go(page, '/tutorials/run-history');
+  await page.locator('.pager-link.next').click();
+  await expect(page).toHaveURL(/\/tutorials\/entity-lifecycle$/);
+  await expect(
+    page.getByRole('heading', { level: 1, name: '归档对象并替换外观' }),
+  ).toBeVisible();
+  await page.getByRole('banner').getByRole('link', { name: 'English' }).click();
+  await expect(page).toHaveURL(/\/en\/tutorials\/entity-lifecycle$/);
+  await expect(
+    page.getByRole('heading', {
+      level: 1,
+      name: 'Archive An Entity And Replace Its Appearance',
+    }),
+  ).toBeVisible();
+  await expect(page.locator('.vp-doc')).toContainText('409 lab.entity_in_use');
+  await expect(page.locator('.pager-link.prev')).toHaveAttribute(
+    'href',
+    /\/en\/tutorials\/run-history$/,
+  );
 });
 
 test('the three-state appearance control covers system, light and dark', async ({

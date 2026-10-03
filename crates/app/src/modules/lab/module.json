@@ -43,7 +43,8 @@
     "migrations/0024_lab_observation_properties.sql",
     "migrations/0025_lab_device_tasks.sql",
     "migrations/0026_lab_history.sql",
-    "migrations/0027_lab_command_receipts.sql"
+    "migrations/0027_lab_command_receipts.sql",
+    "migrations/0028_lab_entity_lifecycle.sql"
   ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
@@ -53,6 +54,9 @@
     "apps/api/tests/lab_sensors.rs",
     "apps/api/tests/lab_centrifuges.rs",
     "apps/api/tests/lab_history.rs",
+    "apps/api/tests/lab_lifecycle.rs",
+    "apps/web/src/lab-lifecycle.test.tsx",
+    "tests/e2e/lab-lifecycle.spec.ts",
     "apps/web/src/lab-history.test.tsx",
     "tests/e2e/lab-history.spec.ts",
     "packages/sdk/src/lab-world.test.ts",
@@ -95,7 +99,10 @@
     "examples/lab/run-centrifuges.mjs",
     "docs/tutorials/run-history.md",
     "docs/tutorials/run-history.en.md",
-    "examples/lab/query-history.mjs"
+    "examples/lab/query-history.mjs",
+    "docs/tutorials/entity-lifecycle.md",
+    "docs/tutorials/entity-lifecycle.en.md",
+    "examples/lab/manage-entity.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -173,6 +180,11 @@
     "HistoryCleanup",
     "listLabDeviceHistory",
     "getLabHistoryRetention",
-    "cleanupLabHistory"
+    "cleanupLabHistory",
+    "ChangeEntityAppearance",
+    "ChangeEntityDefinition",
+    "archiveLabEntity",
+    "changeLabEntityAppearance",
+    "changeLabEntityDefinition"
   ]
 }

@@ -198,7 +198,12 @@ export default function DevicePanel({
           <Button
             size="sm"
             variant="outline"
-            disabled={programPending || !runtimeAvailable || activeTask(entity)}
+            disabled={
+              !!entity.archived_at ||
+              programPending ||
+              !runtimeAvailable ||
+              activeTask(entity)
+            }
             onClick={() => void program()}
           >
             {running ? (

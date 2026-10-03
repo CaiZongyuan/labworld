@@ -93,6 +93,21 @@ export type CacheMetrics = {
     writes: number;
 };
 
+export type ChangeEntityAppearance = {
+    /**
+     * Null selects the built-in appearance. Applies to the Entity and all its current Scene Nodes.
+     */
+    representation_id?: string | null;
+};
+
+export type ChangeEntityDefinition = {
+    configuration: {
+        [key: string]: unknown;
+    };
+    definition_id: string;
+    definition_version: string;
+};
+
 export type CompleteReset = {
     password: string;
     token: string;
@@ -214,9 +229,14 @@ export type DeviceObservation = {
 export type DeviceProgramRun = {
     binding_id: string;
     configuration: unknown;
+    definition: AssetDefinition;
+    definition_id: string;
+    definition_version: string;
     ended_at?: string | null;
     entity_id: string;
     id: string;
+    program_id: string;
+    source: string;
     started_at: string;
     started_by: string;
     status: string;
@@ -496,6 +516,7 @@ export type LabAsset = {
 };
 
 export type LabEntity = {
+    archived_at?: string | null;
     binding?: null | RuntimeBinding;
     capabilities: Array<EntityCapability>;
     configuration: {
@@ -721,6 +742,9 @@ export type RetentionPolicy = {
 };
 
 export type RuntimeBinding = {
+    definition: AssetDefinition;
+    definition_id: string;
+    definition_version: string;
     entity_id: string;
     id: string;
     program_id: string;
@@ -2413,6 +2437,67 @@ export type InvokeLabEntityActionResponses = {
 
 export type InvokeLabEntityActionResponse = InvokeLabEntityActionResponses[keyof InvokeLabEntityActionResponses];
 
+export type ChangeLabEntityAppearanceData = {
+    body: ChangeEntityAppearance;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/appearance';
+};
+
+export type ChangeLabEntityAppearanceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ChangeLabEntityAppearanceError = ChangeLabEntityAppearanceErrors[keyof ChangeLabEntityAppearanceErrors];
+
+export type ChangeLabEntityAppearanceResponses = {
+    200: LabEntity;
+};
+
+export type ChangeLabEntityAppearanceResponse = ChangeLabEntityAppearanceResponses[keyof ChangeLabEntityAppearanceResponses];
+
+export type ArchiveLabEntityData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/archive';
+};
+
+export type ArchiveLabEntityErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ArchiveLabEntityError = ArchiveLabEntityErrors[keyof ArchiveLabEntityErrors];
+
+export type ArchiveLabEntityResponses = {
+    200: LabEntity;
+};
+
+export type ArchiveLabEntityResponse = ArchiveLabEntityResponses[keyof ArchiveLabEntityResponses];
+
 export type GetLabDeviceCommandData = {
     body?: never;
     path: {
@@ -2475,6 +2560,37 @@ export type CopyLabEntityResponses = {
 
 export type CopyLabEntityResponse = CopyLabEntityResponses[keyof CopyLabEntityResponses];
 
+export type ChangeLabEntityDefinitionData = {
+    body: ChangeEntityDefinition;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/definition';
+};
+
+export type ChangeLabEntityDefinitionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ChangeLabEntityDefinitionError = ChangeLabEntityDefinitionErrors[keyof ChangeLabEntityDefinitionErrors];
+
+export type ChangeLabEntityDefinitionResponses = {
+    200: LabEntity;
+};
+
+export type ChangeLabEntityDefinitionResponse = ChangeLabEntityDefinitionResponses[keyof ChangeLabEntityDefinitionResponses];
+
 export type ListLabDeviceHistoryData = {
     body?: never;
     path: {
@@ -2526,6 +2642,7 @@ export type StartLabDeviceProgramErrors = {
     401: ApiErrorResponse;
     403: ApiErrorResponse;
     404: ApiErrorResponse;
+    409: ApiErrorResponse;
     422: ApiErrorResponse;
     /**
      * Request budget exceeded; retry after the specified seconds

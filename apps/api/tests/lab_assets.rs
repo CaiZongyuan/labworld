@@ -1028,6 +1028,351 @@ async fn entity_and_node_references_protect_asset_bytes_and_restore_in_world(poo
     assert_eq!(request(&app,&actor,"POST",&format!("/api/v1/lab/labs/{lab_id}/nodes"),json!({"entity_id":static_entity["id"],"representation_id":asset["representation"]["id"],"placement":{"position":[3,0,0],"rotation":[0,0,0],"scale":[1,1,1]}})).await.status(),StatusCode::CREATED);
 }
 
+#[sqlx::test(migrations = "../../migrations")]
+async fn running_device_appearance_replacement_preserves_identity_and_archive_keeps_real_references(
+    pool: PgPool,
+) {
+    let (app, files) = application_with(pool.clone(), None, FilePolicy::default()).await;
+    let runtime = labos_threejs_app::modules::lab::DeviceRuntime::initialize(pool.clone())
+        .await
+        .unwrap();
+    let actor = register(&app, "appearance@example.test").await;
+    let pending = start(&app, &actor, microscope()).await;
+    upload(&pending, microscope()).await;
+    let asset = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            &format!(
+                "/api/v1/lab/asset-uploads/{}/complete",
+                pending["upload_id"].as_str().unwrap()
+            ),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    let asset_path = format!("/api/v1/lab/assets/{}", asset["id"].as_str().unwrap());
+    let lab = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            "/api/v1/lab/labs",
+            json!({"name":"Appearance lab"}),
+        )
+        .await,
+    )
+    .await["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let entity=data(request(&app,&actor,"POST",&format!("/api/v1/lab/labs/{lab}/entities"),json!({"name":"Light A","definition_id":"light","definition_version":"1.0","reality":"simulated","configuration":{},"representation_id":null})).await).await;
+    let path = format!(
+        "/api/v1/lab/labs/{lab}/entities/{}",
+        entity["id"].as_str().unwrap()
+    );
+    request(
+        &app,
+        &actor,
+        "POST",
+        &format!("{path}/program/start"),
+        json!({}),
+    )
+    .await;
+    let command = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            &format!("{path}/actions"),
+            json!({"capability":"light.set_power","parameters":{"on":true}}),
+        )
+        .await,
+    )
+    .await;
+    assert!(runtime.process_next().await.unwrap());
+    let before = data(request(&app, &actor, "GET", &path, Value::Null).await).await;
+    let changed = request(
+        &app,
+        &actor,
+        "PUT",
+        &format!("{path}/appearance"),
+        json!({"representation_id":asset["representation"]["id"]}),
+    )
+    .await;
+    assert_eq!(changed.status(), StatusCode::OK);
+    let changed = data(changed).await;
+    for field in [
+        "id",
+        "definition",
+        "configuration",
+        "binding",
+        "program_run",
+        "observation",
+        "task",
+        "task_result",
+        "capabilities",
+    ] {
+        assert_eq!(changed[field], before[field], "{field}");
+    }
+    let world = data(
+        request(
+            &app,
+            &actor,
+            "GET",
+            &format!("/api/v1/lab/labs/{lab}/world"),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(
+        world["nodes"][0]["representation_id"],
+        asset["representation"]["id"]
+    );
+    assert_eq!(world["lab"]["layout_version"], 2);
+    let invalid = request(
+        &app,
+        &actor,
+        "PUT",
+        &format!("{path}/appearance"),
+        json!({"representation_id":uuid::Uuid::now_v7().to_string()}),
+    )
+    .await;
+    assert_eq!(invalid.status(), StatusCode::BAD_REQUEST);
+    assert_eq!(
+        data(
+            request(
+                &app,
+                &actor,
+                "GET",
+                &format!("/api/v1/lab/labs/{lab}/world"),
+                Value::Null
+            )
+            .await
+        )
+        .await,
+        world
+    );
+    let stale = request(
+        &app,
+        &actor,
+        "PUT",
+        &format!("/api/v1/lab/labs/{lab}/layout"),
+        json!({"expected_version":1,"nodes":[]}),
+    )
+    .await;
+    assert_eq!(stale.status(), StatusCode::CONFLICT);
+    assert_eq!(
+        data(
+            request(
+                &app,
+                &actor,
+                "GET",
+                &format!("/api/v1/lab/labs/{lab}/world"),
+                Value::Null
+            )
+            .await
+        )
+        .await,
+        world
+    );
+    let stopped = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            &format!("{path}/program/stop"),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    let archived = request(
+        &app,
+        &actor,
+        "POST",
+        &format!("{path}/archive"),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(archived.status(), StatusCode::OK);
+    let archived = data(archived).await;
+    assert!(archived["archived_at"].is_string());
+    assert_eq!(archived["id"], entity["id"]);
+    assert_eq!(archived["program_run"], stopped);
+    assert_eq!(
+        data(
+            request(
+                &app,
+                &actor,
+                "GET",
+                &format!("{path}/commands/{}", command["id"].as_str().unwrap()),
+                Value::Null
+            )
+            .await
+        )
+        .await["status"],
+        "succeeded"
+    );
+    for suffix in ["program/start", "actions"] {
+        let response = request(
+            &app,
+            &actor,
+            "POST",
+            &format!("{path}/{suffix}"),
+            json!({"capability":"light.set_power","parameters":{"on":false}}),
+        )
+        .await;
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+        assert_eq!(data(response).await["error"]["code"], "lab.entity_archived");
+    }
+    assert_eq!(
+        request(&app, &actor, "DELETE", &asset_path, Value::Null)
+            .await
+            .status(),
+        StatusCode::CONFLICT
+    );
+    assert_eq!(
+        data(request(&app, &actor, "GET", &path, Value::Null).await).await,
+        archived
+    );
+    let download = data(
+        request(
+            &app,
+            &actor,
+            "GET",
+            &format!("{asset_path}/download"),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(
+        request(
+            &app,
+            &actor,
+            "PUT",
+            &format!("{path}/appearance"),
+            json!({"representation_id":null})
+        )
+        .await
+        .status(),
+        StatusCode::OK
+    );
+    assert_eq!(
+        request(&app, &actor, "DELETE", &asset_path, Value::Null)
+            .await
+            .status(),
+        StatusCode::NO_CONTENT
+    );
+    let worker = labos_threejs_app::modules::jobs::Worker::new(
+        pool.clone(),
+        vec![labos_threejs_app::modules::files::cleanup_handler(
+            pool, files,
+        )],
+        Default::default(),
+    );
+    assert!(worker.run_once().await.unwrap());
+    assert_eq!(
+        reqwest::get(download["url"].as_str().unwrap())
+            .await
+            .unwrap()
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn asset_deletion_and_appearance_reference_compete_without_dangling_models(pool: PgPool) {
+    let app = application(pool).await;
+    let actor = register(&app, "reference-race@example.test").await;
+    let pending = start(&app, &actor, microscope()).await;
+    upload(&pending, microscope()).await;
+    let asset = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            &format!(
+                "/api/v1/lab/asset-uploads/{}/complete",
+                pending["upload_id"].as_str().unwrap()
+            ),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    let lab = data(
+        request(
+            &app,
+            &actor,
+            "POST",
+            "/api/v1/lab/labs",
+            json!({"name":"Reference race"}),
+        )
+        .await,
+    )
+    .await["id"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+    let entity=data(request(&app,&actor,"POST",&format!("/api/v1/lab/labs/{lab}/entities"),json!({"name":"Bench","definition_id":"bench","definition_version":"1.0","reality":"simulated","configuration":{},"representation_id":null})).await).await;
+    let path = format!(
+        "/api/v1/lab/labs/{lab}/entities/{}",
+        entity["id"].as_str().unwrap()
+    );
+    let asset_path = format!("/api/v1/lab/assets/{}", asset["id"].as_str().unwrap());
+    let barrier = tokio::sync::Barrier::new(2);
+    let add = async {
+        barrier.wait().await;
+        request(
+            &app,
+            &actor,
+            "PUT",
+            &format!("{path}/appearance"),
+            json!({"representation_id":asset["representation"]["id"]}),
+        )
+        .await
+    };
+    let remove = async {
+        barrier.wait().await;
+        request(&app, &actor, "DELETE", &asset_path, Value::Null).await
+    };
+    let (added, removed) = tokio::join!(add, remove);
+    let world = data(
+        request(
+            &app,
+            &actor,
+            "GET",
+            &format!("/api/v1/lab/labs/{lab}/world"),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    if added.status() == StatusCode::OK {
+        assert_eq!(removed.status(), StatusCode::CONFLICT);
+        assert_eq!(
+            world["entities"][0]["representation_id"],
+            asset["representation"]["id"]
+        );
+        assert_eq!(
+            world["nodes"][0]["representation_id"],
+            asset["representation"]["id"]
+        );
+        assert_eq!(world["assets"][0], asset);
+    } else {
+        assert_eq!(added.status(), StatusCode::BAD_REQUEST);
+        assert_eq!(removed.status(), StatusCode::NO_CONTENT);
+        assert_eq!(world["entities"][0]["representation_id"], Value::Null);
+        assert_eq!(world["nodes"][0]["representation_id"], Value::Null);
+        assert_eq!(world["assets"], json!([]));
+    }
+}
+
 async fn bearer(app: &Router, secret: &str, method: &str, path: &str, body: Value) -> Response {
     app.clone()
         .oneshot(
