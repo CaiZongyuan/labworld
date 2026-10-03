@@ -147,7 +147,12 @@ for (const [name, dependencies] of Object.entries(allowed)) {
           );
         for (const reference of references) {
           const viewRoot = resolve(root, reference.viewPath);
-          const isReference = path.startsWith(viewRoot + sep);
+          const isReference =
+            path.startsWith(viewRoot + sep) ||
+            (name === 'sdk' &&
+              (reference.sdkPaths ?? []).some(
+                (owned) => path === resolve(root, owned),
+              ));
           if (!isReference && !path.includes(`${sep}generated${sep}`)) {
             const target = dependency.startsWith('.')
               ? resolve(dirname(path), dependency)

@@ -74,6 +74,7 @@ import WorldDialog, {
 } from './world-dialog';
 import DevicePanel, { type CommandAttempt } from './device-panel';
 import RelationshipPanel from './relationship-panel';
+import { useWorldSubscription } from './world-subscription';
 import {
   layoutDraft,
   rebaseLayout,
@@ -130,23 +131,25 @@ export default function WorldView({
   const world = useQuery({
     queryKey: [...key, labId],
     enabled: !!labId,
-    queryFn: async ({ signal }) =>
-      (
+    queryFn: async ({ signal }) => {
+      const next = (
         await getLabWorld({
           client: apiClient,
           path: { lab_id: labId },
           signal,
           throwOnError: true,
         })
-      ).data,
+      ).data;
+      const previous = client.getQueryData<typeof next>([...key, labId]);
+      return previous?.version &&
+        next.version &&
+        BigInt(previous.version) > BigInt(next.version)
+        ? previous
+        : next;
+    },
     retry: false,
-    refetchInterval: (query) =>
-      query.state.data?.entities.some(
-        (entity) => entity.program_run?.status === 'running',
-      )
-        ? 1000
-        : false,
   });
+  const connection = useWorldSubscription(apiClient, identity.user.id, labId);
   const [attempts, setAttempts] = useState<Record<string, CommandAttempt>>({});
   const [selection, setSelection] = useState<string[]>([]);
   const [search, setSearch] = useState('');
@@ -452,8 +455,20 @@ export default function WorldView({
               v{world.data?.lab.layout_version ?? 0}
             </Badge>
           ) : null}
+          {labId ? (
+            <Badge variant="secondary" aria-live="polite">
+              {message(`sync.${connection.status}`)}
+            </Badge>
+          ) : null}
         </div>
         <div className="lab-toolbar-actions">
+          {labId && connection.status === 'offline' ? (
+            <Tool
+              icon={RefreshCw}
+              label={message('sync.reconnect')}
+              onClick={connection.reconnect}
+            />
+          ) : null}
           {labList.length ? (
             <NativeSelect
               aria-label={message('world.openLab')}
@@ -860,6 +875,7 @@ export default function WorldView({
                   }))
                 }
                 onRefresh={world.refetch}
+                runtimeAvailable={connection.available}
               />
               {world.data ? (
                 <RelationshipPanel
@@ -982,7 +998,9 @@ export default function WorldView({
                         <dt>{message('world.executable')}</dt>
                         <dd>
                           {message(
-                            capability.executable ? 'world.yes' : 'world.no',
+                            capability.executable && connection.available
+                              ? 'world.yes'
+                              : 'world.no',
                           )}
                         </dd>
                       </dl>
@@ -1035,6 +1053,9 @@ export default function WorldView({
         </aside>
       </div>
       <footer className="lab-status">
+        <span aria-label={message('sync.version')}>
+          W{world.data?.version ?? '0'}
+        </span>
         <span>
           <i />
           {entities.length} {message('world.objects')} / {nodes.length}{' '}

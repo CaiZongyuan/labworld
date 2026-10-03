@@ -47,7 +47,7 @@ node examples/lab/control-lights.mjs
 
 `GET .../commands/{command_id}` 查询 `accepted`、`executing`、`succeeded`、`failed` 或 `unknown`、操作者、参数和结果。同一操作者、Entity、键与等价 JSON 参数返回同一命令；不同参数返回 409。记录由用户与 Agent 共用。同一个账号的会话和 Agent 使用相同键空间。
 
-`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时 `observed_at=null`、新鲜度为 `source_time_unknown`，不会借用接收时间。照明变化时才报告，`current` 表示该报告来自仍运行的来源；连续采样的过期判定将在后续章节交付。页面当前每秒读取有界 World 快照，命令短期读取有 30 秒上限；可靠推送由 [Issue #8](https://github.com/CaiZongyuan/labworld/issues/8) 扩展。
+`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时 `observed_at=null`、新鲜度为 `source_time_unknown`，不会借用接收时间。照明变化时才报告，`current` 表示该报告来自仍运行的来源；连续采样的过期判定将在后续章节交付。页面通过[可靠订阅](reliable-sync.md)接收世界快照和属性变化，命令短期读取仍有 30 秒上限。实际操作须同时满足持久能力许可与 `X-Lab-Runtime` / `runtime_status` 表达的即时服务就绪条件。
 
 ## 失败与恢复
 

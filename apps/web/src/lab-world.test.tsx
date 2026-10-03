@@ -27,6 +27,7 @@ function open() {
   const entities: Record<string, unknown>[] = [];
   const nodes: Record<string, unknown>[] = [];
   let relationships: Record<string, unknown>[] = [];
+  let version = 0;
   server.use(
     http.get('http://api.test/api/v1/auth/session', () =>
       HttpResponse.json(identity),
@@ -53,12 +54,29 @@ function open() {
     ),
     http.get('http://api.test/api/v1/lab/labs/lab-one/world', () =>
       HttpResponse.json({
+        version: String(++version),
         lab,
         entities,
         nodes,
         assets: [],
         relationships,
       }),
+    ),
+    http.get(
+      'http://api.test/api/v1/lab/labs/lab-one/world/subscribe',
+      () =>
+        new HttpResponse(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  'data: {"type":"runtime_status","available":true}\n\n',
+                ),
+              );
+            },
+          }),
+          { headers: { 'content-type': 'text/event-stream' } },
+        ),
     ),
     http.put(
       'http://api.test/api/v1/lab/labs/lab-one/layout',

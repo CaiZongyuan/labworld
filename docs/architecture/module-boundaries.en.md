@@ -31,4 +31,6 @@ Static checks reject known dependency and ownership violations. They cannot esta
 
 Independent businesses have distinct source ownership, not separate customer organizations. The application retains [one Organization per deployment](../adr/0001-single-organization-deployment.md). Complete historical example manifests and removal tools are absent from this copy; target architecture does not establish implemented commands.
 
+Lab [ownership](../../crates/app/src/modules/lab/module.json) declares the subscription helper through exact `sdkPaths`, its SDK facade integration through `assemblyPoints`, and its exports in `contractSymbols`. Removing Lab includes those helpers, tests, tutorials, and Lab facade exports, followed by contract/SDK regeneration. Shared HTTP/SSE lifetimes remain owned by the SDK. Boundary checks allow only declared business SDK files to import that business's contracts; undeclared SDK files and Core retain the existing restrictions.
+
 Production Lab validation must cover import failure, resource disposal, fast switching and lazy loading. See [product scope](lab-word.md).

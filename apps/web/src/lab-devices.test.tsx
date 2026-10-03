@@ -55,6 +55,7 @@ function openLights() {
     ),
   }));
   let command: Record<string, unknown> | null = null;
+  let version = 0;
   let resolveSubmission!: () => void;
   const submission = new Promise<void>((resolve) => {
     resolveSubmission = resolve;
@@ -73,7 +74,30 @@ function openLights() {
       HttpResponse.json({ data: definitions }),
     ),
     http.get('http://api.test/api/v1/lab/labs/lighting-lab/world', () =>
-      HttpResponse.json({ lab, entities, nodes: [], assets: [] }),
+      HttpResponse.json({
+        version: String(++version),
+        lab,
+        entities,
+        nodes: [],
+        assets: [],
+        relationships: [],
+      }),
+    ),
+    http.get(
+      'http://api.test/api/v1/lab/labs/lighting-lab/world/subscribe',
+      () =>
+        new HttpResponse(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(
+                new TextEncoder().encode(
+                  'data: {"type":"runtime_status","available":true}\n\n',
+                ),
+              );
+            },
+          }),
+          { headers: { 'content-type': 'text/event-stream' } },
+        ),
     ),
     http.post(
       'http://api.test/api/v1/lab/labs/lighting-lab/entities/:entity/program/start',

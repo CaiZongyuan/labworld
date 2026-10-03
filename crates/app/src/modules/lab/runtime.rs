@@ -100,6 +100,7 @@ impl DeviceRuntime {
         availability: RuntimeAvailability,
     ) -> Result<Self, sqlx::Error> {
         let mut tx = pool.begin().await?;
+        super::sync::lock_world(&mut tx).await?;
         let generation: i64 = sqlx::query_scalar("UPDATE lab.runtime_generation SET generation=generation+1 WHERE singleton RETURNING generation").fetch_one(&mut *tx).await?;
         sqlx::query("SELECT id FROM lab.entities WHERE EXISTS(SELECT 1 FROM lab.program_runs r WHERE r.entity_id=entities.id AND r.status='running') ORDER BY id FOR UPDATE").fetch_all(&mut *tx).await?;
         sqlx::query("UPDATE lab.program_runs SET status='interrupted',ended_at=now() WHERE status='running'").execute(&mut *tx).await?;
@@ -220,6 +221,7 @@ async fn write_observation(
     Ok(())
 }
 async fn lock_entity(connection: &mut PgConnection, entity: &str) -> Result<(), sqlx::Error> {
+    super::sync::lock_world(connection).await?;
     sqlx::query("SELECT id FROM lab.entities WHERE id=$1::uuid FOR UPDATE")
         .bind(entity)
         .fetch_one(connection)

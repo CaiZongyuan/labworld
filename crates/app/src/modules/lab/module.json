@@ -12,9 +12,12 @@
     "lab.program_runs",
     "lab.device_commands",
     "lab.current_observations",
-    "lab.entity_relationships"
+    "lab.entity_relationships",
+    "lab.world_clock"
   ],
   "viewPath": "packages/views/src/lab",
+  "sdkPaths": ["packages/sdk/src/lab-world.ts"],
+  "assemblyPoints": ["packages/sdk/src/index.ts"],
   "exclusiveDependencies": [
     "gltf",
     "draco-core",
@@ -29,18 +32,24 @@
     "migrations/0019_lab_world.sql",
     "migrations/0020_lab_devices.sql",
     "migrations/0021_lab_observation_order.sql",
-    "migrations/0022_lab_relationships.sql"
+    "migrations/0022_lab_relationships.sql",
+    "migrations/0023_lab_world_version.sql"
   ],
   "tests": [
     "apps/api/tests/lab_assets.rs",
     "apps/api/tests/lab_world.rs",
     "apps/api/tests/lab_devices.rs",
+    "apps/api/tests/lab_sync.rs",
+    "packages/sdk/src/lab-world.test.ts",
+    "tests/tooling/sdk-ownership.test.mjs",
+    "apps/web/src/lab-sync.test.tsx",
     "apps/web/src/lab-devices.test.tsx",
     "apps/web/src/lab-world.test.tsx",
     "apps/web/src/lab.test.tsx",
     "tests/e2e/lab.spec.ts",
     "tests/e2e/lab-devices.spec.ts",
     "tests/e2e/lab-layout.spec.ts",
+    "tests/e2e/lab-sync.spec.ts",
     "tests/fixtures/lab"
   ],
   "tutorials": [
@@ -55,7 +64,10 @@
     "examples/lab/control-lights.mjs",
     "docs/tutorials/edit-layout.md",
     "docs/tutorials/edit-layout.en.md",
-    "examples/lab/edit-layout.mjs"
+    "examples/lab/edit-layout.mjs",
+    "docs/tutorials/reliable-sync.md",
+    "docs/tutorials/reliable-sync.en.md",
+    "examples/lab/observe-world.mjs"
   ],
   "contractSymbols": [
     "LabAsset",
@@ -112,6 +124,13 @@
     "LabLayout",
     "saveLabLayout",
     "CopyLabEntity",
-    "copyLabEntity"
+    "copyLabEntity",
+    "WorldEvent",
+    "WorldChange",
+    "WorldCollection",
+    "streamLabWorld",
+    "subscribeLabWorld",
+    "applyLabWorldEvent",
+    "WorldSyncError"
   ]
 }

@@ -135,7 +135,19 @@
       "titleEn": "Edit Layout and Register Location",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "backend-lights"
+      "previous": "backend-lights",
+      "next": "reliable-sync"
+    },
+    {
+      "id": "reliable-sync",
+      "source": "docs/tutorials/reliable-sync.md",
+      "sourceEn": "docs/tutorials/reliable-sync.en.md",
+      "route": "tutorials/reliable-sync.md",
+      "title": "可靠同步与恢复",
+      "titleEn": "Reliable Synchronization and Recovery",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "edit-layout"
     },
     {
       "id": "lab-architecture",
