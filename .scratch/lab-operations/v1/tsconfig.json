@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "ES2023",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@labos-threejs/ui/*": ["../../../packages/ui/src/*"],
+      "react": ["../../../node_modules/@types/react"],
+      "react/*": ["../../../node_modules/@types/react/*"],
+      "react-dom": ["../../../node_modules/@types/react-dom"],
+      "react-dom/*": ["../../../node_modules/@types/react-dom/*"]
+    }
+  },
+  "include": ["*.ts", "*.tsx"]
+}

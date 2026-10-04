@@ -1,0 +1,107 @@
+{
+  "version": "v1",
+  "verifiedAt": "2026-10-04T01:44:11.232Z",
+  "checks": [
+    {
+      "name": "Overview, device images and independent attention states",
+      "status": "pass"
+    },
+    {
+      "name": "Search and area filters",
+      "status": "pass"
+    },
+    {
+      "name": "Expired observation, drawer framing and explicit source recovery",
+      "status": "pass"
+    },
+    {
+      "name": "Restart keeps interrupted result; a new task completes independently",
+      "status": "pass"
+    },
+    {
+      "name": "Task cancellation ends after deceleration",
+      "status": "pass"
+    },
+    {
+      "name": "Light commands separate acceptance from reported values",
+      "status": "pass"
+    },
+    {
+      "name": "Rejected operation preserves actual observation",
+      "status": "pass"
+    },
+    {
+      "name": "Records, operator provenance and CSV export",
+      "status": "pass"
+    },
+    {
+      "name": "Offline snapshot, read-only controls and reconnect",
+      "status": "pass"
+    },
+    {
+      "name": "Empty, loading, and invalid identity states",
+      "status": "pass"
+    },
+    {
+      "name": "Dark theme and real-object unknown state",
+      "status": "pass"
+    },
+    {
+      "name": "Mobile 390px and 320px text fit, controls and drawer geometry",
+      "status": "pass"
+    },
+    {
+      "name": "Desktop WebGL pixels, motion, camera controls, labels and selection",
+      "status": "pass"
+    },
+    {
+      "name": "Mobile WebGL framing, pixels and device selection",
+      "status": "pass"
+    },
+    {
+      "name": "Preview isolation and browser health",
+      "status": "pass"
+    }
+  ],
+  "screenshots": [
+    "overview-desktop",
+    "detail-desktop",
+    "operation-failed",
+    "records-desktop",
+    "offline-desktop",
+    "empty-desktop",
+    "overview-dark",
+    "overview-390",
+    "detail-390",
+    "overview-320",
+    "detail-320",
+    "space-desktop",
+    "space-mobile",
+    "space-dark"
+  ],
+  "errors": [],
+  "apiRequests": [],
+  "canvas": {
+    "desktop": {
+      "colors": 65,
+      "moving": true
+    },
+    "mobile": {
+      "colors": 67,
+      "width": 390,
+      "height": 440
+    }
+  },
+  "scope": "Isolated preview, memory simulator, synthetic history, real Three.js and repo UI components.",
+  "status": "pass",
+  "validation": {
+    "typecheck": {
+      "status": "pass",
+      "checkedAt": "2026-10-04T01:47:00.934Z"
+    },
+    "build": {
+      "status": "pass",
+      "checkedAt": "2026-10-04T01:47:06.293Z"
+    }
+  }
+}
