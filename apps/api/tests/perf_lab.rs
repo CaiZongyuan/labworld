@@ -65,6 +65,7 @@ async fn call(
                 .header("content-type", "application/json")
                 .header("cookie", cookie)
                 .header("x-csrf-token", csrf)
+                .header("idempotency-key", uuid::Uuid::now_v7().to_string())
                 .body(Body::from(input.to_string()))
                 .unwrap(),
         )
@@ -131,11 +132,30 @@ async fn world_snapshot_and_pages_have_fixed_budgets_at_one_and_one_hundred_enti
         serde_json::from_str(include_str!("../../../scripts/perf/baselines.json")).unwrap();
     let budgets = &budgets["budgets"]["lab"];
     let mut samples = Vec::new();
+    let mut record_samples = Vec::new();
+    let from = (chrono::Utc::now() - chrono::Duration::hours(1))
+        .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
+    let to = (chrono::Utc::now() + chrono::Duration::hours(1))
+        .to_rfc3339_opts(chrono::SecondsFormat::Nanos, true);
     for index in 0..100 {
-        call(&app, &cookie, csrf, "POST", &format!("{path}/entities"), json!({
-            "name":format!("Entity {index}"),"definition_id":if index<20 {"sensor"} else {"labware"},
+        let (entity, _) = call(&app, &cookie, csrf, "POST", &format!("{path}/entities"), json!({
+            "name":format!("Entity {index}"),"definition_id":if index==0 {"centrifuge"} else if index<20 {"sensor"} else {"labware"},
             "definition_version":"1.0","reality":"simulated","configuration":{},"representation_id":null
         }), StatusCode::CREATED).await;
+        if index == 0 {
+            let entity_path = format!("{path}/entities/{}", entity["id"].as_str().unwrap());
+            call(
+                &app,
+                &cookie,
+                csrf,
+                "POST",
+                &format!("{entity_path}/program/start"),
+                json!({}),
+                StatusCode::CREATED,
+            )
+            .await;
+            call(&app,&cookie,csrf,"POST",&format!("{entity_path}/actions"),json!({"capability":"centrifuge.start","parameters":{"rpm":6000,"temperature":22,"duration_seconds":6}}),StatusCode::ACCEPTED).await;
+        }
         if index == 0 || index == 99 {
             STATEMENTS.store(0, Ordering::Relaxed);
             MEASURING.store(true, Ordering::Relaxed);
@@ -161,12 +181,88 @@ async fn world_snapshot_and_pages_have_fixed_budgets_at_one_and_one_hundred_enti
             assert_eq!(world["nodes"].as_array().unwrap().len(), index + 1);
             assert!(world["assets"].as_array().unwrap().is_empty());
             samples.push(json!({"entities":index+1,"statements":statements,"bytes":bytes}));
+            STATEMENTS.store(0, Ordering::Relaxed);
+            MEASURING.store(true, Ordering::Relaxed);
+            let (records, record_bytes) = call(
+                &app,
+                &cookie,
+                csrf,
+                "GET",
+                &format!("{path}/records?from={from}&to={to}&limit=100"),
+                Value::Null,
+                StatusCode::OK,
+            )
+            .await;
+            MEASURING.store(false, Ordering::Relaxed);
+            let record_statements = STATEMENTS.load(Ordering::Relaxed);
+            assert!(
+                record_statements > 0,
+                "actual SQL counter must observe records authentication and query"
+            );
+            assert!(
+                record_statements <= budgets["recordsSqlStatements"].as_u64().unwrap() as usize,
+                "records statements: {record_statements}"
+            );
+            assert!(record_bytes <= budgets["recordsBytes"].as_u64().unwrap() as usize);
+            let items = records["items"].as_array().unwrap();
+            assert!(items.len() <= budgets["recordsPageItems"].as_u64().unwrap() as usize);
+            for kind in ["command", "task", "event", "run"] {
+                assert!(items.iter().any(|item| item["record_type"] == kind));
+            }
+            let (first, _) = call(
+                &app,
+                &cookie,
+                csrf,
+                "GET",
+                &format!("{path}/records?from={from}&to={to}&limit=1"),
+                Value::Null,
+                StatusCode::OK,
+            )
+            .await;
+            let cursor = first["next_cursor"].as_str().unwrap();
+            STATEMENTS.store(0, Ordering::Relaxed);
+            MEASURING.store(true, Ordering::Relaxed);
+            let (_, next_bytes) = call(
+                &app,
+                &cookie,
+                csrf,
+                "GET",
+                &format!("{path}/records?from={from}&to={to}&limit=1&cursor={cursor}"),
+                Value::Null,
+                StatusCode::OK,
+            )
+            .await;
+            MEASURING.store(false, Ordering::Relaxed);
+            let next_statements = STATEMENTS.load(Ordering::Relaxed);
+            assert!(
+                next_statements > 0
+                    && next_statements
+                        <= budgets["recordsSqlStatements"].as_u64().unwrap() as usize,
+                "records continuation statements: {next_statements}"
+            );
+            assert!(next_bytes <= budgets["recordsBytes"].as_u64().unwrap() as usize);
+            record_samples.push(json!({"entities":index+1,"statements":record_statements,"bytes":record_bytes,"items":items.len(),"next_page_statements":next_statements,"next_page_bytes":next_bytes}));
         }
     }
     assert_eq!(
         samples[0]["statements"], samples[1]["statements"],
         "Entity count must not add database round trips"
     );
+    assert_eq!(
+        record_samples[0]["statements"], record_samples[1]["statements"],
+        "records SQL statements must not grow with Entity count"
+    );
+    assert_eq!(
+        record_samples[0]["next_page_statements"],
+        record_samples[1]["next_page_statements"]
+    );
+    if let Ok(directory) = std::env::var("LAB_RECORDS_EVIDENCE_DIR") {
+        std::fs::write(
+            std::path::Path::new(&directory).join("sql-budget-measurements.json"),
+            serde_json::to_vec_pretty(&record_samples).unwrap(),
+        )
+        .unwrap();
+    }
     for index in 0..2 {
         call(
             &app,

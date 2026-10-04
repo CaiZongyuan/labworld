@@ -553,6 +553,66 @@ export type LabPage = {
     next_cursor?: string | null;
 };
 
+export type LabRecord = {
+    actor_id?: string | null;
+    actor_role: string;
+    actor_source: string;
+    archived_at?: string | null;
+    binding_id: string;
+    command_id?: string | null;
+    data: unknown;
+    ended_at?: string | null;
+    entity_id: string;
+    entity_name: string;
+    id: string;
+    reality: string;
+    record_type: string;
+    recorded_at: string;
+    result_id?: string | null;
+    run_id: string;
+    source: string;
+    state: string;
+    summary: string;
+    task_id?: string | null;
+};
+
+export type LabRecordCoverage = {
+    available_since?: string | null;
+    captured_since?: string | null;
+    cleaned_before?: string | null;
+    fully_captured_since?: string | null;
+    gaps: Array<LabRecordGap>;
+    newest_record_at?: string | null;
+    oldest_record_at?: string | null;
+    preserves_unfinished: boolean;
+    record_type: string;
+    retention_seconds?: number | null;
+};
+
+export type LabRecordGap = {
+    from: string;
+    reason: string;
+    to: string;
+};
+
+export type LabRecordType = 'command' | 'task' | 'event' | 'run';
+
+export type LabRecordsPage = {
+    coverage: Array<LabRecordCoverage>;
+    entity_id?: string | null;
+    from: string;
+    items: Array<LabRecord>;
+    max_page_items: number;
+    max_range_seconds: number;
+    max_response_bytes: number;
+    next_cursor?: string | null;
+    queried_at: string;
+    query_upper_bound: string;
+    record_type?: null | LabRecordType;
+    retention: RetentionPolicy;
+    to: string;
+};
+
 export type LabWorld = {
     assets: Array<LabAsset>;
     entities: Array<LabEntity>;
@@ -2901,6 +2961,43 @@ export type CreateLabSceneNodeResponses = {
 };
 
 export type CreateLabSceneNodeResponse = CreateLabSceneNodeResponses[keyof CreateLabSceneNodeResponses];
+
+export type ListLabRecordsData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query: {
+        from: string;
+        to: string;
+        entity_id?: string;
+        record_type?: LabRecordType;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/records';
+};
+
+export type ListLabRecordsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabRecordsError = ListLabRecordsErrors[keyof ListLabRecordsErrors];
+
+export type ListLabRecordsResponses = {
+    200: LabRecordsPage;
+};
+
+export type ListLabRecordsResponse = ListLabRecordsResponses[keyof ListLabRecordsResponses];
 
 export type GetLabWorldData = {
     body?: never;

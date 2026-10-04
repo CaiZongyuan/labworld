@@ -211,6 +211,17 @@
       "next": "complete-foundation"
     },
     {
+      "id": "lab-records",
+      "source": "docs/tutorials/lab-records.md",
+      "sourceEn": "docs/tutorials/lab-records.en.md",
+      "route": "tutorials/lab-records.md",
+      "title": "整个 Lab 的运行记录",
+      "titleEn": "Records Across A Lab",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "entity-lifecycle"
+    },
+    {
       "id": "complete-foundation",
       "source": "docs/tutorials/complete-foundation.md",
       "sourceEn": "docs/tutorials/complete-foundation.en.md",

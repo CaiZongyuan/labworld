@@ -5,6 +5,7 @@ mod glb;
 mod history;
 mod layout;
 mod lifecycle;
+mod records;
 mod relationships;
 mod runtime;
 mod sync;
@@ -67,6 +68,7 @@ pub fn router_with_retention(
         .merge(devices::routes())
         .merge(tasks::routes())
         .merge(history::routes())
+        .merge(records::routes())
         .merge(sync::routes())
         .with_state(Lab {
             pool,
@@ -86,6 +88,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     document.merge(devices::openapi());
     document.merge(tasks::openapi());
     document.merge(history::openapi());
+    document.merge(records::openapi());
     document.merge(sync::openapi());
     document
 }
@@ -115,6 +118,7 @@ enum Failure {
     RuntimeUnavailable,
     LayoutConflict,
     SnapshotTooLarge,
+    RecordsTooLarge,
     Unavailable,
     Idempotency(crate::modules::idempotency::Error),
 }
@@ -142,6 +146,11 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::RecordsTooLarge => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "lab.records_too_large",
+                "A record exceeds the 256 KiB page limit; narrow the record filters",
+            ),
             Self::EntityInUse => (
                 StatusCode::CONFLICT,
                 "lab.entity_in_use",

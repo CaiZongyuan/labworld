@@ -17,6 +17,7 @@ sqlx.workspace = true
 utoipa.workspace = true
 
 [dev-dependencies]
+base64.workspace = true
 chrono.workspace = true
 serde.workspace = true
 url.workspace = true
