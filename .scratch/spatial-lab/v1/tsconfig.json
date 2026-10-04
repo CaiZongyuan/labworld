@@ -1,0 +1,15 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "@labos-threejs/ui/*": ["packages/ui/src/*"],
+      "cn": ["packages/ui/node_modules/cn/dist/index.d.ts"],
+      "react": ["node_modules/@types/react"],
+      "react/jsx-runtime": ["node_modules/@types/react/jsx-runtime.d.ts"],
+      "react/jsx-dev-runtime": [
+        "node_modules/@types/react/jsx-dev-runtime.d.ts"
+      ]
+    }
+  },
+  "include": ["*.ts", "*.tsx"]
+}

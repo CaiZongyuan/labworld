@@ -1,0 +1,80 @@
+{
+  "address": "http://127.0.0.1:5193/prototype/spatial-lab",
+  "results": [
+    {
+      "name": "desktop pixels",
+      "width": 1368,
+      "height": 898,
+      "colors": 264,
+      "hash": 2407444678
+    },
+    {
+      "name": "desktop scene renders real pixels and complete room",
+      "passed": true
+    },
+    {
+      "name": "pointer orbit changes canvas pixels",
+      "passed": true
+    },
+    {
+      "name": "scene selection opens contextual controls",
+      "passed": true
+    },
+    {
+      "name": "task can be cancelled and second centrifuge stays independent",
+      "passed": true
+    },
+    {
+      "name": "natural completion starts timing after targets are reached",
+      "passed": true
+    },
+    {
+      "name": "offline state freezes observations and reconnects",
+      "passed": true
+    },
+    {
+      "name": "light controls change state and brightness",
+      "passed": true
+    },
+    {
+      "name": "layout changes preserve registered location and allow conflict recovery",
+      "passed": true
+    },
+    {
+      "name": "readonly identity prevents commands",
+      "passed": true
+    },
+    {
+      "name": "failure and loading states remain inspectable",
+      "passed": true
+    },
+    {
+      "name": "empty laboratory can register its first object",
+      "passed": true
+    },
+    {
+      "name": "asset images render and additions enter the same laboratory",
+      "passed": true
+    },
+    {
+      "name": "390px controls remain accessible with a visible canvas",
+      "passed": true
+    },
+    {
+      "name": "320px dark view fits without overlapping labels or controls",
+      "passed": true
+    },
+    {
+      "name": "desktop dark view and history drawer render",
+      "passed": true
+    },
+    {
+      "name": "preview stays isolated and reports no browser errors",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "applicationRequests": [],
+  "renderer": "Chromium / ANGLE SwiftShader",
+  "passed": true
+}
