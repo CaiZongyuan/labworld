@@ -29,6 +29,15 @@ export async function withTestPostgres(action) {
         '-p',
         '127.0.0.1::5432',
         image,
+        'postgres',
+        '-c',
+        'shared_preload_libraries=pg_stat_statements',
+        '-c',
+        'pg_stat_statements.track=top',
+        '-c',
+        'pg_stat_statements.track_utility=on',
+        '-c',
+        'pg_stat_statements.max=100000',
       ],
       { stdio: 'pipe' },
     );
@@ -55,6 +64,23 @@ export async function withTestPostgres(action) {
         throw new Error('Isolated PostgreSQL did not become ready');
       await delay(150);
     }
+    execFileSync(
+      'docker',
+      [
+        'exec',
+        name,
+        'psql',
+        '-U',
+        'postgres',
+        '-d',
+        'labos_threejs_test',
+        '-v',
+        'ON_ERROR_STOP=1',
+        '-c',
+        'CREATE EXTENSION pg_stat_statements',
+      ],
+      { stdio: 'pipe', timeout: 10_000 },
+    );
     const mapping = execFileSync('docker', ['port', name, '5432/tcp'], {
       encoding: 'utf8',
     }).trim();

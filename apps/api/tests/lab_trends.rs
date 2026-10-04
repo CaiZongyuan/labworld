@@ -11,45 +11,86 @@ use labos_threejs_app::modules::lab::{
 };
 use serde_json::{Value, json};
 use sqlx::PgPool;
+use std::collections::BTreeMap;
 use std::sync::{
     Arc,
     atomic::{AtomicI64, Ordering},
 };
 use tower::ServiceExt;
-use tracing::instrument::WithSubscriber;
-use tracing::{
-    Event, Metadata, Subscriber,
-    span::{Attributes, Id, Record},
-    subscriber::Interest,
-};
-use tracing_core::span::Current;
 
 #[derive(Clone)]
-struct StatementCounter(Arc<std::sync::atomic::AtomicUsize>);
-impl Subscriber for StatementCounter {
-    fn enabled(&self, _: &Metadata<'_>) -> bool {
-        true
+struct SqlStatementObserver {
+    pool: PgPool,
+    database_id: i64,
+}
+struct SqlStatementSnapshot {
+    calls: BTreeMap<String, i64>,
+    deallocations: i64,
+    reset_at: DateTime<Utc>,
+}
+impl SqlStatementObserver {
+    async fn new(target: &PgPool) -> Self {
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(1)
+            .connect(&std::env::var("DATABASE_URL").unwrap())
+            .await
+            .unwrap();
+        let database_id = sqlx::query_scalar(
+            "SELECT oid::bigint FROM pg_database WHERE datname=current_database()",
+        )
+        .fetch_one(target)
+        .await
+        .unwrap();
+        let observer_database_id: i64 = sqlx::query_scalar(
+            "SELECT oid::bigint FROM pg_database WHERE datname=current_database()",
+        )
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        assert_ne!(
+            database_id, observer_database_id,
+            "observer must use another database"
+        );
+        Self { pool, database_id }
     }
-    fn register_callsite(&self, _: &'static Metadata<'static>) -> Interest {
-        Interest::always()
-    }
-    fn max_level_hint(&self) -> Option<tracing::level_filters::LevelFilter> {
-        Some(tracing::level_filters::LevelFilter::TRACE)
-    }
-    fn event(&self, event: &Event<'_>) {
-        if event.metadata().target() == "sqlx::query" {
-            self.0.fetch_add(1, Ordering::SeqCst);
+
+    async fn snapshot(&self) -> SqlStatementSnapshot {
+        // The observer uses another database so it cannot count its own queries.
+        let (deallocations, reset_at, calls): (i64, DateTime<Utc>, Value) = sqlx::query_as(
+            "SELECT i.dealloc,i.stats_reset,COALESCE((SELECT jsonb_object_agg(query,calls) FROM (SELECT query,SUM(calls)::bigint AS calls FROM pg_stat_statements WHERE dbid=$1::oid AND toplevel GROUP BY query) s),'{}'::jsonb) FROM pg_stat_statements_info i",
+        )
+        .bind(self.database_id)
+        .fetch_one(&self.pool)
+        .await
+        .unwrap();
+        SqlStatementSnapshot {
+            calls: serde_json::from_value(calls).unwrap(),
+            deallocations,
+            reset_at,
         }
     }
-    fn new_span(&self, _: &Attributes<'_>) -> Id {
-        Id::from_u64(1)
-    }
-    fn record(&self, _: &Id, _: &Record<'_>) {}
-    fn record_follows_from(&self, _: &Id, _: &Id) {}
-    fn enter(&self, _: &Id) {}
-    fn exit(&self, _: &Id) {}
-    fn current_span(&self) -> Current {
-        Current::none()
+}
+impl SqlStatementSnapshot {
+    fn delta(&self, before: &Self) -> BTreeMap<String, i64> {
+        assert_eq!(self.reset_at, before.reset_at, "SQL statistics were reset");
+        assert_eq!(
+            self.deallocations, before.deallocations,
+            "SQL statistics were evicted during measurement"
+        );
+        for (query, calls) in &before.calls {
+            assert!(
+                self.calls.get(query).is_some_and(|next| next >= calls),
+                "SQL statistics disappeared or moved backwards"
+            );
+        }
+        self.calls
+            .iter()
+            .filter_map(|(query, calls)| {
+                let delta = calls - before.calls.get(query).copied().unwrap_or(0);
+                assert!(delta >= 0, "SQL call counts moved backwards");
+                (delta > 0).then(|| (query.clone(), delta))
+            })
+            .collect()
     }
 }
 
@@ -95,59 +136,150 @@ async fn a_full_day_with_spikes_duplicates_and_collection_gap_is_bounded_at_one_
     let budgets: Value =
         serde_json::from_str(include_str!("../../../scripts/perf/baselines.json")).unwrap();
     let budgets = &budgets["budgets"]["lab"];
-    let mut measurements = Vec::new();
-    for scale in [1, 100] {
-        if scale == 100 {
-            for n in 1..100 {
-                assert_eq!(request(&app,&member,"POST",&format!("/api/v1/lab/labs/{lab}/entities"),json!({"name":format!("Context {n}"),"definition_id":"labware","definition_version":"1.0","reality":"simulated","configuration":{},"representation_id":null})).await.status(),StatusCode::CREATED);
+    let observer = SqlStatementObserver::new(&pool).await;
+    let noise_name = format!("trend_sql_noise_{}", uuid::Uuid::now_v7().simple());
+    let mut noise_url = reqwest::Url::parse(&std::env::var("DATABASE_URL").unwrap()).unwrap();
+    noise_url.set_path(&format!("/{noise_name}"));
+    <sqlx::Postgres as sqlx::migrate::MigrateDatabase>::create_database(noise_url.as_str())
+        .await
+        .unwrap();
+    let noise_pool = sqlx::postgres::PgPoolOptions::new()
+        .max_connections(4)
+        .connect(noise_url.as_str())
+        .await
+        .unwrap();
+    sqlx::migrate!("../../migrations")
+        .run(&noise_pool)
+        .await
+        .unwrap();
+    let noise_database_id =
+        sqlx::query_scalar("SELECT oid::bigint FROM pg_database WHERE datname=current_database()")
+            .fetch_one(&noise_pool)
+            .await
+            .unwrap();
+    assert_ne!(noise_database_id, observer.database_id);
+    let noise_observer = SqlStatementObserver {
+        pool: observer.pool.clone(),
+        database_id: noise_database_id,
+    };
+    let noise_app = labos_threejs_api::router(noise_pool.clone(), Default::default());
+    let noise_member = Arc::new(self::member(&noise_app).await);
+    let ready = Arc::new(tokio::sync::Barrier::new(9));
+    let (stop, stopped) = tokio::sync::watch::channel(false);
+    let mut workers = Vec::new();
+    for _ in 0..8 {
+        let app = noise_app.clone();
+        let member = noise_member.clone();
+        let ready = ready.clone();
+        let mut stopped = stopped.clone();
+        workers.push(tokio::spawn(async move {
+            let (mut accepted, mut rejected) = (0, 0);
+            ready.wait().await;
+            loop {
+                let response = tokio::select! {
+                    _ = stopped.changed() => break,
+                    response = request(&app, &member, "GET", "/api/v1/lab/labs", Value::Null) => response,
+                };
+                if response.status() == StatusCode::OK {
+                    accepted += 1;
+                } else {
+                    rejected += 1;
+                }
             }
-        }
-        let counter = StatementCounter(Arc::new(std::sync::atomic::AtomicUsize::new(0)));
-        let response = request(
-            &app,
-            &member,
-            "GET",
-            &query(&path, "temperature", from, to, ""),
-            Value::Null,
-        )
-        .with_subscriber(counter.clone())
-        .await;
-        assert_eq!(response.status(), StatusCode::OK);
-        let statements = counter.0.load(Ordering::SeqCst);
-        assert!(
-            statements > 0
-                && statements <= budgets["trendSqlStatements"].as_u64().unwrap() as usize,
-            "measured SQL: {statements}"
-        );
-        let bytes = response.into_body().collect().await.unwrap().to_bytes();
-        assert!(bytes.len() <= budgets["trendBytes"].as_u64().unwrap() as usize);
-        let trend: Value = serde_json::from_slice(&bytes).unwrap();
-        assert_eq!(trend["max_points"], 600);
-        assert_eq!(trend["raw_sample_count"], 86380);
-        assert!(trend["plot_item_count"].as_u64().unwrap() <= 600);
-        assert_eq!(trend["segments"].as_array().unwrap().len(), 2);
-        assert!(trend["gaps"].as_array().unwrap().iter().any(|gap| {
-            gap["reasons"]
+            (accepted, rejected)
+        }));
+    }
+    ready.wait().await;
+
+    let measured_path = path.clone();
+    let measured_lab = lab.to_owned();
+    let measured_budgets: Value = budgets.clone();
+    let measured_observer = observer.clone();
+    // Join before cleanup so an assertion panic cannot leave the noise running.
+    let outcome = tokio::spawn(async move {
+        let path = measured_path;
+        let lab = measured_lab;
+        let budgets = measured_budgets;
+        let mut measurements = Vec::new();
+        for scale in [1, 100] {
+            if scale == 100 {
+                for n in 1..100 {
+                    assert_eq!(request(&app,&member,"POST",&format!("/api/v1/lab/labs/{lab}/entities"),json!({"name":format!("Context {n}"),"definition_id":"labware","definition_version":"1.0","reality":"simulated","configuration":{},"representation_id":null})).await.status(),StatusCode::CREATED);
+                }
+            }
+            let before = measured_observer.snapshot().await;
+            let noise_before = noise_observer.snapshot().await;
+            let response = request(
+                &app,
+                &member,
+                "GET",
+                &query(&path, "temperature", from, to, ""),
+                Value::Null,
+            )
+            .await;
+            assert_eq!(response.status(), StatusCode::OK);
+            let calls = measured_observer.snapshot().await.delta(&before);
+            let statements: i64 = calls.values().sum();
+            assert!(
+                statements > 0
+                    && statements <= budgets["trendSqlStatements"].as_i64().unwrap(),
+                "measured SQL: {statements}"
+            );
+            let mut authentication_statements = 0;
+            for table in ["labos_threejs_core.sessions", "labos_threejs_core.memberships"] {
+                let calls: i64 = calls.iter().filter(|(query, _)| query.contains(table)).map(|(_, calls)| calls).sum();
+                assert_eq!(calls, 1, "real Member authentication SQL missing: {table}");
+                authentication_statements += calls;
+            }
+            let noise_statements: i64 = noise_observer.snapshot().await.delta(&noise_before).values().sum();
+            assert!(noise_statements > 0, "no overlapping Member requests were measured");
+            let bytes = response.into_body().collect().await.unwrap().to_bytes();
+            assert!(bytes.len() <= budgets["trendBytes"].as_u64().unwrap() as usize);
+            let trend: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(trend["max_points"], 600);
+            assert_eq!(trend["raw_sample_count"], 86380);
+            assert!(trend["plot_item_count"].as_u64().unwrap() <= 600);
+            assert_eq!(trend["segments"].as_array().unwrap().len(), 2);
+            assert!(trend["gaps"].as_array().unwrap().iter().any(|gap| {
+                gap["reasons"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .any(|reason| reason == "collection_gap")
+            }));
+            let samples = trend["segments"]
                 .as_array()
                 .unwrap()
                 .iter()
-                .any(|reason| reason == "collection_gap")
-        }));
-        let samples = trend["segments"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .flat_map(|segment| segment["samples"].as_array().unwrap())
-            .collect::<Vec<_>>();
-        for (sequence, value) in [(1, 20), (12346, 500), (45679, -100), (86400, 20)] {
-            assert!(
-                samples
-                    .iter()
-                    .any(|sample| sample["sequence"] == sequence && sample["value"] == value),
-                "true representative missing: {sequence}"
-            );
+                .flat_map(|segment| segment["samples"].as_array().unwrap())
+                .collect::<Vec<_>>();
+            for (sequence, value) in [(1, 20), (12346, 500), (45679, -100), (86400, 20)] {
+                assert!(
+                    samples
+                        .iter()
+                        .any(|sample| sample["sequence"] == sequence && sample["value"] == value),
+                    "true representative missing: {sequence}"
+                );
+            }
+            measurements.push(json!({"entities":scale,"statements":statements,"authentication_statements":authentication_statements,"overlapping_statements":noise_statements,"bytes":bytes.len(),"plot_items":trend["plot_item_count"]}));
         }
-        measurements.push(json!({"entities":scale,"statements":statements,"bytes":bytes.len(),"plot_items":trend["plot_item_count"]}));
+        measurements
+    }).await;
+    let _ = stop.send(true);
+    let mut noise_outcomes = Vec::new();
+    for worker in workers {
+        noise_outcomes.push(worker.await);
+    }
+    noise_pool.close().await;
+    <sqlx::Postgres as sqlx::migrate::MigrateDatabase>::force_drop_database(noise_url.as_str())
+        .await
+        .unwrap();
+    observer.pool.close().await;
+    let measurements = outcome.unwrap();
+    for worker in noise_outcomes {
+        let (accepted, rejected) = worker.unwrap();
+        assert!(accepted > 0);
+        assert_eq!(rejected, 0, "overlapping Member requests failed");
     }
     assert_eq!(measurements[0]["statements"], measurements[1]["statements"]);
     println!("trend_budget_measurements={measurements:?}");
