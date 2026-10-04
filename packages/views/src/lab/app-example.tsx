@@ -7,7 +7,7 @@ import { labMessages } from './messages';
 
 const AssetLibrary = lazy(() => import('./asset-library'));
 const LabView = lazy(() => import('./lab-view'));
-const WorldView = lazy(() => import('./world-view'));
+const Workbench = lazy(() => import('./workbench'));
 
 export function createLabExample(): ExampleContribution {
   return {
@@ -16,7 +16,7 @@ export function createLabExample(): ExampleContribution {
     routes: [
       {
         path: '/lab',
-        component: ({ apiClient, navigate }) => (
+        component: ({ apiClient, navigate, search }) => (
           <LabAccess
             apiClient={apiClient}
             title="world.title"
@@ -24,7 +24,13 @@ export function createLabExample(): ExampleContribution {
           >
             {(identity) => (
               <Suspense fallback={<Skeleton className="m-6 h-40" />}>
-                <WorldView identity={identity} apiClient={apiClient} />
+                <Workbench
+                  key={`${apiClient.getConfig().baseUrl}:${identity.user.id}`}
+                  identity={identity}
+                  apiClient={apiClient}
+                  search={search ?? {}}
+                  navigate={navigate}
+                />
               </Suspense>
             )}
           </LabAccess>

@@ -102,6 +102,7 @@ function navigateOptions(target: NavigateTarget) {
   return {
     to: target.path,
     params: target.params as never,
+    search: target.search as never,
     replace: target.replace,
     ignoreBlocker: target.ignoreBlocker,
   };
@@ -557,10 +558,12 @@ function adapterRoute(route: AssembledApp['routes'][number]) {
     path: route.path,
     component: function ExamplePage() {
       const params = useParams({ strict: false }) as Record<string, string>;
+      const search = useLocation({ select: (location) => location.search });
       const navigate = useNavigate();
       const { apiClient } = rootRoute.useRouteContext();
       const page = route.component({
         params,
+        search,
         apiClient,
         navigate: navigatePort(navigate),
       });

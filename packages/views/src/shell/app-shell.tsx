@@ -6,7 +6,17 @@ import {
   type ReactNode,
   type CSSProperties,
 } from 'react';
-import { Languages, Layers3, Menu, Moon, Settings, Sun, X } from 'lucide-react';
+import {
+  Languages,
+  Layers3,
+  Menu,
+  Moon,
+  Settings,
+  Sun,
+  X,
+  PanelLeftClose,
+  PanelLeftOpen,
+} from 'lucide-react';
 import { Button } from '@labos-threejs/ui/components/button';
 import { ModuleIcon } from '@labos-threejs/ui/components/module-icon';
 import { EntityGraphic } from './entity-graphic';
@@ -87,6 +97,8 @@ export function AppShellLayout({
   const message = useAppMessage();
   const preferences = usePreferences();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
+  const menuTrigger = useRef<HTMLButtonElement>(null);
   const [sidebarWidth, setSidebarWidth] = useState(savedWidth);
   const width = useRef(sidebarWidth);
   const resize = useRef<{ x: number; width: number } | null>(null);
@@ -114,7 +126,10 @@ export function AppShellLayout({
     window.addEventListener('blur', finishResize);
     return () => window.removeEventListener('blur', finishResize);
   }, [resizing, finishResize]);
-  const close = () => setMenuOpen(false);
+  const close = useCallback(() => {
+    setMenuOpen(false);
+    if (menuOpen) menuTrigger.current?.focus();
+  }, [menuOpen]);
   const signedIn = role !== undefined;
   const canAdmin = role === 'owner' || role === 'admin';
   const [avatar] = useGraphicPreference(user?.id, 'user', 'user');
@@ -129,7 +144,7 @@ export function AppShellLayout({
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [menuOpen]);
+  }, [menuOpen, close]);
 
   // One icon lookup for every sidebar link: the shell's core registry
   // first, then the assembled example colors (which can never shadow a
@@ -210,6 +225,7 @@ export function AppShellLayout({
       ) : null}
       <aside
         id="app-sidebar"
+        data-compact={compact || undefined}
         className={
           (menuOpen
             ? 'fixed inset-y-0 left-0 z-40 flex w-64 flex-col border-r border-border bg-sidebar'
@@ -221,7 +237,7 @@ export function AppShellLayout({
           <span className="app-brand-mark">
             <Layers3 aria-hidden="true" />
           </span>
-          <span className="flex-1 text-sm font-semibold">
+          <span className="app-brand-name flex-1 text-sm font-semibold">
             {message('app.name')}
           </span>
           {topbarActions ? (
@@ -229,6 +245,24 @@ export function AppShellLayout({
               {topbarActions}
             </div>
           ) : null}
+          <Button
+            className="app-navigation-toggle hidden lg:inline-flex"
+            variant="ghost"
+            size="icon-sm"
+            title={message(compact ? 'shell.nav.expand' : 'shell.nav.collapse')}
+            aria-label={message(
+              compact ? 'shell.nav.expand' : 'shell.nav.collapse',
+            )}
+            aria-expanded={!compact}
+            aria-controls="app-sidebar"
+            onClick={() => setCompact((value) => !value)}
+          >
+            {compact ? (
+              <PanelLeftOpen aria-hidden="true" />
+            ) : (
+              <PanelLeftClose aria-hidden="true" />
+            )}
+          </Button>
           <button
             type="button"
             aria-label={message('shell.nav.closeMenu')}
@@ -363,6 +397,7 @@ export function AppShellLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="app-topbar flex items-center gap-2 border-b border-border px-2 py-1">
           <button
+            ref={menuTrigger}
             type="button"
             aria-expanded={menuOpen}
             aria-controls="app-sidebar"

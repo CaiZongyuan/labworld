@@ -165,6 +165,7 @@ test('the temperature Inspector keeps expired measurements and shows source time
     </QueryClientProvider>,
   );
   const user = userEvent.setup();
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(
     await screen.findByRole('button', { name: '选择 Sensor A' }),
   );

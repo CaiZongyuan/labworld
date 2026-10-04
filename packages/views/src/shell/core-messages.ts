@@ -30,6 +30,8 @@ export const coreMessages: {
     'shell.nav.status': '系统状态',
     'shell.nav.openMenu': '打开导航菜单',
     'shell.nav.closeMenu': '关闭导航菜单',
+    'shell.nav.collapse': '收起导航',
+    'shell.nav.expand': '展开导航',
     'shell.nav.skipToContent': '跳到主内容区',
     'shell.nav.resize': '调整侧栏宽度',
 
@@ -469,6 +471,8 @@ export const coreMessages: {
     'shell.nav.status': 'System status',
     'shell.nav.openMenu': 'Open navigation menu',
     'shell.nav.closeMenu': 'Close navigation menu',
+    'shell.nav.collapse': 'Collapse navigation',
+    'shell.nav.expand': 'Expand navigation',
     'shell.nav.skipToContent': 'Skip to main content',
     'shell.nav.resize': 'Resize sidebar',
 

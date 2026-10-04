@@ -551,6 +551,7 @@ function Scene({
   dark,
   grid,
   fit,
+  contentReady,
   onError,
   onReady,
   activeNodeId,
@@ -565,6 +566,7 @@ function Scene({
   dark: boolean;
   grid: boolean;
   fit: number;
+  contentReady: boolean;
   onError: (id: string, appearance: string, error: boolean) => void;
   onReady: (id: string, appearance: string) => void;
   activeNodeId?: string;
@@ -575,6 +577,11 @@ function Scene({
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const { camera, size } = useThree();
   const [loaded, setLoaded] = useState(0);
+  const framing = useRef<{
+    framed: boolean;
+    fit: number;
+    camera: Camera;
+  } | null>(null);
   const [transformTarget, setTransformTarget] = useState<{
     id: string;
     object: Group;
@@ -625,9 +632,22 @@ function Scene({
       !size.height
     )
       return;
+    // After the first usable scene, only an explicit Fit owns the camera pose.
+    const previous = framing.current;
+    if (previous?.framed && previous.fit === fit && previous.camera === camera)
+      return;
+    if (!contentReady && (!previous || previous.fit === fit)) return;
     root.current.updateWorldMatrix(true, true);
     const box = new Box3().setFromObject(root.current);
-    if (box.isEmpty())
+    const hasGeometry = !box.isEmpty();
+    if (!hasGeometry && previous?.fit === fit && previous.camera === camera)
+      return;
+    framing.current = {
+      framed: hasGeometry || !!previous?.framed,
+      fit,
+      camera,
+    };
+    if (!hasGeometry)
       box.setFromCenterAndSize(new Vector3(0, 0.5, 0), new Vector3(2, 1, 2));
     const dimensions = box.getSize(new Vector3());
     const center = box.getCenter(new Vector3());
@@ -645,7 +665,15 @@ function Scene({
     camera.updateProjectionMatrix();
     controls.current.target.copy(center);
     controls.current.update();
-  }, [nodeStructure, loaded, camera, size.width, size.height, fit]);
+  }, [
+    nodeStructure,
+    loaded,
+    camera,
+    size.width,
+    size.height,
+    fit,
+    contentReady,
+  ]);
   return (
     <>
       <color attach="background" args={[dark ? '#292c2e' : '#edf0f1']} />
@@ -818,6 +846,7 @@ export default function WorldViewport(props: {
       >
         <Scene
           {...props}
+          contentReady={!pending}
           renderer={renderer}
           onError={onError}
           onReady={onReady}

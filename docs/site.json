@@ -112,6 +112,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "persistent-assets",
+      "next": "spatial-workbench"
+    },
+    {
+      "id": "spatial-workbench",
+      "source": "docs/tutorials/spatial-workbench.md",
+      "sourceEn": "docs/tutorials/spatial-workbench.en.md",
+      "route": "tutorials/spatial-workbench.md",
+      "title": "空间工作台",
+      "titleEn": "Spatial workbench",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "persistent-world",
       "next": "backend-lights"
     },
     {
@@ -123,7 +135,7 @@
       "titleEn": "Backend lighting control",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "persistent-world",
+      "previous": "spatial-workbench",
       "next": "edit-layout"
     },
     {

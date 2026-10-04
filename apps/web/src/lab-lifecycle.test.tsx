@@ -155,6 +155,7 @@ function open() {
 }
 test('running appearance changes keep identity and archive rejection recovers after StopProgram', async () => {
   const { user, entity } = open();
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(
     await screen.findByRole('button', { name: '选择 Device A' }),
   );

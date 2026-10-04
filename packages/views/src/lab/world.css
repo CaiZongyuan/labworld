@@ -1,8 +1,58 @@
 .world-body {
   display: grid;
-  grid-template-columns: 232px minmax(0, 1fr) 292px;
+  grid-template-columns: var(--directory-width, 0px) minmax(0, 1fr) var(
+      --inspector-width,
+      0px
+    );
   flex: 1;
   min-height: 0;
+}
+.world-body[data-directory-open='true'] {
+  --directory-width: 232px;
+}
+.world-body[data-inspector-open='true'] {
+  --inspector-width: 292px;
+}
+.world-directory {
+  grid-column: 1;
+}
+.world-viewport {
+  grid-column: 2;
+}
+.world-inspector {
+  grid-column: 3;
+}
+.world-body > [hidden] {
+  display: none;
+}
+.world-history-surface {
+  position: relative;
+  flex: 0 1 auto;
+  min-height: 0;
+  max-height: 300px;
+  overflow: auto;
+}
+.world-link-alert {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-radius: 0;
+}
+.world-history-surface > button {
+  position: sticky;
+  top: 4px;
+  float: right;
+  margin: 4px 4px 0 0;
+  z-index: 1;
+  background: var(--background);
+}
+.world-history-surface .world-history {
+  max-height: none;
+  overflow: visible;
+}
+.world-history-surface .world-history-heading {
+  padding-right: 48px;
 }
 .world-directory-mode {
   margin: 0 12px 10px;
@@ -365,14 +415,20 @@
   max-width: 190px;
 }
 @media (max-width: 1240px) {
-  .world-body {
-    grid-template-columns: 200px minmax(0, 1fr) 252px;
+  .world-body[data-directory-open='true'] {
+    --directory-width: 200px;
+  }
+  .world-body[data-inspector-open='true'] {
+    --inspector-width: 252px;
   }
 }
 @media (max-width: 900px) {
   .world-body {
-    grid-template-columns: 190px minmax(0, 1fr);
+    grid-template-columns: var(--directory-width, 0px) minmax(0, 1fr);
     overflow-y: auto;
+  }
+  .world-body[data-directory-open='true'] {
+    --directory-width: 190px;
   }
   .world-inspector {
     grid-column: 1 / -1;
@@ -389,8 +445,9 @@
 }
 @media (max-width: 560px) {
   .world-page {
-    height: auto;
-    min-height: calc(100dvh - 56px);
+    height: calc(100dvh - 56px);
+    min-height: 0;
+    overflow: hidden;
   }
   .world-page .lab-toolbar {
     flex-wrap: wrap;
@@ -401,18 +458,28 @@
     width: 100%;
     flex-wrap: wrap;
   }
+  .world-page .lab-toolbar .lab-toolbar-actions > button {
+    display: inline-flex;
+  }
   .world-page .lab-heading h1 {
     white-space: normal;
     overflow-wrap: anywhere;
   }
   .world-body {
     grid-template-columns: minmax(0, 1fr);
-    display: block;
-    flex: none;
-    overflow: visible;
+    grid-template-rows: minmax(180px, 1fr);
+    display: grid;
+    flex: 1;
+    overflow: hidden;
+  }
+  .world-body[data-directory-open='true'],
+  .world-body[data-inspector-open='true'] {
+    grid-template-rows: minmax(180px, 1fr) minmax(0, 1fr);
   }
   .world-directory {
-    max-height: 250px;
+    grid-column: 1;
+    grid-row: 2;
+    max-height: none;
     border-bottom: 1px solid var(--border);
   }
   .world-directory > header {
@@ -433,15 +500,42 @@
     min-width: 0;
   }
   .world-object-list {
-    max-height: 140px;
+    max-height: none;
+    min-height: 0;
+    flex: 1;
   }
   .world-viewport {
-    height: 380px;
-    min-height: 380px;
+    grid-column: 1;
+    grid-row: 1;
+    height: auto;
+    min-height: 180px;
   }
   .world-inspector {
+    grid-column: 1;
+    grid-row: 2;
     display: block;
-    overflow: visible;
+    min-height: 0;
+    overflow-y: auto;
+  }
+  .world-inspector > header {
+    position: sticky;
+    top: 0;
+    background: var(--background);
+  }
+  .world-body[data-directory-open='true'] .world-inspector {
+    display: none;
+  }
+  .world-transform-tools {
+    top: auto;
+    bottom: 12px;
+  }
+  .world-page button,
+  .world-page [data-slot='toggle-group-item'] {
+    min-height: 44px;
+  }
+  .world-page [data-slot='button'],
+  .world-page [data-slot='toggle-group-item'] {
+    min-width: 44px;
   }
   .world-page .lab-status {
     font-size: 10px;
@@ -532,5 +626,13 @@
   .world-history [role='tab'] {
     padding-inline: 6px;
     flex: 1;
+  }
+}
+@media (max-width: 560px) {
+  .world-history-surface {
+    max-height: min(44dvh, 360px);
+  }
+  .world-page:has(.world-history) .world-body {
+    min-height: 180px;
   }
 }

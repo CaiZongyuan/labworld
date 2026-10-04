@@ -179,6 +179,7 @@ function openLights() {
 }
 test('a member sees submission and waiting separately from measured power', async () => {
   const { user, resolveSubmission, complete } = openLights();
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(await screen.findByRole('button', { name: '选择 Light A' }));
   const inspector = screen.getByRole('complementary', { name: '对象信息' });
   expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
@@ -222,6 +223,7 @@ test('a rejected command leaves the last observation intact and allows correctio
         ),
     ),
   );
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(await screen.findByRole('button', { name: '选择 Light A' }));
   const inspector = screen.getByRole('complementary', { name: '对象信息' });
   await user.click(within(inspector).getByRole('button', { name: '启动程序' }));
@@ -268,6 +270,7 @@ test('a lost response keeps the original key across object selection until an ex
         }),
     ),
   );
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(await screen.findByRole('button', { name: '选择 Light A' }));
   const inspector = screen.getByRole('complementary', { name: '对象信息' });
   await user.click(within(inspector).getByRole('button', { name: '启动程序' }));
@@ -329,6 +332,7 @@ test('an interrupted command remains uncertain until explicit program startup an
         }),
     ),
   );
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(await screen.findByRole('button', { name: '选择 Light A' }));
   const inspector = screen.getByRole('complementary', { name: '对象信息' });
   await user.click(within(inspector).getByRole('button', { name: '启动程序' }));
