@@ -4,7 +4,7 @@ Status: delivered for review; visual direction and interactions are awaiting use
 
 Question: does a scene-led laboratory workspace make inspection and device operation clearer than the current permanent directory, inspector and history layout?
 
-The user's references are the WareTrack video at `.scratch/design/DilumSanjaya-2106426962738880879-01.mp4` and the feel of Tesla's vehicle interface. This version follows the agreed direction with one coherent layout. It retains Lab Word's vocabulary, shared components, semantic colors and lower-left account entry. The new composition is proposed design evidence, not an approved replacement for the production interface.
+The user's visual references are the [video still-frame collection](../../design/ref/README.md) and the feel of Tesla's vehicle interface. The collection shows scene-led layouts, contextual details and task summaries directly. This version follows the agreed direction with one coherent layout. It retains Lab Word's vocabulary, shared components, semantic colors and lower-left account entry. The new composition is proposed design evidence, not an approved replacement for the production interface.
 
 ## Open
 

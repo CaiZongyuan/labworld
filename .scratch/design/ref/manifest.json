@@ -1,0 +1,52 @@
+{
+  "source": "DilumSanjaya-2106426962738880879-01.mp4",
+  "sourceSha256": "cfaa5b902fa594ac86e93837cfccdbfbe3f5410c6ecf9a4f8f4a98a34c9b55c1",
+  "width": 3456,
+  "height": 1990,
+  "durationSeconds": 72.241667,
+  "frames": [
+    {
+      "file": "01-spatial-overview.png",
+      "seconds": 1.2,
+      "focus": "场景主工作面与边缘信息区",
+      "bytes": 4688782,
+      "sha256": "70f2410f27cda031092db968692efaf2beadce870c70d4189d375ccaf3684b3e"
+    },
+    {
+      "file": "02-object-detail.png",
+      "seconds": 19.3,
+      "focus": "选中对象与上下文详情",
+      "bytes": 3718787,
+      "sha256": "7e1111c3e92deacb6f5e5130dc9af31b88e88bc9ae8a641ef3e18d84d0f7b8fa"
+    },
+    {
+      "file": "03-task-summary.png",
+      "seconds": 25.3,
+      "focus": "底部任务阶段与对象状态",
+      "bytes": 3182927,
+      "sha256": "502cc74e609133de06b66032d647a481c80ec4346e8b68dd740bbc3126a54a2c"
+    },
+    {
+      "file": "04-context-switcher.png",
+      "seconds": 31.3,
+      "focus": "场景切换与对象目录",
+      "bytes": 3604215,
+      "sha256": "991bda8cd542a05545bee2eea495dc952a8da2927fe2e9eb26235c741dd74a84"
+    },
+    {
+      "file": "05-overview-distance.png",
+      "seconds": 49.4,
+      "focus": "拉远取景与空间结构",
+      "bytes": 4069987,
+      "sha256": "13db11489a5691c2f06fdc36c7b7656a2557316d169255a8703a396be9b96d22"
+    },
+    {
+      "file": "06-selected-object-path.png",
+      "seconds": 55.4,
+      "focus": "选中对象强调与位置关系",
+      "bytes": 3266187,
+      "sha256": "d440c9859758eaa2cd815c8560ca2235ed5437802e9be2cd9692c64bc3998867"
+    }
+  ],
+  "processing": "Full uncropped video frames at native resolution. No overlays or content edits."
+}
