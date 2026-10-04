@@ -337,6 +337,27 @@ export type EntityRelationship = {
     target_id: string;
 };
 
+export type EntityTrend = {
+    available_since: string;
+    captured_since: string;
+    first_report_at?: string | null;
+    from: string;
+    gaps: Array<TrendGap>;
+    last_report_at?: string | null;
+    max_points: number;
+    max_range_seconds: number;
+    max_response_bytes: number;
+    observation_retention_seconds: number;
+    plot_item_count: number;
+    property: string;
+    raw_sample_count: number;
+    retained_since: string;
+    returned_sample_count: number;
+    sampling_strategy: string;
+    segments: Array<TrendSegment>;
+    to: string;
+};
+
 export type ExportPage = {
     data: Array<DocumentExport>;
     has_more: boolean;
@@ -840,6 +861,32 @@ export type SystemStatus = {
     service: string;
     status: string;
     version: string;
+};
+
+export type TrendGap = {
+    from: string;
+    reasons: Array<string>;
+    to: string;
+};
+
+export type TrendSample = {
+    expires_at: string;
+    id: string;
+    observed_at?: string | null;
+    received_at: string;
+    sequence: number;
+    value: number;
+};
+
+export type TrendSegment = {
+    binding_id: string;
+    quality: string;
+    resolution_seconds: number;
+    run_id: string;
+    samples: Array<TrendSample>;
+    source: string;
+    source_time_known: boolean;
+    unit?: string | null;
 };
 
 export type UpdateDocument = {
@@ -2844,6 +2891,42 @@ export type GetLabDeviceTaskResponses = {
 };
 
 export type GetLabDeviceTaskResponse = GetLabDeviceTaskResponses[keyof GetLabDeviceTaskResponses];
+
+export type GetLabEntityTrendData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query: {
+        property: string;
+        from: string;
+        to: string;
+        max_points?: number;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/trend';
+};
+
+export type GetLabEntityTrendErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabEntityTrendError = GetLabEntityTrendErrors[keyof GetLabEntityTrendErrors];
+
+export type GetLabEntityTrendResponses = {
+    200: EntityTrend;
+};
+
+export type GetLabEntityTrendResponse = GetLabEntityTrendResponses[keyof GetLabEntityTrendResponses];
 
 export type CleanupLabHistoryData = {
     body?: never;
