@@ -7385,6 +7385,168 @@
         }
       }
     },
+    "/api/v1/lab/labs/{lab_id}/records": {
+      "get": {
+        "tags": [
+          "Lab"
+        ],
+        "operationId": "listLabRecords",
+        "parameters": [
+          {
+            "name": "lab_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "entity_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "record_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "$ref": "#/components/schemas/LabRecordType"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "format": "int32",
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 2048
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabRecordsPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lab/labs/{lab_id}/world": {
       "get": {
         "tags": [
@@ -10506,6 +10668,291 @@
               "string",
               "null"
             ]
+          }
+        }
+      },
+      "LabRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "record_type",
+          "entity_id",
+          "entity_name",
+          "reality",
+          "run_id",
+          "binding_id",
+          "recorded_at",
+          "state",
+          "summary",
+          "source",
+          "actor_source",
+          "actor_role",
+          "data"
+        ],
+        "properties": {
+          "actor_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "actor_role": {
+            "type": "string"
+          },
+          "actor_source": {
+            "type": "string"
+          },
+          "archived_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "binding_id": {
+            "type": "string"
+          },
+          "command_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "data": {},
+          "ended_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "entity_id": {
+            "type": "string"
+          },
+          "entity_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "reality": {
+            "type": "string"
+          },
+          "record_type": {
+            "type": "string"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "result_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "run_id": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "task_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "LabRecordCoverage": {
+        "type": "object",
+        "required": [
+          "record_type",
+          "preserves_unfinished",
+          "gaps"
+        ],
+        "properties": {
+          "available_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "captured_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "cleaned_before": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "fully_captured_since": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabRecordGap"
+            }
+          },
+          "newest_record_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "oldest_record_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "preserves_unfinished": {
+            "type": "boolean"
+          },
+          "record_type": {
+            "type": "string"
+          },
+          "retention_seconds": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "LabRecordGap": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "reason"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "LabRecordType": {
+        "type": "string",
+        "enum": [
+          "command",
+          "task",
+          "event",
+          "run"
+        ]
+      },
+      "LabRecordsPage": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "queried_at",
+          "query_upper_bound",
+          "retention",
+          "coverage",
+          "max_page_items",
+          "max_range_seconds",
+          "max_response_bytes",
+          "items"
+        ],
+        "properties": {
+          "coverage": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabRecordCoverage"
+            }
+          },
+          "entity_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LabRecord"
+            }
+          },
+          "max_page_items": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "max_range_seconds": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "max_response_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "next_cursor": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "queried_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "query_upper_bound": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "record_type": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/LabRecordType"
+              }
+            ]
+          },
+          "retention": {
+            "$ref": "#/components/schemas/RetentionPolicy"
+          },
+          "to": {
+            "type": "string",
+            "format": "date-time"
           }
         }
       },

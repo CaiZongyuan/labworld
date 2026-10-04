@@ -7,6 +7,10 @@
       "pageItems": 100,
       "historyBytes": 262144,
       "historyRangeSeconds": 2678400,
+      "recordsSqlStatements": 10,
+      "recordsPageItems": 100,
+      "recordsBytes": 262144,
+      "recordsRangeSeconds": 2678400,
       "entitiesPerLab": 1000,
       "nodesPerLab": 1000
     },
