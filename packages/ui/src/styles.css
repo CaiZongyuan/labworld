@@ -927,6 +927,31 @@
   border-top: 1px solid var(--border);
 }
 @media (min-width: 1024px) {
+  .app-sidebar[data-compact='true'] {
+    width: 72px;
+  }
+  .app-sidebar[data-compact='true'] .app-brand {
+    justify-content: center;
+    padding-inline: 8px;
+  }
+  .app-sidebar[data-compact='true'] .app-brand-name,
+  .app-sidebar[data-compact='true'] .app-brand-mark,
+  .app-sidebar[data-compact='true'] .app-nav-label,
+  .app-sidebar[data-compact='true'] .app-nav-group-label,
+  .app-sidebar[data-compact='true'] .app-account-copy,
+  .app-sidebar[data-compact='true'] .app-account-settings,
+  .app-sidebar[data-compact='true'] .app-sidebar-resize {
+    display: none;
+  }
+  .app-sidebar[data-compact='true'] .app-nav-link {
+    justify-content: center;
+    min-height: 44px;
+    padding-inline: 0;
+  }
+  .app-sidebar[data-compact='true'] .app-account {
+    justify-content: center;
+    padding-inline: 8px;
+  }
   .app-sidebar {
     position: sticky;
     top: 0;

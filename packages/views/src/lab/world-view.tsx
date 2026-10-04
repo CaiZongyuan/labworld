@@ -1,10 +1,14 @@
-import { lazy, Suspense, useCallback, useMemo, useState } from 'react';
-import { cn } from 'cn';
 import {
-  useInfiniteQuery,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query';
+  lazy,
+  Suspense,
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
+import { cn } from 'cn';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Activity,
   Box,
@@ -24,19 +28,18 @@ import {
   Move,
   RotateCw,
   Scaling,
+  PanelRight,
+  History,
+  X,
 } from 'lucide-react';
 import {
   createLab,
   configureLabEntity,
   createLabSceneNode,
-  getLabWorld,
-  listLabs,
   listAssetDefinitions,
   registerLabEntity,
   saveLabLayout,
   copyLabEntity,
-  type ApiClient,
-  type CurrentSession,
   type LabEntity,
   type Placement,
 } from '@labos-threejs/sdk';
@@ -63,7 +66,6 @@ import { usePreferences } from '../shell/preferences';
 import { useAppMessage } from '../shell/messages';
 import { ErrorAlert } from '../shell/error-alert';
 import { errorCodeOf } from '@labos-threejs/core';
-import { sessionKey } from '../identity/session';
 import { useCatalog, type ModelAsset } from './catalog';
 import { PerformancePanel, Tool } from './view-controls';
 import { ViewportBoundary } from './viewport-boundary';
@@ -72,11 +74,11 @@ import WorldDialog, {
   type WorldDialogMode,
   type WorldSubmission,
 } from './world-dialog';
-import DevicePanel, { type CommandAttempt } from './device-panel';
+import DevicePanel from './device-panel';
 import HistoryPanel from './history-panel';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
-import { useWorldSubscription } from './world-subscription';
+import { useLabWorkbench } from './workbench-context';
 import {
   layoutDraft,
   rebaseLayout,
@@ -87,34 +89,53 @@ import './lab.css';
 import './world.css';
 
 const WorldViewport = lazy(() => import('./world-viewport'));
+const NARROW_WORKSPACE_QUERY = '(max-width: 560px)';
+function narrowWorkspaceSnapshot() {
+  return (
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia(NARROW_WORKSPACE_QUERY).matches
+  );
+}
+function subscribeNarrowWorkspace(onChange: () => void) {
+  if (typeof window.matchMedia !== 'function') return () => undefined;
+  const query = window.matchMedia(NARROW_WORKSPACE_QUERY);
+  query.addEventListener('change', onChange);
+  return () => query.removeEventListener('change', onChange);
+}
 
-export default function WorldView({
-  apiClient,
-  identity,
-}: {
-  apiClient: ApiClient;
-  identity: CurrentSession;
-}) {
+export default function WorldView() {
+  const narrow = useSyncExternalStore(
+    subscribeNarrowWorkspace,
+    narrowWorkspaceSnapshot,
+    () => false,
+  );
+  const {
+    apiClient,
+    identity,
+    key,
+    labs,
+    labList,
+    labId,
+    world,
+    connection,
+    selection,
+    setSelection,
+    nodeSelection,
+    setNodeSelection,
+    drafts,
+    setDrafts,
+    layoutStatus,
+    setLayoutStatus,
+    layoutPending,
+    setLayoutPending,
+    attempts,
+    setAttempts,
+    setActiveLab,
+    mutation,
+  } = useLabWorkbench();
   const message = useAppMessage('lab');
   const { locale, resolvedTheme } = usePreferences();
   const client = useQueryClient();
-  const key = ['lab', 'world', apiClient.getConfig().baseUrl, identity.user.id];
-  const labs = useInfiniteQuery({
-    queryKey: [...key, 'labs'],
-    initialPageParam: undefined as string | undefined,
-    queryFn: async ({ signal, pageParam }) =>
-      (
-        await listLabs({
-          client: apiClient,
-          query: { cursor: pageParam, limit: 50 },
-          signal,
-          throwOnError: true,
-        })
-      ).data,
-    getNextPageParam: (page) => page.next_cursor ?? undefined,
-    retry: false,
-  });
-  const labList = labs.data?.pages.flatMap((page) => page.data) ?? [];
   const definitions = useQuery({
     queryKey: [...key, 'definitions'],
     queryFn: async ({ signal }) =>
@@ -128,32 +149,6 @@ export default function WorldView({
     retry: false,
   });
   const catalog = useCatalog(apiClient, identity);
-  const [activeLab, setActiveLab] = useState('');
-  const labId = activeLab || labList[0]?.id || '';
-  const world = useQuery({
-    queryKey: [...key, labId],
-    enabled: !!labId,
-    queryFn: async ({ signal }) => {
-      const next = (
-        await getLabWorld({
-          client: apiClient,
-          path: { lab_id: labId },
-          signal,
-          throwOnError: true,
-        })
-      ).data;
-      const previous = client.getQueryData<typeof next>([...key, labId]);
-      return previous?.version &&
-        next.version &&
-        BigInt(previous.version) > BigInt(next.version)
-        ? previous
-        : next;
-    },
-    retry: false,
-  });
-  const connection = useWorldSubscription(apiClient, identity.user.id, labId);
-  const [attempts, setAttempts] = useState<Record<string, CommandAttempt>>({});
-  const [selection, setSelection] = useState<string[]>([]);
   const [search, setSearch] = useState('');
   const [kind, setKind] = useState('');
   const [unplacedOnly, setUnplacedOnly] = useState(false);
@@ -171,12 +166,28 @@ export default function WorldView({
   const [transformMode, setTransformMode] = useState<
     'translate' | 'rotate' | 'scale'
   >('translate');
-  const [drafts, setDrafts] = useState<Record<string, LayoutDraft>>({});
-  const [layoutStatus, setLayoutStatus] = useState<
-    'idle' | 'saved' | 'conflict'
-  >('idle');
-  const [layoutPending, setLayoutPending] = useState(false);
-  const [nodeSelection, setNodeSelection] = useState<string | null>(null);
+  const [directoryOpen, setDirectoryOpen] = useState(false);
+  const [inspectorOpen, setInspectorOpen] = useState(selection.length > 0);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const directoryTrigger = useRef<HTMLButtonElement>(null);
+  const inspectorTrigger = useRef<HTMLButtonElement>(null);
+  const historyTrigger = useRef<HTMLButtonElement>(null);
+  const selectionTrigger = useRef<HTMLElement | null>(null);
+  function closeDirectory() {
+    setDirectoryOpen(false);
+    directoryTrigger.current?.focus();
+  }
+  function closeInspector() {
+    setInspectorOpen(false);
+    const trigger = selectionTrigger.current;
+    if (trigger?.isConnected && !trigger.closest('[hidden]')) trigger.focus();
+    else inspectorTrigger.current?.focus();
+  }
+  function closeHistory() {
+    setHistoryOpen(false);
+    if (narrow) setInspectorOpen(selection.length > 0);
+    historyTrigger.current?.focus();
+  }
   const draft = drafts[labId];
   const nodes = useMemo(
     () => draft?.nodes ?? world.data?.nodes ?? [],
@@ -201,6 +212,8 @@ export default function WorldView({
     [world.data?.assets, apiClient],
   );
   const selected = entities.find((entity) => entity.id === selection.at(-1));
+  const inspectorVisible =
+    !!selected && inspectorOpen && !(narrow && (directoryOpen || historyOpen));
   const activeNode =
     nodes.find(
       (node) => node.id === nodeSelection && node.entity_id === selected?.id,
@@ -214,6 +227,13 @@ export default function WorldView({
   );
   const select = useCallback(
     (id: string | null, additive: boolean, nodeId?: string) => {
+      selectionTrigger.current = document.activeElement as HTMLElement | null;
+      setInspectorOpen(id !== null);
+      if (id !== null && !additive && narrow) {
+        setDirectoryOpen(false);
+        setHistoryOpen(false);
+        requestAnimationFrame(() => inspectorTrigger.current?.focus());
+      }
       setNodeSelection(nodeId ?? null);
       if (id === null) {
         setSelection([]);
@@ -227,7 +247,7 @@ export default function WorldView({
           : [id],
       );
     },
-    [],
+    [setNodeSelection, setSelection, narrow],
   );
   function changeDraft(change: (current: LayoutDraft) => LayoutDraft) {
     if (!world.data || layoutPending) return;
@@ -310,16 +330,6 @@ export default function WorldView({
       setLayoutPending(false);
     }
   }
-  async function mutation(operation: () => Promise<unknown>) {
-    try {
-      await operation();
-      await client.invalidateQueries({ queryKey: key });
-    } catch (cause) {
-      if (['auth.unauthorized', 'auth.csrf'].includes(errorCodeOf(cause) ?? ''))
-        await client.invalidateQueries({ queryKey: sessionKey(apiClient) });
-      throw cause;
-    }
-  }
   async function submit(submission: WorldSubmission) {
     const headers = { 'x-csrf-token': identity.csrf_token };
     await mutation(async () => {
@@ -332,7 +342,6 @@ export default function WorldView({
         });
         setActiveLab(data.id);
         setArchivedOnly(false);
-        setSelection([]);
       } else if (submission.kind === 'register') {
         const { data } = await registerLabEntity({
           client: apiClient,
@@ -342,6 +351,8 @@ export default function WorldView({
           throwOnError: true,
         });
         setSelection([data.id]);
+        setInspectorOpen(true);
+        setDirectoryOpen(true);
         setArchivedOnly(false);
       } else {
         await configureLabEntity({
@@ -435,6 +446,8 @@ export default function WorldView({
           throwOnError: true,
         });
         setSelection([data.id]);
+        setInspectorOpen(true);
+        setDirectoryOpen(true);
         setNodeSelection(null);
       });
     } catch (cause) {
@@ -448,10 +461,27 @@ export default function WorldView({
     labs.error ||
     definitions.error ||
     catalog.query.error ||
-    world.error;
+    (errorCodeOf(world.error) === 'lab.world_not_found' ? null : world.error);
   const busy = labs.isPending || (!!labId && world.isPending) || renderBusy;
   return (
-    <section className="lab-page world-page" aria-busy={busy}>
+    <section
+      className="lab-page world-page"
+      aria-busy={busy}
+      onKeyDown={(event) => {
+        if (
+          event.key !== 'Escape' ||
+          event.defaultPrevented ||
+          dialog ||
+          (event.target as HTMLElement).closest(
+            'input, textarea, select, [role="dialog"], [role="alertdialog"]',
+          )
+        )
+          return;
+        if (directoryOpen) closeDirectory();
+        else if (inspectorOpen) closeInspector();
+        else if (historyOpen) closeHistory();
+      }}
+    >
       <header className="lab-toolbar">
         <div className="lab-heading">
           <Box />
@@ -468,6 +498,66 @@ export default function WorldView({
           ) : null}
         </div>
         <div className="lab-toolbar-actions">
+          <Button
+            ref={directoryTrigger}
+            variant="ghost"
+            size="icon-sm"
+            title={message('workbench.openDirectory')}
+            aria-label={message('workbench.openDirectory')}
+            aria-controls="world-directory"
+            aria-expanded={directoryOpen}
+            onClick={() => {
+              setDirectoryOpen((value) => !value);
+              if (narrow && !directoryOpen) {
+                setHistoryOpen(false);
+                setInspectorOpen(selection.length > 0);
+              }
+            }}
+          >
+            <ListTree aria-hidden="true" />
+          </Button>
+          {selected ? (
+            <Button
+              ref={inspectorTrigger}
+              variant="ghost"
+              size="icon-sm"
+              title={message('workbench.openInspector')}
+              aria-label={message('workbench.openInspector')}
+              aria-controls="world-inspector"
+              aria-expanded={inspectorVisible}
+              onClick={() => {
+                if (narrow && (directoryOpen || historyOpen)) {
+                  setDirectoryOpen(false);
+                  setHistoryOpen(false);
+                  setInspectorOpen(true);
+                } else setInspectorOpen((value) => !value);
+              }}
+            >
+              <PanelRight aria-hidden="true" />
+            </Button>
+          ) : null}
+          {labId ? (
+            <Button
+              ref={historyTrigger}
+              variant="ghost"
+              size="icon-sm"
+              title={message('workbench.openHistory')}
+              aria-label={message('workbench.openHistory')}
+              aria-expanded={historyOpen}
+              onClick={() => {
+                if (historyOpen) closeHistory();
+                else {
+                  setHistoryOpen(true);
+                  if (narrow) {
+                    setDirectoryOpen(false);
+                    setInspectorOpen(false);
+                  }
+                }
+              }}
+            >
+              <History aria-hidden="true" />
+            </Button>
+          ) : null}
           {labId && connection.status === 'offline' ? (
             <Tool
               icon={RefreshCw}
@@ -479,12 +569,13 @@ export default function WorldView({
             <NativeSelect
               aria-label={message('world.openLab')}
               value={labId}
-              onChange={(event) => {
-                setActiveLab(event.target.value);
-                setSelection([]);
-                setLayoutStatus('idle');
-              }}
+              onChange={(event) => setActiveLab(event.target.value)}
             >
+              {!labList.some((lab) => lab.id === labId) ? (
+                <NativeSelectOption value={labId}>
+                  {world.data?.lab.name ?? labId}
+                </NativeSelectOption>
+              ) : null}
               {labList.map((lab) => (
                 <NativeSelectOption key={lab.id} value={lab.id}>
                   {lab.name}
@@ -598,15 +689,43 @@ export default function WorldView({
           <ErrorAlert error={failure} title={message('assets.error')} />
         </div>
       ) : null}
-      <div className="world-body">
+      {errorCodeOf(world.error) === 'lab.world_not_found' ? (
+        <Alert className="world-link-alert">
+          <AlertDescription>
+            {message('workbench.labUnavailable')}
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {world.data && selection.length > 0 && !selected ? (
+        <Alert className="world-link-alert">
+          <AlertDescription>
+            {message('workbench.entityUnavailable')}
+          </AlertDescription>
+          <Button variant="outline" size="sm" onClick={() => setSelection([])}>
+            {message('workbench.clearEntity')}
+          </Button>
+        </Alert>
+      ) : null}
+      <div
+        className="world-body"
+        data-directory-open={directoryOpen || undefined}
+        data-inspector-open={inspectorVisible || undefined}
+      >
         <aside
+          id="world-directory"
           className="world-directory"
           aria-label={message('world.directory')}
+          hidden={!directoryOpen}
         >
           <header>
             <ListTree />
             <h2>{message('world.directory')}</h2>
             <span>{entities.length}</span>
+            <Tool
+              icon={X}
+              label={message('workbench.closeDirectory')}
+              onClick={closeDirectory}
+            />
           </header>
           <div className="world-filters">
             <div className="world-search">
@@ -834,13 +953,20 @@ export default function WorldView({
           {performance ? <PerformancePanel metrics={metrics} /> : null}
         </div>
         <aside
+          id="world-inspector"
           className="lab-inspector world-inspector"
           aria-label={message('world.inspector')}
+          hidden={!inspectorVisible}
         >
           <header className="lab-inspector-heading">
             <Layers3 />
             <h2>{message('world.inspector')}</h2>
             <span>{selection.length}</span>
+            <Tool
+              icon={X}
+              label={message('workbench.closeInspector')}
+              onClick={closeInspector}
+            />
           </header>
           {selected ? (
             <>
@@ -1090,14 +1216,25 @@ export default function WorldView({
           )}
         </aside>
       </div>
-      {labId ? (
-        <HistoryPanel
-          key={`${labId}-${selected?.id ?? ''}`}
-          labId={labId}
-          entities={entities}
-          selectedId={selected?.id}
-          apiClient={apiClient}
-        />
+      {labId && historyOpen ? (
+        <div className="world-history-surface">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            title={message('workbench.closeHistory')}
+            aria-label={message('workbench.closeHistory')}
+            onClick={closeHistory}
+          >
+            <X aria-hidden="true" />
+          </Button>
+          <HistoryPanel
+            key={`${labId}-${selected?.id ?? ''}`}
+            labId={labId}
+            entities={entities}
+            selectedId={selected?.id}
+            apiClient={apiClient}
+          />
+        </div>
       ) : null}
       <footer className="lab-status">
         <span aria-label={message('sync.version')}>
@@ -1105,8 +1242,8 @@ export default function WorldView({
         </span>
         <span>
           <i />
-          {entities.length} {message('world.objects')} / {nodes.length}{' '}
-          {message('world.nodes')}
+          {entities.filter((entity) => !entity.archived_at).length}{' '}
+          {message('world.objects')} / {nodes.length} {message('world.nodes')}
         </span>
         <span>{selected?.name ?? message('viewer.unselected')}</span>
         <span>{message(draft ? 'layout.unsaved' : 'assets.saved')}</span>

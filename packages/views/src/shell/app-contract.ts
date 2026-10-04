@@ -41,6 +41,7 @@ export const CORE_RESERVED_ROUTES: readonly string[] = [
 export type NavigateTarget = {
   path: string;
   params?: Record<string, string | undefined>;
+  search?: Record<string, unknown>;
   replace?: boolean;
   ignoreBlocker?: boolean;
 };
@@ -49,6 +50,7 @@ export type NavigatePort = (target: NavigateTarget) => void;
 
 export type AppPageProps<RouteParams extends Record<string, string>> = {
   params: RouteParams;
+  search?: Record<string, unknown>;
   navigate: NavigatePort;
   apiClient: ApiClient;
 };

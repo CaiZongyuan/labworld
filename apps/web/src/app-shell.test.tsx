@@ -195,3 +195,26 @@ test('the business default entry is directly reachable as a deep link', async ()
   expect(await screen.findByRole('main')).toBeVisible();
   expect(router.state.location.pathname).toBe(assembledApp.defaultEntry);
 });
+
+test('compact navigation retains every assembled entry and one account entry', async () => {
+  const { user } = open('/');
+  await screen.findByText('你好，壳用户');
+  await user.click(screen.getByRole('button', { name: '收起导航' }));
+  expect(document.getElementById('app-sidebar')).toHaveAttribute(
+    'data-compact',
+    'true',
+  );
+  const navigation = screen.getByRole('navigation', { name: '主菜单' });
+  for (const group of assembledApp.navigation)
+    for (const item of group.items)
+      expect(
+        within(navigation).getByRole('link', {
+          name: assembledApp.messages.zh[item.labelKey],
+        }),
+      ).toHaveAttribute('title', assembledApp.messages.zh[item.labelKey]);
+  expect(screen.getAllByRole('link', { name: '设置' })).toHaveLength(1);
+  await user.click(screen.getByRole('button', { name: '展开导航' }));
+  expect(document.getElementById('app-sidebar')).not.toHaveAttribute(
+    'data-compact',
+  );
+});

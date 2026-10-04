@@ -1,5 +1,17 @@
 export const labMessages = {
   zh: {
+    'workbench.openDirectory': '打开对象目录',
+    'workbench.closeDirectory': '关闭对象目录',
+    'workbench.openInspector': '打开对象信息',
+    'workbench.closeInspector': '关闭对象信息',
+    'workbench.openHistory': '打开运行历史',
+    'workbench.closeHistory': '关闭运行历史',
+    'workbench.entityUnavailable': '找不到此对象。',
+    'workbench.clearEntity': '清除对象链接',
+    'workbench.labUnavailable': '找不到此 Lab。',
+    'workbench.viewUnavailable': '此工作视图尚不可用。',
+    'workbench.invalidLink': '此 Lab 链接无效。',
+    'workbench.openSpace': '打开三维空间',
     'device.commandExpired':
       '原命令记录已过期。本次重试没有再次执行。先检查设备当前状态。',
     'history.title': '运行历史',
@@ -289,6 +301,18 @@ export const labMessages = {
     'import.single': '一次导入一个 GLB 文件。',
   },
   en: {
+    'workbench.openDirectory': 'Open object directory',
+    'workbench.closeDirectory': 'Close object directory',
+    'workbench.openInspector': 'Open object details',
+    'workbench.closeInspector': 'Close object details',
+    'workbench.openHistory': 'Open run history',
+    'workbench.closeHistory': 'Close run history',
+    'workbench.entityUnavailable': 'This Entity is unavailable.',
+    'workbench.clearEntity': 'Clear Entity link',
+    'workbench.labUnavailable': 'This Lab is unavailable.',
+    'workbench.viewUnavailable': 'This work view is unavailable.',
+    'workbench.invalidLink': 'This Lab link is invalid.',
+    'workbench.openSpace': 'Open 3D space',
     'device.commandExpired':
       'The original Command record expired. This retry did not execute again. Check the current device state.',
     'history.title': 'Run history',
