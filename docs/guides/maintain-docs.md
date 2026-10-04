@@ -20,6 +20,30 @@
 
 明确区分正式实现、隔离预览和计划。截图应来自实际版本，记录身份与数据是否模拟。页脚 SHA 表示构建源码，不能代替运行与教学验证。
 
+## 简明技术语言：ASD-STE100-inspired {#simplified-technical-language}
+
+在线文档采用 **80% of the way to ASD-STE100** 的写作目标。参考 [ASD-STE100 Simplified Technical English](https://www.asd-ste100.org/) 的简明技术英语原则，让操作、条件和结果更容易理解。“80%”表示借鉴程度，不是可计算的合规分数；本项目不声明完整符合其写作规则或受控词典。
+
+| 规则                       | 在 Lab Word 文档中如何使用                                                                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 短句，一个句子一个主要意思 | 英文操作句以不超过 20 词、说明句以不超过 25 词为目标；过长时先拆句。中文按意思拆句，不套用英文词数。          |
+| 主动语态，明确执行者       | 操作用动词开头，例如 `Open`、`Run`、`Select`；描述行为时指出 API、Worker 或浏览器做什么。                     |
+| 一步一个动作               | 把操作写成编号步骤，紧接预期结果。依赖、权限、条件和警告放在相关动作之前。                                    |
+| 常用词，稳定含义           | 优先使用 `use`、`start`、`stop`、`check`。同一概念使用同一术语，领域词汇以 [CONTEXT](../../CONTEXT.md) 为准。 |
+| 保留准确的技术名称         | 保留 GLB、Entity 等必要术语，并在首次使用时解释。命令、路径、API 字段、错误码和界面标签保持原样。             |
+| 条件和失败可直接判断       | 写明触发条件、结果和恢复动作。保留 `must`、`should`、`can` 的约束差别、否定含义、单位、数值范围及权限边界。   |
+
+每段围绕一个主题；把操作与解释分开。中英文保留相同的前提、步骤、结果和失败边界，句式可以各自自然表达。
+
+例如，把 “After adding SQL, migrate and restart development so the embedded migration set is refreshed.” 改成：
+
+1. After you add SQL migrations, run `just migrate`.
+2. Restart development.
+
+The restart updates the migration set in the binary.
+
+提交前逐段核对上表，并与源码和另一语言版本比较。词数是编辑提示，不能代替语义审查。`docs:check` 检查文档结构与来源关系，不验证 STE 合规性。
+
 ## 登记与验证
 
 在中文文件旁创建 `.en.md`，在 [site.json](../site.json)登记稳定 id、两组标题与 source、发布 route、group 和 type。连续章节用 `previous`/`next` 的 id；不相关页面不自动串联。

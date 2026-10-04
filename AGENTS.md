@@ -29,3 +29,13 @@ For user-facing UI, UX or workflow changes, read [experience-design.md](docs/age
 For implementation, read docs/agents/development-flow.md and docs/testing/strategy.md. Work an unblocked vertical ticket through its agreed public test interfaces, then perform Standards + Spec review before committing.
 
 At issue completion or before PR merge, run the repository-owned [reduce-complexity](.agents/skills/reduce-complexity/SKILL.md) step before final validation and code-review; reuse the result when the changes are unchanged. At Epic completion, use its broader simplification survey. Compose these steps in the repository workflow while keeping imported skills unchanged for upstream updates.
+
+### Docker resources
+
+Before starting Docker work, inventory containers, volumes, networks and disk usage. Give temporary resources identifiable project, ticket and run ownership through names or labels, and record their exact names in the task checkpoint. Worktrees share the Docker daemon; isolate each run's resources and ports, and record the owner of any shared development service.
+
+The creating agent owns cleanup after success, failure, timeout and cancellation. Use `docker rm -f -v <owned-container>` for disposable containers; `--rm` does not stop a container when its creating process exits. Explicitly remove owned temporary named volumes and networks after checking their references. A `finally` block alone does not cover process termination; provide interruption cleanup and recover leftovers after an interrupted run.
+
+Before retrying, after session recovery and at ticket completion, reconcile recorded resources with Docker's actual state. Confirm the owner and consumers have stopped before reclaiming a temporary resource. PM must check this inventory before declaring delivery complete and report retained resources with their owner and purpose; age, an exited container or an unreferenced volume alone does not establish ownership.
+
+Preserve active development services, persistent data and other projects' resources unless the user explicitly authorizes their removal. Cleanup uses an explicit owned-resource list; do not run global Docker prune commands. Verify and report the remaining containers, volumes and disk usage after cleanup.

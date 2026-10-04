@@ -63,7 +63,7 @@ export async function withTestPostgres(action) {
     await action({ name, url });
   } finally {
     if (started)
-      execFileSync('docker', ['rm', '-f', name], {
+      execFileSync('docker', ['rm', '-f', '-v', name], {
         stdio: 'ignore',
         timeout: 10_000,
       });

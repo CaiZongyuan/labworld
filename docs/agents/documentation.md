@@ -2,6 +2,8 @@
 
 Read this when creating or editing public documentation, navigation or generated references. Write for Lab Word tasks using the [author guide](../guides/maintain-docs.md). The upstream writing pattern is referenced there at a fixed revision; Lab Word source owns facts.
 
+Apply the author guide's [ASD-STE100-inspired writing rules](../guides/maintain-docs.md#simplified-technical-language) when writing or reviewing public prose in either language.
+
 ## Write and verify one developer task
 
 1. Identify the reader, task and page type. Use `overview`, `tutorial`, `guide`, `concept` or `reference` in `docs/site.json`.
@@ -11,7 +13,7 @@ Read this when creating or editing public documentation, navigation or generated
 5. Update code, tests, source snippets, links and business ownership with the capability. Keep API DTOs and configuration defaults generated from implementation.
 6. Run affected public behavior checks, `pnpm docs:check` and `pnpm docs:build`. Compare visible navigation and layouts with the accepted experience. Use the repository simplification and Standards + Spec review before delivery.
 
-Done when the task can be followed in its declared source version, both languages have the same behavior, links resolve, ownership is clear, and validation records its actual scope. Preview branches must state their availability; a local preserved branch is not a published artifact.
+Done when the task can be followed in its declared source version, both languages have the same behavior, changed prose has passed the language review, links resolve, ownership is clear, and validation records its actual scope. Preview branches must state their availability; a local preserved branch is not a published artifact.
 
 ## Content responsibilities
 
