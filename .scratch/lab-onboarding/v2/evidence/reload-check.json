@@ -1,0 +1,20 @@
+{
+  "checks": [
+    {
+      "width": 1440,
+      "navigations": [
+        "http://127.0.0.1:5194/prototype/lab-onboarding"
+      ],
+      "reloads": [],
+      "errors": []
+    },
+    {
+      "width": 390,
+      "navigations": [
+        "http://127.0.0.1:5194/prototype/lab-onboarding"
+      ],
+      "reloads": [],
+      "errors": []
+    }
+  ]
+}

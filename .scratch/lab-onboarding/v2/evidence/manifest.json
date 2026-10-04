@@ -1,0 +1,180 @@
+{
+  "question": "Can a first-time user learn the permanent workspace controls through a contextual visual tour?",
+  "base": "205ed14afe18da0cdefe105042582c67a5395e7d",
+  "branch": "preview/lab-onboarding-v2",
+  "capturedAt": "2026-10-04T03:35:05.030Z",
+  "files": [
+    {
+      "path": ".scratch/lab-onboarding/v2/LabScene.tsx",
+      "sha256": "00164b09ae27cceaf59d6c3864d7476d8c86e9c93e1d57406483ecd58fb849b3"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/README.md",
+      "sha256": "a62c62418806287456b94cb807687007c0d1f323fb06448af5f0d0687fe8c0be"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/capture-preview.mjs",
+      "sha256": "e8901035cbcce7deb26872d4ef599de9ffaf1dbf4870476caf30fda7493b7bb9"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/check-keyboard.mjs",
+      "sha256": "2b008bfe89c2b56a239a093585bfb8015c79107549f10b98aa00b668fa1aa6d1"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/check-reload.mjs",
+      "sha256": "1b0dc1b29fc550b150e6b99cee05cb4301a4c2a44afe2b61542fb6be98bf37e2"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/controls-1600-zh-light.png",
+      "sha256": "d6aabcd60a8b61c841b2942bed903748441ce1180e0b1b6522bfa37e84ea83b3"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/controls-320-en-dark.png",
+      "sha256": "40a72f2cb957f1a1096c039f97c4def5a6af00a4fc46168afc443865c03b961a"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/controls-390-zh-light.png",
+      "sha256": "87a45445e1e80cd3f0dd9946b88b9dc925eb2f9d2e4dd62fb163f67f9f986bb8"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/create-1600-zh-light.png",
+      "sha256": "541e6bb2da3931ff8dd32487dba7ac7684b4ed50a7382e4c25dac78ca7e81e67"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/create-320-en-dark.png",
+      "sha256": "7e596917f0ab6ff99a4c660ba0a545a716b84d4f295b2a54affa2e62d96dd779"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/create-390-zh-light.png",
+      "sha256": "badbcdce49cee6170ede01007b6a6d8c4b35ceed7375891a2bf85b84a94b173d"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/debug-initial-pass/create-desktop.png",
+      "sha256": "53faf6446dfb3d2a99c8bcd9c46359d8bb3fae83f048807d3a038cb867b0df41"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/debug-initial-pass/first-desktop.png",
+      "sha256": "7970ce52dd80991ad17cdffc2f4efdbc4b3a417324162ded60d809d9d10c9460"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/debug-initial-pass/reading-desktop.png",
+      "sha256": "95e4856399f3fdeb0b0768d3279e3df7471870057796af35d27054141629c8fb"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/finish-1600-zh-light.png",
+      "sha256": "404eb6bbb8e22a91b9f8d0fc4647b41a879e14ea9bd53f10805dcab8f3014893"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/finish-320-en-dark.png",
+      "sha256": "3389a8efb4d40d84087908b8d580e56669812b3b804076da6dc393a4e1401bec"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/finish-390-zh-light.png",
+      "sha256": "7179a7486991dc94e18f8d1af495933386bc796b64d98de0806ca55a57355e75"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/first-1600-zh-light.png",
+      "sha256": "d502b14828ab5cedaf3ca151cef69c7c5cecda1764bdfbcc5981bcb649d37b36"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/first-320-en-dark.png",
+      "sha256": "71c553102807f5b1fd00ae2ed5b79ee7a0a33819c776332c9d91ad65f3214499"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/first-390-zh-light.png",
+      "sha256": "340ddcd17945554fac673306571f7a302047840972a165b446cfaabda347f1f5"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/inspection.json",
+      "sha256": "a1b92feef3f55141e603074ca94c83cbbd98f8d1bd05a9b055cbcbc2847f989e"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/keyboard.json",
+      "sha256": "213691a80c69fcf52788357f45241e520ef88d20405b6e0c204b1cefc9d76a31"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/placement-1600-zh-light.png",
+      "sha256": "2b4ddcc870355e084218e9bc1507c43d3d0401a3a5f4762a04edf84e2fc3b8d8"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/placement-320-en-dark.png",
+      "sha256": "a3c3f41ee366c5ad7b072fdb75a463205f42d44602c2881c01e2af7ac51c580e"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/placement-390-zh-light.png",
+      "sha256": "2a60205a59ca4d10a5467ed736bf54085777968d1c92fdcb946a21dc763f434e"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/reading-1600-zh-light.png",
+      "sha256": "40f2fd332de94442d5c7edb2facaad88c21402f8fb6ef8723a0e55dcbe2f42f9"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/reading-320-en-dark.png",
+      "sha256": "eadadf483fb767a839920742e512f49bc6084c0f25e1d005594e4246a3fa424e"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/reading-390-zh-light.png",
+      "sha256": "ffb9399e8fa3160267ac7201dc30de39d24ce1d3e32ba18126bf8165ced916a0"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/register-1600-zh-light.png",
+      "sha256": "7acb90f8292e5497bde2b7b735427691061b7e635fbd7d67eeb249741fd234b5"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/register-320-en-dark.png",
+      "sha256": "1196159d71f0ceb176b0cd68c5bbcbf9f8e15127e66b5e250d5f9b5e41570b63"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/register-390-zh-light.png",
+      "sha256": "13da94ca7412d00d7a5a43bcf5c3027de10477cb1b02ce4f6456f1ff73299e9a"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/evidence/reload-check.json",
+      "sha256": "83c7d0cb626966c0b56f5d7cf7b5f66bed4b3cc6451a7dd4cd30f556e39f0799"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/index.html",
+      "sha256": "68a23b68c7784cace7022b5368dc747bd08bee4fd0f56315f8f710d4768f3679"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/inspect-preview.mjs",
+      "sha256": "44046f5a965cc660af65b929b8f36918989ad8da74439767172fc767c489aa3d"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/main.tsx",
+      "sha256": "463049404074fc9d90d9b975051b7332f124042bfe61173189334df4c01f2601"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/package.json",
+      "sha256": "355d43c41884a72cab8efe237f98884f183db9fdd0bc04afd4e1c06f74a13386"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/pnpm-lock.yaml",
+      "sha256": "eee45e6541889985a309e417c37e225b6fb3477e427639d58a9bf56abecc3ee2"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/pnpm-workspace.yaml",
+      "sha256": "16f8589154939946ec09e02a14e02d5fbb4024b7bd6a8dbe9fb6fc21ca07c355"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/preview.css",
+      "sha256": "a824f5816a9f52f1b8db966adf351fd6124f10ab41a8f35234a3a0db21c8e7d8"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/tour.tsx",
+      "sha256": "907f56d04a1523bd00999d26bbb1c2178ca55665515e5f41cfb9b8d3ff364892"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/tsconfig.json",
+      "sha256": "cd2fd6a66b4560b5b9852f5758beff5c9efc89e6c130f493c5a3f6e99e001f93"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/vite.config.ts",
+      "sha256": "277dc5f9f82fb107b54f89be15c66e43911fc255c056812e26a61c2df9c4ec39"
+    },
+    {
+      "path": ".scratch/lab-onboarding/v2/world.ts",
+      "sha256": "6704dbda145268a000fd46993c73f4d6e82a20dc48cdde778c06f32b1d36fb3c"
+    }
+  ]
+}

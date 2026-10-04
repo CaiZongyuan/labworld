@@ -1,0 +1,19 @@
+{
+  "checks": [
+    "Escape skips",
+    "Help resumes",
+    "Enter opens and submits the normal form",
+    "Negative decimal coordinate can be typed one character at a time",
+    "Negative rotation can be typed one character at a time",
+    "Saved placement matches the keyboard input"
+  ],
+  "saved": {
+    "position": [
+      -3.2,
+      0,
+      0.85
+    ],
+    "rotation": -15
+  },
+  "pageErrors": []
+}
