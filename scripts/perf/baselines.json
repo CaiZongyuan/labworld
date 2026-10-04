@@ -11,6 +11,11 @@
       "recordsPageItems": 100,
       "recordsBytes": 262144,
       "recordsRangeSeconds": 2678400,
+      "trendSqlStatements": 10,
+      "trendDefaultPoints": 600,
+      "trendMaxPoints": 1000,
+      "trendBytes": 262144,
+      "trendRangeSeconds": 86400,
       "entitiesPerLab": 1000,
       "nodesPerLab": 1000
     },

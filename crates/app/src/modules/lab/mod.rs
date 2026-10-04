@@ -10,6 +10,7 @@ mod relationships;
 mod runtime;
 mod sync;
 mod tasks;
+mod trend;
 mod world;
 
 pub use history::retention::{
@@ -69,6 +70,7 @@ pub fn router_with_retention(
         .merge(tasks::routes())
         .merge(history::routes())
         .merge(records::routes())
+        .merge(trend::routes())
         .merge(sync::routes())
         .with_state(Lab {
             pool,
@@ -89,6 +91,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     document.merge(tasks::openapi());
     document.merge(history::openapi());
     document.merge(records::openapi());
+    document.merge(trend::openapi());
     document.merge(sync::openapi());
     document
 }
@@ -119,6 +122,7 @@ enum Failure {
     LayoutConflict,
     SnapshotTooLarge,
     RecordsTooLarge,
+    TrendBudgetExceeded,
     Unavailable,
     Idempotency(crate::modules::idempotency::Error),
 }
@@ -150,6 +154,11 @@ impl Failure {
                 StatusCode::PAYLOAD_TOO_LARGE,
                 "lab.records_too_large",
                 "A record exceeds the 256 KiB page limit; narrow the record filters",
+            ),
+            Self::TrendBudgetExceeded => (
+                StatusCode::PAYLOAD_TOO_LARGE,
+                "lab.trend_budget_exceeded",
+                "Trend cannot preserve its samples and gaps within the budget; reduce the time range",
             ),
             Self::EntityInUse => (
                 StatusCode::CONFLICT,

@@ -196,6 +196,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "centrifuge-tasks",
+      "next": "bounded-trends"
+    },
+    {
+      "id": "bounded-trends",
+      "source": "docs/tutorials/bounded-trends.md",
+      "sourceEn": "docs/tutorials/bounded-trends.en.md",
+      "route": "tutorials/bounded-trends.md",
+      "title": "有界趋势与来源",
+      "titleEn": "Bounded Trends and Sources",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "run-history",
       "next": "entity-lifecycle"
     },
     {
@@ -207,7 +219,7 @@
       "titleEn": "Entity Archiving and Appearance Replacement",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "run-history",
+      "previous": "bounded-trends",
       "next": "complete-foundation"
     },
     {
