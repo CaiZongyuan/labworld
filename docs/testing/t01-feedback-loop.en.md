@@ -9,12 +9,16 @@ Goal: select public checks that observe your Lab Word change. Run from the repos
 | Web behavior                   | `pnpm test:frontend`                                | Real component interaction; HTTP uses MSW                               |
 | TypeScript and boundaries      | `pnpm typecheck`, `pnpm boundaries:check`           | Types, package dependencies, Rust table ownership                       |
 | Backend behavior               | `node scripts/test-backend.mjs --test registration` | Real Router and isolated services; requires Docker                      |
-| Contracts                      | `pnpm generate`, `pnpm contracts:check`             | Rust/OpenAPI, generated types and SDK agree                             |
-| Documentation                  | `pnpm docs:check`, `pnpm docs:build`                | Sources, locale pairing, generated references and built links           |
-| Documentation browser journeys | `just e2e-docs`                                     | Language, theme, search, narrow screens, custom base; requires Chromium |
+| Contracts                      | `pnpm generate`, `pnpm contracts:check`             | Rust/OpenAPI, generated types and SDK agree; includes Rust generation   |
+| Documentation                  | `pnpm docs:check`, `pnpm docs:build`                | Sources, locale pairing, generated references and built links; may compile Rust |
+| Documentation browser journeys | `just e2e-docs`                                     | Language, theme, search, agreed viewports, custom base; requires Chromium |
 | Critical application journeys  | `just e2e`                                          | Real Web/API/Worker/database/storage; requires Docker and Chromium      |
 
 Install browser prerequisites with `pnpm exec playwright install chromium`. `just check` runs main formatting, static, behavior, budget and build checks without browser E2E. `just check-full` adds application E2E.
+
+Command capabilities do not expand task scope. Validate desktop web by default; include mobile adaptation, narrow screens, touch or real devices only within explicitly approved scope. Check discovery and prerequisites before heavy browser runs. Reuse existing critical journeys; use focused cases for affected CSS or layout states.
+
+`docs:check` and `docs:build` invoke `cargo run --quiet --locked -p labos-threejs-api --bin config-reference`. These commands can compile Rust without Docker. Coordinate generation, documentation and full gates by their runtime dependencies. Use the agreed Cargo jobs and run supervisor; command names do not establish that a check is lightweight.
 
 ## Lab Viewer Boundaries
 
@@ -26,4 +30,6 @@ Production component checks will observe import controls, selection, loading/err
 
 Record commands, missing prerequisites and unverified scope when Docker, Chromium or dependencies are unavailable. Skipped checks are not passes. Backend checks use isolated resources and do not clean development or production data.
 
-Record evidence against a fixed revision and task scope. Follow the [development flow](../agents/development-flow.md): simplify first, then run affected validation and Standards + Spec review.
+Record evidence against a fixed revision, environment and task scope. Reuse genuine TDD red and recovery green as VDD evidence for the same assertion. Local focused checks and one full gate in the responsible environment cover the stable final candidate. Reuse included affected checks. Refresh coverage by semantic impact after repairs or main changes. The [development flow](../agents/development-flow.md) defines the sequence and independent review.
+
+Use [development-timeline](../../.agents/skills/development-timeline/SKILL.md) for lightweight stage, wait and rework records during multi-stage collaboration. Reports explain recorded progress and uncertainty; they do not add product validation or merge gates.

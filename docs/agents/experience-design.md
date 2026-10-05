@@ -6,6 +6,8 @@ Apply to changes in pages, navigation, user interactions or user-visible workflo
 
 Inspect the actual application, existing contracts, domain vocabulary and references. State the user task, scope, constraints and success criteria in a short brief. Distinguish existing capabilities from proposed ones.
 
+Use desktop web as the default scope. Add mobile layout, narrow-screen, touch and real-device checks only when the user or approved task explicitly includes them. Choose representative desktop viewports and content from that scope. Apply and record the latest explicit user scope change; leave historical issues and parent specs intact unless their editing is authorized.
+
 Resolve facts from code and primary sources. Use `grill-with-docs` and its `grilling` primitive for consequential decisions that remain open. Ask the current decision frontier with recommendations, carry forward settled answers, and keep independent discovery moving while waiting. A familiar app category does not settle its intended workflow.
 
 Done when the user can recognize the intended result and the remaining assumptions are explicit.
@@ -26,7 +28,7 @@ Done when the preview runs, its important controls work and the user has a concr
 
 Record the accepted version, feedback, required revisions and unresolved decisions. Keep the original artifact, then create a new version for an iteration. Approval of the overall visual direction is not confirmation of every interaction or simulated feature.
 
-Reuse approvals already given. The latest user correction supplements the accepted version. If the user explicitly requests direct implementation or waives another preview, proceed from that accepted design and record the correction; do not ask them to approve the same stage again.
+Reuse approvals already given. The latest explicit user correction can supplement or replace an earlier scope requirement. If the user requests direct implementation or waives another preview, proceed from the accepted design with that correction recorded; do not ask them to approve the same stage again.
 
 Done when the implementation inputs consist of a recognizable accepted experience plus any explicit corrections and scope decisions.
 
@@ -36,11 +38,15 @@ Use `ask-matt` to choose the implementation route. A bounded, already-approved c
 
 Translate the experience into observable acceptance criteria and tests at the interfaces agreed in [testing strategy](../testing/strategy.md). Cite the preview version and record persistence, permissions, navigation and error recovery explicitly. Keep source paths and prototype code out of the implementation prescription; links to primary-source artifacts belong in the supporting notes.
 
+Before substantial implementation, compare the parent criteria, child ticket, accepted preview and latest explicit corrections in a short design/Spec preflight. A preview approval does not silently waive a contradictory criterion. Resolve settled priorities from existing decisions and record the result; seek a product decision only for a material conflict that remains unresolved.
+
 Implement using the real components and contracts. Prototype code is evidence for the design, not a production-quality implementation. Preserve example ownership and Core independence, update the runnable example and paired tutorials, then run the repository's simplification, required checks and Standards + Spec review.
 
 ## 5. Verify the real application
 
 Exercise the actual journey in a browser and compare representative states with the accepted version at comparable content, viewport, language and theme. Check layout, text fit, focus, keyboard operation and recovery from relevant failures. Use real E2E dependencies for critical journeys covered by the testing strategy.
+
+Reuse existing journey evidence when its behavior, dependencies and environment remain valid. CSS or layout changes use focused cases for changed states and agreed viewports rather than repeating the complete business journey. Before a heavy browser run, check test discovery and scenario prerequisites. Establish scene exposure with exterior geometry, hit testing and visible pixels or interaction; a canvas element or internally rendered pixels alone cannot prove that an opaque panel leaves the scene visible.
 
 Treat functional checks and visual acceptance as separate evidence. A passing unit test does not establish visual fidelity; an attractive screenshot does not establish permissions or persistence. If an environment blocks a check, record exactly what ran and what remains unverified.
 

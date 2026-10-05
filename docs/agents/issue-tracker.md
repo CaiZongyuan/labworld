@@ -24,7 +24,7 @@ Do not modify or close a source/parent spec issue while splitting it. Keep imple
 
 ## Completion
 
-Use an isolated branch/worktree appropriate to the task. The implementation skill drives TDD, runs the specified checks and two-axis review, then commits. A PR must reference its implementation issue and contain behavior and validation evidence. Close the implementation issue when the agreed completed work is integrated, not merely because a PR or draft exists. Publishing tickets does not itself authorize starting an unlimited implementation run.
+Use an isolated branch/worktree appropriate to the task. Follow [development-flow.md](development-flow.md): WIP commits and authorized Draft PRs may preserve progress before final review, with verified and pending scope clearly stated. A PR references its implementation issue and contains behavior and validation evidence. Final merge requires the stable candidate's simplification, independent Standards/Spec coverage and required final-head CI. Close the implementation issue when the agreed completed work is integrated, not merely because a commit, PR or draft exists. Publishing tickets does not itself authorize starting an unlimited implementation run.
 
 ## Pull requests as a triage surface
 
