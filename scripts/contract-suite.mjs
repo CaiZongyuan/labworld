@@ -1,0 +1,85 @@
+import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { root } from './lib/process.mjs';
+const profiles = [
+  'baseline',
+  'file-ttl',
+  'session-ttl',
+  'retention',
+  'rate',
+  'capacity',
+];
+const suiteId = `suite-${Date.now()}-${randomUUID().slice(0, 8)}`;
+const results = [];
+let child;
+let cancelled = false;
+const cancel = () => {
+  cancelled = true;
+  child?.kill('SIGTERM');
+};
+process.once('SIGINT', cancel);
+process.once('SIGTERM', cancel);
+mkdirSync(resolve(root, '.scratch/vnext-m0'), { recursive: true });
+const manifest = resolve(root, `.scratch/vnext-m0/${suiteId}.json`);
+function save() {
+  writeFileSync(
+    manifest,
+    JSON.stringify(
+      {
+        suiteId,
+        state: cancelled ? 'cancelled' : 'running',
+        profiles: results,
+      },
+      null,
+      2,
+    ) + '\n',
+  );
+}
+try {
+  for (const profile of profiles) {
+    if (cancelled) throw new Error('Contract suite cancelled');
+    const runId = `${suiteId}-${profile}`;
+    const ledger = resolve(
+      root,
+      `.scratch/vnext-m0/runs/${runId}/owned-resources.json`,
+    );
+    const entry = { profile, runId, ledger, state: 'running' };
+    results.push(entry);
+    save();
+    const args = [
+      'scripts/contract.mjs',
+      '--run-id',
+      runId,
+      '--profile',
+      profile,
+      ...(profile === 'baseline' ? [] : ['--no-build']),
+    ];
+    child = spawn(process.execPath, args, {
+      cwd: root,
+      env: process.env,
+      stdio: 'inherit',
+    });
+    const exit = await new Promise((resolveExit, reject) => {
+      child.once('error', reject);
+      child.once('exit', resolveExit);
+    });
+    entry.state = exit === 0 ? 'passed' : 'failed';
+    save();
+    if (exit !== 0)
+      throw new Error(`Required ${profile} contract profile exited ${exit}`);
+    const owned = JSON.parse(readFileSync(ledger, 'utf8'));
+    if (owned.state !== 'completed')
+      throw new Error('Completed profile lacks resource reconciliation');
+  }
+  writeFileSync(
+    manifest,
+    JSON.stringify({ suiteId, state: 'passed', profiles: results }, null, 2) +
+      '\n',
+  );
+  console.log(`All six required contract profiles passed: ${manifest}`);
+} finally {
+  process.removeListener('SIGINT', cancel);
+  process.removeListener('SIGTERM', cancel);
+}

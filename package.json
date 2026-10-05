@@ -23,7 +23,10 @@
     "docs:check": "node scripts/check-docs.mjs",
     "boundaries:check": "node scripts/check-boundaries.mjs",
     "test:tooling": "node --test tests/tooling/*.test.mjs",
-    "test:contract": "node scripts/contract.mjs"
+    "test:contract": "node scripts/contract.mjs",
+    "test:contract:all": "node scripts/contract-suite.mjs",
+    "test:contract:lifecycle": "node scripts/check-contract-lifecycle.mjs",
+    "contracts:baseline:check": "node scripts/contract-api-baseline.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

@@ -123,12 +123,13 @@ export async function until<T>(
   read: () => Promise<T>,
   predicate: (value: T) => boolean,
   timeout = 15_000,
+  pollIntervalMs = 100,
 ): Promise<T> {
   const deadline = Date.now() + timeout;
   do {
     const value = await read();
     if (predicate(value)) return value;
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs));
   } while (Date.now() < deadline);
   throw new Error(
     'Public observable condition did not become true before the deadline',

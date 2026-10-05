@@ -6,5 +6,6 @@
     "labos_threejs_core.sessions",
     "labos_threejs_core.password_resets",
     "labos_threejs_core.password_reset_mail"
-  ]
+  ],
+  "tests": ["tests/contract/core.test.ts", "tests/contract/rate.config.test.ts"]
 }

@@ -7,6 +7,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { dirname } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 const docker = (args) =>
   execFileSync('docker', args, {
@@ -56,7 +57,7 @@ function alive(consumer) {
         .split(') ')[1]
         .split(' ');
       if (stat[0] === 'Z') return false;
-      if (consumer.token && token(consumer.pid) !== consumer.token)
+      if (!consumer.token || token(consumer.pid) !== consumer.token)
         return false;
     }
     return true;
@@ -90,8 +91,25 @@ function members(consumer) {
   return result;
 }
 function ownsGroup(consumer, actual) {
+  let knownMembers = consumer.members ?? [];
+  if (consumer.proofJournal) {
+    const records = readFileSync(consumer.proofJournal, 'utf8')
+      .trim()
+      .split('\n')
+      .filter(Boolean)
+      .map(JSON.parse);
+    knownMembers = [
+      ...knownMembers,
+      ...records.filter(
+        (record) =>
+          record.runId === consumer.runId &&
+          record.group === consumer.pid &&
+          record.session === consumer.pid,
+      ),
+    ];
+  }
   return actual.some((member) =>
-    (consumer.members ?? []).some(
+    knownMembers.some(
       (known) => known.pid === member.pid && known.token === member.token,
     ),
   );
@@ -151,6 +169,10 @@ export class ContractResources {
     this.save();
   }
   plan(name, purpose) {
+    if (this.data.closing)
+      throw new Error(
+        'Resource supervisor is closing; new acquisition refused',
+      );
     const labels = {
       'labword.contract.run': this.data.runId,
       'labword.contract.owner': '#46-developer_m0',
@@ -169,11 +191,61 @@ export class ContractResources {
     Object.assign(entry, { state: 'running', actual: inspect(name) });
     this.save();
   }
-  consumer(pid, role) {
-    const consumer = { pid, role, token: token(pid) };
+  consumer(pid, role, proofJournal) {
+    const consumer = {
+      pid,
+      role,
+      token: token(pid),
+      proofJournal,
+      runId: this.data.runId,
+    };
     consumer.members = members(consumer);
     this.data.consumers.push(consumer);
     this.save();
+  }
+  async stop(pid, graceMs = 5_000) {
+    const consumer = this.data.consumers.find((entry) => entry.pid === pid);
+    if (!consumer)
+      throw new Error('Cannot signal a process absent from owned ledger');
+    if (alive(consumer)) {
+      consumer.members = members(consumer);
+      this.save();
+    }
+    const signal = (value) => {
+      const actual = members(consumer);
+      if (!actual.length) return false;
+      if (!ownsGroup(consumer, actual))
+        throw new Error(
+          'Process group identity cannot be proved; refusing to signal',
+        );
+      try {
+        process.kill(-consumer.pid, value);
+      } catch (error) {
+        if (error.code !== 'ESRCH') throw error;
+      }
+      return true;
+    };
+    if (!signal('SIGTERM')) return;
+    const deadline = Date.now() + graceMs;
+    while (members(consumer).length && Date.now() < deadline) await delay(25);
+    // Re-prove identity before escalation; an ended group may have been replaced.
+    signal('SIGKILL');
+    const stopped = Date.now() + 1_000;
+    while (members(consumer).length && Date.now() < stopped) await delay(25);
+    if (members(consumer).length)
+      throw new Error('Owned process group did not stop; preserving resources');
+  }
+  sampleConsumers() {
+    let changed = false;
+    for (const consumer of this.data.consumers) {
+      if (!alive(consumer)) continue;
+      const current = members(consumer);
+      if (JSON.stringify(current) !== JSON.stringify(consumer.members)) {
+        consumer.members = current;
+        changed = true;
+      }
+    }
+    if (changed) this.save();
   }
   reconcile(stage) {
     for (const consumer of this.data.consumers) {
@@ -216,13 +288,23 @@ export class ContractResources {
       this.save();
       throw new Error(`Resource ownership mismatch: ${name}`);
     }
+    if (entry.actual?.id && entry.actual.id !== actual.id) {
+      entry.state = 'retained-id-mismatch';
+      this.save();
+      throw new Error('Container identity changed; preserving replacement');
+    }
     if (this.data.consumers.some((consumer) => members(consumer).length > 0))
       throw new Error('Stop owned consumers before resource cleanup');
-    docker(['rm', '-f', '-v', name]);
+    docker(['rm', '-f', '-v', actual.id]);
     entry.state = 'cleaned';
     this.save();
   }
-  async recover(stopConsumer) {
+  async recover() {
+    if (process.platform !== 'linux')
+      throw new Error(
+        'M0 process-group recovery is supported on Linux; no resources were reclaimed',
+      );
+    this.snapshot('recovery-start');
     if (alive(this.data.supervisor))
       throw new Error(
         'Ledger belongs to an active supervisor; recovery refused',
@@ -234,7 +316,7 @@ export class ContractResources {
         throw new Error(
           'Process group identity cannot be proved; preserve resources for inspection',
         );
-      await stopConsumer(consumer.pid);
+      await this.stop(consumer.pid);
     }
     this.reconcile('recovery-before-cleanup');
     for (const container of this.data.containers) this.remove(container.name);

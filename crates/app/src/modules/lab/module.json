@@ -86,7 +86,14 @@
     "tests/e2e/lab-sync.spec.ts",
     "tests/e2e/lab-sensors.spec.ts",
     "tests/e2e/lab-centrifuges.spec.ts",
-    "tests/fixtures/lab"
+    "tests/fixtures/lab",
+    "tests/contract/world-assets.test.ts",
+    "tests/contract/devices.test.ts",
+    "tests/contract/history-views.test.ts",
+    "tests/contract/sse.test.ts",
+    "tests/contract/capacity.config.test.ts",
+    "tests/contract/retention.config.test.ts",
+    "tests/contract/behavior-matrix.json"
   ],
   "tutorials": [
     "docs/tutorials/spatial-workbench.md",
@@ -126,7 +133,9 @@
     "examples/lab/query-trend.mjs",
     "docs/tutorials/entity-lifecycle.md",
     "docs/tutorials/entity-lifecycle.en.md",
-    "examples/lab/manage-entity.mjs"
+    "examples/lab/manage-entity.mjs",
+    "docs/testing/contracts.md",
+    "docs/testing/contracts.en.md"
   ],
   "contractSymbols": [
     "LabAsset",

@@ -1,5 +1,10 @@
 import { spawn } from 'node:child_process';
-import { readFileSync, renameSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  readFileSync,
+  renameSync,
+  writeFileSync,
+} from 'node:fs';
 
 const target = JSON.parse(
   readFileSync(process.env.CONTRACT_TARGET_DESCRIPTOR, 'utf8'),
@@ -16,6 +21,25 @@ function start() {
     stdio: 'inherit',
   });
   child.once('spawn', () => {
+    if (
+      process.platform === 'linux' &&
+      process.env.CONTRACT_PROCESS_PROOF_JOURNAL
+    ) {
+      const stat = readFileSync(`/proc/${child.pid}/stat`, 'utf8')
+        .split(') ')[1]
+        .split(' ');
+      appendFileSync(
+        process.env.CONTRACT_PROCESS_PROOF_JOURNAL,
+        JSON.stringify({
+          runId: process.env.CONTRACT_RUN_ID,
+          pid: child.pid,
+          token: stat[19],
+          group: Number(stat[2]),
+          session: Number(stat[3]),
+        }) + '\n',
+        { mode: 0o600 },
+      );
+    }
     writeFileSync(`${pidFile}.next`, String(child.pid), { mode: 0o600 });
     renameSync(`${pidFile}.next`, pidFile);
   });
