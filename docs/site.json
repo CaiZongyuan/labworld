@@ -337,6 +337,16 @@
       "group": "维护文档",
       "type": "guide",
       "previous": "maintain-docs"
+    },
+    {
+      "id": "contract-baseline",
+      "source": "docs/testing/contracts.md",
+      "sourceEn": "docs/testing/contracts.en.md",
+      "route": "testing/contracts.md",
+      "title": "迁移合同基准",
+      "titleEn": "Migration contract baseline",
+      "group": "开发",
+      "type": "guide"
     }
   ],
   "references": [

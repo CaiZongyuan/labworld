@@ -44,6 +44,22 @@ jobs:
       - run: pnpm exec playwright install --with-deps chromium
         if: github.event_name == 'workflow_dispatch' && inputs.run_e2e
       - run: just check
+      - name: Retained HTTP/SSE migration contracts on isolated Rust target
+        run: pnpm test:contract:all
+        env:
+          CARGO_TARGET_DIR: target
+      - name: Keep contract results and owned resource reconciliation
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: contract-evidence
+          path: |
+            .scratch/vnext-m0/runs/*/results.json
+            .scratch/vnext-m0/runs/*/owned-resources.json
+            .scratch/vnext-m0/suite-*.json
+            .scratch/vnext-m0/coverage-*.json
+          if-no-files-found: ignore
+          retention-days: 7
       - name: Keep the performance report
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

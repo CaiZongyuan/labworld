@@ -5,7 +5,7 @@ import { withTestMailpit } from './mailpit.mjs';
 
 // Each fixture owns readiness and cleanup. Nesting keeps every dependency
 // alive for the callback and unwinds acquired services if startup or work fails.
-export async function withTestServices(action) {
+export async function withTestServices(action, { resource } = {}) {
   await withTestPostgres(async ({ name: postgresName, url }) => {
     await withTestRustfs(async ({ name: storageName, env: storage }) => {
       await withTestRedis(async ({ env: redis }) => {
@@ -15,8 +15,8 @@ export async function withTestServices(action) {
             storageName,
             env: { ...storage, ...redis, ...mail, DATABASE_URL: url },
           });
-        });
-      });
-    });
-  });
+        }, resource);
+      }, resource);
+    }, resource);
+  }, resource);
 }

@@ -98,7 +98,23 @@ impl SqlStatementSnapshot {
 async fn a_full_day_with_spikes_duplicates_and_collection_gap_is_bounded_at_one_and_one_hundred_entities(
     pool: PgPool,
 ) {
-    let (clock, runtime, app, member, path) = setup(pool.clone(), "sensor").await;
+    let (clock, runtime, _, member, path) = setup(pool.clone(), "sensor").await;
+    // This case measures a complete restored day, independently of fixture execution time.
+    let capacity_retention =
+        RetentionPolicy::new(172800, RetentionPolicy::default().record_seconds).unwrap();
+    let app = labos_threejs_app::compose_routes_with_options(
+        pool.clone(),
+        Default::default(),
+        labos_threejs_app::modules::lab::router_with_retention(
+            pool.clone(),
+            Default::default(),
+            None,
+            None,
+            capacity_retention,
+        ),
+        labos_threejs_api::openapi(),
+        Default::default(),
+    );
     let lab = path.split('/').nth(5).unwrap();
     let entity_id = path.split('/').nth(7).unwrap();
     let run = data(
@@ -236,6 +252,10 @@ async fn a_full_day_with_spikes_duplicates_and_collection_gap_is_bounded_at_one_
             let bytes = response.into_body().collect().await.unwrap().to_bytes();
             assert!(bytes.len() <= budgets["trendBytes"].as_u64().unwrap() as usize);
             let trend: Value = serde_json::from_slice(&bytes).unwrap();
+            assert_eq!(trend["observation_retention_seconds"], 172800);
+            let retained_since: DateTime<Utc> =
+                trend["retained_since"].as_str().unwrap().parse().unwrap();
+            assert!(retained_since <= from, "capacity data must remain within retention");
             assert_eq!(trend["max_points"], 600);
             assert_eq!(trend["raw_sample_count"], 86380);
             assert!(trend["plot_item_count"].as_u64().unwrap() <= 600);
@@ -310,6 +330,97 @@ async fn a_full_day_with_spikes_duplicates_and_collection_gap_is_bounded_at_one_
         )
         .unwrap();
     }
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn default_retention_excludes_expired_reports_without_cleanup(pool: PgPool) {
+    let (clock, runtime, app, member, path) = setup(pool, "sensor").await;
+    let run = data(
+        request(
+            &app,
+            &member,
+            "POST",
+            &format!("{path}/program/start"),
+            json!({}),
+        )
+        .await,
+    )
+    .await;
+    let now = Utc::now().timestamp();
+    let old_report = DateTime::from_timestamp(now - 25 * 3600, 0).unwrap();
+    let new_report = DateTime::from_timestamp(now - 2 * 3600, 0).unwrap();
+    for (sequence, at, temperature) in [(1, old_report, 31), (2, new_report, 42)] {
+        clock.0.store(at.timestamp(), Ordering::SeqCst);
+        runtime
+            .observe(
+                run["id"].as_str().unwrap(),
+                ObservationReport {
+                    sequence,
+                    values: json!({"temperature":temperature}),
+                    observed_at: Some(at),
+                    quality: "good".into(),
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let response = request(
+        &app,
+        &member,
+        "GET",
+        &query(
+            &path,
+            "temperature",
+            old_report - chrono::Duration::seconds(1),
+            new_report + chrono::Duration::seconds(1),
+            "",
+        ),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let trend = data(response).await;
+    assert_eq!(trend["observation_retention_seconds"], 86400);
+    assert_eq!(trend["max_range_seconds"], 86400);
+    assert_eq!(trend["raw_sample_count"], 1);
+    assert_eq!(trend["returned_sample_count"], 1);
+    let samples = trend["segments"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .flat_map(|segment| segment["samples"].as_array().unwrap())
+        .collect::<Vec<_>>();
+    assert_eq!(samples.len(), 1);
+    assert_eq!(samples[0]["sequence"], 2);
+    assert_eq!(samples[0]["value"], 42);
+    assert_eq!(samples[0]["received_at"], json!(new_report));
+    assert_eq!(trend["first_report_at"], json!(new_report));
+    let cutoff: DateTime<Utc> = trend["retained_since"].as_str().unwrap().parse().unwrap();
+    assert!(old_report < cutoff && cutoff < new_report);
+    assert!(trend["gaps"].as_array().unwrap().iter().any(|gap| {
+        gap["reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reason| reason == "retention")
+    }));
+    let lab = path.split('/').nth(5).unwrap();
+    let policy = data(
+        request(
+            &app,
+            &member,
+            "GET",
+            &format!("/api/v1/lab/labs/{lab}/history/retention"),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(policy["observation_seconds"], 86400);
+    assert_eq!(
+        policy["record_seconds"],
+        RetentionPolicy::default().record_seconds
+    );
 }
 
 struct Clock(AtomicI64);

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root } from './process.mjs';
 
-export async function withTestRustfs(action) {
+export async function withTestRustfs(action, resource) {
   const name = `labos-threejs-storage-test-${process.pid}-${randomUUID().slice(0, 8)}`;
   const compose = JSON.parse(
     execFileSync('docker', ['compose', 'config', '--format', 'json'], {
@@ -11,35 +11,36 @@ export async function withTestRustfs(action) {
       encoding: 'utf8',
     }),
   );
+  const labels = resource?.plan(name, 'storage') ?? [];
   let started = false;
   try {
-    execFileSync(
-      'docker',
-      [
-        'run',
-        '--rm',
-        '-d',
-        '--name',
-        name,
-        '-e',
-        'RUSTFS_ACCESS_KEY=test-access',
-        '-e',
-        'RUSTFS_SECRET_KEY=test-only-storage-secret',
-        '-e',
-        'RUSTFS_CONSOLE_ENABLE=false',
-        '-e',
-        'RUSTFS_REGION=us-east-1',
-        '-e',
-        'RUST_LOG=warn',
-        '-p',
-        '127.0.0.1::9000',
-        compose.services.rustfs.image,
-        'rustfs',
-        '/data',
-      ],
-      { stdio: 'pipe' },
-    );
+    const runArguments = [
+      'run',
+      ...labels,
+      '--rm',
+      '-d',
+      '--name',
+      name,
+      '-e',
+      'RUSTFS_ACCESS_KEY=test-access',
+      '-e',
+      'RUSTFS_SECRET_KEY=test-only-storage-secret',
+      '-e',
+      'RUSTFS_CONSOLE_ENABLE=false',
+      '-e',
+      'RUSTFS_REGION=us-east-1',
+      '-e',
+      'RUST_LOG=warn',
+      '-p',
+      '127.0.0.1::9000',
+      compose.services.rustfs.image,
+      'rustfs',
+      '/data',
+    ];
+    if (resource) await resource.runContainer(runArguments);
+    else execFileSync('docker', runArguments, { stdio: 'pipe' });
     started = true;
+    resource?.started(name);
     const port = execFileSync('docker', ['port', name, '9000/tcp'], {
       encoding: 'utf8',
     })
@@ -75,10 +76,13 @@ export async function withTestRustfs(action) {
       },
     });
   } finally {
-    if (started)
-      execFileSync('docker', ['rm', '-f', '-v', name], {
-        stdio: 'ignore',
-        timeout: 10_000,
-      });
+    if (started) {
+      if (resource) resource.remove(name);
+      else
+        execFileSync('docker', ['rm', '-f', '-v', name], {
+          stdio: 'ignore',
+          timeout: 10_000,
+        });
+    }
   }
 }

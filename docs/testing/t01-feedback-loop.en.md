@@ -4,15 +4,15 @@ Goal: select public checks that observe your Lab Word change. Run from the repos
 
 ## Choose An Entry
 
-| Change                         | Command                                             | Evidence and prerequisites                                              |
-| ------------------------------ | --------------------------------------------------- | ----------------------------------------------------------------------- |
-| Web behavior                   | `pnpm test:frontend`                                | Real component interaction; HTTP uses MSW                               |
-| TypeScript and boundaries      | `pnpm typecheck`, `pnpm boundaries:check`           | Types, package dependencies, Rust table ownership                       |
-| Backend behavior               | `node scripts/test-backend.mjs --test registration` | Real Router and isolated services; requires Docker                      |
-| Contracts                      | `pnpm generate`, `pnpm contracts:check`             | Rust/OpenAPI, generated types and SDK agree; includes Rust generation   |
+| Change                         | Command                                             | Evidence and prerequisites                                                      |
+| ------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| Web behavior                   | `pnpm test:frontend`                                | Real component interaction; HTTP uses MSW                                       |
+| TypeScript and boundaries      | `pnpm typecheck`, `pnpm boundaries:check`           | Types, package dependencies, Rust table ownership                               |
+| Backend behavior               | `node scripts/test-backend.mjs --test registration` | Real Router and isolated services; requires Docker                              |
+| Contracts                      | `pnpm generate`, `pnpm contracts:check`             | Rust/OpenAPI, generated types and SDK agree; includes Rust generation           |
 | Documentation                  | `pnpm docs:check`, `pnpm docs:build`                | Sources, locale pairing, generated references and built links; may compile Rust |
-| Documentation browser journeys | `just e2e-docs`                                     | Language, theme, search, agreed viewports, custom base; requires Chromium |
-| Critical application journeys  | `just e2e`                                          | Real Web/API/Worker/database/storage; requires Docker and Chromium      |
+| Documentation browser journeys | `just e2e-docs`                                     | Language, theme, search, agreed viewports, custom base; requires Chromium       |
+| Critical application journeys  | `just e2e`                                          | Real Web/API/Worker/database/storage; requires Docker and Chromium              |
 
 Install browser prerequisites with `pnpm exec playwright install chromium`. `just check` runs main formatting, static, behavior, budget and build checks without browser E2E. `just check-full` adds application E2E.
 

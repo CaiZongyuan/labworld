@@ -1,0 +1,521 @@
+{
+  "version": 1,
+  "baseline": "8bc9c3fa941c2b4c984d891ea0aa2716c701d594",
+  "sources": [
+    "https://github.com/CaiZongyuan/labworld/issues/45",
+    "https://github.com/CaiZongyuan/labworld/issues/46"
+  ],
+  "scope": "Only retained Core and delivered Foundation #2–#11/#26–#28; no new service or #29–#40 behavior",
+  "classification": [
+    "public",
+    "configuration",
+    "test-startup-configuration",
+    "internal-supplement",
+    "gap"
+  ],
+  "budgets": {
+    "file-max": 20971520,
+    "rate-main": {
+      "registration": 20,
+      "authentication": 60,
+      "resource": 600,
+      "windowSeconds": 60
+    },
+    "rate-local-capacity": 4096,
+    "sse-bytes": 1048576,
+    "sse-pending": 8,
+    "entities": 1000,
+    "nodes": 1000,
+    "history-items": 100,
+    "history-bytes": 262144,
+    "record-items": 100,
+    "record-bytes": 262144,
+    "query-days": 31,
+    "trend-default": 600,
+    "trend-max": 1000,
+    "trend-bytes": 262144,
+    "trend-hours": 24,
+    "sql-queries": 10,
+    "initial-gzip": 409600,
+    "chunk-gzip": 512000
+  },
+  "removed": [
+    "knowledge",
+    "notifications",
+    "email-password-reset",
+    "generic-jobs",
+    "system-cache"
+  ],
+  "rows": [
+    {
+      "id": "core.identity",
+      "sources": [
+        "Core: crates/app/tests/registration.rs",
+        "Core: crates/app/tests/sessions.rs"
+      ],
+      "classification": "public",
+      "normal": "Owner bootstrap, later Member; persistent login/session, normalized email, fresh cookie",
+      "rejected": "Invalid input/origin/CSRF/password/duplicate rejected; existing credentials and Labs unchanged",
+      "recovery": "Correct login/write succeeds; logout revokes old cookie",
+      "tests": ["CORE-01", "CORE-02", "CORE-04", "SESSION-01"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "core.agent",
+      "sources": ["Core: crates/app/tests/api_keys.rs", "#2", "#8"],
+      "classification": "public",
+      "normal": "lab:full Agent and Member operate same Labs; scopes are explicit",
+      "rejected": "Invalid Bearer never falls back to Cookie; insufficient scope and revoked key deny; world unchanged",
+      "recovery": "New valid scoped key recovers access",
+      "tests": ["CORE-03", "CORE-05"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "core.members",
+      "sources": [
+        "Core: apps/api/tests/members.rs",
+        "Core: crates/app/tests/membership_policy.rs"
+      ],
+      "classification": "public",
+      "normal": "Owner/Admin bounded management, Member Lab full access",
+      "rejected": "Member management denied; last active Owner protected; stale version conflict leaves membership unchanged",
+      "recovery": "Explicit fresh-version transition; inactive access revoked then reactivation/new login",
+      "tests": ["CORE-06"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "core.audit",
+      "sources": ["Core: crates/app/tests/audit.rs", "#2", "#4"],
+      "classification": "public",
+      "normal": "Real operator/action/resource/request correlation, bounded cursor page, no secrets",
+      "rejected": "Member and Agent cannot gain audit administration",
+      "recovery": "Owner reads persisted action after denied attempt and valid retry",
+      "tests": ["CORE-07"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "core.rate",
+      "sources": ["#45 decision 10", "Core: crates/app/tests/rate_limits.rs"],
+      "classification": "configuration",
+      "normal": "Healthy Redis registration20/auth60/resource600 per60s, fallback5/20/120,4096 buckets; health exempt",
+      "rejected": "Quota+1 is429 with Retry-After; no business change",
+      "recovery": "Configured short window expires and permits retry",
+      "tests": ["RATE-01", "RATE-02", "RATE-03", "CORE-08"],
+      "budgets": ["rate-main", "rate-local-capacity"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "core.files",
+      "sources": ["Core: crates/platform/tests/object_storage.rs", "#2"],
+      "classification": "configuration",
+      "normal": "Signed upload/ready/download preserve actual bytes, limit and expiration shape",
+      "rejected": "Wrong hash,size,GLB/external resources/revoked publish fail without Asset",
+      "recovery": "New valid upload succeeds; expired signature refused; deleted bytes cleaned",
+      "tests": ["ASSET-01", "ASSET-02", "ASSET-03", "ASSET-04"],
+      "budgets": ["file-max"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.assets",
+      "sources": ["#2"],
+      "classification": "public",
+      "normal": "Asset metadata stable; rename/list/download Member/Agent; completion retry one asset",
+      "rejected": "MissingCSRF/invalidBearer/invalidGLB does not publish",
+      "recovery": "Valid upload retry publishes usable bytes",
+      "tests": ["ASSET-01", "ASSET-02"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.asset-references",
+      "sources": ["#2", "#3", "#10"],
+      "classification": "public",
+      "normal": "Entity representation protects bytes even after node removal/archive",
+      "rejected": "Delete referenced Asset409; World/download unchanged",
+      "recovery": "Release actual reference then delete; unexpired signed URL returns404 after Worker cleanup",
+      "tests": ["ASSET-03"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.identities",
+      "sources": ["#3", "#5"],
+      "classification": "public",
+      "normal": "Independent Asset/Entity/Node, two instances, multi-node, frozen definitions/copy; static physical/simulated distinct",
+      "rejected": "Invalid references/configuration refused with World unchanged",
+      "recovery": "Valid registration/copy succeeds; removed node can be restored on same Entity",
+      "tests": ["WORLD-01", "WORLD-02"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.capabilities",
+      "sources": ["#3", "#4"],
+      "classification": "public",
+      "normal": "World filters declarations/Binding/executable; Robot has no fake observation",
+      "rejected": "Unimplemented Robot and not-running device actions refused without business mutation",
+      "recovery": "Explicit program start makes supported actions executable",
+      "tests": ["WORLD-03", "DEVICE-01"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.layout",
+      "sources": ["#5"],
+      "classification": "public",
+      "normal": "Placement independent of manual relationships with provenance; concurrent CAS one success",
+      "rejected": "Stale version, cycle,invalid placement/reference refused; layout unchanged",
+      "recovery": "Read fresh layout_version then save explicit retry",
+      "tests": ["WORLD-04"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.lights",
+      "sources": ["#4"],
+      "classification": "public",
+      "normal": "Two independent light programs, real zero/false values, Command/Run identities, actor source; repeated start returns200 with the same Run",
+      "rejected": "Invalid params/missing key/not-running deny and retain prior values",
+      "recovery": "Typed valid request reaches succeeded; stop retains last value",
+      "tests": ["DEVICE-01", "DEVICE-02"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.idempotency",
+      "sources": ["#4", "#7", "#9", "#10"],
+      "classification": "public",
+      "normal": "Same actor/key/params returns same durable Command and Task",
+      "rejected": "Changed params409; expired receipt410 prevents re-execution",
+      "recovery": "New key can create valid action after stopped/recovered state",
+      "tests": ["DEVICE-02", "RETENTION-02"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.sensors",
+      "sources": ["#6"],
+      "classification": "public",
+      "normal": "Two server 1Hz sources preserve per-property observed_at/received_at/unit/quality/Binding/Run",
+      "rejected": "PATCH observation400 leaves last measurement unchanged; stop ends current state",
+      "recovery": "Explicit new Run produces new current property without refreshing old last value",
+      "tests": ["DEVICE-03"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.centrifuges",
+      "sources": ["#7"],
+      "classification": "public",
+      "normal": "Two independent tasks, actual gradual values, normal completed and stop-cancelled; Command/Run/Task/result separately queryable",
+      "rejected": "Busy/invalid start refuses and preserves active Task identity/parameters",
+      "recovery": "Task result persists; fresh next Task operates within same Run",
+      "tests": ["DEVICE-04", "DEVICE-05"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.restart",
+      "sources": ["#4", "#6", "#7"],
+      "classification": "public",
+      "normal": "Force-kill and actual restart preserve identities/configuration/last values; Run and unfinished Task interrupted",
+      "rejected": "No auto-run, command replay or fabricated completion",
+      "recovery": "Explicit new Run needed; old completed result readable",
+      "tests": ["DEVICE-06"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.sync",
+      "sources": ["#8"],
+      "classification": "public",
+      "normal": "Real TCP SSE snapshot then versioned updates; disconnected subscription reconnects current snapshot",
+      "rejected": "Unknown/unauthenticated Lab refused without side effect",
+      "recovery": "Second client write while disconnected appears in fresh snapshot",
+      "tests": ["SSE-01"],
+      "budgets": ["sse-bytes"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.sync-credentials",
+      "sources": ["#8"],
+      "classification": "public",
+      "normal": "Session and Agent continuous credentials checked",
+      "rejected": "key revoke/logout/inactive membership ends existing stream and denies new subscribe",
+      "recovery": "New valid session/key receives snapshot",
+      "tests": ["SSE-02", "SSE-03"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.history",
+      "sources": ["#9"],
+      "classification": "public",
+      "normal": "Opaque cursor bounded types/from/to pages preserve source and persistent identity",
+      "rejected": "Illegal range/cursor/type/crossLab/unauthenticated rejects without changing World",
+      "recovery": "Correct page query succeeds",
+      "tests": ["HISTORY-01", "CAPACITY-03"],
+      "budgets": ["history-items", "history-bytes", "query-days"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.retention",
+      "sources": ["#9"],
+      "classification": "configuration",
+      "normal": "Default policy86400/2592000; configured short cleanup produces truthful gaps and retires ended records",
+      "rejected": "Cleanup lacksCSRF denied; pending Task and last Observation survive",
+      "recovery": "Subsequent query shows available range and active Task; new reports continue",
+      "tests": ["HISTORY-01", "RETENTION-01"],
+      "budgets": ["query-days"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.lifecycle",
+      "sources": ["#10"],
+      "classification": "public",
+      "normal": "Appearance replacement preserves Entity/Run/Task/history; stopped archive preserves identity and retained history",
+      "rejected": "Running/unfinished Task archive/definition change409; archived new action refuses",
+      "recovery": "EndTask+stop then archive/change definition; history still accessible",
+      "tests": ["LIFECYCLE-01", "LIFECYCLE-02"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.records",
+      "sources": ["#28"],
+      "classification": "public",
+      "normal": "Mixed Command/Task/Event/Run retain original actor/source; Member and Agent same facts; fixed upper-bound cursor",
+      "rejected": "Invalid/crossLab/filter-changed cursor rejects without writes",
+      "recovery": "Correct cursor pages without duplicate/missing records; archived Entity history readable",
+      "tests": ["RECORDS-01", "RECORDS-02", "CAPACITY-03"],
+      "budgets": ["record-items", "record-bytes", "query-days"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.trend",
+      "sources": ["#27"],
+      "classification": "public",
+      "normal": "Numeric real received_at half-open samples preserve source/unit/time; default600/max1000; explicit stopped gap",
+      "rejected": "Invalid property/range/budget/crossLab refuses without writes; impossible point-budget rejection is assigned to internal.trend/#50",
+      "recovery": "Correct bounded query returns facts; exact returned timestamp from/to roundtrip",
+      "tests": ["TREND-01", "TREND-02"],
+      "budgets": ["trend-default", "trend-max", "trend-bytes", "trend-hours"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "lab.capacity",
+      "sources": ["#11", "#26", "#27", "#28"],
+      "classification": "configuration",
+      "normal": "1000 Entity and1000 Scene Node externally queryable with independent counts",
+      "rejected": "1001st Entity/Node refused; no partial World mutation",
+      "recovery": "Use existing identities/remove node then valid node operation recovers",
+      "tests": ["CAPACITY-01", "CAPACITY-02"],
+      "budgets": ["entities", "nodes", "sse-bytes"],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "openapi.retained",
+      "sources": ["#45 decision16", "#46"],
+      "classification": "public",
+      "normal": "Retained DTO/routes/operationId/tags/responses/errors/security with explicit removed operations and unreachable schemas",
+      "rejected": "Semantic changes reported including changed status/security/required/schema fields",
+      "recovery": "Regenerate only explicit approved baseline; reordered declarations compare equal",
+      "tests": ["API-01"],
+      "budgets": [],
+      "supplement": null,
+      "rust": "covered-by-required-contracts",
+      "next": "not-implemented"
+    },
+    {
+      "id": "internal.audit-fault",
+      "sources": [
+        "Core: crates/app/tests/registration.rs",
+        "Core: crates/app/tests/audit.rs"
+      ],
+      "classification": "internal-supplement",
+      "normal": "Audit/session persistence fault transaction rollback",
+      "rejected": "No publicly reliable audit trigger; production debug endpoints forbidden",
+      "recovery": "New Core use-case rollback supplement",
+      "tests": [],
+      "budgets": [],
+      "supplement": {
+        "issue": 48,
+        "owner": "Core migration implementer",
+        "checks": [
+          "audit write rollback",
+          "session persistence failure",
+          "file IO credential race",
+          "local bucket overflow",
+          "API key expiration minimum1day: deterministic expiry/rollback supplement in #48; continuous subscription expiry in #50"
+        ]
+      },
+      "rust": "assigned-supplement",
+      "next": "not-implemented"
+    },
+    {
+      "id": "internal.observation",
+      "sources": ["#6", "#7", "apps/api/tests/lab_sensors.rs"],
+      "classification": "internal-supplement",
+      "normal": "Partial/heartbeat/duplicates/oldSource/badQuality/sourceTime rules",
+      "rejected": "Existing Runtime.observe injection is not HTTP preparation",
+      "recovery": "New Lab use-case/rule supplement",
+      "tests": [],
+      "budgets": [],
+      "supplement": {
+        "issue": 50,
+        "owner": "Lab migration implementer",
+        "checks": [
+          "retired Binding/Run",
+          "duplicate and late sequence",
+          "partial property clock",
+          "bad quality",
+          "unknown source time",
+          "fault/uncertain result",
+          "accepted intent does not write authoritative Observation",
+          "accepted/executing crash becomes unknown without replay"
+        ]
+      },
+      "rust": "assigned-supplement",
+      "next": "not-implemented"
+    },
+    {
+      "id": "internal.trend",
+      "sources": ["#27", "apps/api/tests/lab_trends.rs"],
+      "classification": "internal-supplement",
+      "normal": "24h spikes/source-unit-quality segments and exact nanosecond cases",
+      "rejected": "Runtime/SQL fixture preparation is not HTTP black-box preparation; the 24h capacity case uses scoped172800 retention and a separate default86400 HTTP crop test preserves the default boundary",
+      "recovery": "New Lab deterministic DB/use-case supplement without weaker budget",
+      "tests": [],
+      "budgets": ["trend-default", "trend-max", "trend-bytes", "sql-queries"],
+      "supplement": {
+        "issue": 50,
+        "owner": "Lab migration implementer",
+        "checks": [
+          "24h bucket first/last/min/max true samples",
+          "quality/unit/source boundaries",
+          "nanosecond timestamp comparison",
+          "impossible point-budget rejection",
+          "independent default observation retention crop without cleanup"
+        ]
+      },
+      "rust": "assigned-supplement",
+      "next": "not-implemented"
+    },
+    {
+      "id": "internal.sse-queue",
+      "sources": ["#8", "apps/api/tests/lab_sync.rs"],
+      "classification": "internal-supplement",
+      "normal": "1MiB event /8 pending bounded transport",
+      "rejected": "Paused JS reader does not establish paused service Body; no exact TCP overload claim",
+      "recovery": "New Lab bounded queue/credential handoff supplement",
+      "tests": [],
+      "budgets": ["sse-pending"],
+      "supplement": {
+        "issue": 50,
+        "owner": "Lab migration implementer",
+        "checks": [
+          "8 pending overflow",
+          "revoke before first transfer",
+          "snapshot subscription initialization race"
+        ]
+      },
+      "rust": "assigned-supplement",
+      "next": "not-implemented"
+    },
+    {
+      "id": "internal.sql",
+      "sources": ["#11", "#26", "#27", "#28", "PR#44"],
+      "classification": "internal-supplement",
+      "normal": "Snapshot/records/trend<=10 actual SQL including auth/transaction at1/100 entities",
+      "rejected": "Old SQL observer/fixture risk does not alter external budgets",
+      "recovery": "New executor calibrated with controlled extra-statement counterexample",
+      "tests": [],
+      "budgets": ["sql-queries"],
+      "supplement": {
+        "issue": 50,
+        "owner": "Lab migration implementer",
+        "checks": [
+          "query count1/100Entity",
+          "count BEGIN/COMMIT/auth",
+          "controlled exceed proof"
+        ]
+      },
+      "rust": "assigned-supplement",
+      "next": "not-implemented"
+    },
+    {
+      "id": "browser.existing",
+      "sources": ["#2", "#11", "#26"],
+      "classification": "internal-supplement",
+      "normal": "Existing real WebGL/desktop/default spatial/deep-link/selection/draft/single-subscription journeys",
+      "rejected": "HTTP cannot prove pixels, camera, focus or browser release",
+      "recovery": "Retained E2E remains required at client switch",
+      "tests": [],
+      "budgets": ["initial-gzip", "chunk-gzip"],
+      "supplement": {
+        "issue": 51,
+        "owner": "Client migration implementer",
+        "checks": [
+          "retained Playwright real GLB/WebGL",
+          "existing views",
+          "desktop smoke",
+          "initial/chunk gzip"
+        ]
+      },
+      "rust": "assigned-supplement",
+      "next": "not-implemented"
+    }
+  ]
+}

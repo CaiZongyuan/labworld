@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root } from './process.mjs';
-export async function withTestMailpit(action) {
+export async function withTestMailpit(action, resource) {
   const name = `labos-threejs-mail-test-${process.pid}-${randomUUID().slice(0, 8)}`;
   const compose = JSON.parse(
     execFileSync('docker', ['compose', 'config', '--format', 'json'], {
@@ -10,27 +10,28 @@ export async function withTestMailpit(action) {
       encoding: 'utf8',
     }),
   );
+  const labels = resource?.plan(name, 'mail') ?? [];
   let started = false;
   try {
-    execFileSync(
-      'docker',
-      [
-        'run',
-        '--rm',
-        '-d',
-        '--name',
-        name,
-        '-e',
-        'MP_ENABLE_CHAOS=true',
-        '-p',
-        '127.0.0.1::1025',
-        '-p',
-        '127.0.0.1::8025',
-        compose.services.mailpit.image,
-      ],
-      { stdio: 'pipe' },
-    );
+    const runArguments = [
+      'run',
+      ...labels,
+      '--rm',
+      '-d',
+      '--name',
+      name,
+      '-e',
+      'MP_ENABLE_CHAOS=true',
+      '-p',
+      '127.0.0.1::1025',
+      '-p',
+      '127.0.0.1::8025',
+      compose.services.mailpit.image,
+    ];
+    if (resource) await resource.runContainer(runArguments);
+    else execFileSync('docker', runArguments, { stdio: 'pipe' });
     started = true;
+    resource?.started(name);
     const deadline = Date.now() + 30_000;
     while (
       spawnSync('docker', ['exec', name, '/mailpit', 'readyz'], {
@@ -65,10 +66,13 @@ export async function withTestMailpit(action) {
       },
     });
   } finally {
-    if (started)
-      execFileSync('docker', ['rm', '-f', '-v', name], {
-        stdio: 'ignore',
-        timeout: 10_000,
-      });
+    if (started) {
+      if (resource) resource.remove(name);
+      else
+        execFileSync('docker', ['rm', '-f', '-v', name], {
+          stdio: 'ignore',
+          timeout: 10_000,
+        });
+    }
   }
 }
