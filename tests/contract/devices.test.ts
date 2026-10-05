@@ -502,8 +502,16 @@ test('DEVICE-04 centrifuge preparation and deceleration do not count toward its 
     () => readEntity(client, lab.id, a.id),
     (value) => value.task?.status === 'running',
   );
-  expect(values(running).speed).toBe(12000);
-  expect(values(running).temperature).toBe(14);
+  // #7 and the public program definition: timing begins within these tolerances.
+  const assertRunningTolerance = (speed: unknown, temperature: unknown) => {
+    expect(speed).toBeGreaterThanOrEqual(11950);
+    expect(speed).toBeLessThanOrEqual(12050);
+    expect(temperature).toBeGreaterThanOrEqual(13.5);
+    expect(temperature).toBeLessThanOrEqual(14.5);
+  };
+  assertRunningTolerance(values(running).speed, values(running).temperature);
+  expect(() => assertRunningTolerance(11949, 14)).toThrow();
+  expect(() => assertRunningTolerance(12000, 14.6)).toThrow();
   timestamp(running.task?.timer_started_at);
   expect(running.task?.elapsed_seconds).toBeLessThan(6);
   const slowing = await until(
