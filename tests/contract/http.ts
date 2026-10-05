@@ -93,6 +93,17 @@ export class HttpClient {
     this.csrf = this.session.csrf_token;
     return this.session;
   }
+  async login(email: string, loginPassword = password) {
+    const response = await this.response('POST', '/api/v1/auth/login', {
+      email,
+      password: loginPassword,
+    });
+    expect(response.status).toBe(200);
+    this.cookie = response.headers.get('set-cookie')!.split(';')[0];
+    this.session = (await response.json()) as CurrentSession;
+    this.csrf = this.session.csrf_token;
+    return this.session;
+  }
   async agent(scopes = ['lab:full']) {
     const credential = await this.json<CreatedApiKey>(
       'POST',

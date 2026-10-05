@@ -115,11 +115,12 @@ function inspect(name) {
   }
 }
 export class ContractResources {
-  constructor(path, runId) {
+  constructor(path, runId, usesDocker = true) {
     this.path = path;
     this.data = runId
       ? {
           runId,
+          usesDocker,
           owner: '#46 developer_m0',
           supervisor: { pid: process.pid, token: token(process.pid) },
           state: 'active',
@@ -141,7 +142,12 @@ export class ContractResources {
     renameSync(`${this.path}.next`, this.path);
   }
   snapshot(stage) {
-    this.data.inventories.push({ stage, ...inventory() });
+    this.data.inventories.push({
+      stage,
+      ...(this.data.usesDocker
+        ? inventory()
+        : { at: new Date().toISOString(), docker: 'not-used' }),
+    });
     this.save();
   }
   plan(name, purpose) {

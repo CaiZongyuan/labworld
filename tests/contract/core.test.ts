@@ -8,7 +8,8 @@ import { HttpClient, member, origin } from './http';
 
 let owner: HttpClient;
 beforeAll(async () => {
-  owner = await member();
+  owner = new HttpClient();
+  await owner.login(process.env.CONTRACT_OWNER_EMAIL!);
   expect(owner.session?.user.role).toBe('owner');
 });
 test('CORE-01 real health and status report connected database and actual versions', async () => {
