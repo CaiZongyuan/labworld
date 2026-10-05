@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root } from './process.mjs';
 
-export async function withTestRustfs(action) {
+export async function withTestRustfs(action, resource) {
   const name = `labos-threejs-storage-test-${process.pid}-${randomUUID().slice(0, 8)}`;
   const compose = JSON.parse(
     execFileSync('docker', ['compose', 'config', '--format', 'json'], {
@@ -11,12 +11,14 @@ export async function withTestRustfs(action) {
       encoding: 'utf8',
     }),
   );
+  const labels = resource?.plan(name, 'storage') ?? [];
   let started = false;
   try {
     execFileSync(
       'docker',
       [
         'run',
+        ...labels,
         '--rm',
         '-d',
         '--name',
@@ -40,6 +42,7 @@ export async function withTestRustfs(action) {
       { stdio: 'pipe' },
     );
     started = true;
+    resource?.started(name);
     const port = execFileSync('docker', ['port', name, '9000/tcp'], {
       encoding: 'utf8',
     })
@@ -75,10 +78,13 @@ export async function withTestRustfs(action) {
       },
     });
   } finally {
-    if (started)
-      execFileSync('docker', ['rm', '-f', '-v', name], {
-        stdio: 'ignore',
-        timeout: 10_000,
-      });
+    if (started) {
+      if (resource) resource.remove(name);
+      else
+        execFileSync('docker', ['rm', '-f', '-v', name], {
+          stdio: 'ignore',
+          timeout: 10_000,
+        });
+    }
   }
 }

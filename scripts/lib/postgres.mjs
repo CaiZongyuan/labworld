@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { root } from './process.mjs';
 
-export async function withTestPostgres(action) {
+export async function withTestPostgres(action, resource) {
   const name = `labos-threejs-test-${process.pid}-${randomUUID().slice(0, 8)}`;
   const config = JSON.parse(
     execFileSync('docker', ['compose', 'config', '--format', 'json'], {
@@ -12,12 +12,14 @@ export async function withTestPostgres(action) {
     }),
   );
   const image = config.services.postgres.image;
+  const labels = resource?.plan(name, 'postgres') ?? [];
   let started = false;
   try {
     execFileSync(
       'docker',
       [
         'run',
+        ...labels,
         '--rm',
         '-d',
         '--name',
@@ -42,6 +44,7 @@ export async function withTestPostgres(action) {
       { stdio: 'pipe' },
     );
     started = true;
+    resource?.started(name);
     const deadline = Date.now() + 30_000;
     while (
       spawnSync(
@@ -88,10 +91,13 @@ export async function withTestPostgres(action) {
     const url = `postgres://postgres:test-only-password@127.0.0.1:${port}/labos_threejs_test`;
     await action({ name, url });
   } finally {
-    if (started)
-      execFileSync('docker', ['rm', '-f', '-v', name], {
-        stdio: 'ignore',
-        timeout: 10_000,
-      });
+    if (started) {
+      if (resource) resource.remove(name);
+      else
+        execFileSync('docker', ['rm', '-f', '-v', name], {
+          stdio: 'ignore',
+          timeout: 10_000,
+        });
+    }
   }
 }
