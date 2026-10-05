@@ -435,7 +435,7 @@
       "sources": ["#27", "apps/api/tests/lab_trends.rs"],
       "classification": "internal-supplement",
       "normal": "24h spikes/source-unit-quality segments and exact nanosecond cases",
-      "rejected": "Existing SQL+Clock fixture now-86370/default retention has expiry risk; no passing M0 HTTP claim",
+      "rejected": "Runtime/SQL fixture preparation is not HTTP black-box preparation; the 24h capacity case uses scoped172800 retention and a separate default86400 HTTP crop test preserves the default boundary",
       "recovery": "New Lab deterministic DB/use-case supplement without weaker budget",
       "tests": [],
       "budgets": ["trend-default", "trend-max", "trend-bytes", "sql-queries"],
@@ -446,7 +446,8 @@
           "24h bucket first/last/min/max true samples",
           "quality/unit/source boundaries",
           "nanosecond timestamp comparison",
-          "impossible point-budget rejection"
+          "impossible point-budget rejection",
+          "independent default observation retention crop without cleanup"
         ]
       },
       "rust": "assigned-supplement",

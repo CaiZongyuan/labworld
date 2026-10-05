@@ -57,7 +57,7 @@ pnpm test:contract --no-build --profile retention
 
 运行证据在 `.scratch/vnext-m0/runs/<run-id>/`。`results.json` 保存实际发现、通过与失败数量；`owned-resources.json` 保存资源意图、身份、消费者和前后盘点。`.scratch/vnext-m0/current.json` 指向最近一次 run。完整命令还写入 suite manifest。
 
-先辨别失败类型：编译、零收集和夹具错误不算业务 red。业务失败需保留原断言和预算。修复夹具不能改变生产默认值。旧趋势容量夹具 `now - 86370` 与默认保留期的时效风险另行记录。
+先辨别失败类型：编译、零收集和夹具错误不算业务 red。业务失败需保留原断言和预算。修复夹具不能改变生产默认值。Rust 的 24h 容量用例只在本用例采用 172800 秒观测保留。独立的默认 86400 秒 HTTP 用例验证真实裁剪和保留缺口。生产默认值不变。
 
 ## 比较保留 API
 

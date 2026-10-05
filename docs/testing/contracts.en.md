@@ -57,7 +57,7 @@ Current public interfaces cannot reliably produce deterministic 24-hour spikes, 
 
 Evidence is in `.scratch/vnext-m0/runs/<run-id>/`. `results.json` records discovered, passed, and failed tests. `owned-resources.json` records acquisition intent, identities, consumers, and before/after inventories. `.scratch/vnext-m0/current.json` points to the latest run. The complete command also writes a suite manifest.
 
-Classify a failure first. Compilation, zero discovery, and fixture failures are not business red evidence. Preserve the original assertion and budget for business failures. Fixture repairs cannot change production defaults. The old trend fixture uses `now - 86370` with default retention. Its expiration risk is recorded separately.
+Classify a failure first. Compilation, zero discovery, and fixture failures are not business red evidence. Preserve the original assertion and budget for business failures. Fixture repairs cannot change production defaults. The Rust 24-hour capacity case uses 172800 seconds of observation retention only in that case. A separate HTTP case uses the default 86400 seconds to check cropping and retention gaps. Production defaults remain unchanged.
 
 ## Compare the retained API
 
