@@ -63,6 +63,29 @@ test('API-01 retained Rust OpenAPI has no semantic drift; DTO,operation,status,e
     mutate(candidate);
     expect(semanticDifferences(retained, candidate).length).toBeGreaterThan(0);
   }
+  for (const keyword of ['example', 'default']) {
+    const before = {
+      [keyword]: { tags: ['first', 'second'], required: ['left', 'right'] },
+    };
+    const after = {
+      [keyword]: { tags: ['second', 'first'], required: ['left', 'right'] },
+    };
+    expect(semanticDifferences(before, after)).toEqual([`/${keyword}/tags`]);
+  }
+  expect(
+    semanticDifferences(
+      {
+        type: 'object',
+        required: ['a', 'b'],
+        properties: { default: { type: 'string', enum: ['a', 'b'] } },
+      },
+      {
+        type: 'object',
+        required: ['b', 'a'],
+        properties: { default: { type: 'string', enum: ['b', 'a'] } },
+      },
+    ),
+  ).toEqual([]);
   const reordered = JSON.parse(JSON.stringify(retained), (_key, value) =>
     value && typeof value === 'object' && !Array.isArray(value)
       ? Object.fromEntries(Object.entries(value).reverse())

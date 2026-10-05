@@ -15,34 +15,32 @@ export async function withTestPostgres(action, resource) {
   const labels = resource?.plan(name, 'postgres') ?? [];
   let started = false;
   try {
-    execFileSync(
-      'docker',
-      [
-        'run',
-        ...labels,
-        '--rm',
-        '-d',
-        '--name',
-        name,
-        '-e',
-        'POSTGRES_PASSWORD=test-only-password',
-        '-e',
-        'POSTGRES_DB=labos_threejs_test',
-        '-p',
-        '127.0.0.1::5432',
-        image,
-        'postgres',
-        '-c',
-        'shared_preload_libraries=pg_stat_statements',
-        '-c',
-        'pg_stat_statements.track=top',
-        '-c',
-        'pg_stat_statements.track_utility=on',
-        '-c',
-        'pg_stat_statements.max=100000',
-      ],
-      { stdio: 'pipe' },
-    );
+    const runArguments = [
+      'run',
+      ...labels,
+      '--rm',
+      '-d',
+      '--name',
+      name,
+      '-e',
+      'POSTGRES_PASSWORD=test-only-password',
+      '-e',
+      'POSTGRES_DB=labos_threejs_test',
+      '-p',
+      '127.0.0.1::5432',
+      image,
+      'postgres',
+      '-c',
+      'shared_preload_libraries=pg_stat_statements',
+      '-c',
+      'pg_stat_statements.track=top',
+      '-c',
+      'pg_stat_statements.track_utility=on',
+      '-c',
+      'pg_stat_statements.max=100000',
+    ];
+    if (resource) await resource.runContainer(runArguments);
+    else execFileSync('docker', runArguments, { stdio: 'pipe' });
     started = true;
     resource?.started(name);
     const deadline = Date.now() + 30_000;

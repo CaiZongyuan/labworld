@@ -112,7 +112,11 @@ if (values.recover) {
     closing ??= (async () => {
       resource.data.closing = true;
       resource.save();
-      const stopped = await Promise.allSettled(children.map(stopOwned));
+      const stopped = await Promise.allSettled(
+        resource.data.consumers
+          .filter((consumer) => consumer.pid)
+          .map((consumer) => resource.stop(consumer.pid)),
+      );
       resource.reconcile('before-cleanup');
       const failures = stopped.filter((result) => result.status === 'rejected');
       if (failures.length)

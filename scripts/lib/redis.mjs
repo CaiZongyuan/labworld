@@ -14,30 +14,28 @@ export async function withTestRedis(action, resource) {
   const labels = resource?.plan(name, 'redis') ?? [];
   let started = false;
   try {
-    execFileSync(
-      'docker',
-      [
-        'run',
-        ...labels,
-        '--rm',
-        '-d',
-        '--name',
-        name,
-        '-p',
-        '127.0.0.1::6379',
-        compose.services.redis.image,
-        'redis-server',
-        '--save',
-        '',
-        '--appendonly',
-        'no',
-        '--maxmemory',
-        '64mb',
-        '--maxmemory-policy',
-        'noeviction',
-      ],
-      { stdio: 'pipe' },
-    );
+    const runArguments = [
+      'run',
+      ...labels,
+      '--rm',
+      '-d',
+      '--name',
+      name,
+      '-p',
+      '127.0.0.1::6379',
+      compose.services.redis.image,
+      'redis-server',
+      '--save',
+      '',
+      '--appendonly',
+      'no',
+      '--maxmemory',
+      '64mb',
+      '--maxmemory-policy',
+      'noeviction',
+    ];
+    if (resource) await resource.runContainer(runArguments);
+    else execFileSync('docker', runArguments, { stdio: 'pipe' });
     started = true;
     resource?.started(name);
     const deadline = Date.now() + 30_000;

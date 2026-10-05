@@ -344,7 +344,7 @@
       "sources": ["#27"],
       "classification": "public",
       "normal": "Numeric real received_at half-open samples preserve source/unit/time; default600/max1000; explicit stopped gap",
-      "rejected": "Invalid property/range/budget/crossLab refuses without writes; impossible small budget413",
+      "rejected": "Invalid property/range/budget/crossLab refuses without writes; impossible point-budget rejection is assigned to internal.trend/#50",
       "recovery": "Correct bounded query returns facts; exact returned timestamp from/to roundtrip",
       "tests": ["TREND-01", "TREND-02"],
       "budgets": ["trend-default", "trend-max", "trend-bytes", "trend-hours"],

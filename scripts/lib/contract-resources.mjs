@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
   mkdirSync,
@@ -312,6 +312,42 @@ export class ContractResources {
     this.data.consumers.push(consumer);
     this.save();
     return consumer;
+  }
+  async runContainer(args) {
+    const intent = this.planConsumer('docker-create-process-group');
+    const child = spawn('docker', args, {
+      env: {
+        ...process.env,
+        CONTRACT_RUN_ID: this.data.runId,
+        CONTRACT_CONSUMER_MARKER: intent.marker,
+      },
+      detached: true,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (!child.pid) {
+      child.once('error', () => {});
+      intent.state = 'not-started';
+      this.save();
+      throw new Error('Docker creation command did not start');
+    }
+    this.launchedConsumer(intent.id, child.pid);
+    let stderr = '';
+    child.stdout.resume();
+    child.stderr.on('data', (bytes) => {
+      if (stderr.length < 8192) stderr += bytes.toString();
+    });
+    try {
+      const exit = await new Promise((resolveExit, reject) => {
+        child.once('error', reject);
+        child.once('exit', resolveExit);
+      });
+      if (exit !== 0)
+        throw new Error(
+          `Owned Docker creation exited ${exit}: ${stderr.trim()}`,
+        );
+    } finally {
+      await this.stop(child.pid);
+    }
   }
   launchedConsumer(id, pid) {
     const consumer = this.data.consumers.find((entry) => entry.id === id);

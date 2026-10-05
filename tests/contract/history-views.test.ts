@@ -5,6 +5,8 @@ import type {
   EntityTrend,
   LabRecordsPage,
   RetentionPolicy,
+  DeviceProgramRun,
+  ObservationProperty,
 } from '../../packages/contracts/src/generated/types.gen';
 import { HttpClient, member, until } from './http';
 import {
@@ -24,6 +26,7 @@ let client: HttpClient,
   light: LabEntity,
   from: string,
   to: string;
+let sensorRun: DeviceProgramRun;
 async function bounded<T>(path: string, actor = client) {
   const response = await actor.response('GET', path);
   expect(response.status).toBe(200);
@@ -58,7 +61,7 @@ beforeAll(async () => {
   from = new Date(Date.now() - 60_000).toISOString();
   sensor = await register(client, lab, 'sensor', { baseline_temperature: 20 });
   light = await register(client, lab, 'light');
-  await start(client, lab, sensor.id);
+  sensorRun = await start(client, lab, sensor.id);
   await start(client, lab, light.id);
   await until(
     () => readEntity(client, lab, sensor.id),
@@ -170,8 +173,55 @@ test('HISTORY-01 history pages are bounded, cursor-scoped, source-preserving and
   );
 });
 
+function assertTrendFacts(response: EntityTrend, raw: HistoryPage) {
+  const reports = new Map(
+    raw.items.map((item) => [
+      item.id,
+      (item.data as { properties: Record<string, ObservationProperty> })
+        .properties.temperature,
+    ]),
+  );
+  const samples = response.segments.flatMap((segment) => segment.samples);
+  for (let index = 1; index < samples.length; index++)
+    expect(
+      instant(samples[index - 1].received_at) <=
+        instant(samples[index].received_at),
+    ).toBe(true);
+  for (const segment of response.segments) {
+    expect(segment.run_id).toBe(sensorRun.id);
+    for (const sample of segment.samples) {
+      const original = reports.get(sample.id);
+      expect(original).toBeDefined();
+      expect(sample).toMatchObject({
+        value: original!.value,
+        sequence: original!.sequence,
+        received_at: original!.received_at,
+        observed_at: original!.observed_at,
+        expires_at: original!.expires_at,
+      });
+      expect(original!.run_id).toBe(sensorRun.id);
+    }
+  }
+  expect(response.gaps.some((gap) => gap.reasons.includes('run_stopped'))).toBe(
+    true,
+  );
+}
+
 test('TREND-01 real received_at half-open boundaries preserve original precision, source, unit and bounded point counts', async () => {
+  const raw = await bounded<HistoryPage>(
+    history(sensor.id, 'observation', { limit: '100' }),
+  );
   const response = await bounded<EntityTrend>(trend());
+  assertTrendFacts(response, raw);
+  const wrongValue = structuredClone(response);
+  wrongValue.segments[0].samples[0].value += 1000;
+  expect(() => assertTrendFacts(wrongValue, raw)).toThrow();
+  const wrongOrder = structuredClone(response);
+  wrongOrder.segments[0].samples.reverse();
+  expect(() => assertTrendFacts(wrongOrder, raw)).toThrow();
+  const missingGap = structuredClone(response);
+  missingGap.gaps = [];
+  expect(() => assertTrendFacts(missingGap, raw)).toThrow();
   expect(response.max_points).toBe(600);
   expect(response.max_range_seconds).toBe(86400);
   expect(response.max_response_bytes).toBe(262144);
@@ -190,9 +240,7 @@ test('TREND-01 real received_at half-open boundaries preserve original precision
     expect(segment.run_id).toEqual(expect.any(String));
     expect(segment.source).toBe(sensor.binding!.source);
   }
-  const ordered = [...samples].sort((a, b) =>
-    instant(a.received_at) < instant(b.received_at) ? -1 : 1,
-  );
+  const ordered = samples;
   const boundary = ordered[1].received_at;
   const end = ordered.at(-1)!.received_at;
   const included = await bounded<EntityTrend>(
@@ -333,6 +381,13 @@ test('RECORDS-01 mixed records preserve actor and device identities; fixed query
 });
 
 test('RECORDS-02 filter-bound opaque cursors and archived histories reject invalid queries and recover with retained records', async () => {
+  const originalWorld = await world(client, lab);
+  const originalRecords = await bounded<LabRecordsPage>(
+    records({ limit: '100' }),
+  );
+  const originalHistory = await bounded<HistoryPage>(
+    history(sensor.id, 'observation', { limit: '100' }),
+  );
   const first = await bounded<LabRecordsPage>(records({ limit: '1' }));
   expect(first.next_cursor).toEqual(expect.any(String));
   for (const invalid of [
@@ -344,6 +399,17 @@ test('RECORDS-02 filter-bound opaque cursors and archived histories reject inval
     { from: new Date(Date.parse(to) - 32 * 86400000).toISOString() },
   ] as Array<Record<string, string>>)
     await client.error('GET', records(invalid), undefined, 400);
+  expect(await world(client, lab)).toEqual(originalWorld);
+  expect(
+    (await bounded<LabRecordsPage>(records({ limit: '100' }))).items,
+  ).toEqual(originalRecords.items);
+  expect(
+    (
+      await bounded<HistoryPage>(
+        history(sensor.id, 'observation', { limit: '100' }),
+      )
+    ).items,
+  ).toEqual(originalHistory.items);
   const before = await readEntity(client, lab, sensor.id);
   await client.json('POST', `${entityPath(lab, sensor.id)}/archive`);
   const archived = await readEntity(client, lab, sensor.id);

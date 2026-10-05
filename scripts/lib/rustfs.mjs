@@ -14,33 +14,31 @@ export async function withTestRustfs(action, resource) {
   const labels = resource?.plan(name, 'storage') ?? [];
   let started = false;
   try {
-    execFileSync(
-      'docker',
-      [
-        'run',
-        ...labels,
-        '--rm',
-        '-d',
-        '--name',
-        name,
-        '-e',
-        'RUSTFS_ACCESS_KEY=test-access',
-        '-e',
-        'RUSTFS_SECRET_KEY=test-only-storage-secret',
-        '-e',
-        'RUSTFS_CONSOLE_ENABLE=false',
-        '-e',
-        'RUSTFS_REGION=us-east-1',
-        '-e',
-        'RUST_LOG=warn',
-        '-p',
-        '127.0.0.1::9000',
-        compose.services.rustfs.image,
-        'rustfs',
-        '/data',
-      ],
-      { stdio: 'pipe' },
-    );
+    const runArguments = [
+      'run',
+      ...labels,
+      '--rm',
+      '-d',
+      '--name',
+      name,
+      '-e',
+      'RUSTFS_ACCESS_KEY=test-access',
+      '-e',
+      'RUSTFS_SECRET_KEY=test-only-storage-secret',
+      '-e',
+      'RUSTFS_CONSOLE_ENABLE=false',
+      '-e',
+      'RUSTFS_REGION=us-east-1',
+      '-e',
+      'RUST_LOG=warn',
+      '-p',
+      '127.0.0.1::9000',
+      compose.services.rustfs.image,
+      'rustfs',
+      '/data',
+    ];
+    if (resource) await resource.runContainer(runArguments);
+    else execFileSync('docker', runArguments, { stdio: 'pipe' });
     started = true;
     resource?.started(name);
     const port = execFileSync('docker', ['port', name, '9000/tcp'], {

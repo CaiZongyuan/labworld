@@ -82,32 +82,75 @@ export function retainedOpenApi(source: Json): Json {
   }
   return api;
 }
-export function canonical(value: Json, key = ''): Json {
-  if (Array.isArray(value)) {
-    const items = value.map((item) => canonical(item));
-    // These declaration arrays are sets. Example/default payload arrays retain order.
-    if (
-      [
-        'required',
-        'enum',
-        'tags',
-        'security',
-        'allOf',
-        'anyOf',
-        'oneOf',
-        'parameters',
-      ].includes(key)
-    )
-      items.sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-    return items;
+export function canonical(value: Json): Json {
+  type Context =
+    'declaration' | 'named-map' | 'data' | 'security-requirement' | 'scope-set';
+  const declarationSets = new Set([
+    'required',
+    'enum',
+    'tags',
+    'security',
+    'allOf',
+    'anyOf',
+    'oneOf',
+    'parameters',
+  ]);
+  const namedMaps = new Set([
+    'properties',
+    'patternProperties',
+    '$defs',
+    'definitions',
+    'dependentSchemas',
+    'schemas',
+    'paths',
+    'responses',
+    'content',
+    'encoding',
+    'headers',
+    'requestBodies',
+    'securitySchemes',
+    'callbacks',
+    'links',
+  ]);
+  function normalize(item: Json, key: string, context: Context): Json {
+    if (Array.isArray(item)) {
+      const childContext: Context =
+        context === 'data' || key === 'enum'
+          ? 'data'
+          : key === 'security'
+            ? 'security-requirement'
+            : 'declaration';
+      const items = item.map((child) => normalize(child, '', childContext));
+      if (
+        context === 'scope-set' ||
+        (context !== 'data' && declarationSets.has(key))
+      )
+        items.sort((a, b) =>
+          JSON.stringify(a).localeCompare(JSON.stringify(b)),
+        );
+      return items;
+    }
+    if (item && typeof item === 'object')
+      return Object.fromEntries(
+        Object.entries(item)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([name, child]) => {
+            let next: Context = 'declaration';
+            if (context === 'data') next = 'data';
+            else if (context === 'security-requirement') next = 'scope-set';
+            else if (
+              context !== 'named-map' &&
+              ['example', 'examples', 'default', 'const'].includes(name)
+            )
+              next = 'data';
+            else if (context !== 'named-map' && namedMaps.has(name))
+              next = 'named-map';
+            return [name, normalize(child, name, next)];
+          }),
+      );
+    return item;
   }
-  if (value && typeof value === 'object')
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([name, item]) => [name, canonical(item, name)]),
-    );
-  return value;
+  return normalize(value, '', 'declaration');
 }
 export function semanticDifferences(expected: Json, actual: Json): string[] {
   const a = canonical(expected),

@@ -13,25 +13,23 @@ export async function withTestMailpit(action, resource) {
   const labels = resource?.plan(name, 'mail') ?? [];
   let started = false;
   try {
-    execFileSync(
-      'docker',
-      [
-        'run',
-        ...labels,
-        '--rm',
-        '-d',
-        '--name',
-        name,
-        '-e',
-        'MP_ENABLE_CHAOS=true',
-        '-p',
-        '127.0.0.1::1025',
-        '-p',
-        '127.0.0.1::8025',
-        compose.services.mailpit.image,
-      ],
-      { stdio: 'pipe' },
-    );
+    const runArguments = [
+      'run',
+      ...labels,
+      '--rm',
+      '-d',
+      '--name',
+      name,
+      '-e',
+      'MP_ENABLE_CHAOS=true',
+      '-p',
+      '127.0.0.1::1025',
+      '-p',
+      '127.0.0.1::8025',
+      compose.services.mailpit.image,
+    ];
+    if (resource) await resource.runContainer(runArguments);
+    else execFileSync('docker', runArguments, { stdio: 'pipe' });
     started = true;
     resource?.started(name);
     const deadline = Date.now() + 30_000;
