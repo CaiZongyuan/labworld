@@ -45,13 +45,14 @@ export class WorldStream {
       clearTimeout(deadline);
     }
   }
-  async event(type: WorldEvent['type']) {
-    for (let count = 0; count < 100; count++) {
-      const event = await this.next();
+  async event(type: WorldEvent['type'], timeout = 15_000) {
+    const deadline = Date.now() + timeout;
+    while (Date.now() < deadline) {
+      const event = await this.next(Math.min(10_000, deadline - Date.now()));
       if (!event) throw new Error(`Stream ended before ${type}`);
       if (event.type === type) return event;
     }
-    throw new Error(`Stream produced no ${type} within event budget`);
+    throw new Error(`Stream produced no ${type} before the deadline`);
   }
   close() {
     this.abort.abort();

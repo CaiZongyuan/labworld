@@ -5,7 +5,7 @@
     "https://github.com/CaiZongyuan/labworld/issues/45",
     "https://github.com/CaiZongyuan/labworld/issues/46"
   ],
-  "scope": "Only retained Core and delivered Foundation #2\u2013#11/#26\u2013#28; no new service or #29\u2013#40 behavior",
+  "scope": "Only retained Core and delivered Foundation #2–#11/#26–#28; no new service or #29–#40 behavior",
   "classification": [
     "public",
     "configuration",
@@ -57,10 +57,10 @@
       "normal": "Owner bootstrap, later Member; persistent login/session, normalized email, fresh cookie",
       "rejected": "Invalid input/origin/CSRF/password/duplicate rejected; existing credentials and Labs unchanged",
       "recovery": "Correct login/write succeeds; logout revokes old cookie",
-      "tests": ["CORE-01", "CORE-02", "CORE-04"],
+      "tests": ["CORE-01", "CORE-02", "CORE-04", "SESSION-01"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -73,12 +73,15 @@
       "tests": ["CORE-03", "CORE-05"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
       "id": "core.members",
-      "sources": ["Core: crates/app/tests/members.rs"],
+      "sources": [
+        "Core: apps/api/tests/members.rs",
+        "Core: crates/app/tests/membership_policy.rs"
+      ],
       "classification": "public",
       "normal": "Owner/Admin bounded management, Member Lab full access",
       "rejected": "Member management denied; last active Owner protected; stale version conflict leaves membership unchanged",
@@ -86,7 +89,7 @@
       "tests": ["CORE-06"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -99,7 +102,7 @@
       "tests": ["CORE-07"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -109,23 +112,23 @@
       "normal": "Healthy Redis registration20/auth60/resource600 per60s, fallback5/20/120,4096 buckets; health exempt",
       "rejected": "Quota+1 is429 with Retry-After; no business change",
       "recovery": "Configured short window expires and permits retry",
-      "tests": ["RATE-01", "RATE-02", "RATE-03"],
+      "tests": ["RATE-01", "RATE-02", "RATE-03", "CORE-08"],
       "budgets": ["rate-main", "rate-local-capacity"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
       "id": "core.files",
       "sources": ["Core: crates/platform/tests/object_storage.rs", "#2"],
-      "classification": "public",
+      "classification": "configuration",
       "normal": "Signed upload/ready/download preserve actual bytes, limit and expiration shape",
       "rejected": "Wrong hash,size,GLB/external resources/revoked publish fail without Asset",
       "recovery": "New valid upload succeeds; expired signature refused; deleted bytes cleaned",
-      "tests": ["ASSET-01", "ASSET-02", "ASSET-03"],
+      "tests": ["ASSET-01", "ASSET-02", "ASSET-03", "ASSET-04"],
       "budgets": ["file-max"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -138,7 +141,7 @@
       "tests": ["ASSET-01", "ASSET-02"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -151,7 +154,7 @@
       "tests": ["ASSET-03"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -164,7 +167,7 @@
       "tests": ["WORLD-01", "WORLD-02"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -177,7 +180,7 @@
       "tests": ["WORLD-03", "DEVICE-01"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -190,20 +193,20 @@
       "tests": ["WORLD-04"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
       "id": "lab.lights",
       "sources": ["#4"],
       "classification": "public",
-      "normal": "Two independent light programs, real zero/false values, Command/Run identities, actor source",
-      "rejected": "Invalid params/missing key/duplicate start/not-running deny and retain prior values",
+      "normal": "Two independent light programs, real zero/false values, Command/Run identities, actor source; repeated start returns200 with the same Run",
+      "rejected": "Invalid params/missing key/not-running deny and retain prior values",
       "recovery": "Typed valid request reaches succeeded; stop retains last value",
       "tests": ["DEVICE-01", "DEVICE-02"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -216,7 +219,7 @@
       "tests": ["DEVICE-02", "RETENTION-02"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -229,7 +232,7 @@
       "tests": ["DEVICE-03"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -242,7 +245,7 @@
       "tests": ["DEVICE-04", "DEVICE-05"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -255,7 +258,7 @@
       "tests": ["DEVICE-06"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -268,7 +271,7 @@
       "tests": ["SSE-01"],
       "budgets": ["sse-bytes"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -281,7 +284,7 @@
       "tests": ["SSE-02", "SSE-03"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -291,10 +294,10 @@
       "normal": "Opaque cursor bounded types/from/to pages preserve source and persistent identity",
       "rejected": "Illegal range/cursor/type/crossLab/unauthenticated rejects without changing World",
       "recovery": "Correct page query succeeds",
-      "tests": ["HISTORY-01"],
+      "tests": ["HISTORY-01", "CAPACITY-03"],
       "budgets": ["history-items", "history-bytes", "query-days"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -307,7 +310,7 @@
       "tests": ["HISTORY-01", "RETENTION-01"],
       "budgets": ["query-days"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -320,7 +323,7 @@
       "tests": ["LIFECYCLE-01", "LIFECYCLE-02"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -330,10 +333,10 @@
       "normal": "Mixed Command/Task/Event/Run retain original actor/source; Member and Agent same facts; fixed upper-bound cursor",
       "rejected": "Invalid/crossLab/filter-changed cursor rejects without writes",
       "recovery": "Correct cursor pages without duplicate/missing records; archived Entity history readable",
-      "tests": ["RECORDS-01", "RECORDS-02"],
+      "tests": ["RECORDS-01", "RECORDS-02", "CAPACITY-03"],
       "budgets": ["record-items", "record-bytes", "query-days"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -346,7 +349,7 @@
       "tests": ["TREND-01", "TREND-02"],
       "budgets": ["trend-default", "trend-max", "trend-bytes", "trend-hours"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -359,7 +362,7 @@
       "tests": ["CAPACITY-01", "CAPACITY-02"],
       "budgets": ["entities", "nodes", "sse-bytes"],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -372,7 +375,7 @@
       "tests": ["API-01"],
       "budgets": [],
       "supplement": null,
-      "rust": "pending",
+      "rust": "covered-by-required-contracts",
       "next": "not-implemented"
     },
     {
@@ -394,10 +397,11 @@
           "audit write rollback",
           "session persistence failure",
           "file IO credential race",
-          "local bucket overflow"
+          "local bucket overflow",
+          "API key expiration minimum1day: deterministic expiry/rollback supplement in #48; continuous subscription expiry in #50"
         ]
       },
-      "rust": "pending",
+      "rust": "assigned-supplement",
       "next": "not-implemented"
     },
     {
@@ -418,10 +422,12 @@
           "partial property clock",
           "bad quality",
           "unknown source time",
-          "fault/uncertain result"
+          "fault/uncertain result",
+          "accepted intent does not write authoritative Observation",
+          "accepted/executing crash becomes unknown without replay"
         ]
       },
-      "rust": "pending",
+      "rust": "assigned-supplement",
       "next": "not-implemented"
     },
     {
@@ -443,7 +449,7 @@
           "impossible point-budget rejection"
         ]
       },
-      "rust": "pending",
+      "rust": "assigned-supplement",
       "next": "not-implemented"
     },
     {
@@ -464,7 +470,7 @@
           "snapshot subscription initialization race"
         ]
       },
-      "rust": "pending",
+      "rust": "assigned-supplement",
       "next": "not-implemented"
     },
     {
@@ -485,7 +491,7 @@
           "controlled exceed proof"
         ]
       },
-      "rust": "pending",
+      "rust": "assigned-supplement",
       "next": "not-implemented"
     },
     {
@@ -507,7 +513,7 @@
           "initial/chunk gzip"
         ]
       },
-      "rust": "pending",
+      "rust": "assigned-supplement",
       "next": "not-implemented"
     }
   ]

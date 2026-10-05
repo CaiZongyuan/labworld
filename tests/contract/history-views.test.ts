@@ -64,7 +64,10 @@ beforeAll(async () => {
     () => readEntity(client, lab, sensor.id),
     (entity) => (entity.observation?.sequence ?? 0) >= 4,
   );
-  await client.json('POST', `${entityPath(lab, sensor.id)}/program/stop`);
+  const stopper = new HttpClient();
+  await stopper.login(process.env.CONTRACT_OWNER_EMAIL!);
+  expect(stopper.session!.user.id).not.toBe(client.session!.user.id);
+  await stopper.json('POST', `${entityPath(lab, sensor.id)}/program/stop`);
   for (const on of [true, false, true, false]) {
     const command = await action(client, lab, light.id, 'light.set_power', {
       on,
@@ -263,10 +266,30 @@ test('RECORDS-01 mixed records preserve actor and device identities; fixed query
       (item.data as { record_type?: string }).record_type === 'program',
   );
   expect(programEvents.length).toBeGreaterThan(0);
-  for (const event of programEvents)
+  const stoppedEvents = programEvents.filter(
+    (event) => event.summary === 'program_stopped',
+  );
+  expect(stoppedEvents.length).toBeGreaterThan(0);
+  for (const event of stoppedEvents)
     expect(event).toMatchObject({
       actor_id: null,
       actor_role: 'unknown',
+      actor_source: 'unknown',
+    });
+  const starts = programEvents.filter(
+    (event) => event.summary === 'program_running',
+  );
+  expect(starts.length).toBeGreaterThan(0);
+  for (const event of starts)
+    expect(event).toMatchObject({
+      actor_id: client.session!.user.id,
+      actor_role: 'initiator',
+      actor_source: 'unknown',
+    });
+  for (const run of page.items.filter((item) => item.record_type === 'run'))
+    expect(run).toMatchObject({
+      actor_id: client.session!.user.id,
+      actor_role: 'initiator',
       actor_source: 'unknown',
     });
   const commands = page.items.filter((item) => item.record_type === 'command');

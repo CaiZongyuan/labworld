@@ -3,13 +3,19 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { root } from './lib/process.mjs';
-const profiles = [
-  'baseline',
-  'file-ttl',
-  'session-ttl',
-  'retention',
-  'rate',
-  'capacity',
+const batches = [
+  {
+    profile: 'baseline',
+    name: 'core-api',
+    files: ['core.test.ts', 'api.test.ts'],
+  },
+  { profile: 'baseline', name: 'world', files: ['world-assets.test.ts'] },
+  { profile: 'baseline', name: 'devices', files: ['devices.test.ts'] },
+  { profile: 'baseline', name: 'history', files: ['history-views.test.ts'] },
+  { profile: 'baseline', name: 'sync', files: ['sse.test.ts'] },
+  ...['file-ttl', 'session-ttl', 'retention', 'rate', 'capacity'].map(
+    (profile) => ({ profile, name: profile, files: [] }),
+  ),
 ];
 const suiteId = `suite-${Date.now()}-${randomUUID().slice(0, 8)}`;
 const results = [];
@@ -38,14 +44,14 @@ function save() {
   );
 }
 try {
-  for (const profile of profiles) {
+  for (const { profile, name, files } of batches) {
     if (cancelled) throw new Error('Contract suite cancelled');
-    const runId = `${suiteId}-${profile}`;
+    const runId = `${suiteId}-${name}`;
     const ledger = resolve(
       root,
       `.scratch/vnext-m0/runs/${runId}/owned-resources.json`,
     );
-    const entry = { profile, runId, ledger, state: 'running' };
+    const entry = { profile, batch: name, runId, ledger, state: 'running' };
     results.push(entry);
     save();
     const args = [
@@ -54,7 +60,8 @@ try {
       runId,
       '--profile',
       profile,
-      ...(profile === 'baseline' ? [] : ['--no-build']),
+      ...(results.length === 1 ? [] : ['--no-build']),
+      ...files,
     ];
     child = spawn(process.execPath, args, {
       cwd: root,
@@ -78,6 +85,24 @@ try {
     JSON.stringify({ suiteId, state: 'passed', profiles: results }, null, 2) +
       '\n',
   );
+  const coverage = spawn(
+    process.execPath,
+    [
+      'scripts/contract-coverage.mjs',
+      '--manifest',
+      manifest,
+      '--output',
+      resolve(root, `.scratch/vnext-m0/coverage-${suiteId}.json`),
+    ],
+    { cwd: root, env: process.env, stdio: 'inherit' },
+  );
+  const coverageExit = await new Promise((resolveExit) =>
+    coverage.once('exit', resolveExit),
+  );
+  if (coverageExit !== 0)
+    throw new Error(
+      'Required behavior matrix lacks complete observed coverage',
+    );
   console.log(`All six required contract profiles passed: ${manifest}`);
 } finally {
   process.removeListener('SIGINT', cancel);

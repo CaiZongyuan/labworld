@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import {
   mkdirSync,
   readFileSync,
@@ -50,6 +51,7 @@ function token(pid) {
   }
 }
 function alive(consumer) {
+  if (!Number.isInteger(consumer.pid) || consumer.pid < 1) return false;
   try {
     process.kill(consumer.pid, 0);
     if (process.platform === 'linux') {
@@ -67,6 +69,7 @@ function alive(consumer) {
   }
 }
 function members(consumer) {
+  if (!Number.isInteger(consumer.pid) || consumer.pid < 1) return [];
   if (process.platform !== 'linux') {
     if (alive(consumer)) return [{ pid: consumer.pid, token: consumer.token }];
     return [];
@@ -90,7 +93,29 @@ function members(consumer) {
   }
   return result;
 }
+function markerMatches(consumer, member) {
+  if (!consumer.marker || token(member.pid) !== member.token) return false;
+  try {
+    // Compare only; neither the complete environment nor its other values are retained.
+    const environment = readFileSync(`/proc/${member.pid}/environ`)
+      .toString()
+      .split('\0');
+    return (
+      environment.includes(`CONTRACT_RUN_ID=${consumer.runId}`) &&
+      environment.includes(`CONTRACT_CONSUMER_MARKER=${consumer.marker}`) &&
+      token(member.pid) === member.token
+    );
+  } catch {
+    return false;
+  }
+}
 function ownsGroup(consumer, actual) {
+  if (consumer.marker)
+    return (
+      actual.length > 0 &&
+      actual.every((member) => markerMatches(consumer, member))
+    );
+  // Recover older ledgers only when they have independently recorded process identities.
   let knownMembers = consumer.members ?? [];
   if (consumer.proofJournal) {
     const records = readFileSync(consumer.proofJournal, 'utf8')
@@ -114,6 +139,41 @@ function ownsGroup(consumer, actual) {
     ),
   );
 }
+function discoverIntent(consumer) {
+  const groups = new Map();
+  for (const entry of readdirSync('/proc')) {
+    if (!/^\d+$/.test(entry)) continue;
+    try {
+      const stat = readFileSync(`/proc/${entry}/stat`, 'utf8')
+        .split(') ')[1]
+        .split(' ');
+      if (stat[0] === 'Z' || stat[2] !== stat[3]) continue;
+      const member = { pid: Number(entry), token: stat[19] };
+      if (!markerMatches(consumer, member)) continue;
+      const group = Number(stat[2]);
+      groups.set(group, [...(groups.get(group) ?? []), member]);
+    } catch (error) {
+      if (error.code !== 'ENOENT' && error.code !== 'ESRCH') throw error;
+    }
+  }
+  if (groups.size > 1)
+    throw new Error(
+      'Consumer intent has multiple unrecorded groups; preserving resources',
+    );
+  if (groups.size === 0 && consumer.state !== 'not-started')
+    throw new Error(
+      'Unfinished consumer creation has no proved process identity; preserve resources and retry recovery',
+    );
+  if (groups.size === 1) {
+    const [pid, proof] = [...groups][0];
+    Object.assign(consumer, {
+      pid,
+      token: token(pid),
+      members: proof,
+      state: 'discovered',
+    });
+  }
+}
 function inspect(name) {
   try {
     const data = JSON.parse(docker(['inspect', name]))[0];
@@ -132,6 +192,49 @@ function inspect(name) {
     throw error;
   }
 }
+function validateLedger(data) {
+  if (
+    !data ||
+    !/^[A-Za-z0-9-]+$/.test(data.runId) ||
+    data.owner !== '#46 developer_m0' ||
+    !Array.isArray(data.containers) ||
+    !Array.isArray(data.consumers) ||
+    !Number.isInteger(data.supervisor?.pid) ||
+    !/^\d+$/.test(data.supervisor?.token)
+  ) {
+    throw new Error('Invalid owned resource ledger; no resources were changed');
+  }
+  const markers = new Set();
+  for (const consumer of data.consumers) {
+    if (consumer.marker !== undefined) {
+      if (
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(
+          consumer.marker,
+        ) ||
+        consumer.runId !== data.runId ||
+        markers.has(consumer.marker)
+      )
+        throw new Error(
+          'Invalid consumer creation proof; no resources were changed',
+        );
+      markers.add(consumer.marker);
+    }
+  }
+  for (const container of data.containers) {
+    if (
+      typeof container.name !== 'string' ||
+      !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(container.name) ||
+      container.labels?.['labword.contract.run'] !== data.runId ||
+      container.labels?.['labword.contract.owner'] !== '#46-developer_m0' ||
+      (container.actual?.id !== undefined &&
+        !/^[0-9a-f]{64}$/.test(container.actual.id))
+    ) {
+      throw new Error(
+        'Ledger lacks required run/owner resource proof; no resources were changed',
+      );
+    }
+  }
+}
 export class ContractResources {
   constructor(path, runId, usesDocker = true) {
     this.path = path;
@@ -148,8 +251,11 @@ export class ContractResources {
           reconciliations: [],
         }
       : JSON.parse(readFileSync(path, 'utf8'));
-    mkdirSync(dirname(path), { recursive: true });
-    this.save();
+    validateLedger(this.data);
+    if (runId) {
+      mkdirSync(dirname(path), { recursive: true });
+      this.save();
+    }
   }
   save() {
     writeFileSync(
@@ -191,16 +297,26 @@ export class ContractResources {
     Object.assign(entry, { state: 'running', actual: inspect(name) });
     this.save();
   }
-  consumer(pid, role, proofJournal) {
+  planConsumer(role, proofJournal) {
+    if (this.data.closing)
+      throw new Error('Resource supervisor is closing; new consumers refused');
     const consumer = {
-      pid,
+      id: randomUUID(),
+      marker: randomUUID(),
       role,
-      token: token(pid),
       proofJournal,
       runId: this.data.runId,
+      state: 'planned',
+      members: [],
     };
-    consumer.members = members(consumer);
     this.data.consumers.push(consumer);
+    this.save();
+    return consumer;
+  }
+  launchedConsumer(id, pid) {
+    const consumer = this.data.consumers.find((entry) => entry.id === id);
+    Object.assign(consumer, { pid, token: token(pid), state: 'running' });
+    consumer.members = members(consumer);
     this.save();
   }
   async stop(pid, graceMs = 5_000) {
@@ -235,18 +351,6 @@ export class ContractResources {
     if (members(consumer).length)
       throw new Error('Owned process group did not stop; preserving resources');
   }
-  sampleConsumers() {
-    let changed = false;
-    for (const consumer of this.data.consumers) {
-      if (!alive(consumer)) continue;
-      const current = members(consumer);
-      if (JSON.stringify(current) !== JSON.stringify(consumer.members)) {
-        consumer.members = current;
-        changed = true;
-      }
-    }
-    if (changed) this.save();
-  }
   reconcile(stage) {
     for (const consumer of this.data.consumers) {
       if (alive(consumer)) consumer.members = members(consumer);
@@ -269,6 +373,7 @@ export class ContractResources {
     return record;
   }
   remove(name) {
+    validateLedger(this.data);
     const entry = this.data.containers.find(
       (container) => container.name === name,
     );
@@ -300,27 +405,37 @@ export class ContractResources {
     this.save();
   }
   async recover() {
+    validateLedger(this.data);
     if (process.platform !== 'linux')
       throw new Error(
         'M0 process-group recovery is supported on Linux; no resources were reclaimed',
       );
-    this.snapshot('recovery-start');
     if (alive(this.data.supervisor))
       throw new Error(
         'Ledger belongs to an active supervisor; recovery refused',
       );
-    for (const consumer of this.data.consumers) {
-      const actual = members(consumer);
-      if (!actual.length) continue;
-      if (!ownsGroup(consumer, actual))
-        throw new Error(
-          'Process group identity cannot be proved; preserve resources for inspection',
-        );
-      await this.stop(consumer.pid);
+    this.snapshot('recovery-start');
+    try {
+      for (const consumer of this.data.consumers)
+        if (!consumer.pid) discoverIntent(consumer);
+      this.save();
+      for (const consumer of this.data.consumers) {
+        const actual = members(consumer);
+        if (!actual.length) continue;
+        if (!ownsGroup(consumer, actual))
+          throw new Error(
+            'Process group identity cannot be proved; preserve resources for inspection',
+          );
+        await this.stop(consumer.pid);
+      }
+      for (const container of this.data.containers) this.remove(container.name);
+      this.data.state = 'recovered';
+    } catch (error) {
+      this.data.state = 'recovery-failed';
+      throw error;
+    } finally {
+      this.reconcile('recovery-end');
+      this.snapshot('recovery-end');
     }
-    this.reconcile('recovery-before-cleanup');
-    for (const container of this.data.containers) this.remove(container.name);
-    this.data.state = 'recovered';
-    this.snapshot('recovery-end');
   }
 }

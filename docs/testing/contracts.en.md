@@ -15,6 +15,8 @@ The runner builds an isolated Rust target. It creates temporary PostgreSQL, Redi
 
 The terminal reports actual discovery and execution counts. `CORE-02` rejects a write without CSRF, checks the unchanged Lab list, then performs a valid write. `CORE-03` checks Agent access, invalid Bearer rejection without Cookie fallback, and revocation.
 
+Without a file selection, `test:contract` runs the Core/API slice. Use `test:contract:all` for complete coverage.
+
 Tests prepare business data through HTTP and observe results through HTTP/SSE. They return IDs and cursors unchanged. Process control provides real start, stop, and restart behavior.
 
 ## Run every required contract
@@ -29,10 +31,12 @@ Each of the six profiles has separate data and an owned resource ledger. A faile
 | ------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------- |
 | `baseline`    | Identity, permissions, assets, world, devices, SSE, history, records, trends, and API contract | Production quotas and retention defaults            |
 | `file-ttl`    | Signed upload/download expiration and authorization recovery                                   | Download 2 seconds; upload session 5 seconds        |
-| `session-ttl` | Idle/absolute session expiry, SSE closure, and new login recovery                              | Idle 2 seconds; absolute 5 seconds                  |
+| `session-ttl` | Idle/absolute session expiry, SSE closure, and new login recovery                              | Idle 60 seconds; absolute 65 seconds                |
 | `retention`   | Public cleanup, real gaps, unfinished tasks, last values, and expired Command receipts         | Observations 2 seconds; ended records 3 seconds     |
 | `rate`        | Primary quotas 20/60/600, 429, `Retry-After`, and window recovery                              | Window 5 seconds; unchanged primary quotas          |
 | `capacity`    | 1000 Entity/1000 Scene Node limits and rejected overflow                                       | Rate limiting disabled for separate capacity checks |
+
+Baseline uses five isolated batches: Core/API, assets/world, devices, history, and SSE. Their polls cannot exhaust one shared TCP client quota. The suite has six profiles and ten real runs.
 
 Normal rate limits remain registration 20, authentication 60, and resource 600 per 60 seconds. The 5/20/120 `fallback_limit` values and 4096 buckets remain compatibility settings. They do not replace normal quotas. The former Redis outage mode is outside the shared new-service oracle.
 

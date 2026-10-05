@@ -22,7 +22,6 @@ const { values, positionals } = parseArgs({
     profile: { type: 'string', default: 'baseline' },
     'lifecycle-probe': { type: 'boolean' },
     'lifecycle-barrier': { type: 'string' },
-    'no-process-sampler': { type: 'boolean' },
     'run-id': { type: 'string' },
   },
   allowPositionals: true,
@@ -48,7 +47,9 @@ if (values.recover) {
     throw new Error(
       'Run directory already exists; use a new id or recover the original ledger',
     );
-  mkdirSync(resolve(directory, 'data'), { recursive: true });
+  mkdirSync(resolve(root, '.scratch/vnext-m0/runs'), { recursive: true });
+  mkdirSync(directory);
+  mkdirSync(resolve(directory, 'data'));
   const proofJournal = resolve(directory, 'target-process-proof.jsonl');
   writeFileSync(proofJournal, '', { mode: 0o600 });
   const resource = new ContractResources(
@@ -69,14 +70,30 @@ if (values.recover) {
   }
   function spawnOwned(command, args, env, role) {
     assertOpen();
-    const child = launch(command, args, env);
-    if (!child.pid) throw new Error(`Could not start ${role}`);
-    children.push(child);
-    resource.consumer(
-      child.pid,
+    const intent = resource.planConsumer(
       role,
       role === 'target-process-group' ? proofJournal : undefined,
     );
+    intent.bind =
+      role === 'target-process-group'
+        ? env.APP_BIND
+        : role === 'file-cleanup-worker-process-group'
+          ? env.WORKER_BIND
+          : undefined;
+    resource.save();
+    const child = launch(command, args, {
+      ...env,
+      CONTRACT_RUN_ID: runId,
+      CONTRACT_CONSUMER_MARKER: intent.marker,
+    });
+    if (!child.pid) {
+      child.once('error', () => {});
+      intent.state = 'not-started';
+      resource.save();
+      throw new Error(`Could not start ${role}`);
+    }
+    children.push(child);
+    resource.launchedConsumer(intent.id, child.pid);
     return child;
   }
   const stopOwned = (child) => resource.stop(child.pid);
@@ -87,6 +104,7 @@ if (values.recover) {
       child.once('exit', resolveExit);
     });
     await stopOwned(child);
+    children.splice(children.indexOf(child), 1);
     if (exit !== 0) throw new Error(`${role} exited ${exit}`);
   }
   let closing;
@@ -121,11 +139,8 @@ if (values.recover) {
   };
   process.once('SIGINT', interrupted);
   process.once('SIGTERM', interrupted);
-  const observer = setInterval(() => {
-    if (!resource.data.closing && !values['no-process-sampler'])
-      resource.sampleConsumers();
-  }, 500);
   const timeout = setTimeout(interrupted, Number(values.timeout) * 1000);
+  let failure;
   try {
     resource.snapshot('start');
     writeFileSync(
@@ -161,7 +176,9 @@ if (values.recover) {
         ? JSON.parse(readFileSync(resolve(values.descriptor), 'utf8'))
         : { command: resolve(targetDirectory, 'debug/labos-threejs-api') };
       const descriptorPath = resolve(directory, 'target.json');
-      writeFileSync(descriptorPath, JSON.stringify(descriptor));
+      writeFileSync(descriptorPath, JSON.stringify(descriptor), {
+        mode: 0o600,
+      });
       const env = {
         ...process.env,
         ...services,
@@ -206,8 +223,8 @@ if (values.recover) {
       }
       if (values.profile === 'capacity') env.RATE_LIMIT_ENABLED = 'false';
       if (values.profile === 'session-ttl') {
-        env.SESSION_ABSOLUTE_SECS = '5';
-        env.SESSION_IDLE_SECS = '2';
+        env.SESSION_ABSOLUTE_SECS = '65';
+        env.SESSION_IDLE_SECS = '60';
       }
       if (values.profile === 'file-ttl') {
         env.DOWNLOAD_URL_SECS = '2';
@@ -296,6 +313,20 @@ if (values.recover) {
         resource.reconcile('before-tests');
         resource.data.stage = 'target-ready';
         resource.save();
+        if (values['lifecycle-barrier'] === 'consumer-orphan') {
+          spawnOwned(
+            'node',
+            ['scripts/lib/contract-orphan-probe.mjs'],
+            {
+              ...env,
+              CONTRACT_LIFECYCLE_CHILD_READY: resolve(
+                directory,
+                'orphan-child.pid',
+              ),
+            },
+            'non-api-probe-group',
+          );
+        }
         if (values['lifecycle-probe']) await new Promise(() => {});
         await controlled(
           'pnpm',
@@ -305,7 +336,9 @@ if (values.recover) {
             'run',
             '--config',
             'vitest.contract.config.ts',
-            ...positionals,
+            ...(values.profile === 'baseline' && positionals.length === 0
+              ? ['core.test.ts', 'api.test.ts']
+              : positionals),
           ],
           env,
           'vitest-process-group',
@@ -319,15 +352,19 @@ if (values.recover) {
     resource.data.state = 'completed';
   } catch (error) {
     resource.data.state = 'failed';
-    throw error;
+    failure = error;
   } finally {
     clearTimeout(timeout);
-    clearInterval(observer);
     try {
       await close();
     } catch (error) {
       resource.data.state = 'cleanup-failed';
-      throw error;
+      failure = failure
+        ? new AggregateError(
+            [failure, error],
+            'Contract run and cleanup failed',
+          )
+        : error;
     } finally {
       resource.snapshot('end');
     }
@@ -335,4 +372,5 @@ if (values.recover) {
     process.removeListener('SIGTERM', interrupted);
     console.log(`Contract evidence: ${directory}`);
   }
+  if (failure) throw failure;
 }

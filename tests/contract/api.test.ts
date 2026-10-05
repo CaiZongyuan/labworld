@@ -28,6 +28,7 @@ test('API-01 retained Rust OpenAPI has no semantic drift; DTO,operation,status,e
     string,
     Record<string, Record<string, Json>>
   >;
+  expect(paths['/api/v1/lab/labs']).toBeDefined();
   const changed = structuredClone(retained) as typeof raw;
   (changed.paths as typeof paths)['/api/v1/lab/labs'].post.operationId =
     'createDifferentLab';

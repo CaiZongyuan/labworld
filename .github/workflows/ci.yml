@@ -57,6 +57,7 @@ jobs:
             .scratch/vnext-m0/runs/*/results.json
             .scratch/vnext-m0/runs/*/owned-resources.json
             .scratch/vnext-m0/suite-*.json
+            .scratch/vnext-m0/coverage-*.json
           if-no-files-found: ignore
           retention-days: 7
       - name: Keep the performance report

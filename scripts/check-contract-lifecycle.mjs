@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import { randomUUID } from 'node:crypto';
 import { root } from './lib/process.mjs';
+import { ContractResources } from './lib/contract-resources.mjs';
 
 const checks = [];
 const read = (path) => JSON.parse(readFileSync(path, 'utf8'));
@@ -22,7 +23,6 @@ async function probe(mode) {
       runId,
       '--lifecycle-barrier',
       mode,
-      ...(mode === 'orphan-restart' ? ['--no-process-sampler'] : []),
       '--timeout',
       mode === 'timeout' ? '25' : '120',
     ],
@@ -37,8 +37,14 @@ async function probe(mode) {
       let data;
       try {
         data = read(ledger);
-      } catch {}
-      if (data?.stage === (mode.endsWith('-wait') ? mode : 'target-ready'))
+      } catch {
+        /* ledger has not been created yet */
+      }
+      if (
+        data?.stage === (mode.endsWith('-wait') ? mode : 'target-ready') &&
+        (mode !== 'consumer-orphan' ||
+          existsSync(resolve(directory, 'orphan-child.pid')))
+      )
         break;
       if (child.exitCode !== null || child.signalCode !== null)
         throw new Error('Probe exited before ready');
@@ -48,13 +54,50 @@ async function probe(mode) {
       read(ledger).stage,
       mode.endsWith('-wait') ? mode : 'target-ready',
     );
+    const beforeActive = readFileSync(ledger);
+    const beforeMtime = statSync(ledger).mtimeMs;
+    await assert.rejects(
+      new ContractResources(ledger).recover(),
+      /active supervisor/,
+    );
+    assert.deepEqual(readFileSync(ledger), beforeActive);
+    assert.equal(statSync(ledger).mtimeMs, beforeMtime);
+    assert(!existsSync(`${ledger}.next`));
+    const invalid = read(ledger);
+    invalid.containers[0].labels = {};
+    const invalidPath = resolve(directory, 'invalid-proof.json');
+    writeFileSync(invalidPath, JSON.stringify(invalid));
+    const invalidBytes = readFileSync(invalidPath);
+    const invalidMtime = statSync(invalidPath).mtimeMs;
+    assert.throws(
+      () => new ContractResources(invalidPath),
+      /required run\/owner/,
+    );
+    assert.deepEqual(readFileSync(invalidPath), invalidBytes);
+    assert.equal(statSync(invalidPath).mtimeMs, invalidMtime);
     if (mode === 'signal' || mode.endsWith('-wait')) child.kill('SIGTERM');
-    if (mode === 'orphan-recover' || mode === 'orphan-restart') {
+    if (
+      mode === 'orphan-recover' ||
+      mode === 'orphan-restart' ||
+      mode === 'consumer-orphan'
+    ) {
       const data = read(ledger);
       const wrapper = data.consumers.find(
-        (entry) => entry.role === 'target-process-group',
+        (entry) =>
+          entry.role ===
+          (mode === 'consumer-orphan'
+            ? 'non-api-probe-group'
+            : 'target-process-group'),
       );
-      let apiPid = Number(readFileSync(resolve(directory, 'api.pid'), 'utf8'));
+      let apiPid = Number(
+        readFileSync(
+          resolve(
+            directory,
+            mode === 'consumer-orphan' ? 'orphan-child.pid' : 'api.pid',
+          ),
+          'utf8',
+        ),
+      );
       if (mode === 'orphan-restart') {
         const oldPid = apiPid;
         process.kill(oldPid, 'SIGKILL');
@@ -72,12 +115,41 @@ async function probe(mode) {
           'fresh restarted child proof must come from the journal',
         );
       }
+      if (mode === 'consumer-orphan')
+        assert(
+          !wrapper.members.some((member) => member.pid === apiPid),
+          'descendant must be born after the only recorded membership sample',
+        );
+      child.kill('SIGKILL');
       process.kill(wrapper.pid, 'SIGKILL');
       await delay(100);
-      process.kill(apiPid, 0); // The original group descendant is still serving.
-      child.kill('SIGKILL');
+      process.kill(apiPid, 0); // The original group descendant is still alive.
       await exit;
       process.kill(apiPid, 0);
+      if (mode === 'consumer-orphan') {
+        const wrong = read(ledger);
+        wrong.consumers.find(
+          (entry) => entry.role === 'non-api-probe-group',
+        ).marker = randomUUID();
+        const wrongPath = resolve(directory, 'wrong-consumer-proof.json');
+        writeFileSync(wrongPath, JSON.stringify(wrong));
+        await assert.rejects(
+          new ContractResources(wrongPath).recover(),
+          /identity cannot be proved/,
+        );
+        process.kill(apiPid, 0);
+      }
+      if (mode === 'consumer-orphan') {
+        const unregistered = read(ledger);
+        const intent = unregistered.consumers.find(
+          (entry) => entry.role === 'non-api-probe-group',
+        );
+        delete intent.pid;
+        delete intent.token;
+        intent.members = [];
+        intent.state = 'planned';
+        writeFileSync(ledger, JSON.stringify(unregistered, null, 2) + '\n');
+      }
       const recovery = spawn(
         process.execPath,
         ['scripts/contract.mjs', '--recover', ledger],
@@ -109,6 +181,10 @@ async function probe(mode) {
         before[field].map((entry) => entry.ID ?? entry.Name).sort(),
       );
     checks.push({ mode, runId, ledger, outcome: 'passed' });
+    writeFileSync(
+      resolve(root, '.scratch/vnext-m0/lifecycle-results.json'),
+      JSON.stringify(checks, null, 2) + '\n',
+    );
   } finally {
     if (child.exitCode === null && child.signalCode === null)
       child.kill('SIGTERM');
@@ -127,17 +203,21 @@ async function probe(mode) {
     }
   }
 }
-for (const mode of [
-  'signal',
-  'timeout',
-  'orphan-recover',
-  'orphan-restart',
-  'worker-wait',
-  'register-wait',
-])
+const selected = process.argv.slice(2);
+for (const mode of selected.length
+  ? selected
+  : [
+      'signal',
+      'timeout',
+      'orphan-recover',
+      'orphan-restart',
+      'consumer-orphan',
+      'worker-wait',
+      'register-wait',
+    ])
   await probe(mode);
 writeFileSync(
   resolve(root, '.scratch/vnext-m0/lifecycle-results.json'),
   JSON.stringify(checks, null, 2) + '\n',
 );
-console.log('Six actual Rust supervisor lifecycle checks passed');
+console.log(`${checks.length} actual Rust supervisor lifecycle checks passed`);

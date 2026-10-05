@@ -77,6 +77,7 @@ export class HttpClient {
     expect(value.error.request_id).toEqual(expect.any(String));
     expect(value.error.message).toEqual(expect.any(String));
     if (code) expect(value.error.code).toBe(code);
+    else if (status === 401) expect(value.error.code).toBe('auth.unauthorized');
     return value;
   }
   async register(email = `contract-${randomUUID()}@example.test`) {
@@ -123,7 +124,7 @@ export async function until<T>(
   read: () => Promise<T>,
   predicate: (value: T) => boolean,
   timeout = 15_000,
-  pollIntervalMs = 100,
+  pollIntervalMs = 250,
 ): Promise<T> {
   const deadline = Date.now() + timeout;
   do {

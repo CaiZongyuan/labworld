@@ -9,7 +9,7 @@ test('SESSION-01 configured idle and absolute expiration end access; activity ca
   const stream = await WorldStream.open(client, lab);
   try {
     expect((await stream.next())?.type).toBe('snapshot');
-    expect(await stream.event('access_ended')).toEqual({
+    expect(await stream.event('access_ended', 75_000)).toEqual({
       type: 'access_ended',
     });
     expect(await stream.next()).toBeUndefined();
@@ -39,11 +39,11 @@ test('SESSION-01 configured idle and absolute expiration end access; activity ca
       return response.status;
     },
     (status) => status === 401,
-    10_000,
+    75_000,
     500,
   );
   expect(expired).toBe(401);
-  expect(Date.now() - started).toBeGreaterThanOrEqual(4500);
+  expect(Date.now() - started).toBeGreaterThanOrEqual(64000);
   const replacement = new HttpClient();
   await replacement.login(client.session!.user.email);
   const recovered = await WorldStream.open(replacement, lab);
@@ -52,4 +52,4 @@ test('SESSION-01 configured idle and absolute expiration end access; activity ca
   } finally {
     recovered.close();
   }
-});
+}, 160_000);

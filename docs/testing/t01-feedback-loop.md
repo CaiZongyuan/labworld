@@ -9,9 +9,9 @@
 | Web 行为          | `pnpm test:frontend`                                | 真实组件操作；HTTP 使用 MSW                           |
 | TypeScript 与边界 | `pnpm typecheck`、`pnpm boundaries:check`           | 类型、包依赖、Rust 表归属                             |
 | 后端行为          | `node scripts/test-backend.mjs --test registration` | 真实 Router 与隔离服务；需要 Docker                   |
-| 合同              | `pnpm generate`、`pnpm contracts:check`             | Rust/OpenAPI、生成类型与 SDK 一致；含 Rust 生成工作  |
-| 文档              | `pnpm docs:check`、`pnpm docs:build`                | 来源、双语、生成参考与构建链接；可能编译 Rust        |
-| 文档浏览器旅程    | `just e2e-docs`                                     | 语言、主题、搜索、约定视口与自定义 base；需 Chromium |
+| 合同              | `pnpm generate`、`pnpm contracts:check`             | Rust/OpenAPI、生成类型与 SDK 一致；含 Rust 生成工作   |
+| 文档              | `pnpm docs:check`、`pnpm docs:build`                | 来源、双语、生成参考与构建链接；可能编译 Rust         |
+| 文档浏览器旅程    | `just e2e-docs`                                     | 语言、主题、搜索、约定视口与自定义 base；需 Chromium  |
 | 应用关键旅程      | `just e2e`                                          | 真实 Web/API/Worker/数据库与存储；需 Docker、Chromium |
 
 首次浏览器验证执行 `pnpm exec playwright install chromium`。`just check` 包含主要格式、静态、行为、性能预算与构建检查；它不含浏览器 E2E。`just check-full` 额外运行应用 E2E。
