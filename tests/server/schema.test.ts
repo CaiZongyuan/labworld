@@ -16,6 +16,7 @@ const retained = [
   'labos_threejs_core.credentials',
   'labos_threejs_core.file_candidates',
   'labos_threejs_core.file_cleanup_control',
+  'labos_threejs_core.file_references',
   'labos_threejs_core.files',
   'labos_threejs_core.idempotency_records',
   'labos_threejs_core.memberships',

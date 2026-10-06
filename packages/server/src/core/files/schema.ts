@@ -1,5 +1,12 @@
 import { sql } from 'drizzle-orm';
-import { uuid, text, bigint, check, index } from 'drizzle-orm/pg-core';
+import {
+  uuid,
+  text,
+  bigint,
+  check,
+  index,
+  primaryKey,
+} from 'drizzle-orm/pg-core';
 import { coreSchema, users } from '../identity/schema.ts';
 import { instant, bytea } from '../../platform/db/columns.ts';
 // Local content references; no S3 bucket, worker lease, or removed Job foreign keys.
@@ -16,7 +23,7 @@ export const files = coreSchema.table(
     sha256: bytea().notNull(),
     state: text().notNull().default('pending_upload'),
     stagingKey: text('staging_key').notNull().unique(),
-    readyKey: text('ready_key').unique(),
+    readyKey: text('ready_key'),
     readyCandidateId: uuid('ready_candidate_id').unique(),
     actualSize: bigint('actual_size', { mode: 'number' }),
     expiresAt: instant('expires_at').notNull(),
@@ -39,6 +46,18 @@ export const files = coreSchema.table(
     index('files_cleanup').on(t.state, t.expiresAt, t.id),
     index('files_cleanup_check').on(t.nextCleanupCheckAt, t.id),
   ],
+);
+export const fileReferences = coreSchema.table(
+  'file_references',
+  {
+    fileId: uuid('file_id')
+      .notNull()
+      .references(() => files.id),
+    ownerType: text('owner_type').notNull(),
+    ownerId: text('owner_id').notNull(),
+    createdAt: instant('created_at').notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.fileId, t.ownerType, t.ownerId] })],
 );
 export const fileCandidates = coreSchema.table(
   'file_candidates',

@@ -1,4 +1,5 @@
 import { serve } from '@hono/node-server';
+export { serve };
 import { readFileSync } from 'node:fs';
 import {
   Database,
