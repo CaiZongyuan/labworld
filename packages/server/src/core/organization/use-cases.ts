@@ -5,6 +5,7 @@ import type { AuthPolicy, MemberRole } from '../identity/domain.ts';
 import { profiles, sessionIn, sessionValue } from '../identity/use-cases.ts';
 import { memberships } from './schema.ts';
 import { canManage, changeAllowed } from './domain.ts';
+import { canonicalUuid } from '../../platform/uuid.ts';
 import { sessions } from '../identity/schema.ts';
 import { databaseAudit } from '../audit/use-cases.ts';
 const invalidPage = () =>
@@ -53,12 +54,10 @@ export async function listMembers(
               parsed.length !== 2 ||
               parsed[0] !== actor.id ||
               typeof parsed[1] !== 'string' ||
-              !/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(
-                parsed[1],
-              )
+              !canonicalUuid(parsed[1])
             )
               throw invalidPage();
-            cursor = parsed[1].toLowerCase();
+            cursor = canonicalUuid(parsed[1]);
           } catch {
             throw invalidPage();
           }
@@ -132,11 +131,8 @@ export async function updateMember(
             'organization.invalid_version',
             'Use a positive membership version',
           );
-        if (
-          !/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(
-            target,
-          )
-        )
+        const canonical = canonicalUuid(target);
+        if (!canonical)
           throw new PublicFailure(
             404,
             'organization.member_not_found',
@@ -145,8 +141,8 @@ export async function updateMember(
         const rows = await tx
           .select()
           .from(memberships)
-          .where(inArray(memberships.userId, [actor.id, target]));
-        const current = rows.find((row) => row.userId === target.toLowerCase());
+          .where(inArray(memberships.userId, [actor.id, canonical]));
+        const current = rows.find((row) => row.userId === canonical);
         const acting = rows.find(
           (row) => row.userId === actor.id && row.active,
         );

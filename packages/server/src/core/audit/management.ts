@@ -7,6 +7,7 @@ import { secretHash } from '../../platform/crypto.ts';
 import { utcInstant } from '../../platform/db/instant.ts';
 import { utf8Size } from '../identity/email.ts';
 import { auditEvents } from './schema.ts';
+import { canonicalUuid } from '../../platform/uuid.ts';
 export type AuditQuery = {
   limit?: number;
   cursor?: string;
@@ -32,16 +33,18 @@ export async function listAudit(
   query: AuditQuery,
 ) {
   const value = sessionValue(policy, headers);
-  const uuid =
-    /^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/;
+  const actorId =
+    query.actor_id === undefined ? undefined : canonicalUuid(query.actor_id);
+  const jobId =
+    query.job_id === undefined ? undefined : canonicalUuid(query.job_id);
   const filters = [
     query.resource_id,
     query.action,
     query.request_id,
     query.resource_type,
-    query.actor_id?.toLowerCase(),
+    actorId,
     query.correlation_id,
-    query.job_id?.toLowerCase(),
+    jobId,
   ];
   const scope = secretHash(
     JSON.stringify(filters.map((value) => value ?? null)),
@@ -66,8 +69,8 @@ export async function listAudit(
               value !== undefined &&
               (!value || utf8Size(value) > 200 || value.includes('\0')),
           ) ||
-          (query.actor_id && !uuid.test(query.actor_id)) ||
-          (query.job_id && !uuid.test(query.job_id))
+          (query.actor_id !== undefined && !actorId) ||
+          (query.job_id !== undefined && !jobId)
         )
           throw invalid();
         let cursor: string | undefined;
@@ -89,10 +92,10 @@ export async function listAudit(
               parsed[0] !== actor.id ||
               parsed[1] !== scope ||
               typeof parsed[2] !== 'string' ||
-              !uuid.test(parsed[2])
+              !canonicalUuid(parsed[2])
             )
               throw invalid();
-            cursor = parsed[2].toLowerCase();
+            cursor = canonicalUuid(parsed[2]);
           } catch {
             throw invalid();
           }
@@ -112,9 +115,7 @@ export async function listAudit(
               query.resource_type
                 ? eq(auditEvents.resourceType, query.resource_type)
                 : undefined,
-              query.actor_id
-                ? eq(auditEvents.actorId, query.actor_id)
-                : undefined,
+              actorId ? eq(auditEvents.actorId, actorId) : undefined,
               query.correlation_id
                 ? eq(auditEvents.correlationId, query.correlation_id)
                 : undefined,

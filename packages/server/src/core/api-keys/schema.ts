@@ -5,7 +5,9 @@ import { instant, bytea } from '../../platform/db/columns.ts';
 export const apiKeys = coreSchema.table(
   'api_keys',
   {
-    id: uuid().primaryKey().defaultRandom(),
+    id: uuid()
+      .primaryKey()
+      .default(sql`uuidv7()`),
     userId: uuid('user_id')
       .notNull()
       .references(() => users.id),

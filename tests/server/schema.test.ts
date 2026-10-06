@@ -253,16 +253,18 @@ test(
       await cp(migrationsDirectory, migrationCopy, { recursive: true });
       const journalPath = join(migrationCopy, 'meta/_journal.json');
       const journal = JSON.parse(await readFile(journalPath, 'utf8'));
+      const failureIndex = journal.entries.at(-1).idx + 1;
+      const failureTag = `${String(failureIndex).padStart(4, '0')}_failure`;
       journal.entries.push({
-        idx: 1,
+        idx: failureIndex,
         version: '7',
-        when: journal.entries[0].when + 1,
-        tag: '0001_failure',
+        when: journal.entries.at(-1).when + 1,
+        tag: failureTag,
         breakpoints: true,
       });
       await writeFile(journalPath, JSON.stringify(journal));
       await writeFile(
-        join(migrationCopy, '0001_failure.sql'),
+        join(migrationCopy, `${failureTag}.sql`),
         'CREATE TABLE lab.failed_migration(id integer);\n--> statement-breakpoint\nSELECT impossible_column FROM lab.failed_migration;',
       );
       await assert.rejects(db.initialize(migrationCopy));

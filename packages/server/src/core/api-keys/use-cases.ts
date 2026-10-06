@@ -4,7 +4,12 @@ import { PublicFailure } from '../../platform/http/failure.ts';
 import { secret, secretHash } from '../../platform/crypto.ts';
 import { utcInstant } from '../../platform/db/instant.ts';
 import type { AuthPolicy } from '../identity/domain.ts';
-import { sessionIn, sessionValue } from '../identity/use-cases.ts';
+import {
+  sessionIn,
+  sessionValue,
+  currentSession,
+} from '../identity/use-cases.ts';
+import { canonicalUuid } from '../../platform/uuid.ts';
 import { databaseAudit } from '../audit/use-cases.ts';
 import { apiKeys } from './schema.ts';
 import {
@@ -128,12 +133,10 @@ export async function listKeys(
               parsed.length !== 2 ||
               parsed[0] !== actor.id ||
               typeof parsed[1] !== 'string' ||
-              !/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(
-                parsed[1],
-              )
+              !canonicalUuid(parsed[1])
             )
               throw invalidPage();
-            cursor = parsed[1].toLowerCase();
+            cursor = canonicalUuid(parsed[1]);
           } catch {
             throw invalidPage();
           }
@@ -174,10 +177,7 @@ export async function keyScopes(
   requestId: string,
   supported: readonly KeyScope[],
 ) {
-  const value = sessionValue(policy, headers);
-  await context.db.read({ id: requestId, kind: 'request' }, (tx) =>
-    sessionIn(tx, policy, value),
-  );
+  await currentSession(context, policy, headers, requestId);
   return { data: [...supported] };
 }
 export async function revokeKey(
@@ -193,11 +193,8 @@ export async function revokeKey(
       { id: requestId, kind: 'request' },
       async (tx) => {
         const actor = (await sessionIn(tx, policy, value)).user;
-        if (
-          !/^[a-fA-F0-9]{8}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{4}-[a-fA-F0-9]{12}$/.test(
-            id,
-          )
-        )
+        const canonical = canonicalUuid(id);
+        if (!canonical)
           throw new PublicFailure(
             404,
             'api_keys.not_found',
@@ -206,7 +203,7 @@ export async function revokeKey(
         const [current] = await tx
           .select()
           .from(apiKeys)
-          .where(and(eq(apiKeys.id, id), eq(apiKeys.userId, actor.id)));
+          .where(and(eq(apiKeys.id, canonical), eq(apiKeys.userId, actor.id)));
         if (!current)
           throw new PublicFailure(
             404,
