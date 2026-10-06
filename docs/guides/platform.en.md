@@ -1,39 +1,16 @@
-# Existing Platform Capabilities
+# Existing platform capabilities
 
-Goal: reuse existing platform interfaces when developing Lab Word and understand their boundary with laboratory behavior. Complete [quick start](../getting-started/quickstart.md)first.
-
-## Start With Real Interfaces
+Choose the real interfaces for current Lab Word Platform Core. Start the Node service with [service foundation](server-foundation.md). Development needs no Docker, Rust or external database.
 
 ```bash
 curl -i http://127.0.0.1:3000/api/v1/auth/session
 curl -i http://127.0.0.1:3000/api/openapi.json
 ```
 
-An anonymous session request should return 401; OpenAPI should return JSON identifying `Lab Word API`. Signed-in views use Session through the SDK. Business mutations retain trusted Origin and CSRF checks; visible client controls do not replace server authorization.
+Anonymous session returns 401. OpenAPI returns JSON for migrated endpoints with the title `Lab Word Server`. See identity, memberships, API keys, audit, idempotency, limits and files in the [platform guide](server-platform.md). See byte storage and business references in the [file guide](server-files.md). Lab assets, world writes and device programs remain in migration.
 
-## Source And Responsibilities
+Core does not import Lab. Core owns role management. [ADR 0008](../adr/0008-full-lab-access-for-users-and-agents.md) defines full Lab access for users and valid `lab:full` Agents. Lab owns its business validator, references and publication callback.
 
-| Capability                             | Public source                                                                                                                                                            | Lab responsibility                                            |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| Registration, sessions, password reset | [Identity](../../crates/app/src/modules/identity/mod.rs)                                                                                                                 | Reuse User and Session                                        |
-| Organization membership and roles      | [Organization](../../crates/app/src/modules/organization/mod.rs)                                                                                                         | Define equipment resource access                              |
-| Files and cleanup                      | [Files](../../crates/app/src/modules/files/mod.rs)                                                                                                                       | Define future asset ownership; M0 local imports do not upload |
-| Jobs, audit, notifications             | [Jobs](../../crates/app/src/modules/jobs/mod.rs), [Audit](../../crates/app/src/modules/audit/mod.rs), [Notifications](../../crates/app/src/modules/notifications/mod.rs) | Define handlers, audit semantics and notification targets     |
-| Knowledge base                         | [Knowledge](../../crates/app/src/modules/knowledge/mod.rs)                                                                                                               | Keep existing behavior separate from equipment models         |
+The generated [API](site:reference/api.md) and [configuration](site:reference/config.md) separate current Node content from the frozen legacy stack. Rust modules, Docker configuration and the complete SDK remain temporarily. They are not runtime dependencies of `pnpm dev`. Removal follows the complete migration gate. The final switch is still pending.
 
-Read the [generated API](site:reference/api.md)for operations and responses and [configuration](site:reference/config.md)for settings. Platform capabilities do not imply implemented telemetry, IoT integration or equipment control.
-
-## Validate Failure Boundaries
-
-Run from the repository root:
-
-```bash
-node scripts/test-backend.mjs --test registration --test sessions
-pnpm test:frontend
-```
-
-Backend checks start isolated services and verify registration, sessions, rejection and invalidation with real dependencies; Docker is required. Frontend checks use MSW at HTTP and do not prove database or storage integration. Choose relevant checks with the [testing guide](../testing/t01-feedback-loop.md).
-
-## Operations
-
-[compose.production.yaml](../../compose.production.yaml)defines existing deployment, with [env.production.example](../../deploy/production/env.production.example)as the configuration example. [justfile](../../justfile)provides explicit migration, deployment, backup and isolated restore commands. Inspect current scripts and settings first; this page does not claim a production Lab release exists.
+Run `pnpm test:server` from the repository root for real Node HTTP, capabilities and transaction recovery. Frontend tests use MSW at HTTP. They do not prove storage integration. Choose affected interfaces with the [testing guide](../testing/t01-feedback-loop.md). Node backups and the complete release path remain in later stages.

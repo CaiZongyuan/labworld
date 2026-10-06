@@ -1,6 +1,6 @@
 # Start the TypeScript service foundation
 
-This guide is for developers of Lab Word Server. The current foundation provides health, system status, error envelopes, a persistent database and contract generation. Identity, files and Lab endpoints are still being migrated. The Web app can open; the new service does not yet support the complete login and laboratory journey.
+This guide is for developers of Lab Word Server. The current foundation provides health, system status, error envelopes, a persistent database and contract generation. Identity, memberships, API keys, audit, limits and file capabilities are implemented. The Web app can use Core identity. The complete laboratory journey is still pending. Continue with [Platform Core](server-platform.md).
 
 ## Get the first result
 
@@ -11,7 +11,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-The service listens on `127.0.0.1:3000` by default. Web uses `http://127.0.0.1:5173`. Vite proxies `/api/v1`, `/api/openapi.json` and `/health` to the new service. Open a second terminal:
+The service listens on `127.0.0.1:3000` by default. Web uses `http://127.0.0.1:5173`. Vite proxies `/api/v1`, `/api/openapi.json`, `/objects` and `/health` to the new service. Open a second terminal:
 
 ```bash
 curl http://127.0.0.1:3000/health/live
@@ -32,7 +32,7 @@ Configuration is implemented in [config.ts](../../apps/server/src/config.ts). Th
 Linux shell example:
 
 ```bash
-LAB_WORD_DATA_DIR=.scratch/my-foundation-data SERVER_PORT=3100 WEB_PORT=5180 pnpm dev
+LAB_WORD_DATA_DIR=.scratch/my-foundation-data SERVER_PORT=3100 WEB_PORT=5180 APP_ORIGIN=http://127.0.0.1:5180 pnpm dev
 ```
 
 The same example in PowerShell:
@@ -41,6 +41,7 @@ The same example in PowerShell:
 $env:LAB_WORD_DATA_DIR = '.scratch/my-foundation-data'
 $env:SERVER_PORT = '3100'
 $env:WEB_PORT = '5180'
+$env:APP_ORIGIN = 'http://127.0.0.1:5180'
 pnpm dev
 ```
 
@@ -57,7 +58,7 @@ pnpm check:m1
 
 Service tests start real child processes. They verify health, errors, persistence, reopening, microsecond timestamps, transaction rollback, SQL counting and directory exclusivity. The error test requests a missing resource. Its 404 response contains `code`, `details`, `message` and `request_id`. The request ID matches the `x-request-id` response header. Responses use `cache-control: no-store`.
 
-`contracts:m1:check` generates OpenAPI from Zod routes. The existing SDK generator writes to `.scratch/vnext-m1/generated/`. The check compares the three migrated endpoints, compiles a generated caller and confirms that the official contracts and SDK are unchanged. A partial service does not overwrite complete client contracts.
+`contracts:m1:check` generates OpenAPI from Zod routes. The existing SDK generator writes to `.scratch/vnext-m1/generated/`. The check compares the 15 migrated paths and 28 recursively referenced schemas, including five file DTOs, compiles a generated caller and confirms that the official contracts and SDK are unchanged. A partial service does not overwrite complete client contracts.
 
 `check:m1` runs service, Web, retained tooling, boundary, bundle and documentation checks. Current CI focuses on Web and does not build or run Electron. The old service, complete business contracts and browser journeys remain pending their migration stages. This command does not claim that Migration Gate has passed.
 
@@ -85,4 +86,4 @@ The database uses pinned PGlite 0.5.8 and Drizzle 0.45.3. Effective configuratio
 
 The [database platform](../../packages/server/src/platform/db/index.ts) owns the driver, migrations and execution queue. Reads, writes and background operations use the same queue. Transactions do not wait for network, file or timer operations. Timestamp columns retain strings with six fractional digits instead of losing microseconds through JavaScript Date.
 
-The [use-case context](../../packages/server/src/platform/context.ts) defines database, clock, BlobStore, audit and event interfaces. The current composition uses only the implemented database and clock. Later modules supply file storage and business behavior. Domain rules do not depend on Node, Hono or the database driver. Platform Core does not import Lab.
+The [use-case context](../../packages/server/src/platform/context.ts) defines database, clock, BlobStore, audit and event interfaces. The current composition uses the database, clock, local blob storage and Core audit. [FileService](server-files.md) supplies file capabilities. Later modules supply Lab behavior. Domain rules do not depend on Node, Hono or the database driver. Platform Core does not import Lab.

@@ -3,6 +3,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { ApiErrorResponse, errorEnvelope } from '../../platform/http/errors.ts';
 import type { FoundationContext } from '../../platform/context.ts';
 import { ready, systemStatus } from './use-cases.ts';
+import { PublicFailure } from '../../platform/http/failure.ts';
 
 const HealthResponse = z
   .object({ status: z.string() })
@@ -25,6 +26,7 @@ export function createApp(
   version: string,
   log: (entry: Record<string, unknown>) => void = (entry) =>
     console.log(JSON.stringify(entry)),
+  initialize?: (app: OpenAPIHono<{ Variables: { requestId: string } }>) => void,
 ) {
   const app = new OpenAPIHono<{ Variables: { requestId: string } }>();
   app.use('*', async (c, next) => {
@@ -46,6 +48,7 @@ export function createApp(
       });
     }
   });
+  initialize?.(app);
   app.openapi(
     createRoute({
       method: 'get',
@@ -115,12 +118,17 @@ export function createApp(
     },
   );
   app.notFound((c) => {
-    const known = [
-      '/health/live',
-      '/health/ready',
-      '/api/v1/system/status',
-      '/api/openapi.json',
-    ].includes(c.req.path);
+    const segments = c.req.path.split('/');
+    const known = app.routes.some((route) => {
+      const registered = route.path.split('/');
+      return (
+        route.method !== 'ALL' &&
+        registered.length === segments.length &&
+        registered.every(
+          (part, index) => part.startsWith(':') || part === segments[index],
+        )
+      );
+    });
     return c.json(
       errorEnvelope(
         known ? 'http.method_not_allowed' : 'http.not_found',
@@ -130,19 +138,22 @@ export function createApp(
       known ? 405 : 404,
     );
   });
-  app.onError((_error, c) =>
+  app.onError((error, c) =>
     c.json(
       errorEnvelope(
-        'internal.error',
-        'Internal server error',
+        error instanceof PublicFailure ? error.code : 'internal.error',
+        error instanceof PublicFailure
+          ? error.message
+          : 'Internal server error',
         c.get('requestId'),
+        error instanceof PublicFailure ? error.details : {},
       ),
-      500,
+      error instanceof PublicFailure ? error.status : 500,
     ),
   );
   app.doc('/api/openapi.json', {
     openapi: '3.1.0',
-    info: { title: 'Lab Word Server (M1 foundation)', version },
+    info: { title: 'Lab Word Server', version },
   });
   return app;
 }

@@ -23,6 +23,7 @@ export default defineConfig(({ mode }) => {
         '/api/v1': { target },
         '/api/openapi.json': { target },
         '/health': { target },
+        '/objects': { target },
       },
     },
   };

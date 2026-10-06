@@ -1,39 +1,16 @@
 # 现有平台能力
 
-目标：在 Lab Word 开发中复用已有平台入口，并理解它们与实验室业务的边界。先完成[快速开始](../getting-started/quickstart.md)。
-
-## 从真实接口开始
+目标：选择 Lab Word 当前 Platform Core 的真实入口。先按[服务基础](server-foundation.md)运行 Node 服务；开发不需要 Docker、Rust 或外部数据库。
 
 ```bash
 curl -i http://127.0.0.1:3000/api/v1/auth/session
 curl -i http://127.0.0.1:3000/api/openapi.json
 ```
 
-匿名 session 请求应返回 401；OpenAPI 应返回 JSON，并标识 `Lab Word API`。已登录页面通过 SDK 使用 Session；业务写请求沿用可信 Origin 与 CSRF，不能用客户端按钮可见性代替后端授权。
+匿名 session 返回 401。OpenAPI 返回当前已迁移端点的 JSON，标题为 `Lab Word Server`。当前身份、成员、API key、审计、幂等、限流与文件能力见[平台指南](server-platform.md)。文件字节与业务引用见[文件指南](server-files.md)。Lab 资产、世界写入与设备程序仍在迁移。
 
-## 源码与职责
+Core 不引用 Lab。角色管理属于 Core；用户和有效 `lab:full` Agent 的完整 Lab 访问合同见 [ADR 0008](../adr/0008-full-lab-access-for-users-and-agents.md)。Lab 保留业务 validator、引用与提交回调的职责。
 
-| 能力                 | 公开源码入口                                                                                                                                                             | Lab 的责任                                |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
-| 注册、会话、密码重置 | [Identity](../../crates/app/src/modules/identity/mod.rs)                                                                                                                 | 复用当前 User 与 Session                  |
-| 企业成员与角色       | [Organization](../../crates/app/src/modules/organization/mod.rs)                                                                                                         | 定义设备资源的具体访问资格                |
-| 文件与清理           | [Files](../../crates/app/src/modules/files/mod.rs)                                                                                                                       | 未来明确资产所有权；M0 本地导入不调用上传 |
-| 后台任务、审计、通知 | [Jobs](../../crates/app/src/modules/jobs/mod.rs)、[Audit](../../crates/app/src/modules/audit/mod.rs)、[Notifications](../../crates/app/src/modules/notifications/mod.rs) | 定义业务 Handler、审计语义和通知目标      |
-| 知识库               | [Knowledge](../../crates/app/src/modules/knowledge/mod.rs)                                                                                                               | 保留现有功能，与设备模型区分              |
+[生成 API](site:reference/api.md)与[配置参考](site:reference/config.md)分别列出当前 Node 内容和冻结旧栈内容。旧 Rust 模块、Docker 配置与完整 SDK 暂时保留，不是 `pnpm dev` 的运行依赖。它们在完整迁移门禁后移除；当前页面不宣称最终切换完成。
 
-当前 HTTP 请求、操作名与响应以[生成 API](site:reference/api.md)为准，设置以[配置参考](site:reference/config.md)为准。平台能力不代表设备遥测、IoT 接入或控制已经存在。
-
-## 验证失败边界
-
-从仓库根目录运行：
-
-```bash
-node scripts/test-backend.mjs --test registration --test sessions
-pnpm test:frontend
-```
-
-后端检查启动隔离服务，真实验证注册、会话、拒绝与失效；需要 Docker。前端测试在 HTTP 边界使用 MSW，不证明真实数据库与存储集成。按[测试指南](../testing/t01-feedback-loop.md)选择变更涉及的入口。
-
-## 运维入口
-
-现有部署定义为 [compose.production.yaml](../../compose.production.yaml)，配置示例为 [env.production.example](../../deploy/production/env.production.example)。[justfile](../../justfile)提供显式迁移、部署、备份及独立恢复入口。先检查当前脚本和环境配置；此页不声明 Lab 生产发布已完成。
+从仓库根目录运行 `pnpm test:server` 检查真实 Node HTTP、能力与事务恢复。前端测试在 HTTP 边界使用 MSW，不能证明真实存储集成。选择受影响入口见[测试指南](../testing/t01-feedback-loop.md)。当前 Node 备份与完整发布流程仍属后续阶段。

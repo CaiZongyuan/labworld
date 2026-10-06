@@ -27,6 +27,11 @@ export type DbMeasurement = DbOperation & {
   outcome: 'ok' | 'error';
 };
 export class SqlBudgetExceeded extends Error {}
+type OperationScope = {
+  measurement: DbMeasurement;
+  open: boolean;
+  pending: Set<Promise<unknown>>;
+};
 export const migrationsDirectory = fileURLToPath(
   new URL('../../../migrations/', import.meta.url),
 );
@@ -45,8 +50,13 @@ export class Database {
   private client?: MeteredPGlite;
   private directory?: string;
   private tail: Promise<unknown> = Promise.resolve();
-  private active?: { token: symbol; measurement: DbMeasurement };
+  private active?: {
+    token: symbol;
+    measurement: DbMeasurement;
+    owner?: OperationScope;
+  };
   private scope = new AsyncLocalStorage<symbol>();
+  private operations = new AsyncLocalStorage<OperationScope>();
   private accepting = true;
   private poisoned = false;
   private observe: (measurement: DbMeasurement) => void;
@@ -67,6 +77,22 @@ export class Database {
     // After lease loss only the platform's rollback/close is allowed to finish.
     if (this.poisoned && !control)
       throw new Error('Database lease is unavailable');
+    if (this.active?.owner && !this.active.owner.open && !control)
+      throw new Error('Database operation scope has expired');
+  }
+  private enforceBudget(operation: DbOperation, reserved = 0) {
+    const active = this.active!;
+    const current = active.measurement.statements + reserved;
+    if (operation.budget !== undefined && current > operation.budget)
+      throw new SqlBudgetExceeded(
+        `SQL budget ${operation.budget} exceeded by ${current} statements`,
+      );
+    const total = current + (active.owner?.measurement.statements ?? 0);
+    const budget = active.owner?.measurement.budget;
+    if (budget !== undefined && total > budget)
+      throw new SqlBudgetExceeded(
+        `Whole-operation SQL budget ${budget} exceeded by ${total} statements`,
+      );
   }
   private scopedClient<T extends PGlite | Transaction>(
     token: symbol,
@@ -109,9 +135,27 @@ export class Database {
   ): Promise<T> {
     if (!this.accepting || this.poisoned)
       return Promise.reject(new Error('Database is unavailable'));
+    const inherited = this.operations.getStore();
+    if (inherited && !inherited.open)
+      return Promise.reject(new Error('Database operation scope has expired'));
+    if (inherited && inherited.measurement.kind !== operation.kind)
+      return Promise.reject(
+        new Error('Database operation kind does not match its active scope'),
+      );
+    const owner =
+      inherited?.measurement.kind === operation.kind ? inherited : undefined;
+    if (owner && !owner.open)
+      return Promise.reject(new Error('Database operation scope has expired'));
+    if (owner && operation.budget !== undefined)
+      owner.measurement.budget = Math.min(
+        owner.measurement.budget ?? Infinity,
+        operation.budget,
+      );
     const queued = performance.now();
-    const result = this.tail.then(async () => {
+    const result: Promise<T> = this.tail.then(async () => {
       if (this.poisoned) throw new Error('Database lease is unavailable');
+      if (owner && !owner.open)
+        throw new Error('Database operation scope has expired');
       const started = performance.now();
       const measurement: DbMeasurement = {
         ...operation,
@@ -122,27 +166,32 @@ export class Database {
         outcome: 'error',
       };
       const token = Symbol(operation.id);
-      this.active = { token, measurement };
+      this.active = { token, measurement, owner };
       return this.scope.run(token, async () => {
         try {
           const value = await work();
-          if (
-            operation.budget !== undefined &&
-            measurement.statements > operation.budget
-          )
-            throw new SqlBudgetExceeded(
-              `SQL budget ${operation.budget} exceeded by ${measurement.statements} statements`,
-            );
+          this.enforceBudget(operation);
           measurement.outcome = 'ok';
           return value;
         } finally {
           measurement.durationMs = performance.now() - started;
           this.active = undefined;
-          this.observe(measurement);
+          if (owner) {
+            owner.measurement.statements += measurement.statements;
+            owner.measurement.commands.push(...measurement.commands);
+            owner.measurement.queueWaitMs += measurement.queueWaitMs;
+            owner.measurement.durationMs += measurement.durationMs;
+            if (measurement.outcome === 'error')
+              owner.measurement.outcome = 'error';
+          } else this.observe(measurement);
         }
       });
     });
     this.tail = result.catch(() => {});
+    if (owner) {
+      owner.pending.add(result);
+      void result.finally(() => owner.pending.delete(result)).catch(() => {});
+    }
     return result;
   }
   async initialize(migrationFolder = migrationsDirectory) {
@@ -186,6 +235,61 @@ export class Database {
   ): Promise<T> {
     return this.enqueue(operation, () => work(this.session(this.orm())));
   }
+  async operation<T>(
+    operation: DbOperation,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    const enclosing = this.operations.getStore();
+    if (enclosing && !enclosing.open)
+      throw new Error('Database operation scope has expired');
+    if (enclosing?.open) {
+      if (
+        enclosing.measurement.id !== operation.id ||
+        enclosing.measurement.kind !== operation.kind
+      )
+        throw new Error(
+          'A different database operation scope is already active',
+        );
+      if (operation.budget !== undefined)
+        enclosing.measurement.budget = Math.min(
+          enclosing.measurement.budget ?? Infinity,
+          operation.budget,
+        );
+      return work();
+    }
+    const owner: OperationScope = {
+      measurement: {
+        ...operation,
+        statements: 0,
+        commands: [],
+        queueWaitMs: 0,
+        durationMs: 0,
+        outcome: 'ok',
+      },
+      open: true,
+      pending: new Set(),
+    };
+    return this.operations.run(owner, async () => {
+      try {
+        const result = await work();
+        if (
+          owner.measurement.budget !== undefined &&
+          owner.measurement.statements > owner.measurement.budget
+        )
+          throw new SqlBudgetExceeded(
+            `Whole-operation SQL budget ${owner.measurement.budget} exceeded`,
+          );
+        return result;
+      } catch (error) {
+        owner.measurement.outcome = 'error';
+        throw error;
+      } finally {
+        owner.open = false;
+        await Promise.allSettled([...owner.pending]);
+        this.observe(owner.measurement);
+      }
+    });
+  }
   transaction<T>(
     operation: DbOperation,
     work: (session: DbSession) => Promise<T>,
@@ -193,11 +297,7 @@ export class Database {
     return this.enqueue(operation, () =>
       this.orm().transaction(async (tx) => {
         const value = await work(this.session(tx));
-        if (
-          operation.budget !== undefined &&
-          this.active!.measurement.statements + 1 > operation.budget
-        )
-          throw new SqlBudgetExceeded('SQL budget would be exceeded by COMMIT');
+        this.enforceBudget(operation, 1);
         return value;
       }),
     );

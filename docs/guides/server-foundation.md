@@ -1,6 +1,6 @@
 # 启动 TypeScript 服务基础
 
-本指南面向开发 Lab Word Server 的开发者。当前服务基础提供健康、系统状态、错误信封、持久数据库与合同生成。身份、文件和 Lab 业务接口仍在迁移。Web 可以打开；完整登录与实验室旅程暂不属于新服务。
+本指南面向开发 Lab Word Server 的开发者。当前服务基础提供健康、系统状态、错误信封、持久数据库与合同生成。身份、成员、API key、审计、限流与文件能力已经实现。Web 可以使用 Core 身份；完整 Lab 旅程仍在迁移。继续阅读[平台指南](server-platform.md)。
 
 ## 得到第一个结果
 
@@ -11,7 +11,7 @@ pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-服务默认监听 `127.0.0.1:3000`，Web 使用 `http://127.0.0.1:5173`。Vite 将 `/api/v1`、`/api/openapi.json` 与 `/health` 代理到新服务。打开第二个终端：
+服务默认监听 `127.0.0.1:3000`，Web 使用 `http://127.0.0.1:5173`。Vite 将 `/api/v1`、`/api/openapi.json`、`/objects` 与 `/health` 代理到新服务。打开第二个终端：
 
 ```bash
 curl http://127.0.0.1:3000/health/live
@@ -32,7 +32,7 @@ curl http://127.0.0.1:3000/api/v1/system/status
 Linux shell 的示例：
 
 ```bash
-LAB_WORD_DATA_DIR=.scratch/my-foundation-data SERVER_PORT=3100 WEB_PORT=5180 pnpm dev
+LAB_WORD_DATA_DIR=.scratch/my-foundation-data SERVER_PORT=3100 WEB_PORT=5180 APP_ORIGIN=http://127.0.0.1:5180 pnpm dev
 ```
 
 PowerShell 的同一示例：
@@ -41,6 +41,7 @@ PowerShell 的同一示例：
 $env:LAB_WORD_DATA_DIR = '.scratch/my-foundation-data'
 $env:SERVER_PORT = '3100'
 $env:WEB_PORT = '5180'
+$env:APP_ORIGIN = 'http://127.0.0.1:5180'
 pnpm dev
 ```
 
@@ -57,7 +58,7 @@ pnpm check:m1
 
 服务测试启动真实子进程。它们验证健康、错误、持久化、重开、微秒时间、事务回滚、SQL 计量与目录独占。错误测试请求不存在的资源：响应为 404，包含 `code`、`details`、`message`、`request_id`，并与 `x-request-id` 响应头对应。响应使用 `cache-control: no-store`。
 
-`contracts:m1:check` 从 Zod 路由生成 OpenAPI，并通过现有 SDK 生成器写入 `.scratch/vnext-m1/generated/`。它比较三个已迁移端点，编译生成的调用，并检查正式合同与 SDK 未被改变。部分服务不会覆盖完整客户端合同。
+`contracts:m1:check` 从 Zod 路由生成 OpenAPI，并通过现有 SDK 生成器写入 `.scratch/vnext-m1/generated/`。它比较15 个已迁移路径与 28 个递归引用 schema，包含五个文件 DTO，编译生成的调用，并检查正式合同与 SDK 未被改变。部分服务不会覆盖完整客户端合同。
 
 `check:m1` 运行服务、Web、保留工具、边界、包体和文档检查。当前 CI 以 Web 为主，不构建或运行 Electron。旧服务、完整业务合同和浏览器旅程仍待对应迁移阶段；本命令不宣称 Migration Gate 已通过。
 
@@ -85,4 +86,4 @@ pnpm server:recover .scratch/vnext-m1/<run>/owned-resources.json
 
 [数据库平台](../../packages/server/src/platform/db/index.ts) 独占驱动、迁移和执行队列。读取、写入与后台操作都进入同一队列；事务内不等待网络、文件或定时器。时间列保留精度为六位的字符串，不通过 JavaScript Date 丢弃微秒。
 
-[用例上下文](../../packages/server/src/platform/context.ts) 定义数据库、时钟、BlobStore、审计和事件接口。当前组合只使用已实现的数据库与时钟。文件存储和业务实现由后续模块提供；领域规则不依赖 Node、Hono 或数据库驱动，Platform Core 不引用 Lab。
+[用例上下文](../../packages/server/src/platform/context.ts) 定义数据库、时钟、BlobStore、审计和事件接口。当前组合使用数据库、时钟、本地字节存储与 Core 审计。[FileService](server-files.md) 提供文件能力；领域规则不依赖 Node、Hono 或数据库驱动，Platform Core 不引用 Lab。

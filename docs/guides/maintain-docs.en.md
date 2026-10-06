@@ -52,7 +52,7 @@ Before delivery, review each changed passage against the table. Compare it with 
 
 The registration needs one stable id, both titles and sources, published routes, a group and a page type. Pages without a chapter relationship have no automatic previous or next page.
 
-Repository Markdown is the source of page content. Rust/OpenAPI provides API facts. Settings provides configuration facts. Use `<<<` to include checked, complete source code. Scripts generate `apps/docs/.generated` and the build output. Put site images in `apps/docs/public/`.
+Repository Markdown is the source of page content. Current Node Zod/OpenAPI and frozen legacy OpenAPI provide API facts. The Node parser and frozen Settings provide configuration facts. Use `<<<` to include checked, complete source code. Scripts generate `apps/docs/.generated` and the build output. Put site images in `apps/docs/public/`.
 
 Run these checks from the repository root:
 

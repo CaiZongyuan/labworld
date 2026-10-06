@@ -5,7 +5,9 @@ import { instant } from '../../platform/db/columns.ts';
 export const auditEvents = coreSchema.table(
   'audit_events',
   {
-    id: uuid().primaryKey().defaultRandom(),
+    id: uuid()
+      .primaryKey()
+      .default(sql`uuidv7()`),
     actorId: uuid('actor_id').references(() => users.id),
     actorType: text('actor_type').notNull(),
     action: text().notNull(),
