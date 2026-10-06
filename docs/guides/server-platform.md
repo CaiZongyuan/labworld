@@ -107,7 +107,7 @@ Agent 不通过 key 管理成员、key 或审计。显式无效 Bearer 返回 40
 
 Owner 或 Admin 使用会话读取 `GET /api/v1/audit-events?limit=50`。支持 `actor_id`、`action`、`resource_type` 和 `resource_id` 过滤。cursor 绑定操作者与过滤条件。审计记录原操作者与请求关联，元数据不保存密码、key secret 或会话值。
 
-`GET /api/v1/system/rate-limits` 只向 Owner 返回本进程指标。限流按 TCP peer 计量，忽略转发头；默认窗口为 60 秒，最多 4096 个本地 bucket。额度耗尽返回 429 和 `Retry-After`。等待返回的秒数后再发请求。当前没有 Redis 限流消费者。
+`GET /api/v1/system/rate-limits` 向 Owner 或 Admin 返回本进程指标。限流按 TCP peer 计量，忽略转发头；默认窗口为 60 秒，最多 4096 个本地 bucket。额度耗尽返回 429 和 `Retry-After`。等待返回的秒数后再发请求。当前没有 Redis 限流消费者。
 
 [幂等能力](../../packages/server/src/core/idempotency/use-cases.ts)由业务在已有 `DbSession` 中调用。先授权，再查询 replay；claim、业务写入、审计和保存的结果使用同一事务。它保留结果 24 小时，每次 claim 最多回收 25 条过期记录。调用方将相同 key 的参数冲突映射为 409。后续 Lab handler 负责挂接真实业务路径。
 

@@ -107,7 +107,7 @@ Agents cannot use keys to manage members, keys or audit. An explicit invalid Bea
 
 Owners and Admins use a session to read `GET /api/v1/audit-events?limit=50`. Filters support `actor_id`, `action`, `resource_type` and `resource_id`. Cursors bind the actor and filters. Audit keeps the original actor and request correlation. Metadata excludes passwords, key secrets and session values.
 
-`GET /api/v1/system/rate-limits` exposes process metrics to Owners. Limits use the TCP peer and ignore forwarded headers. Defaults are a 60-second window and at most 4096 local buckets. Exhausted quotas return 429 and `Retry-After`. Wait for the returned seconds, then retry. The current limiter has no Redis consumer.
+`GET /api/v1/system/rate-limits` exposes process metrics to Owners and Admins. Limits use the TCP peer and ignore forwarded headers. Defaults are a 60-second window and at most 4096 local buckets. Exhausted quotas return 429 and `Retry-After`. Wait for the returned seconds, then retry. The current limiter has no Redis consumer.
 
 The business calls the [idempotency capability](../../packages/server/src/core/idempotency/use-cases.ts) inside an existing `DbSession`. Authorize before replay. Claim, business writes, audit and the saved result use one transaction. Results remain for 24 hours. Each claim reclaims at most 25 expired records. The handler maps changed parameters with the same key to 409. Later Lab handlers must connect this capability to actual business routes.
 
