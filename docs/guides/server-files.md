@@ -30,7 +30,7 @@ if (response.status !== 204) throw new Error('Upload failed');
 
 <<< ../examples/attach-file.ts
 
-`validate(candidate)` 在摘要、声明大小和通用格式检查完成后运行。它通过 `candidate.read()` 读取刚验证并采用的不可变字节。验证期间持有该哈希的文件锁，未持有数据库事务。validator 应流式读取并施加自己的业务预算。拒绝时抛出 `PublicFailure`，其状态与错误码会保留；未知错误返回 503。validator 必须避免数据库写入与不可逆副作用。
+`validate(candidate)` 在摘要、声明大小和通用格式检查完成后运行。它通过 `candidate.read()` 读取刚验证并采用的不可变字节。验证期间持有该哈希的文件锁，未持有数据库事务。validator 应流式读取并施加自己的业务预算。永久内容拒绝时抛出 `FileContentRejected`，Core 在重查原凭据后保留 rejected 状态并返回 422。普通 `PublicFailure` 保留状态与错误码；未知错误返回 503，同一上传仍可重试。validator 必须避免数据库写入与不可逆副作用。
 
 `publish(tx, file, transitioned)` 在最终数据库事务中运行。业务在这里写入自己的记录与审计。示例随后在同一 `tx` 调用 `pin`，将文件关联到 `ownerType` 和 `ownerId`。Core 同时提交 ready 状态、candidate 和 `files.complete` 审计。回调或审计失败会一起回滚；已采用的物理字节可能留下，后续清理负责回收。
 
@@ -44,7 +44,7 @@ if (response.status !== 204) throw new Error('Upload failed');
 
 业务删除或替换引用时，在同一事务调用 `service.release(tx, fileId, reference)`。需要显式删除逻辑文件时调用 `dispose`。仍有 pin 或真实外键消费者时返回 409；先移除自己拥有的业务引用，再重试。相同哈希可属于多个独立逻辑文件，释放一个不会删除另一个的字节。
 
-Core 文件 scheduler 重试 deleting intent、到期 staging 与孤儿对象。每次清理最多处理 50 个逻辑文件；rescan 每次处理 100 个目录项并推进游标。目录发现仍读取和排序全部名称，这不是恒定延迟保证。未知格式名称、活跃文件、pin 与真实外键引用均保留。
+Core 文件 scheduler 重试 deleting intent、到期 staging 与孤儿对象。每次清理最多处理 50 个逻辑文件；rescan 每次处理 100 个目录项并推进游标。目录发现仍读取和排序全部名称，这不是恒定延迟保证。未知格式名称、活跃文件、pin 与真实业务外键引用均保留。业务可在维护开始前声明精确的 provisional 元数据外键；该声明只允许物理回收，逻辑 dispose 仍检查全部引用。rejected 与 expired 元数据保留 422/410 语义和原拒绝原因。
 
 字节和 staging 存在 `LAB_WORD_DATA_DIR/blobs`；稳定签名密钥存在 `secrets/file-signing-key`。新密钥写入并 sync 临时文件，再通过 no-overwrite link 发布。普通失败移除该临时文件；强杀可以留下私有临时文件。启动保留已有有效 key，遇到未知短 key 时拒绝启动，不自动覆盖。已有签名在同目录进程重启后仍可使用，直到其原期限；这不是断电耐久性保证。
 
@@ -57,6 +57,6 @@ pnpm typecheck
 node --test --experimental-strip-types tests/server/core-files.test.ts tests/server/core-file-authority.test.ts
 ```
 
-类型检查包含教学适配代码。实际能力测试运行真实 HTTP 字节路由与嵌入数据库，验证大小、格式、摘要、不可变 validator、撤销、回调和审计回滚、GC/adoption 并发、签名与恢复。测试使用拥有的临时目录，完成后删除；不会打开 `data/`。实际 Lab GLB 验证仍由后续 Lab 断言负责，见[逐断言映射](../testing/vnext-core-assertions.md)。
+类型检查包含教学适配代码。实际能力测试运行真实 HTTP 字节路由与嵌入数据库，验证大小、格式、摘要、不可变 validator、撤销、回调和审计回滚、GC/adoption 并发、签名与恢复。测试使用拥有的临时目录，完成后删除；不会打开 `data/`。真实 Lab GLB 发布、编解码与字节回收见[Node 资产指南](server-assets.md)；Core 的原逐断言职责见[映射](../testing/vnext-core-assertions.md)。
 
 配置与 DTO 以[生成配置](site:reference/config.md)和[生成 API](site:reference/api.md)为准。Core [FileService](../../packages/server/src/core/files/use-cases.ts)拥有逻辑生命周期，[Platform BlobStore](../../packages/server/src/platform/blob-store.ts)拥有流式物理 I/O，Application 拥有业务 validator、引用与事务回调。

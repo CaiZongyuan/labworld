@@ -1,5 +1,7 @@
 # 持久导入第一个数字资产
 
+当前 Node 开发入口使用 TypeScript 服务；可直接运行的资产路径见[Node 资产指南](../guides/server-assets.md)。本章完整 Foundation V1 版本中的设备与历史后续内容仍按迁移阶段交付。
+
 目标：普通 Member 保存一份 GLB 与元数据，在新浏览器和真实 Agent 请求中读取同一资产，再观察一次失败与恢复。
 
 ## 起始版本与本章变更

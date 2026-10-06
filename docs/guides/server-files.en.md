@@ -30,7 +30,7 @@ The complete minimal adapter is [attach-file.ts](../examples/attach-file.ts). It
 
 <<< ../examples/attach-file.ts
 
-`validate(candidate)` runs after digest, declared size and generic format checks. `candidate.read()` reads the same verified immutable bytes that were just adopted. Validation holds the hash's file lock, outside a database transaction. Stream the content and apply the business budget. Throw `PublicFailure` to retain its status and code. Unknown errors return 503. Validators must avoid database writes and irreversible side effects.
+`validate(candidate)` runs after digest, declared size and generic format checks. `candidate.read()` reads the same verified immutable bytes that were just adopted. Validation holds the hash's file lock, outside a database transaction. Stream the content and apply the business budget. Throw `FileContentRejected` for permanent content refusal. Core rechecks the original credential, retains rejected state and returns 422. Other `PublicFailure` errors retain their status and code. Unknown errors return 503 and leave the same upload retryable. Validators must avoid database writes and irreversible side effects.
 
 `publish(tx, file, transitioned)` runs in the final database transaction. Write business records and audit here. The example then calls `pin` in the same `tx`, linking the file to `ownerType` and `ownerId`. Core commits ready state, candidate and `files.complete` audit together. Callback or audit failure rolls them back. Adopted physical bytes can remain for later cleanup.
 
@@ -44,7 +44,7 @@ After authorization, call `service.download(tx, actor, fileId)` inside a `DbSess
 
 When deleting or replacing a reference, call `service.release(tx, fileId, reference)` in the same transaction. Call `dispose` to delete a logical file explicitly. Existing pins or real foreign-key consumers return 409. Remove the business references you own, then retry. One hash can belong to several logical files. Releasing one does not delete another file's bytes.
 
-The Core file scheduler retries deleting intents, expired staging and orphan objects. Cleanup processes at most 50 logical files per call. Rescan processes 100 directory entries and advances a cursor. Directory discovery still reads and sorts every name. This does not guarantee constant latency. Unknown name formats, active files, pins and actual foreign-key references remain.
+The Core file scheduler retries deleting intents, expired staging and orphan objects. Cleanup processes at most 50 logical files per call. Rescan processes 100 directory entries and advances a cursor. Directory discovery still reads and sorts every name. This does not guarantee constant latency. Unknown name formats, active files, pins and durable foreign-key references remain. Before maintenance starts, a business owner may declare an exact provisional metadata foreign key. This affects physical retirement only; logical dispose still checks every reference. Rejected and expired metadata retain 422/410 behavior and the original refusal.
 
 Bytes and staging live in `LAB_WORD_DATA_DIR/blobs`. The stable signing key lives in `secrets/file-signing-key`. Initialization writes and syncs a temporary key, then publishes it with a no-overwrite link. Ordinary failure removes that temporary file. Force-kill can leave a private temporary file. Startup preserves an existing valid key. An unknown short key refuses startup and is never overwritten automatically. Previously issued signatures survive a same-directory process restart until their original deadline. This is not a power-loss durability guarantee.
 
@@ -57,6 +57,6 @@ pnpm typecheck
 node --test --experimental-strip-types tests/server/core-files.test.ts tests/server/core-file-authority.test.ts
 ```
 
-Typechecking includes the teaching adapter. Real capability tests use HTTP byte routes and an embedded database. They check size, format, digest, immutable validation, revocation, callback/audit rollback, GC/adoption concurrency, signatures and recovery. Tests remove their owned temporary directories after completion. They do not open `data/`. Later Lab assertions own actual GLB validation. See the [assertion map](../testing/vnext-core-assertions.md).
+Typechecking includes the teaching adapter. Real capability tests use HTTP byte routes and an embedded database. They check size, format, digest, immutable validation, revocation, callback/audit rollback, GC/adoption concurrency, signatures and recovery. Tests remove their owned temporary directories after completion. They do not open `data/`. See [Node assets](server-assets.en.md) for actual Lab GLB publication, decoding and retirement. Core retains its [assertion ownership](../testing/vnext-core-assertions.md).
 
 Use the generated [configuration](site:reference/config.md) and [API](site:reference/api.md) as facts. Core [FileService](../../packages/server/src/core/files/use-cases.ts) owns logical lifecycle. [Platform BlobStore](../../packages/server/src/platform/blob-store.ts) owns streamed physical I/O. Application owns the business validator, references and transaction callback.

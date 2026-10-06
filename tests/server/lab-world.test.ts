@@ -171,6 +171,38 @@ test('catalog and filtered physical/simulated Robots retain separate unknown ide
       target_id: physical.id,
       kind: 'simulates',
     };
+    const rawFloat = await fetch(client.url + path + '/layout', {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        origin: client.url,
+        cookie: client.cookie!,
+        'x-csrf-token': client.csrf!,
+      },
+      body: JSON.stringify({
+        expected_version: all.lab.layout_version,
+        nodes,
+        relationships: [relationship],
+      }).replace(
+        '"expected_version":' + all.lab.layout_version,
+        '"expected_version":' + all.lab.layout_version + '.0',
+      ),
+    });
+    assert.equal(rawFloat.status, 400);
+    assert.equal((await rawFloat.json()).error.code, 'http.invalid_json');
+    assert.deepEqual(await client.json<LabWorld>('GET', path + '/world'), all);
+    await client.error(
+      'PUT',
+      path + '/layout',
+      {
+        expected_version: all.lab.layout_version + 0.5,
+        nodes,
+        relationships: [relationship],
+      },
+      400,
+      'http.invalid_json',
+    );
+    assert.deepEqual(await client.json<LabWorld>('GET', path + '/world'), all);
     const saved = await client.json<LabLayout>('PUT', path + '/layout', {
       expected_version: all.lab.layout_version,
       nodes,

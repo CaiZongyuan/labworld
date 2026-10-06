@@ -1,5 +1,7 @@
 # Edit Layout and Register Location
 
+The Node server supports the static layouts and relationships in this chapter without starting a light. See [Node World](../guides/server-world.en.md) for sources and checks. Runtime journeys remain in migration.
+
 Place a beaker, explicitly register it on a bench, and keep a draft after another browser saves first. Copying an object, adding another representation, and removing a representation verify identity and recovery separately.
 
 ## Starting Version and Changes

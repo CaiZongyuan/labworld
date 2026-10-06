@@ -167,7 +167,7 @@ function localizedReferenceTexts() {
   return {
     zh: {
       currentApiTitle:
-        '\n\n## 当前 TypeScript Core\n\n下表直接来自 Node 服务的 Zod/OpenAPI。字节 capability 的 `/objects/:id` 由 FileService 返回；Lab 迁移范围见 [平台指南](../guides/server-platform.md)。',
+        '\n\n## 当前 TypeScript 服务\n\n下表直接来自 Node 服务的 Zod/OpenAPI。字节 capability 的 `/objects/:id` 由 FileService 返回；Lab 资产、世界与布局见 [Node 世界指南](../guides/server-world.md)。',
       legacyApiTitle: '\n\n## 保留的完整冻结合同\n',
       currentConfigTitle:
         '\n\n## 当前 Lab Word Server\n\n默认值由 [config.ts]({{serverConfig}}) 的实际解析器生成。Web 的 `WEB_PORT` 和 `VITE_API_PROXY` 由开发入口和 Vite 读取。',
@@ -192,7 +192,7 @@ function localizedReferenceTexts() {
     },
     en: {
       currentApiTitle:
-        '\n\n## Current TypeScript Core\n\nThis table comes directly from the Node Zod/OpenAPI source. FileService returns byte capabilities at `/objects/:id`. See the [platform guide](../guides/server-platform.md) for migration coverage.',
+        '\n\n## Current TypeScript service\n\nThis table comes directly from the Node Zod/OpenAPI source. FileService returns byte capabilities at `/objects/:id`. See [Node World](../guides/server-world.md) for migrated assets, World and layouts.',
       legacyApiTitle: '\n\n## Retained complete frozen contract\n',
       currentConfigTitle:
         '\n\n## Current Lab Word Server\n\nDefaults come from the running parser in [config.ts]({{serverConfig}}). The development entrypoint and Vite read `WEB_PORT` and `VITE_API_PROXY`.',

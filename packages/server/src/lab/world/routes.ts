@@ -3,7 +3,10 @@ import type { createApp } from '../../core/system/routes.ts';
 import { ApiErrorResponse } from '../../platform/http/errors.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
 import { boundedJson, boundedJsonAt } from '../../platform/http/json.ts';
-import { duplicateStructField } from '../../platform/http/json-syntax.ts';
+import {
+  duplicateStructField,
+  invalidI64Field,
+} from '../../platform/http/json-syntax.ts';
 import type { WorldService } from './use-cases.ts';
 import {
   PersistentLab,
@@ -74,6 +77,7 @@ export function worldRoutes(
     async (c) => {
       const input = c.req.valid('json');
       if (
+        invalidI64Field(c.req.raw, 'expected_version') ||
         duplicateStructField(c.req.raw, Object.keys(SaveLabLayout.shape)) ||
         input.nodes.some(
           (_, index) =>
@@ -207,6 +211,7 @@ export function worldRoutes(
     }),
     async (c) => {
       if (
+        invalidI64Field(c.req.raw, 'expected_version') ||
         duplicateStructField(c.req.raw, Object.keys(CopyLabEntity.shape)) ||
         duplicateStructField(
           c.req.raw,

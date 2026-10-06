@@ -1,6 +1,6 @@
 # 启动 TypeScript 服务基础
 
-本指南面向开发 Lab Word Server 的开发者。当前服务基础提供健康、系统状态、错误信封、持久数据库与合同生成。身份、成员、API key、审计、限流与文件能力已经实现。Web 可以使用 Core 身份；完整 Lab 旅程仍在迁移。继续阅读[平台指南](server-platform.md)。
+本指南面向开发 Lab Word Server 的开发者。当前服务基础提供健康、系统状态、错误信封、持久数据库与合同生成。身份、成员、API key、审计、限流与文件能力已经实现。Web 可以使用 Core 身份、持久资产、Lab、Entity、Scene Node 和布局；设备、业务订阅和历史仍在迁移。继续阅读[平台指南](server-platform.md)。
 
 ## 得到第一个结果
 
@@ -58,7 +58,7 @@ pnpm check:m1
 
 服务测试启动真实子进程。它们验证健康、错误、持久化、重开、微秒时间、事务回滚、SQL 计量与目录独占。错误测试请求不存在的资源：响应为 404，包含 `code`、`details`、`message`、`request_id`，并与 `x-request-id` 响应头对应。响应使用 `cache-control: no-store`。
 
-`contracts:m1:check` 从 Zod 路由生成 OpenAPI，并通过现有 SDK 生成器写入 `.scratch/vnext-m1/generated/`。它比较15 个已迁移路径与 28 个递归引用 schema，包含五个文件 DTO，编译生成的调用，并检查正式合同与 SDK 未被改变。部分服务不会覆盖完整客户端合同。
+`contracts:m1:check` 从 Zod 路由生成 OpenAPI，并通过现有 SDK 生成器写入 `.scratch/vnext-m1/generated/`。它比较 29 个已迁移路径与 62 个递归引用 schema，包含五个文件 DTO，编译生成的调用，并检查正式合同与 SDK 未被改变。部分服务不会覆盖完整客户端合同。
 
 `check:m1` 运行服务、Web、保留工具、边界、包体和文档检查。当前 CI 以 Web 为主，不构建或运行 Electron。旧服务、完整业务合同和浏览器旅程仍待对应迁移阶段；本命令不宣称 Migration Gate 已通过。
 

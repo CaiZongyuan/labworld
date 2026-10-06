@@ -1,7 +1,10 @@
 import { z } from '@hono/zod-openapi';
 import { LabAsset } from '../assets/routes.ts';
 const instant = z.string().openapi({ format: 'date-time' }),
-  i64 = z.number().openapi({ type: 'integer', format: 'int64' });
+  i64 = z
+    .number()
+    .refine(Number.isInteger)
+    .openapi({ type: 'integer', format: 'int64' });
 const jsonValue = z.unknown().refine((value) => value !== undefined);
 const record = (value: z.ZodType) =>
   z

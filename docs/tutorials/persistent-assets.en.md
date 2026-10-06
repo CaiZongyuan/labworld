@@ -1,5 +1,7 @@
 # Import Your First Persistent Digital Asset
 
+The current Node development entry uses the TypeScript service. See [Node assets](../guides/server-assets.en.md) for the runnable asset path. Device and history chapters in this complete Foundation V1 version remain staged migration work.
+
 Goal: a normal Member saves a GLB and its metadata, a new browser and a real Agent read the same asset, and a failed import recovers.
 
 ## Starting Version And Changes

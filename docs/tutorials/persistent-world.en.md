@@ -1,5 +1,7 @@
 # Create a Lab and Independent Objects
 
+The Node entry provides static Entities, nodes, World and layouts. Execution and actions remain in migration. Continue with [Node World](../guides/server-world.en.md) and its static registration script.
+
 Goal: register two independent Entities from one definition, find the same identities in the browser and World API, and distinguish a Robot's declared capabilities from executable actions.
 
 ## Starting Version and Changes
