@@ -9,6 +9,16 @@ export function coreApp(
   log?: (entry: Record<string, unknown>) => void,
 ) {
   const app = createApp(context, version, log);
+  // Core JSON/byte routes aggregate auth, controls and every DB phase. Foundation
+  // routes/isolated M1 streaming fixtures retain their existing operation ownership.
+  app.use('/api/v1/*', async (c, next) => {
+    await context.db.operation(
+      { id: c.get('requestId'), kind: 'request' },
+      async () => {
+        await next();
+      },
+    );
+  });
   identityRoutes(app, context, policy);
   return app;
 }

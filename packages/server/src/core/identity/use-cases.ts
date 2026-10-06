@@ -105,6 +105,18 @@ export function sessionValue(
     );
   return value;
 }
+export function logoutValue(policy: AuthPolicy, headers: Headers) {
+  trustedOrigin(policy, headers.get('origin'));
+  const value = cookieSecret(policy, headers.get('cookie'));
+  if (!value) throw unauthorized();
+  if (!verifyCsrf(value, headers.get('x-csrf-token') ?? ''))
+    throw new PublicFailure(
+      403,
+      'auth.csrf',
+      'Refresh the session before trying again',
+    );
+  return value;
+}
 export async function register(
   context: FoundationContext,
   policy: AuthPolicy,
@@ -224,13 +236,11 @@ export async function logout(
   headers: Headers,
   requestId: string,
 ) {
-  trustedOrigin(policy, headers.get('origin'));
-  const value = sessionValue(policy, headers, true);
+  const value = logoutValue(policy, headers);
   try {
     await context.db.transaction(
       { id: requestId, kind: 'request' },
       async (tx) => {
-        await sessionIn(tx, policy, value);
         await tx
           .update(sessions)
           .set({ revoked: true })

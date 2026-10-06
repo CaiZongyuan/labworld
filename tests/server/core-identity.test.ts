@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { request as httpRequest } from 'node:http';
 import type { CurrentSession } from '../../packages/contracts/src/generated/types.gen.ts';
-import { ServerProcess } from '../support/server-process.ts';
+import { ServerProcess, until } from '../support/server-process.ts';
 
 test('first registration creates the Owner and a persistent HTTP-only session', async () => {
   const target = await new ServerProcess().create();
@@ -19,6 +19,37 @@ test('first registration creates the Owner and a persistent HTTP-only session', 
       }),
     });
     assert.equal(registered.status, 201);
+    const requestId = registered.headers.get('x-request-id');
+    const measured = await until(
+      async () =>
+        target.logs.split('\n').flatMap((line) => {
+          try {
+            const event = JSON.parse(line) as {
+              event: string;
+              id: string;
+              kind: string;
+              commands: string[];
+            };
+            return event.event === 'database.operation' &&
+              event.id === requestId &&
+              event.kind === 'request'
+              ? [event]
+              : [];
+          } catch {
+            return [];
+          }
+        }),
+      (rows) => rows.length > 0,
+    );
+    assert.equal(measured.length, 1);
+    assert.equal(
+      measured[0].commands.filter((command) => command === 'BEGIN').length,
+      2,
+    );
+    assert.equal(
+      measured[0].commands.filter((command) => command === 'COMMIT').length,
+      2,
+    );
     const cookie = registered.headers.get('set-cookie')!;
     assert.match(cookie, /HttpOnly/);
     assert.match(cookie, /SameSite=Lax/);
@@ -247,11 +278,60 @@ test('CSRF and foreign origin refusals preserve the session; valid logout revoke
     });
     assert.equal(logout.status, 204);
     assert.match(logout.headers.get('set-cookie')!, /Max-Age=0/);
+    const repeated = await fetch(`${target.url}/api/v1/auth/logout`, {
+      method: 'POST',
+      headers: {
+        cookie,
+        origin: target.url,
+        'x-csrf-token': session.csrf_token,
+      },
+    });
+    assert.equal(repeated.status, 204);
+    assert.match(repeated.headers.get('set-cookie')!, /Max-Age=0/);
     const revoked = await fetch(`${target.url}/api/v1/auth/session`, {
       headers: { cookie },
     });
     assert.equal(revoked.status, 401);
     assert.equal((await revoked.json()).error.code, 'auth.unauthorized');
+  } finally {
+    await target.cleanup();
+  }
+});
+
+test('duplicate DTO fields and malformed Unicode fail before account creation while valid Unicode pairs survive', async () => {
+  const target = await new ServerProcess().create();
+  target.env.APP_ORIGIN = target.url;
+  try {
+    await target.start();
+    for (const body of [
+      '{"email":"first@example.test","email":"second@example.test","password":"a-long-test-password"}',
+      '{"email":"first@example.test","\\u0065mail":"second@example.test","password":"a-long-test-password"}',
+      '{"email":"scalar@example.test","password":"a-long-test-password","display_name":"\\ud800"}',
+      '{"email":"bad\\ud800@example.test","password":"a-long-test-password"}',
+      '{"email":"scalar@example.test","password":"a-long-test-password","display_name":"\\udc00"}',
+    ]) {
+      const response = await fetch(`${target.url}/api/v1/auth/register`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', origin: target.url },
+        body,
+      });
+      assert.equal(response.status, 400);
+      assert.equal((await response.json()).error.code, 'http.invalid_json');
+      assert.equal(response.headers.has('set-cookie'), false);
+    }
+    const valid = await fetch(`${target.url}/api/v1/auth/register`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', origin: target.url },
+      body: JSON.stringify({
+        email: '用户@例子.广告',
+        password: '🔬'.repeat(12),
+        display_name: '🔬学习者',
+      }),
+    });
+    assert.equal(valid.status, 201);
+    const identity = (await valid.json()) as CurrentSession;
+    assert.equal(identity.user.role, 'owner');
+    assert.equal(identity.user.display_name, '🔬学习者');
   } finally {
     await target.cleanup();
   }

@@ -4,13 +4,14 @@ import { ApiErrorResponse } from '../../platform/http/errors.ts';
 import type { FoundationContext } from '../../platform/context.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
 import { boundedJson } from '../../platform/http/json.ts';
+import { duplicateStructField } from '../../platform/http/json-syntax.ts';
 import type { AuthPolicy } from './domain.ts';
 import {
   currentSession,
   register,
   login,
   logout,
-  sessionValue,
+  logoutValue,
   trustedOrigin,
 } from './use-cases.ts';
 const json = (schema: z.ZodType) => ({
@@ -49,7 +50,7 @@ export function identityRoutes(
   app.use('/api/v1/auth/logout', async (c, next) => {
     if (c.req.method === 'POST') {
       trustedOrigin(policy, c.req.header('origin') ?? null);
-      sessionValue(policy, c.req.raw.headers, true);
+      logoutValue(policy, c.req.raw.headers);
     }
     await next();
   });
@@ -126,6 +127,12 @@ export function identityRoutes(
       },
     }),
     async (c) => {
+      if (duplicateStructField(c.req.raw, Object.keys(Login.shape)))
+        throw new PublicFailure(
+          400,
+          'http.invalid_json',
+          'Provide a valid JSON request',
+        );
       trustedOrigin(policy, c.req.header('origin') ?? null);
       const result = await login(
         context,
@@ -181,6 +188,12 @@ export function identityRoutes(
       },
     }),
     async (c) => {
+      if (duplicateStructField(c.req.raw, Object.keys(Registration.shape)))
+        throw new PublicFailure(
+          400,
+          'http.invalid_json',
+          'Provide a valid JSON request',
+        );
       trustedOrigin(policy, c.req.header('origin') ?? null);
       const result = await register(
         context,

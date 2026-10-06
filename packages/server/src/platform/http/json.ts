@@ -1,6 +1,7 @@
 import type { MiddlewareHandler } from 'hono';
 import { bodyLimit } from 'hono/body-limit';
 import { PublicFailure } from './failure.ts';
+import { inspectJson, rememberJson } from './json-syntax.ts';
 
 const limit = bodyLimit({
   maxSize: 16 * 1024,
@@ -29,7 +30,13 @@ export const boundedJson: MiddlewareHandler = async (context, next) => {
             'Provide a valid JSON request',
           );
         try {
-          await context.req.json();
+          const bytes = await context.req.arrayBuffer();
+          const text = new TextDecoder('utf-8', {
+            fatal: true,
+            ignoreBOM: true,
+          }).decode(bytes);
+          const fields = inspectJson(text);
+          rememberJson(context.req.raw, fields);
         } catch {
           throw new PublicFailure(
             400,
