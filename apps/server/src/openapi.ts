@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
-import { createApp } from '../../../packages/server/src/core/system/routes.ts';
+import { coreApp } from './app.ts';
+import { configuration } from './config.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
 // Schema generation does not open a DB. Handler context is unreachable here.
 const version = (
@@ -7,9 +8,10 @@ const version = (
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   ) as { version: string }
 ).version;
-const app = createApp(
+const app = coreApp(
   undefined as unknown as FoundationContext,
   version,
+  configuration().auth,
   () => {},
 );
 console.log(

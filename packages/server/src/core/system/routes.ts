@@ -3,6 +3,7 @@ import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi';
 import { ApiErrorResponse, errorEnvelope } from '../../platform/http/errors.ts';
 import type { FoundationContext } from '../../platform/context.ts';
 import { ready, systemStatus } from './use-cases.ts';
+import { PublicFailure } from '../../platform/http/failure.ts';
 
 const HealthResponse = z
   .object({ status: z.string() })
@@ -130,14 +131,17 @@ export function createApp(
       known ? 405 : 404,
     );
   });
-  app.onError((_error, c) =>
+  app.onError((error, c) =>
     c.json(
       errorEnvelope(
-        'internal.error',
-        'Internal server error',
+        error instanceof PublicFailure ? error.code : 'internal.error',
+        error instanceof PublicFailure
+          ? error.message
+          : 'Internal server error',
         c.get('requestId'),
+        error instanceof PublicFailure ? error.details : {},
       ),
-      500,
+      error instanceof PublicFailure ? error.status : 500,
     ),
   );
   app.doc('/api/openapi.json', {

@@ -6,6 +6,7 @@ import {
 } from '../../../packages/server/src/platform/db/index.ts';
 import { DirectoryLease } from '../../../packages/server/src/platform/db/lease.ts';
 import { createApp } from '../../../packages/server/src/core/system/routes.ts';
+import { coreApp } from './app.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
 import { configuration } from './config.ts';
 export const version = (
@@ -70,7 +71,7 @@ export async function run(
     const context = { db, clock: { now: () => new Date().toISOString() } };
     const prepared = factory
       ? await factory(context)
-      : { app: createApp(context, version, log) };
+      : { app: coreApp(context, version, config.auth, log) };
     stop = prepared.stop;
     if (closing) {
       await stop?.();
