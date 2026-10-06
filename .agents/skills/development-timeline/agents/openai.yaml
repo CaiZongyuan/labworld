@@ -1,6 +1,6 @@
 interface:
-  display_name: "开发交付时序"
-  short_description: "记录开发阶段与验证证据，生成交付、阻塞和改进建议的离线 HTML 时序图"
-  default_prompt: "使用 $development-timeline 整理本次开发交付，生成有证据的 HTML 时序与改进报告。"
+  display_name: "Development Timeline"
+  short_description: "Record stages and evidence; generate offline delivery timelines"
+  default_prompt: "Use $development-timeline to report this development delivery with an evidence-backed HTML timeline and practical improvements."
 policy:
   allow_implicit_invocation: true

@@ -1,50 +1,43 @@
-# 交付与返工控制
+# Delivery and Rework Control
 
-此处定义项目覆盖；导入 `implement`、`tdd`、`code-review` 和 `diagnosing-bugs` 原文件保持不变。用户明确范围和更高优先级运行约束优先。
+Apply these coordination criteria within the host's implementation, testing, review, and diagnosis methods. User scope, runtime constraints, and host rules take precedence.
 
-## 验证按风险与变化选择
+## Early Evidence and Stable Candidates
 
-实现前列关键不变量和相关边界，例如精度/并列值/预算/保留期，而不是每次失败后只补一个例子。TDD 的逐行为实现不禁止事前设计检查，也不要求先写全部测试。
+At dispatch, make known verification risks actionable: failure signature, smallest existing entrypoint, relevant preconditions, tried remedies, unknowns, and an exit condition. Separate a fixture's stable capacity workload from a product's real retention behavior. Verify shared runtime assumptions in the first integrated batch while repairs are cheap.
 
-- 编辑循环使用定向公开行为、类型和静态检查。稳定候选才承担完整门禁；CI 可是完整门禁的负责环境。
-- 必须观察目标断言的 red/green。已有 TDD red 可作为 VDD 辨别证据；只有 oracle 改变或未覆盖关键风险时才补反证，不为同一命题再造故障。
-- 完整门禁已包含受影响套件时，记录覆盖引用即可；不紧接着重复执行一次相同回归。
-- 复用按代码/完整 revision、合同、依赖、环境和实际覆盖判断。main 前进先看语义变化，不能自动宣布全部旧证据失效；也不能仅凭文件未改就认定旧证据有效。
-- 最终 head 的必需 CI 保持强制。检查没有收集目标、被跳过、定位器失败或编译失败，不证明目标业务行为。
-- 文档/合同命令可能调用 Cargo；按实际依赖归类重型，不因名字是 `docs:check` 就绕开运行队列。只记录已存在的命令，不发明未实现的快速模式。
+For a high-risk oracle or consequential design, get a bounded non-author check of the first actionable example before expanding the pattern. Inspect the authoritative contract, an independent expected result, and the smallest counterexample that would catch a wrong implementation or reject a legal one. This applies especially to dynamic tolerances, rejection/recovery, ordered results, gaps, time, and rate-limit preconditions. Reuse valid TDD red/green evidence; add a counterexample when the oracle changes or a key risk lacks coverage.
 
-## UI 与浏览器
+Use existing low-cost formatting, type, static, and focused public-behavior checks during editing. Classify cost by actual execution: a documentation check can invoke a compiler. Run full coverage on the stable candidate in the responsible environment, which may be agreed CI. Independent groups may run concurrently when their actual dependencies and resources permit it; every required group still needs a result.
 
-桌面 Web 为默认范围。移动端仅在用户或批准任务明确要求时加入，不因框架惯例或历史测试自动扩大范围；已有无关测试可照常保留，但不新增移动端旅程作为当前交付义务。
+Record source/test tree, target build, command, non-sensitive environment/dependencies, actual test coverage, exit and cleanup status, and evidence paths using the existing runner's receipts. Identify uncommitted inputs when present. Zero collected tests, skipped target scenarios, broken locators, or compilation failures leave the target behavior unverified.
 
-在申请真实运行资源前核对测试发现数量、正确身份、对象状态、组件操作和渲染前提。对动态 UI 等待同一个业务/几何谓词，避免固定 sleep 和依赖过时矩形。
+Reuse coverage by examining the complete candidate, contracts, dependencies, environment, and semantic delta. A different commit alone does not invalidate every check; unchanged source alone does not establish valid runtime evidence. Cite an existing complete gate's affected coverage instead of immediately repeating it. Required final-head CI remains binding.
 
-完整真实业务旅程覆盖新增关键路径；布局/文案/选择器修改用聚焦场景。复用未受影响的身份/后端/文档证据，不为每个 CSS 修复重走长任务。
+## Browser Journeys
 
-可见性要求以用户实际看到/能操作的区域判断。canvas 存在、DOM `visible`、裁剪截图有颜色，都不能独立证明没有被面板遮挡。记录必要截图与外部矩形/命中，失败诊断从第一轮使用唯一场景路径和脱敏字段。
+Use the approved viewport and journey scope. Before reserving execution resources, inspect discovery, identity, target state, component actions, and rendering prerequisites. Dynamic UI readiness follows a business or geometry predicate rather than a fixed sleep or a stale rectangle.
 
-## 审查与返工
+Cover critical paths through the real business journey; use focused scenarios for layout, copy, or selector changes and reuse unaffected evidence. Visibility means the user can see and operate the content. Relevant screenshots plus geometry or hit testing can distinguish an exposed scene from a canvas covered by panels. Keep failed-scenario evidence separate and redact sensitive fields.
 
-允许早期设计/Spec 风险预审，以便在完整门禁前发现大方向错误。正式审查固定完整候选，包含新增文件和必要消费者；可用 commit 或显式 tree，不能套用 `...HEAD` 后遗漏未提交范围。
+## Independent Review and Repair
 
-默认一名非作者分开报告两轴；高风险或里程碑有容量时优先两名独立上下文。复用同一轴角色与未变覆盖，避免每轮重新招募、重读全票；作者不能自审自己的实现。受限时标明实际独立性与剩余风险，用户明确要求双人时不能自行改成单人。
+Pin the base and complete task-owned candidate, including consumers, new files, and uncommitted changes. Follow the host's reviewer policy and explicit reviewer count. Otherwise, one non-author reports Standards and Spec separately; record its reduced context independence. Prefer two independent reviewers for permissions, migrations/transactions, idempotency/recovery, complex budget algorithms, broad shared contracts, and milestone integration. Rebalance capacity first; if still constrained, record actual coverage and remaining risk. Author self-review cannot provide independent coverage.
 
-发现修复后先检查同类边界，再批量刷新受影响验证/审查。连续回合没有新证据或一再发现同类问题时，进入短设计检查/Advisor，重新整理问题模型与验收条件；不要把次数上限当作自动通过。
+The review method comes from installed Matt `code-review` or the host's equivalent. For high risk, use the existing reviewers to challenge concrete assumptions and seek counterexamples; another mandatory review round or cross-vendor model is unnecessary. Formal review checks acceptance and related boundaries together. Each defect needs a location, falsifiable basis, and acceptance condition; optional style preferences and large refactors stay separate.
 
-Optional smell、排版偏好或大重构提案与真实缺陷分开。只有可定位、违背合同或实际风险的发现才阻塞交付；不按行数或削减指标要求清理。
+Batch compatible repairs with the original Developer when available. Refresh affected verification and independent review on the complete repaired candidate, reusing unchanged coverage and roles. Repeated rounds with no new evidence, a recurring defect class, or conflicting findings trigger [Advisor consultation](advisor.md). A retry limit prompts reconsideration; it cannot establish a pass. Complete simplification before final validation and formal review; reuse it while its inputs remain valid. Stable-candidate CI can overlap review.
 
-## 诊断的充分证据
+## Bounded Diagnosis
 
-确认同一公开入口、原失败断言，以及能区分原因的观测。缺少 1 个或 4 个样本可属于同一过期前缀故障；只有数值能区分原因时才要求完全相同。
+Use Matt `diagnosing-bugs` or the host's equivalent through the original public failure. Preserve the original assertion and observations that distinguish causes. A cause-equivalent reproduction is sufficient; match an exact number only when that number separates competing causes.
 
-每次重试应回答一个未决问题，改变一个有理由的条件。大量同输入绿色重放不能证明正确的性能 oracle。保持原预算/阈值/数据语义，诊断 guard 不应抢先替代原验收断言。
+Each retry answers an unresolved question by changing a justified condition. Repeated green runs with identical inputs cannot validate a defective performance oracle. Preserve acceptance, budgets, thresholds, and data semantics; diagnostic guards must permit the original assertion to be observed. An instrumentation repair supported by reliable evidence can proceed without exhaustive upstream investigation.
 
-已经足以安全修复时，记录为什么跳过剩余无区分力的诊断阶段。预算耗尽时整理已知/未知、重新定位或咨询；缺少权限/外部状态才报告相应阻塞。释放计算资源并继续独立工作，不能放宽验收求绿。
+At the diagnosis budget, summarize knowns and unknowns, reconsider the probe, consult, or report the actual blocker. Release heavy resources and continue independent ready work. Missing permissions or external state remain explicit limits.
 
-## 运行与记录粒度
+## Execution Ownership and Records
 
-一次有限运行阶段可包含 target red、最小修复 green、相关验证和清理。资源锁只在实际运行/清理时持有，准备阶段不占计算槽。截止时间应覆盖合理启动、运行与清理；不足时启动前拒绝，不创建资源后才发现不能执行。
+An execution phase can include targeted red, minimal green, related checks, and cleanup. Reserve enough time for startup and cleanup, and hold heavy locks only for execution and cleanup. Use the host's isolation fixture and ownership ledger. Reconcile global resources at phase start, abnormal recovery, and completion; reconcile owned resources and consumers on ordinary retries. Confirm creating processes and consumers have stopped before removing owned temporary resources. Follow interruption/recovery cleanup and preserve persistent or shared development services.
 
-使用项目现有隔离 fixture/owner ledger。阶段开始、异常恢复与最终完成核对全局资源；正常重试核对该阶段 owned 资源和消费者。exact 清理、中断处理、匿名卷、禁止 prune、保护持久数据仍有效。
-
-机器回执保存命令/退出/版本/环境/覆盖及证据路径。PM 只处理变化、失败或真实决定，不复写整段日志。阶段事件写入时序 journal，当前 checkpoint 保持短；工具未记录的间隔不补成等待或 CPU 时间。
+Reuse existing receipts and stage journals. CI state changes can come from the [observer](ci-observer.md); required-check selection, review coverage, authorization, and delivery remain PM decisions. Record runner completion, result notice, and next action separately when known. Current checkpoint and HTML are views of the same facts; keep unknown intervals unknown rather than attributing elapsed time to waiting or CPU work.

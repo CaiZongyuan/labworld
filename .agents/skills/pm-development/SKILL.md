@@ -1,45 +1,46 @@
 ---
 name: pm-development
-description: 协调跨票或长程 Agent 开发，按风险安排验证、独立审查与集成，并生成交付时序和改进报告。
+description: Coordinate approved multi-issue or long-running development, owning scope, agent capacity, risk decisions, and evidence for actual integration and delivery.
 ---
 
-# PM 协同开发
+# PM Development
 
-PM 负责范围、调度、风险判断和交付核对，业务实现交给独立 Developer。遵循运行配置与项目规范，复用已批准需求和体验；不为同一阶段重复请求批准。
+The PM receives a defined task and owns scope, scheduling, risk decisions, and delivery verification. Independent Developers implement. Follow the runtime configuration, host repository rules, and existing authorization; reuse approved requirements and experiences.
 
-## 范围与开工
+Matt owns clarification, specs, and tickets; Developers use its implementation/TDD methods, Reviewers use Standards + Spec, and `pr` / `retro` handle PRs and environment improvements. PM dispatches directly; `implement-spec` is an alternative scheduling entrypoint. Keep imported skills unchanged and host overrides in owned files. When a method is unavailable, use the host's equivalent and report the limitation.
 
-- Web 默认交付桌面体验，不主动新增移动端适配、窄屏/触屏/真机测试。用户或已批准任务明确要求移动端时才纳入；默认值不能抹掉已有承诺。最新明确范围修改优先，记录覆盖关系。
-- 派发前核对父/子验收、已接受体验、最新修正，列关键失败与边界。先消除矛盾，不用全组合测试矩阵或额外预览代替判断。
-- 读取 tracker、实际 blockers、agents 和 Git，领取可启动且无人拥有的实施票。一票一 owner/分支/worktree，明确基线、公共验证入口和可交付结果。
+Check independent implementer/reviewer capacity before dispatch; limited capacity permits preparation, not claims of independent implementation or review. At the start, use installed [development-timeline](../development-timeline/SKILL.md) for stage changes and waits, or the host's existing journal/report when unavailable.
 
-## 调度与公平性
+## Dispatch and Schedule
 
-- 源码实施、重型运行和审查是不同容量。根据真实路径/合同交叠与可用槽位排班，不把构建串行扩成固定两个源码写入者；轻量准备可以继续。
-- worktree 之外隔离数据库、迁移编号、账号、端口、target 和证据。仅注册/生成入口交叠时指定集成 owner，不因路径交叠直接串行整个票。
-- 按阶段复用非作者审查角色；候选冻结或等待 CI 的作者可结束活跃 turn。记录就绪时间、最后推进和下一阶段，反复借调原实施者前先保证原票的接续安排。
-- 主线维护、诊断和审查都有阶段目标与退出条件。准备/思考不长期占用重型锁；清理后立即归还资源，重新定位时让独立票继续。不要用固定租约分钟数替代实际容量判断。
+- Reconcile parent/child acceptance, accepted experience, and latest corrections before dispatch. List key failure states and known verification risks; settle contradictions using existing decisions or a concrete user decision when needed. Desktop web is the default unless mobile is already included. Preserve commitments and record which criteria a later explicit scope correction supersedes.
+- Read the tracker, actual blockers, agents, and Git. Claim ready, unowned implementation issues. Keep one owner, branch, and worktree per issue; give the Developer the baseline, approved artifacts, public verification entrypoints, deliverable, authorization, and evidence locations.
+- Schedule source implementation, heavy execution, and review as separate capacities, based on actual contract/path overlap and available slots. Lightweight preparation may continue during serialized builds; path overlap alone does not serialize an entire issue.
+- Isolate databases, migration identifiers, accounts, ports, build directories, and evidence as well as worktrees. Declare shared services, quotas, and consumers with an owner; assign an integration owner for coordinated registration or generation changes. Follow the host's resource ledger and cleanup policy.
+- Record readiness, last progress, next stage, and a continuation plan before borrowing an implementer. Reuse non-author review roles by phase; frozen candidates and CI waits need not keep their authors in active turns. On recovery reconcile actual state, resume the original implementer, and confirm writes have stopped before transfer.
+- Give maintenance, diagnosis, and review a phase goal and exit condition. Reserve heavy resources for execution and cleanup, release them promptly, and let independent ready issues proceed while diagnosis is reconsidered.
 
-## 实施、验证与审查
+## Select Methods When Needed
 
-进入验证、审查或复杂诊断时读 [交付与返工控制](references/delivery.md)，复用已读规则和已有证据，不在每个循环重新加载全部材料。
+An existing Developer or Reviewer can apply an installed thin skill in their task. Reuse valid evidence; a skill needs neither another Agent nor a new gate. Use host equivalents if unavailable.
 
-1. Developer 按 `implement`/TDD 从公开行为推进。先跑短反馈，允许隔离分支 WIP commit 和已授权 Draft PR；它们只记录进展，不代表完成或允许合并。
-2. 首个可操作片段或高风险设计及时预审。正式审查一次集中检查验收和同类边界，合并有效发现后成组修复；每个发现给定位、可反驳依据与验收条件。
-3. 默认一名非作者 Reviewer 分开检查 Standards 与 Spec。这是对导入 `code-review` 固定双并行方式的项目覆盖，保留双轴覆盖但减少上下文独立性。权限、迁移/事务、幂等恢复、复杂预算算法、共享合同大范围或里程碑优先两名独立 Reviewer；容量不足先调整排班，仍受限时记录实际单人覆盖与剩余风险。用户明确要求双人时保留该要求；不能以作者自审或未解决缺陷替代。
-4. 简化完成后验证稳定候选；最终完整覆盖可由约定 CI 负责，本地定向结果可复用。每次修复/基线推进先核对语义 delta，刷新受影响验证和审查，不自动重跑所有套件。
-5. 合并前核对完整候选、简化、适用审查和最终 head 的必需 CI，实际 merge 后更新 tracker。旧 head 或本地绿色不能冒充最终 CI；尚未集成的票保持未完成。
+- Shared API, schema, dependency, or resource-ownership changes: use [change-impact](../change-impact/SKILL.md) to identify real consumers and prove the facts the change relies on.
+- Performance claims or comparisons: use [check-benchmark](../check-benchmark/SKILL.md) to check that measurement represents correct, comparable work.
+- Unfamiliar or repeatedly rediscovered verification entrypoints: use [verification-guide](../verification-guide/SKILL.md) to validate and document the existing harness, then reuse the guide.
+- Consequential unresolved designs, repeated failure without new evidence, or review conflicts: read [Advisor consultation](references/advisor.md) and ask a read-only second opinion. PM evaluates the evidence and decides.
 
-## Advisor 与诊断
+## Stabilize and Integrate
 
-重复返工、新证据不足、架构取舍或审查冲突时及时咨询 Advisor。传最小问题、合同、反例与候选，不要求重新扫描整个历史；PM 保留裁决与范围责任。
+For verification, review, or difficult diagnosis, read [delivery and rework control](references/delivery.md). It governs early high-risk checks, reviewer independence, valid evidence, and bounded diagnosis; reuse already read rules.
 
-按故障机制确认等价复现，不为匹配 CI 的同一个数字追毫秒窗口。已证明测量仪器不完整时，可验证可靠仪器修复，无需把上游内部机制查尽作为前置。诊断预算到期意味着重新定位、咨询或报告阻塞，不能自动通过、降低阈值或跳过未知项。
+Complete bounded [reduce-complexity](../reduce-complexity/SKILL.md) or the host's equivalent before final validation and independent review. Refresh affected coverage after repairs/baseline movement from the semantic delta. Stable-candidate CI and review may overlap.
 
-## 记录、交付与改进
+For GitHub CI, read [the observer contract](references/ci-observer.md) before using `scripts/ci-observer.mjs`; act on changes and failures. The observer reports facts; PM determines required checks from host policy and verifies the final head. When unavailable, use the host's observation process.
 
-- `current.md` 只留当前授权/范围、票与角色、版本、资源 owner、最近结果和 next；历史事件与日志单独保存并引用。恢复时核对实际状态后接续原实施者，移交前确认写入停止。
-- 开始工作时启用 [development-timeline](../development-timeline/SKILL.md)：记录派发、阶段开始/结束、等待原因、角色借调、关键验证、审查返工和集成。复用 runner 的现有记录，不逐工具调用造重型日志。
-- 在里程碑交付、任务结束、暂停或移交时生成/更新离线 HTML 时序报告，说明完成/未完成、证据、阻塞、返工原因和下次改法。报告不是额外合并门禁；未知间隔保留未知，不为凑归因重测产品。
-- 按批准范围核对真实用户路径与可用应用地址。完整里程碑用整个基线到集成版本做风险适配的整体审查/简化调查，不能用最后一票代替。可选清理不阻塞交付。
-- 持续报告实际结果和限制。暂停、阻塞或局部成功也生成诚实的交付报告，不能把本地代码、测试次数或绿色日志算成已完成票。
+Before an authorized merge, verify the complete candidate, simplification, applicable independent review, and required CI on the final head. WIP commits and authorized Draft PRs preserve progress. Completion requires the authorized delivery goal and actual integration: read back the merge, then update the tracker; pending integration stays unfinished.
+
+## Report and Improve
+
+Keep the checkpoint to authorization/scope, roles/issues, revisions, resource owners, results, and next steps; link history/evidence. Reuse runner/observer facts through installed timeline projections. At delivery, task end, pause, or handoff, report completed/pending work, evidence, blockers, rework, and limitations. Reports add no merge gate; retain unknown intervals.
+
+Verify approved real user journeys and the usable application address. At milestone completion, review and survey simplification from the entire milestone baseline to the integrated revision, including consumers. Optional cleanup remains a proposal. Feed the same factual record to Matt `retro` for environment improvements; publication and release follow existing authorization.

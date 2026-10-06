@@ -1,32 +1,32 @@
 {
-  "project": "示例工作台",
-  "title": "开发进度与执行时序",
+  "project": "Example workbench",
+  "title": "Development progress and execution timeline",
   "snapshotAt": "2026-01-02T12:00:00Z",
-  "task": { "status": "partial", "goal": "完成审批工作流与导出；导出仍等待集成验证。", "startedAt": "2026-01-02T09:00:00Z" },
+  "task": { "status": "partial", "goal": "Deliver the approval workflow and export; export still awaits integration verification.", "startedAt": "2026-01-02T09:00:00Z" },
   "tickets": [
-    { "id": "A", "title": "审批流程", "status": "integrated", "blockers": [], "delivered": ["审批与撤回", "权限检查"], "pending": [] },
-    { "id": "B", "title": "结果导出", "status": "in-progress", "blockers": [], "delivered": ["导出视图"], "pending": ["集成验证"] },
-    { "id": "C", "title": "发布验收", "status": "blocked", "blockers": ["B"], "delivered": [], "pending": ["完整工作流验收"] }
+    { "id": "A", "title": "Approval workflow", "status": "integrated", "blockers": [], "delivered": ["Approval and withdrawal", "Permission checks"], "pending": [] },
+    { "id": "B", "title": "Result export", "status": "in-progress", "blockers": [], "delivered": ["Export view"], "pending": ["Integration verification"] },
+    { "id": "C", "title": "Release acceptance", "status": "blocked", "blockers": ["B"], "delivered": [], "pending": ["Complete workflow acceptance"] }
   ],
   "events": [
-    { "id": "implementation", "lane": "开发者", "kind": "phase", "category": "implementation", "label": "审批流程实现", "start": "2026-01-02T09:00:00Z", "end": "2026-01-02T09:45:00Z", "outcome": "passed", "confidence": "verified", "detail": "通过公开行为完成审批与撤回。", "actor": "开发者", "revision": "candidate-a", "evidence": [] },
-    { "id": "expected-red", "lane": "开发者", "kind": "command", "category": "validation", "label": "权限拒绝 · 预期红测", "start": "2026-01-02T09:10:00Z", "end": "2026-01-02T09:15:00Z", "outcome": "expected-red", "confidence": "verified", "reason": "尚未实现撤回权限检查。", "evidence": [] },
-    { "id": "green", "lane": "开发者", "kind": "command", "category": "validation", "label": "审批行为验证", "start": "2026-01-02T09:38:00Z", "end": "2026-01-02T09:45:00Z", "outcome": "passed", "confidence": "verified", "detail": "覆盖拒绝、成功与重复提交。", "evidence": [] },
-    { "id": "review", "lane": "审查者", "kind": "command", "category": "review", "label": "独立规格审查", "start": "2026-01-02T09:40:00Z", "end": "2026-01-02T09:50:00Z", "outcome": "passed", "confidence": "verified", "detail": "固定候选版本已审查。", "actor": "审查者", "revision": "candidate-a", "evidence": [] },
-    { "id": "integrated", "lane": "集成", "kind": "point", "category": "integration", "label": "审批流程集成", "start": "2026-01-02T10:00:00Z", "outcome": "passed", "confidence": "verified", "detail": "A 的集成结果已验证。", "evidence": [] },
-    { "id": "wait", "lane": "集成", "kind": "wait", "category": "coordination", "label": "等待导出候选", "start": "2026-01-02T10:00:00Z", "end": "2026-01-02T10:30:00Z", "outcome": "unknown", "confidence": "verified", "reason": "发布验收明确依赖 B。", "evidence": [] },
-    { "id": "export", "lane": "开发者", "kind": "phase", "category": "implementation", "label": "导出视图实现", "start": "2026-01-02T10:30:00Z", "end": "2026-01-02T11:35:00Z", "outcome": "unknown", "confidence": "verified", "detail": "视图已就绪；集成结果尚未验证。", "evidence": [] },
-    { "id": "artifact", "lane": "记录", "kind": "point", "category": "coordination", "label": "导出截图生成时间", "start": "2026-01-02T11:40:00Z", "outcome": "unknown", "confidence": "verified", "detail": "文件生成时间仅提供时间点，不能证明实施开始或结束。", "evidence": [] }
+    { "id": "implementation", "lane": "Developer", "kind": "phase", "category": "implementation", "label": "Approval workflow implementation", "start": "2026-01-02T09:00:00Z", "end": "2026-01-02T09:45:00Z", "outcome": "passed", "confidence": "verified", "detail": "Approval and withdrawal implemented through public behavior.", "actor": "Developer", "revision": "candidate-a", "evidence": [] },
+    { "id": "expected-red", "lane": "Developer", "kind": "command", "category": "validation", "label": "Permission denial - expected red", "start": "2026-01-02T09:10:00Z", "end": "2026-01-02T09:15:00Z", "outcome": "expected-red", "confidence": "verified", "reason": "Withdrawal permission check not yet implemented.", "evidence": [] },
+    { "id": "green", "lane": "Developer", "kind": "command", "category": "validation", "label": "Approval behavior verification", "start": "2026-01-02T09:38:00Z", "end": "2026-01-02T09:45:00Z", "outcome": "passed", "confidence": "verified", "detail": "Covers rejection, success, and repeated submissions.", "evidence": [] },
+    { "id": "review", "lane": "Reviewer", "kind": "command", "category": "review", "label": "Independent spec review", "start": "2026-01-02T09:40:00Z", "end": "2026-01-02T09:50:00Z", "outcome": "passed", "confidence": "verified", "detail": "The pinned candidate has been reviewed.", "actor": "Reviewer", "revision": "candidate-a", "evidence": [] },
+    { "id": "integrated", "lane": "Integration", "kind": "point", "category": "integration", "label": "Approval workflow integration", "start": "2026-01-02T10:00:00Z", "outcome": "passed", "confidence": "verified", "detail": "The integration result for A is verified.", "evidence": [] },
+    { "id": "wait", "lane": "Integration", "kind": "wait", "category": "coordination", "label": "Awaiting export candidate", "start": "2026-01-02T10:00:00Z", "end": "2026-01-02T10:30:00Z", "outcome": "unknown", "confidence": "verified", "reason": "Release acceptance explicitly depends on B.", "evidence": [] },
+    { "id": "export", "lane": "Developer", "kind": "phase", "category": "implementation", "label": "Export view implementation", "start": "2026-01-02T10:30:00Z", "end": "2026-01-02T11:35:00Z", "outcome": "unknown", "confidence": "verified", "detail": "The view is ready; integration remains unverified.", "evidence": [] },
+    { "id": "artifact", "lane": "Records", "kind": "point", "category": "coordination", "label": "Export screenshot saved", "start": "2026-01-02T11:40:00Z", "outcome": "unknown", "confidence": "verified", "detail": "The file save time records only a point, not implementation boundaries.", "evidence": [] }
   ],
   "findings": [
-    { "id": "F1", "title": "预先固定权限边界", "mechanism": "审批与撤回使用同一权限矩阵，红测能区分权限缺失与测试准备问题。", "impact": "审查时无需重新解释拒绝行为。", "proposal": "后续工作保留公开行为验证，并按实际改动复用证据。", "confidence": "verified", "evidence": [] }
+    { "id": "F1", "title": "Establish permission boundaries early", "mechanism": "Approval and withdrawal share one permission matrix; the red test distinguishes missing permissions from setup errors.", "impact": "Rejection behavior needs no reinterpretation during review.", "proposal": "Retain public behavior checks and reuse evidence according to actual changes.", "confidence": "verified", "evidence": [] }
   ],
   "rules": [
-    { "id": "R1", "title": "证据复用", "quote": "相同输入的验证结果可复用。", "actual": "导出视图仍需要自身集成验证。", "mechanism": "审批验证不能证明另一个工作流的交付结果。", "proposal": "记录候选版本和被覆盖行为。", "retain": "最终集成验收。", "classification": "necessary", "confidence": "verified", "evidence": [] }
+    { "id": "R1", "title": "Evidence reuse", "quote": "Verification results with the same inputs can be reused.", "actual": "The export view still needs its own integration verification.", "mechanism": "Approval verification cannot establish delivery of another workflow.", "proposal": "Record the candidate revision and covered behavior.", "retain": "Final integration acceptance.", "classification": "necessary", "confidence": "verified", "evidence": [] }
   ],
   "tests": [
-    { "id": "test-a", "label": "审批行为验证", "method": "Node 公开接口行为测试", "start": "2026-01-02T09:38:00Z", "end": "2026-01-02T09:45:00Z", "uiExecuted": false, "outcome": "passed", "cause": "拒绝、成功与重复提交符合规格。", "fix": "无需修复。", "evidence": [] },
-    { "id": "test-b", "label": "导出集成验证", "method": "待执行", "uiExecuted": false, "outcome": "skipped", "cause": "候选未进入集成验证。", "evidence": [] }
+    { "id": "test-a", "label": "Approval behavior verification", "method": "Node public API behavior test", "start": "2026-01-02T09:38:00Z", "end": "2026-01-02T09:45:00Z", "uiExecuted": false, "outcome": "passed", "cause": "Rejection, success, and repeated submissions match the specification.", "fix": "No repair needed.", "evidence": [] },
+    { "id": "test-b", "label": "Export integration verification", "method": "Pending execution", "uiExecuted": false, "outcome": "skipped", "cause": "The candidate has not entered integration verification.", "evidence": [] }
   ],
-  "resources": [{ "name": "示例验证环境", "owner": "示例开发者", "purpose": "审批行为验证", "disposition": "cleaned" }]
+  "resources": [{ "name": "Example verification environment", "owner": "Example developer", "purpose": "Approval behavior verification", "disposition": "cleaned" }]
 }

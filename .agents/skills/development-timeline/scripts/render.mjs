@@ -70,7 +70,7 @@ function evidence(items, inputPath, outputPath) {
   return list(items, 'evidence').map((item, i) => {
     record(item, `evidence[${i}]`);
     const href = rebaseHref(item.href, inputPath, outputPath);
-    return { label: text(item.label, text(item.href, '证据')), ...(href ? { href } : {}) };
+    return { label: text(item.label, text(item.href, 'Evidence')), ...(href ? { href } : {}) };
   });
 }
 
@@ -80,10 +80,10 @@ function normalizeEvent(item, index, inputPath, outputPath) {
   const end = timestamp(item.end, `events[${index}].end`, true);
   if (end && Date.parse(end) < Date.parse(start)) throw new Error(`events[${index}].end precedes start`);
   return {
-    id: text(item.id, `event-${index + 1}`), lane: text(item.lane, '未分类'),
+    id: text(item.id, `event-${index + 1}`), lane: text(item.lane, 'Uncategorized'),
     kind: choice(item.kind, kinds, `events[${index}].kind`),
     category: choice(item.category, categories, `events[${index}].category`),
-    label: text(item.label, '未命名事件'), start, ...(end ? { end } : {}),
+    label: text(item.label, 'Unnamed event'), start, ...(end ? { end } : {}),
     outcome: choice(item.outcome ?? 'unknown', outcomes, `events[${index}].outcome`),
     confidence: choice(item.confidence ?? 'unknown', confidence, `events[${index}].confidence`),
     detail: text(item.detail), actor: text(item.actor), revision: text(item.revision), reason: text(item.reason),
@@ -116,18 +116,18 @@ export function mergeEventRecords(initialEvents, records, options = {}) {
       const endingEvidence = evidence(row.evidence, origin, outputPath);
       if (position == null) {
         const orphanId = `orphan-end-${id || 'unknown'}-${i + 1}`;
-        warnings.push(`结束记录 ${id || '（无 id）'} 缺少开始记录；仅保留记录时间点。`);
-        events.push({ id: orphanId, lane: '未配对记录', kind: 'point', category: 'coordination',
-          label: `未配对结束：${id || '无 id'}`, start: at, outcome: choice(row.outcome ?? 'unknown', outcomes, `orphan end ${id}.outcome`), confidence: 'unknown',
+        warnings.push(`End record ${id || '(no id)'} has no start; only its recorded instant is retained.`);
+        events.push({ id: orphanId, lane: 'Unmatched records', kind: 'point', category: 'coordination',
+          label: `Unmatched end: ${id || 'no id'}`, start: at, outcome: choice(row.outcome ?? 'unknown', outcomes, `orphan end ${id}.outcome`), confidence: 'unknown',
           detail: text(row.detail), actor: text(row.actor), revision: text(row.revision),
-          reason: [text(row.reason), '缺少开始记录，不计耗时'].filter(Boolean).join('\n'), evidence: endingEvidence });
+          reason: [text(row.reason), 'Start not recorded; no measured duration'].filter(Boolean).join('\n'), evidence: endingEvidence });
         positions.set(orphanId, events.length - 1);
         continue;
       }
       const event = events[position];
       if (Date.parse(at) < Date.parse(event.start)) throw new Error(`End record ${id} precedes start`);
       if (event.end) throw new Error(`Repeated end record: ${id}`);
-      if (event.kind === 'point') warnings.push(`时间点 ${id} 收到结束记录；保留为时间点，不计耗时。`);
+      if (event.kind === 'point') warnings.push(`Point ${id} received an end record; retained as a point with no measured duration.`);
       events[position] = { ...event, ...(event.kind === 'point' ? {} : { end: at }),
         outcome: choice(row.outcome ?? 'unknown', outcomes, `end ${id}.outcome`),
         confidence: choice(row.confidence ?? event.confidence, confidence, `end ${id}.confidence`),
@@ -188,7 +188,8 @@ export function normalizeReport(input, options = {}) {
   }
   const rows = (key, mapper) => list(input[key], key).map((item, i) => mapper(record(item, `${key}[${i}]`), i));
   const report = {
-    project: text(input.project, '项目'), title: text(input.title, '开发时序'), snapshotAt,
+    project: text(input.project, 'Project'), title: text(input.title, 'Development timeline'), snapshotAt,
+    ...(input.checkpoint == null ? {} : { checkpoint: record(input.checkpoint, 'checkpoint') }),
     task: { status: choice(task.status, taskStatuses, 'task.status'), goal: text(task.goal), startedAt, ...(endedAt ? { endedAt } : {}) },
     scope: { platform: text(input.scope?.platform, 'desktop-web'), mobile: input.scope?.mobile === true },
     tickets: rows('tickets', (item, i) => ({ id: text(item.id, `ticket-${i + 1}`), title: text(item.title),
@@ -228,7 +229,10 @@ function safeJSON(value) {
 }
 
 export async function renderReport(input, options = {}) {
-  const report = normalizeReport(input, options);
+  return renderNormalizedReport(normalizeReport(input, options));
+}
+
+export async function renderNormalizedReport(report) {
   const template = await readFile(templatePath, 'utf8');
   const replacements = { __REPORT_TITLE__: escapeHTML(report.title), __REPORT_DATA__: safeJSON(report) };
   return template.replace(/__REPORT_TITLE__|__REPORT_DATA__/g, marker => replacements[marker]);
