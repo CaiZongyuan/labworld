@@ -94,6 +94,97 @@ test('authentication and business statements share the declared budget and rejec
   }
 });
 
+test('a captured closed scope cannot reenter or relabel writes; independently owned background work remains usable', async () => {
+  const measurements: DbMeasurement[] = [];
+  const db = new Database(undefined, (measurement) =>
+    measurements.push(measurement),
+  );
+  let reenter: (() => Promise<unknown>) | undefined;
+  let relabel: (() => Promise<unknown>) | undefined;
+  try {
+    await db.initialize();
+    await db.script(
+      { id: 'scope-setup', kind: 'startup' },
+      'create table labos_threejs_core.scope_probe(id integer)',
+    );
+    await db.operation({ id: 'request-closed', kind: 'request' }, async () => {
+      const captured = AsyncLocalStorage.snapshot();
+      reenter = () =>
+        captured(() =>
+          db.operation({ id: 'request-closed', kind: 'request' }, () =>
+            db.transaction(
+              { id: 'reentry-write', kind: 'request' },
+              async (tx) => {
+                await tx.execute(
+                  sql`insert into labos_threejs_core.scope_probe values(1)`,
+                );
+              },
+            ),
+          ),
+        );
+      relabel = () =>
+        captured(() =>
+          db.transaction(
+            { id: 'relabeled-write', kind: 'background' },
+            async (tx) => {
+              await tx.execute(
+                sql`insert into labos_threejs_core.scope_probe values(2)`,
+              );
+            },
+          ),
+        );
+    });
+    const refused: boolean[] = [];
+    for (const work of [reenter!, relabel!]) {
+      try {
+        await work();
+        refused.push(false);
+      } catch (error) {
+        assert.match(String(error), /scope has expired/);
+        refused.push(true);
+      }
+    }
+    assert.equal(refused.every(Boolean), true);
+    assert.deepEqual(
+      await db.readSQL(
+        { id: 'scope-verify', kind: 'request' },
+        'select id from labos_threejs_core.scope_probe',
+      ),
+      [],
+    );
+    assert.equal(
+      measurements.filter((value) => value.id === 'request-closed').length,
+      1,
+    );
+    await db.operation(
+      { id: 'independent-background', kind: 'background' },
+      () =>
+        db.transaction(
+          { id: 'owned-write', kind: 'background' },
+          async (tx) => {
+            await tx.execute(
+              sql`insert into labos_threejs_core.scope_probe values(3)`,
+            );
+          },
+        ),
+    );
+    assert.deepEqual(
+      await db.readSQL(
+        { id: 'background-verify', kind: 'request' },
+        'select id from labos_threejs_core.scope_probe',
+      ),
+      [{ id: 3 }],
+    );
+    assert.equal(
+      measurements.find((value) => value.id === 'independent-background')!
+        .statements,
+      3,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
 test('concurrent operation totals stay separate and expired scope/session capabilities cannot borrow later work', async () => {
   const measurements: DbMeasurement[] = [];
   const db = new Database(undefined, (measurement) =>

@@ -136,6 +136,12 @@ export class Database {
     if (!this.accepting || this.poisoned)
       return Promise.reject(new Error('Database is unavailable'));
     const inherited = this.operations.getStore();
+    if (inherited && !inherited.open)
+      return Promise.reject(new Error('Database operation scope has expired'));
+    if (inherited && inherited.measurement.kind !== operation.kind)
+      return Promise.reject(
+        new Error('Database operation kind does not match its active scope'),
+      );
     const owner =
       inherited?.measurement.kind === operation.kind ? inherited : undefined;
     if (owner && !owner.open)
@@ -234,6 +240,8 @@ export class Database {
     work: () => Promise<T>,
   ): Promise<T> {
     const enclosing = this.operations.getStore();
+    if (enclosing && !enclosing.open)
+      throw new Error('Database operation scope has expired');
     if (enclosing?.open) {
       if (
         enclosing.measurement.id !== operation.id ||
