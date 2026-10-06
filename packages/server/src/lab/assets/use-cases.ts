@@ -128,7 +128,7 @@ export async function startAssetUpload(
 
 const columns = sql`a.id::text,a.name,a.source,a.license,a.version,a.created_by::text,a.updated_by::text,a.created_at,a.updated_at,jsonb_build_object('id',r.id,'file_id',r.file_id,'file_name',r.file_name,'size',r.size,'sha256',r.sha256,'content_type',r.content_type) as representation`;
 const join = sql`lab.assets a join lab.asset_representations r on r.asset_id=a.id`;
-function assetValue(row: LabAsset): LabAsset {
+export function assetValue(row: LabAsset): LabAsset {
   return {
     ...row,
     created_at: utcInstant(row.created_at),

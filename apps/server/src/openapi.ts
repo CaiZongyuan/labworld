@@ -4,6 +4,8 @@ import { configuration } from './config.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
 import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 import type { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
+import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
+import type { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
 // Schema generation does not open a DB. Handler context is unreachable here.
 const version = (
   JSON.parse(
@@ -17,6 +19,7 @@ const app = coreApp(
   () => {},
 );
 assetRoutes(app, undefined as unknown as FileService);
+worldRoutes(app, undefined as unknown as WorldService);
 console.log(
   JSON.stringify(
     app.getOpenAPI31Document({
