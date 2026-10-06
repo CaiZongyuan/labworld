@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
-import { ServerProcess } from '../support/server-process.ts';
+import { ServerProcess, until } from '../support/server-process.ts';
+import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 import { CoreHttp } from '../support/core-http.ts';
 import type { AuditPage } from '../../packages/contracts/src/generated/types.gen.ts';
 test('real reset-password command revokes old sessions changes login records actual system actor and omits the password from output', async () => {
@@ -79,6 +80,28 @@ test('real reset-password command revokes old sessions changes login records act
         1,
       );
     }
+  } finally {
+    await target.cleanup();
+  }
+});
+test('necessary actual DB close plus controlled adapter filesystem rejection exits the password command and releases its owned directory', async () => {
+  const target = await new ServerProcess().create();
+  const password = 'isolated-close-fault-password';
+  try {
+    target.entry = 'tests/support/password-storage-close-fault.ts';
+    target.args = ['--email', 'fault@example.test'];
+    target.input = password + '\n';
+    await target.spawn();
+    await until(
+      async () => target.child!.exitCode,
+      (code) => code !== null,
+      6500,
+    );
+    assert.equal(target.child!.exitCode, 1);
+    assert.equal(target.logs.includes(password), false);
+    assert.equal(target.logs.includes('auth.unavailable'), true);
+    const lease = await DirectoryLease.acquire(target.directory);
+    await lease.release();
   } finally {
     await target.cleanup();
   }

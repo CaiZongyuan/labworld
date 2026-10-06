@@ -56,8 +56,11 @@ async function command() {
     );
     console.log(JSON.stringify({ status: 'reset', ...result }));
   } finally {
-    await db.close();
-    await lease.release();
+    try {
+      await db.close();
+    } finally {
+      await lease.release();
+    }
   }
 }
 void command().catch((error) => {
