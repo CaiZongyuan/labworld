@@ -1,3 +1,4 @@
+import { trimmed, utf8Size, validEmail } from './email.ts';
 export type MemberRole = 'owner' | 'admin' | 'member';
 export type CurrentUser = {
   id: string;
@@ -18,11 +19,13 @@ export type AuthPolicy = {
   secureCookie: boolean;
 };
 export function registration(input: Registration) {
-  const email = input.email.trim();
-  const displayName = input.display_name?.trim() || null;
+  const email = trimmed(input.email);
+  const displayName = input.display_name
+    ? trimmed(input.display_name) || null
+    : null;
   if (
-    email.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ||
+    utf8Size(email) > 254 ||
+    !validEmail(email) ||
     [...input.password].length < 12 ||
     [...input.password].length > 128 ||
     (displayName !== null && [...displayName].length > 80)

@@ -44,6 +44,23 @@ export function hashPassword(password: string) {
 export function secret() {
   return randomBytes(32).toString('hex');
 }
+export function verifyPassword(password: string, stored?: string) {
+  return passwordSlot(async () => {
+    const match = stored?.startsWith(prefix)
+      ? stored
+          .slice(prefix.length)
+          .match(/^([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/)
+      : undefined;
+    const salt = match
+      ? Buffer.from(match[1], 'base64')
+      : Buffer.from('labos-threejs-dummy');
+    const expected = match ? Buffer.from(match[2], 'base64') : undefined;
+    const actual = await derive(password, salt);
+    return (
+      expected?.length === actual.length && timingSafeEqual(actual, expected)
+    );
+  });
+}
 export function secretHash(value: string) {
   return createHash('sha256').update(value).digest();
 }

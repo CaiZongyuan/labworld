@@ -3,8 +3,16 @@ import type { createApp } from '../system/routes.ts';
 import { ApiErrorResponse } from '../../platform/http/errors.ts';
 import type { FoundationContext } from '../../platform/context.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
+import { boundedJson } from '../../platform/http/json.ts';
 import type { AuthPolicy } from './domain.ts';
-import { currentSession, register, trustedOrigin } from './use-cases.ts';
+import {
+  currentSession,
+  register,
+  login,
+  logout,
+  sessionValue,
+  trustedOrigin,
+} from './use-cases.ts';
 const json = (schema: z.ZodType) => ({
   description: '',
   content: { 'application/json': { schema } },
@@ -29,13 +37,119 @@ const Registration = z
   })
   .strict()
   .openapi('Registration');
+const Login = z
+  .object({ email: z.string(), password: z.string() })
+  .strict()
+  .openapi('Login');
 export function identityRoutes(
   app: ReturnType<typeof createApp>,
   context: FoundationContext,
   policy: AuthPolicy,
 ) {
+  app.use('/api/v1/auth/logout', async (c, next) => {
+    if (c.req.method === 'POST') {
+      trustedOrigin(policy, c.req.header('origin') ?? null);
+      sessionValue(policy, c.req.raw.headers, true);
+    }
+    await next();
+  });
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/api/v1/auth/logout',
+      operationId: 'logoutUser',
+      tags: ['Identity'],
+      request: {
+        headers: z.object({
+          'x-csrf-token': z.string().openapi({
+            param: {
+              in: 'header',
+              name: 'x-csrf-token',
+              description: 'CSRF token from the current session',
+            },
+          }),
+        }),
+      },
+      responses: {
+        204: { description: '' },
+        401: json(ApiErrorResponse),
+        403: json(ApiErrorResponse),
+        429: {
+          ...json(ApiErrorResponse),
+          description:
+            'Request budget exceeded; retry after the specified seconds',
+          headers: { 'Retry-After': { schema: { type: 'integer' } } },
+        },
+        503: json(ApiErrorResponse),
+      },
+    }),
+    async (c) => {
+      c.header(
+        'set-cookie',
+        await logout(context, policy, c.req.raw.headers, c.get('requestId')),
+      );
+      return c.body(null, 204);
+    },
+  );
+  app.use('/api/v1/auth/login', async (c, next) => {
+    if (c.req.method === 'POST') {
+      await boundedJson(c, async () => {});
+    }
+    await next();
+  });
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: '/api/v1/auth/login',
+      operationId: 'loginUser',
+      tags: ['Identity'],
+      request: {
+        body: {
+          required: true,
+          content: { 'application/json': { schema: Login } },
+        },
+      },
+      responses: {
+        200: json(CurrentSession),
+        400: json(ApiErrorResponse),
+        401: json(ApiErrorResponse),
+        403: json(ApiErrorResponse),
+        408: json(ApiErrorResponse),
+        413: json(ApiErrorResponse),
+        429: {
+          ...json(ApiErrorResponse),
+          description:
+            'Request budget exceeded; retry after the specified seconds',
+          headers: { 'Retry-After': { schema: { type: 'integer' } } },
+        },
+        503: json(ApiErrorResponse),
+      },
+    }),
+    async (c) => {
+      trustedOrigin(policy, c.req.header('origin') ?? null);
+      const result = await login(
+        context,
+        policy,
+        c.req.valid('json'),
+        c.get('requestId'),
+      );
+      c.header('set-cookie', result.cookie);
+      return c.json(result.session, 200);
+    },
+    (result) => {
+      if (!result.success)
+        throw new PublicFailure(
+          400,
+          'http.invalid_json',
+          'Provide a valid JSON request',
+        );
+      return undefined;
+    },
+  );
   app.use('/api/v1/auth/register', async (c, next) => {
-    trustedOrigin(policy, c.req.header('origin') ?? null);
+    if (c.req.method === 'POST') {
+      await boundedJson(c, async () => {});
+    }
     await next();
   });
   app.openapi(
@@ -67,6 +181,7 @@ export function identityRoutes(
       },
     }),
     async (c) => {
+      trustedOrigin(policy, c.req.header('origin') ?? null);
       const result = await register(
         context,
         policy,
@@ -80,8 +195,8 @@ export function identityRoutes(
       if (!result.success)
         throw new PublicFailure(
           400,
-          'auth.invalid_input',
-          'Use a valid email, a 12–128 character password and a name up to 80 characters',
+          'http.invalid_json',
+          'Provide a valid JSON request',
         );
       return undefined;
     },

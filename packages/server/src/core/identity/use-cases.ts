@@ -1,11 +1,14 @@
 import { eq } from 'drizzle-orm';
+import { trimmed, utf8Size } from './email.ts';
 import { sql, type DbSession } from '../../platform/db/index.ts';
 import type { FoundationContext } from '../../platform/context.ts';
 import {
   hashPassword,
+  verifyPassword,
   secret,
   secretHash,
   csrfToken,
+  verifyCsrf,
 } from '../../platform/crypto.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
 import { databaseAudit } from '../audit/use-cases.ts';
@@ -42,8 +45,9 @@ export function cookieSecret(policy: AuthPolicy, cookie: string | null) {
     : 'labos_threejs_session';
   const value = cookie
     ?.split(';')
-    .map((part) => part.trim().split('='))
-    .find(([key]) => key === name)?.[1];
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
   return value && /^[a-fA-F0-9]{64}$/.test(value) ? value : undefined;
 }
 export async function issueSession(
@@ -66,15 +70,13 @@ export async function issueSession(
       const current = rows.rows[0];
       if (!current || current.password_hash !== verifiedHash)
         throw unauthorized();
-      await tx
-        .insert(sessions)
-        .values({
-          userId: user.id,
-          secretHash: secretHash(value),
-          expiresAt: new Date(
-            Date.parse(context.clock.now()) + policy.absoluteSecs * 1000,
-          ).toISOString(),
-        });
+      await tx.insert(sessions).values({
+        userId: user.id,
+        secretHash: secretHash(value),
+        expiresAt: new Date(
+          Date.parse(context.clock.now()) + policy.absoluteSecs * 1000,
+        ).toISOString(),
+      });
       return current.role;
     },
   );
@@ -85,6 +87,23 @@ export async function issueSession(
       csrf_token: csrfToken(value),
     } satisfies CurrentSession,
   };
+}
+export function sessionValue(
+  policy: AuthPolicy,
+  headers: Headers,
+  mutation = false,
+) {
+  if (headers.has('authorization')) throw unauthorized();
+  if (mutation) trustedOrigin(policy, headers.get('origin'));
+  const value = cookieSecret(policy, headers.get('cookie'));
+  if (!value) throw unauthorized();
+  if (mutation && !verifyCsrf(value, headers.get('x-csrf-token') ?? ''))
+    throw new PublicFailure(
+      403,
+      'auth.csrf',
+      'Refresh the session before trying again',
+    );
+  return value;
 }
 export async function register(
   context: FoundationContext,
@@ -189,14 +208,97 @@ export async function currentSession(
   headers: Headers,
   requestId: string,
 ) {
-  const value = cookieSecret(policy, headers.get('cookie'));
-  if (headers.has('authorization') || !value) throw unauthorized();
+  const value = sessionValue(policy, headers);
   try {
     return await context.db.read({ id: requestId, kind: 'request' }, (tx) =>
       sessionIn(tx, policy, value),
     );
   } catch (error) {
     if (error instanceof PublicFailure) throw error;
+    throw unavailable();
+  }
+}
+export async function logout(
+  context: FoundationContext,
+  policy: AuthPolicy,
+  headers: Headers,
+  requestId: string,
+) {
+  trustedOrigin(policy, headers.get('origin'));
+  const value = sessionValue(policy, headers, true);
+  try {
+    await context.db.transaction(
+      { id: requestId, kind: 'request' },
+      async (tx) => {
+        await sessionIn(tx, policy, value);
+        await tx
+          .update(sessions)
+          .set({ revoked: true })
+          .where(eq(sessions.secretHash, secretHash(value)));
+      },
+    );
+  } catch (error) {
+    if (error instanceof PublicFailure) throw error;
+    throw unavailable();
+  }
+  return `${policy.secureCookie ? '__Host-' : ''}labos_threejs_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0${policy.secureCookie ? '; Secure' : ''}`;
+}
+export async function login(
+  context: FoundationContext,
+  policy: AuthPolicy,
+  input: { email: string; password: string },
+  requestId: string,
+) {
+  if (utf8Size(input.email) > 254 || [...input.password].length > 128)
+    throw new PublicFailure(
+      400,
+      'auth.invalid_input',
+      'Credentials exceed the allowed length',
+    );
+  let record: (CurrentUser & { password_hash: string }) | undefined;
+  try {
+    record = await context.db.read(
+      { id: requestId, kind: 'request' },
+      async (tx) => {
+        const result = await tx.execute<
+          CurrentUser & { password_hash: string }
+        >(
+          sql`select u.id::text,u.email,u.display_name,c.password_hash,m.role from labos_threejs_core.users u join labos_threejs_core.credentials c on c.user_id=u.id join labos_threejs_core.memberships m on m.user_id=u.id and m.active where u.normalized_email=${trimmed(input.email).toLowerCase()}`,
+        );
+        return result.rows[0];
+      },
+    );
+  } catch {
+    throw unavailable();
+  }
+  let valid: boolean;
+  try {
+    valid = await verifyPassword(input.password, record?.password_hash);
+  } catch {
+    throw unavailable();
+  }
+  const invalid = () =>
+    new PublicFailure(
+      401,
+      'auth.invalid_credentials',
+      'Email or password is incorrect',
+    );
+  if (!valid || !record) throw invalid();
+  try {
+    return await issueSession(
+      context,
+      policy,
+      {
+        id: record.id,
+        email: record.email,
+        display_name: record.display_name,
+        role: record.role,
+      },
+      record.password_hash,
+      requestId,
+    );
+  } catch (error) {
+    if (error instanceof PublicFailure && error.status === 401) throw invalid();
     throw unavailable();
   }
 }

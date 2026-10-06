@@ -116,12 +116,17 @@ export function createApp(
     },
   );
   app.notFound((c) => {
-    const known = [
-      '/health/live',
-      '/health/ready',
-      '/api/v1/system/status',
-      '/api/openapi.json',
-    ].includes(c.req.path);
+    const segments = c.req.path.split('/');
+    const known = app.routes.some((route) => {
+      const registered = route.path.split('/');
+      return (
+        route.method !== 'ALL' &&
+        registered.length === segments.length &&
+        registered.every(
+          (part, index) => part.startsWith(':') || part === segments[index],
+        )
+      );
+    });
     return c.json(
       errorEnvelope(
         known ? 'http.method_not_allowed' : 'http.not_found',
