@@ -10,8 +10,8 @@ import { fingerprint } from '../../core/idempotency/use-cases.ts';
 import { loadEntity, worldId } from '../world/entities.ts';
 import {
   activeTask,
-  validLightConfiguration,
-  validLightParameters,
+  validProgramConfiguration,
+  validParameters,
   type DeviceCommand,
 } from './domain.ts';
 
@@ -76,8 +76,10 @@ export class DeviceService {
         if (entity.program_run?.status === 'running')
           return { value: entity.program_run, created: false };
         if (
-          entity.binding.program_id !== 'light.v1' ||
-          !validLightConfiguration(entity.configuration)
+          !validProgramConfiguration(
+            entity.binding.program_id,
+            entity.configuration,
+          )
         )
           deviceFailure(
             422,
@@ -154,6 +156,7 @@ export class DeviceService {
     lab: string,
     id: string,
     input: { capability: string; parameters: unknown },
+    integerParameters = true,
   ) {
     return this.context.db.transaction(
       { id: requestId, kind: 'request' },
@@ -224,16 +227,44 @@ export class DeviceService {
             'lab.program_not_running',
             'Start the device program explicitly before sending a command',
           );
-        if (!validLightParameters(input.capability, input.parameters))
+        if (
+          !integerParameters ||
+          !validParameters(input.capability, input.parameters)
+        )
           deviceFailure(
             422,
             'lab.invalid_parameters',
             'Use the capability input types and allowed range',
           );
+        if (input.capability === 'centrifuge.start' && activeTask(entity.task))
+          deviceFailure(
+            409,
+            'lab.device_busy',
+            'Finish the current task before starting another',
+          );
         const command = randomUUID();
         await tx.execute(
           sql`insert into lab.device_commands(id,entity_id,run_id,actor_id,actor_source,request_key,capability,parameters,status) values(${command}::uuid,${entity.id}::uuid,${entity.program_run.id}::uuid,${actor.user.id}::uuid,${actor.isApiKey ? 'agent' : 'member'},${key},${input.capability},${JSON.stringify(input.parameters)}::jsonb,'accepted')`,
         );
+        let task: string | null = null;
+        if (input.capability === 'centrifuge.start') {
+          task = randomUUID();
+          const result = randomUUID();
+          await tx.execute(
+            sql`insert into lab.device_tasks(id,entity_id,run_id,command_id,result_id,parameters,status) values(${task}::uuid,${entity.id}::uuid,${entity.program_run.id}::uuid,${command}::uuid,${result}::uuid,${JSON.stringify(input.parameters)}::jsonb,'pending')`,
+          );
+          await tx.execute(
+            sql`insert into lab.device_task_results(id,task_id,status) values(${result}::uuid,${task}::uuid,'pending')`,
+          );
+        } else if (
+          input.capability === 'centrifuge.stop' &&
+          activeTask(entity.task)
+        )
+          task = String(entity.task!.id);
+        if (task)
+          await tx.execute(
+            sql`update lab.device_commands set task_id=${task}::uuid where id=${command}::uuid`,
+          );
         await this.audit(
           tx,
           actor.user.id,
@@ -270,6 +301,47 @@ export class DeviceService {
       async (tx) => {
         await accessIn(tx, this.context, this.policy, headers, 'lab:full');
         return this.commandIn(tx, lab, entity, command);
+      },
+    );
+  }
+  async record(
+    headers: Headers,
+    requestId: string,
+    lab: string,
+    entity: string,
+    id: string,
+    kind: 'runs' | 'tasks' | 'results',
+  ) {
+    return this.context.db.transaction(
+      { id: requestId, kind: 'request' },
+      async (tx) => {
+        await accessIn(tx, this.context, this.policy, headers, 'lab:full');
+        await loadEntity(tx, lab, entity);
+        const selection =
+          kind === 'runs'
+            ? sql`select (to_jsonb(r)-'generation'-'sequence'-'last_observed_at'-'next_sample_at')||jsonb_build_object('program_id',b.program_id,'source',b.source,'definition_id',b.definition_id,'definition_version',b.definition_version,'definition',b.definition) as value from lab.program_runs r join lab.runtime_bindings b on b.id=r.binding_id where r.entity_id=${worldId(entity)}::uuid and r.id=${worldId(id)}::uuid`
+            : kind === 'tasks'
+              ? sql`select to_jsonb(t)-'last_tick_at'-'pending_outcome' as value from lab.device_tasks t where t.entity_id=${worldId(entity)}::uuid and t.id=${worldId(id)}::uuid`
+              : sql`select to_jsonb(r) as value from lab.device_task_results r join lab.device_tasks t on t.result_id=r.id where t.entity_id=${worldId(entity)}::uuid and r.id=${worldId(id)}::uuid`;
+        const rows = await tx.execute<{ value: Record<string, unknown> }>(
+          selection,
+        );
+        if (!rows.rows[0])
+          deviceFailure(
+            404,
+            'lab.world_not_found',
+            'Lab, Entity or record not found',
+          );
+        const value = rows.rows[0].value;
+        for (const field of [
+          'started_at',
+          'ended_at',
+          'created_at',
+          'timer_started_at',
+        ])
+          if (typeof value[field] === 'string')
+            value[field] = utcInstant(value[field]);
+        return value;
       },
     );
   }

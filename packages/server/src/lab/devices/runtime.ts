@@ -1,8 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import type { FoundationContext } from '../../platform/context.ts';
 import { sql, type DbSession } from '../../platform/db/index.ts';
+import { addSeconds, instantNanoseconds } from '../time.ts';
 import {
   object,
+  validObservation,
+  advanceCentrifuge,
+  type CentrifugeTask,
   type ObservationProperty,
   type ObservationReport,
 } from './domain.ts';
@@ -91,6 +95,7 @@ export class DeviceRuntime {
     this.current = this.context.db
       .operation({ id, kind: 'background' }, async () => {
         await this.processNext(id);
+        await this.sampleDue(id);
         await this.expire(id);
       })
       .catch((error) => {
@@ -128,14 +133,22 @@ export class DeviceRuntime {
         const source = await this.sourceIn(tx, run);
         if (!source || source.binding_id !== binding) return 'stale_run';
         if (report.sequence <= Number(source.sequence)) return 'out_of_order';
-        return (await this.observeIn(
-          tx,
-          source,
-          report,
-          this.context.clock.now(),
-        ))
-          ? 'applied'
-          : 'out_of_order';
+        const now = this.context.clock.now();
+        if (!(await this.observeIn(tx, source, report, now)))
+          return 'out_of_order';
+        if (
+          source.program_id === 'centrifuge.v1' &&
+          report.quality !== 'good' &&
+          Object.keys(report.values).length
+        )
+          await this.failTaskIn(
+            tx,
+            source,
+            report.quality === 'bad' ? 'failed' : 'unknown',
+            report.quality === 'bad' ? 'device_fault' : 'observation_uncertain',
+            now,
+          );
+        return 'applied';
       }),
     );
     this.reports.add(admitted);
@@ -173,6 +186,16 @@ export class DeviceRuntime {
             sql`select capability,parameters from lab.device_commands where id=${command.id}::uuid and status='executing'`,
           );
           if (!actions.rows[0]) return;
+          if (source.program_id === 'centrifuge.v1') {
+            await this.executeCentrifuge(
+              tx,
+              source,
+              command.id,
+              actions.rows[0].capability,
+              this.context.clock.now(),
+            );
+            return;
+          }
           const previous = await tx.execute<{
             values: Record<string, unknown>;
           }>(
@@ -210,6 +233,15 @@ export class DeviceRuntime {
           await tx.execute(
             sql`update lab.device_commands set status='unknown',result=jsonb_build_object('reason','execution_uncertain'),updated_at=now() where id=${command.id}::uuid and status='executing'`,
           );
+          const source = await this.sourceIn(tx, command.run_id);
+          if (source?.program_id === 'centrifuge.v1')
+            await this.failTaskIn(
+              tx,
+              source,
+              'unknown',
+              'execution_uncertain',
+              this.context.clock.now(),
+            );
         },
       );
       throw error;
@@ -226,16 +258,7 @@ export class DeviceRuntime {
       report.sequence < 1 ||
       !['good', 'uncertain', 'bad'].includes(report.quality) ||
       !object(report.values) ||
-      !Object.entries(report.values).every(
-        ([name, value]) =>
-          source.program_id === 'light.v1' &&
-          ((name === 'on' && typeof value === 'boolean') ||
-            (name === 'brightness' &&
-              typeof value === 'number' &&
-              Number.isFinite(value) &&
-              value >= 0 &&
-              value <= 100)),
-      )
+      !validObservation(source.program_id, report.values)
     )
       throw new Error('Invalid device observation');
     const existing = await tx.execute<State>(
@@ -251,7 +274,8 @@ export class DeviceRuntime {
         state.properties[name]?.run_id === source.run_id &&
         state.observed_times[name] &&
         report.observed_at &&
-        Date.parse(report.observed_at) < Date.parse(state.observed_times[name])
+        instantNanoseconds(report.observed_at) <
+          instantNanoseconds(state.observed_times[name])
       )
         return false;
     const properties: Record<string, ObservationProperty> = {};
@@ -261,7 +285,16 @@ export class DeviceRuntime {
       if (report.observed_at) state.observed_times[name] = report.observed_at;
       properties[name] = {
         value,
-        unit: name === 'brightness' ? '%' : null,
+        unit:
+          name === 'brightness'
+            ? '%'
+            : name === 'temperature'
+              ? 'degC'
+              : name === 'speed'
+                ? 'rpm'
+                : name === 'elapsed_seconds'
+                  ? 's'
+                  : null,
         binding_id: source.binding_id,
         run_id: source.run_id,
         sequence: report.sequence,
@@ -269,7 +302,7 @@ export class DeviceRuntime {
         observed_at: report.observed_at,
         received_at: now,
         updated_at: now,
-        expires_at: new Date(Date.parse(now) + 5000).toISOString(),
+        expires_at: addSeconds(now, 5),
         quality: report.quality,
         freshness: report.observed_at ? 'current' : 'source_time_unknown',
       };
@@ -297,6 +330,189 @@ export class DeviceRuntime {
     );
     return true;
   }
+  private async sampleDue(id: string) {
+    const now = this.context.clock.now();
+    await this.context.db.transaction(
+      { id, kind: 'background' },
+      async (tx) => {
+        const due = await tx.execute<{ id: string }>(
+          sql`select r.id::text from lab.program_runs r join lab.runtime_bindings b on b.id=r.binding_id and b.current join lab.runtime_generation g on g.singleton and g.generation=r.generation where r.status='running' and r.generation=${this.generation} and b.program_id in('sensor.v1','centrifuge.v1') and (r.next_sample_at is null or r.next_sample_at<=${now}::timestamptz) order by r.id`,
+        );
+        for (const run of due.rows) {
+          const source = await this.sourceIn(tx, run.id);
+          if (!source) continue;
+          if (source.program_id === 'centrifuge.v1') {
+            await this.sampleCentrifuge(tx, source, now);
+            await tx.execute(
+              sql`update lab.program_runs set next_sample_at=${addSeconds(now, 1)}::timestamptz where id=${source.run_id}::uuid`,
+            );
+            continue;
+          }
+          const sequence = Number(source.sequence) + 1,
+            baseline = Number(source.configuration.baseline_temperature ?? 22);
+          const values = {
+            temperature:
+              Math.round((baseline + Math.sin(sequence * 0.2) * 0.5) * 10) / 10,
+          };
+          if (
+            !(await this.observeIn(
+              tx,
+              source,
+              { sequence, values, observed_at: now, quality: 'good' },
+              now,
+            ))
+          )
+            continue;
+          await tx.execute(
+            sql`update lab.program_runs set next_sample_at=${addSeconds(now, 1)}::timestamptz where id=${source.run_id}::uuid`,
+          );
+        }
+      },
+    );
+  }
+
+  private async valuesIn(tx: DbSession, source: Source) {
+    const result = await tx.execute<{ values: Record<string, unknown> }>(
+      sql`select values from lab.current_observations where entity_id=${source.entity_id}::uuid and run_id=${source.run_id}::uuid`,
+    );
+    return (
+      result.rows[0]?.values ?? {
+        speed: 0,
+        temperature: source.configuration.initial_temperature ?? 22,
+        phase: 'idle',
+        elapsed_seconds: 0,
+      }
+    );
+  }
+  private async taskIn(tx: DbSession, source: Source) {
+    const rows = await tx.execute<CentrifugeTask>(
+      sql`select id::text,result_id::text,parameters,status,elapsed_seconds,last_tick_at,pending_outcome from lab.device_tasks where run_id=${source.run_id}::uuid and status in('pending','preparing','running','decelerating')`,
+    );
+    return rows.rows[0];
+  }
+  private async failTaskIn(
+    tx: DbSession,
+    source: Source,
+    outcome: string,
+    reason: string,
+    now: string,
+  ) {
+    const task = await this.taskIn(tx, source);
+    if (!task) return;
+    await tx.execute(
+      sql`update lab.device_task_results set reason=${reason} where id=${task.result_id}::uuid`,
+    );
+    await tx.execute(
+      sql`update lab.device_tasks set status='decelerating',pending_outcome=${outcome},last_tick_at=case when status='decelerating' then last_tick_at else ${now}::timestamptz end where id=${task.id}::uuid`,
+    );
+  }
+  private async executeCentrifuge(
+    tx: DbSession,
+    source: Source,
+    command: string,
+    capability: string,
+    now: string,
+  ) {
+    const commands = await tx.execute<{ task_id: string | null }>(
+        sql`select task_id::text from lab.device_commands where id=${command}::uuid`,
+      ),
+      taskId = commands.rows[0].task_id;
+    if (capability === 'centrifuge.start') {
+      if (!taskId) throw new Error('Missing reserved Task');
+      await tx.execute(
+        sql`update lab.device_tasks set status='preparing',last_tick_at=${now}::timestamptz where id=${taskId}::uuid`,
+      );
+      const previous = await this.valuesIn(tx, source);
+      if (
+        !(await this.observeIn(
+          tx,
+          source,
+          {
+            sequence: Number(source.sequence) + 1,
+            values: {
+              speed: 0,
+              temperature: previous.temperature,
+              phase: 'preparing',
+              elapsed_seconds: 0,
+            },
+            observed_at: now,
+            quality: 'good',
+          },
+          now,
+        ))
+      )
+        throw new Error('Device report would regress source time');
+    } else if (capability === 'centrifuge.stop' && taskId) {
+      const task = await this.taskIn(tx, source);
+      if (task) {
+        const elapsed =
+          task.status === 'running'
+            ? Math.min(
+                task.parameters.duration_seconds,
+                task.elapsed_seconds +
+                  Math.max(
+                    0,
+                    (Date.parse(now) - Date.parse(task.last_tick_at!)) / 1000,
+                  ),
+              )
+            : task.elapsed_seconds;
+        const outcome =
+          task.pending_outcome === 'failed' ||
+          task.pending_outcome === 'unknown'
+            ? task.pending_outcome
+            : 'cancelled';
+        await tx.execute(
+          sql`update lab.device_tasks set status='decelerating',pending_outcome=${outcome},elapsed_seconds=${elapsed},last_tick_at=case when status='decelerating' then last_tick_at else ${now}::timestamptz end where id=${task.id}::uuid`,
+        );
+        if (
+          !(await this.observeIn(
+            tx,
+            source,
+            {
+              sequence: Number(source.sequence) + 1,
+              values: { phase: 'decelerating', elapsed_seconds: elapsed },
+              observed_at: now,
+              quality: 'good',
+            },
+            now,
+          ))
+        )
+          throw new Error('Device report would regress source time');
+      }
+    }
+    await tx.execute(
+      sql`update lab.device_commands set status='succeeded',result=${JSON.stringify({ meaning: capability === 'centrifuge.start' ? 'task_started' : 'deceleration_requested', task_id: taskId })}::jsonb,updated_at=${now}::timestamptz where id=${command}::uuid`,
+    );
+  }
+  private async sampleCentrifuge(tx: DbSession, source: Source, now: string) {
+    let values = await this.valuesIn(tx, source);
+    const task = await this.taskIn(tx, source);
+    if (task && task.status !== 'pending') {
+      const next = advanceCentrifuge(task, values, now);
+      await tx.execute(
+        sql`update lab.device_tasks set status=${next.status},elapsed_seconds=${next.elapsed},last_tick_at=${now}::timestamptz,pending_outcome=${next.outcome},timer_started_at=case when ${next.timerStarted} then ${now}::timestamptz else timer_started_at end,ended_at=case when ${next.terminal} then ${now}::timestamptz else ended_at end where id=${task.id}::uuid`,
+      );
+      if (next.terminal)
+        await tx.execute(
+          sql`update lab.device_task_results set status=${next.status},reason=coalesce(reason,${next.status === 'unknown' ? 'execution_uncertain' : null}),ended_at=${now}::timestamptz where id=${task.result_id}::uuid`,
+        );
+      values = next.values;
+    }
+    if (
+      !(await this.observeIn(
+        tx,
+        source,
+        {
+          sequence: Number(source.sequence) + 1,
+          values,
+          observed_at: now,
+          quality: 'good',
+        },
+        now,
+      ))
+    )
+      throw new Error('Device report would regress source time');
+  }
   private async expire(id: string) {
     const now = this.context.clock.now();
     await this.context.db.transaction(
@@ -309,9 +525,16 @@ export class DeviceRuntime {
           sql`select o.entity_id::text,o.properties from lab.current_observations o join lab.runtime_generation g on g.singleton and g.generation=${this.generation} where exists(select 1 from jsonb_each(o.properties) p where p.value->>'freshness'<>'stale' and (p.value->>'expires_at')::timestamptz<=${now}::timestamptz)`,
         );
         for (const row of rows.rows) {
+          let changed = false;
           for (const property of Object.values(row.properties))
-            if (Date.parse(property.expires_at) <= Date.parse(now))
+            if (
+              property.freshness !== 'stale' &&
+              instantNanoseconds(property.expires_at) <= instantNanoseconds(now)
+            ) {
               property.freshness = 'stale';
+              changed = true;
+            }
+          if (!changed) continue;
           await tx.execute(
             sql`update lab.current_observations set properties=${JSON.stringify(row.properties)}::jsonb,freshness='stale' where entity_id=${row.entity_id}::uuid`,
           );
