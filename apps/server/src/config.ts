@@ -1,4 +1,5 @@
 import { resolve } from 'node:path';
+import { defaultRateOptions } from '../../../packages/server/src/core/rate-limit/domain.ts';
 export function configuration(env: NodeJS.ProcessEnv = process.env) {
   const bind = env.APP_BIND?.match(/^(.*):(\d+)$/);
   const hostname = env.LAB_WORD_HOST ?? bind?.[1] ?? '127.0.0.1';
@@ -38,9 +39,40 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     throw new Error(
       'SESSION_IDLE_SECS must be an integer from 60 to the absolute lifetime',
     );
+  const rate = { ...defaultRateOptions };
+  if (env.RATE_LIMIT_ENABLED !== undefined) {
+    if (!['true', 'false'].includes(env.RATE_LIMIT_ENABLED))
+      throw new Error('RATE_LIMIT_ENABLED must be true or false');
+    rate.enabled = env.RATE_LIMIT_ENABLED === 'true';
+  }
+  const settings = [
+    ['RATE_LIMIT_WINDOW_SECS', 'windowSecs', 1, 3600],
+    ['RATE_LIMIT_MAX_LOCAL_ENTRIES', 'capacity', 1, 100000],
+    ['RATE_LIMIT_REGISTRATION', 'registration', 1, 1000000],
+    ['RATE_LIMIT_REGISTRATION_FALLBACK', 'registrationFallback', 1, 1000000],
+    ['RATE_LIMIT_AUTHENTICATION', 'authentication', 1, 1000000],
+    [
+      'RATE_LIMIT_AUTHENTICATION_FALLBACK',
+      'authenticationFallback',
+      1,
+      1000000,
+    ],
+    ['RATE_LIMIT_RESOURCE', 'resource', 1, 1000000],
+    ['RATE_LIMIT_RESOURCE_FALLBACK', 'resourceFallback', 1, 1000000],
+  ] as const;
+  for (const [name, key, min, max] of settings) {
+    const value = Number(env[name] ?? rate[key]);
+    if (!Number.isSafeInteger(value) || value < min || value > max)
+      throw new Error(`${name} is invalid`);
+    rate[key] = value;
+  }
+  for (const policy of ['registration', 'authentication', 'resource'] as const)
+    if (rate[`${policy}Fallback`] > rate[policy])
+      throw new Error(`${policy} overflow capacity exceeds its primary limit`);
   return {
     hostname,
     port,
+    rate,
     auth: {
       origin: origin.origin,
       absoluteSecs,

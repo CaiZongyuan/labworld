@@ -71,7 +71,7 @@ export async function run(
     const context = { db, clock: { now: () => new Date().toISOString() } };
     const prepared = factory
       ? await factory(context)
-      : { app: coreApp(context, version, config.auth, log) };
+      : { app: coreApp(context, version, config.auth, log, config.rate) };
     stop = prepared.stop;
     if (closing) {
       await stop?.();

@@ -26,6 +26,7 @@ export function createApp(
   version: string,
   log: (entry: Record<string, unknown>) => void = (entry) =>
     console.log(JSON.stringify(entry)),
+  initialize?: (app: OpenAPIHono<{ Variables: { requestId: string } }>) => void,
 ) {
   const app = new OpenAPIHono<{ Variables: { requestId: string } }>();
   app.use('*', async (c, next) => {
@@ -47,6 +48,7 @@ export function createApp(
       });
     }
   });
+  initialize?.(app);
   app.openapi(
     createRoute({
       method: 'get',
