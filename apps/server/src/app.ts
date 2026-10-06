@@ -12,6 +12,7 @@ import { rateRoutes } from '../../../packages/server/src/core/rate-limit/routes.
 import { getConnInfo } from '@hono/node-server/conninfo';
 import { PublicFailure } from '../../../packages/server/src/platform/http/failure.ts';
 import { secretHash } from '../../../packages/server/src/platform/crypto.ts';
+import { registerFileSchemas } from '../../../packages/server/src/core/files/dto.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
 import type { AuthPolicy } from '../../../packages/server/src/core/identity/domain.ts';
 export function coreApp(
@@ -53,6 +54,7 @@ export function coreApp(
       await next();
     }),
   );
+  registerFileSchemas(app);
   // Core JSON/byte routes aggregate auth, controls and every DB phase. Foundation
   // routes/isolated M1 streaming fixtures retain their existing operation ownership.
   for (const path of ['/api/v1/*', '/objects/*'])

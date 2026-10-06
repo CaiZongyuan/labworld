@@ -48,7 +48,7 @@ The restart updates the migration set in the binary.
 
 在中文文件旁创建 `.en.md`，在 [site.json](../site.json)登记稳定 id、两组标题与 source、发布 route、group 和 type。连续章节用 `previous`/`next` 的 id；不相关页面不自动串联。
 
-Markdown 为正文来源；API 来自 Rust/OpenAPI，配置来自 Settings。受检查的完整源码可用 `<<<` 引用，避免复制第二份代码。`apps/docs/.generated` 与构建产物由脚本生成；站点图片放在 `apps/docs/public/`。
+Markdown 为正文来源；API 来自当前 Node Zod/OpenAPI 与冻结旧栈 OpenAPI；配置来自当前 Node parser 与冻结 Settings。受检查的完整源码可用 `<<<` 引用，避免复制第二份代码。`apps/docs/.generated` 与构建产物由脚本生成；站点图片放在 `apps/docs/public/`。
 
 ```bash
 pnpm docs:check

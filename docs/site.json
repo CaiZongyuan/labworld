@@ -356,7 +356,31 @@
       "title": "TypeScript 服务基础",
       "titleEn": "TypeScript service foundation",
       "group": "开发",
-      "type": "guide"
+      "type": "guide",
+      "next": "server-platform"
+    },
+    {
+      "id": "server-platform",
+      "source": "docs/guides/server-platform.md",
+      "sourceEn": "docs/guides/server-platform.en.md",
+      "route": "guides/server-platform.md",
+      "title": "Platform Core 身份与运维",
+      "titleEn": "Platform Core identity and operations",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-foundation",
+      "next": "server-files"
+    },
+    {
+      "id": "server-files",
+      "source": "docs/guides/server-files.md",
+      "sourceEn": "docs/guides/server-files.en.md",
+      "route": "guides/server-files.md",
+      "title": "文件发布与业务引用",
+      "titleEn": "File publication and business references",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-platform"
     }
   ],
   "references": [

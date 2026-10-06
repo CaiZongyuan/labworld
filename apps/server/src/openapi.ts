@@ -18,7 +18,7 @@ console.log(
   JSON.stringify(
     app.getOpenAPI31Document({
       openapi: '3.1.0',
-      info: { title: 'Lab Word Server (M1 foundation)', version },
+      info: { title: 'Lab Word Server', version },
     }),
     null,
     2,

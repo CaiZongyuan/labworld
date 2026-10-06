@@ -4,7 +4,7 @@ import {
   createHmac,
   timingSafeEqual,
 } from 'node:crypto';
-import { mkdir, open, readFile } from 'node:fs/promises';
+import { link, mkdir, open, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import type { FoundationContext } from '../../platform/context.ts';
@@ -40,6 +40,10 @@ import {
 import { PublicFailure } from '../../platform/http/failure.ts';
 type FileRow = typeof files.$inferSelect;
 export type FileReference = { ownerType: string; ownerId: string };
+export type VerifiedFile = {
+  file: FileInfo;
+  read: () => AsyncIterable<Uint8Array>;
+};
 const failure = (
   status: PublicFailure['status'],
   code: string,
@@ -112,22 +116,40 @@ export class FileService {
     await mkdir(secrets, { recursive: true, mode: 0o700 });
     const path = join(secrets, 'file-signing-key');
     try {
-      const handle = await open(path, 'wx', 0o600);
-      try {
-        await handle.writeFile(randomBytes(32));
-        await handle.sync();
-      } finally {
-        await handle.close();
-      }
+      this.signingKey = await readFile(path);
     } catch (error) {
       if (!(
         error instanceof Error &&
         'code' in error &&
-        error.code === 'EEXIST'
+        error.code === 'ENOENT'
       ))
         throw error;
+      // Publish only a complete key. An interrupted write leaves an owned
+      // temporary file, never a short canonical key or a replaced existing key.
+      const temporary = join(secrets, `file-signing-key.${randomUUID()}.tmp`);
+      const handle = await open(temporary, 'wx', 0o600);
+      try {
+        try {
+          await handle.writeFile(randomBytes(32));
+          await handle.sync();
+        } finally {
+          await handle.close();
+        }
+        try {
+          await link(temporary, path);
+        } catch (error) {
+          if (!(
+            error instanceof Error &&
+            'code' in error &&
+            error.code === 'EEXIST'
+          ))
+            throw error;
+        }
+      } finally {
+        await rm(temporary, { force: true });
+      }
+      this.signingKey = await readFile(path);
     }
-    this.signingKey = await readFile(path);
     if (this.signingKey.length !== 32)
       throw new Error('File signing key is invalid');
   }
@@ -288,6 +310,7 @@ export class FileService {
       file: FileInfo,
       transitioned: boolean,
     ) => Promise<T>,
+    validate?: (candidate: VerifiedFile) => Promise<void>,
   ): Promise<T> {
     const planned = await this.read(id, requestId);
     const hash = planned.sha256.toString('hex');
@@ -343,6 +366,13 @@ export class FileService {
           }
           key = await this.blobs.adopt(planned.stagingKey, hash);
         }
+        await validate?.({
+          file: info({
+            ...planned,
+            actualSize: planned.actualSize ?? planned.declaredSize,
+          }),
+          read: () => this.blobs.read(key),
+        });
         return await this.context.db.transaction(
           { id: requestId, kind: 'request' },
           async (tx) => {

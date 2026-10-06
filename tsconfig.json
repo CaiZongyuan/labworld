@@ -34,7 +34,8 @@
     "tests/server",
     "tests/support/server-process.ts",
     "scripts/server-*.ts",
-    "scripts/check-server-contracts.ts"
+    "scripts/check-server-contracts.ts",
+    "docs/examples"
   ],
   "exclude": ["node_modules", "target", "apps/docs/.generated"]
 }

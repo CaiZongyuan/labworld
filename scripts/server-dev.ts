@@ -158,7 +158,7 @@ if (!closing) {
       await new Promise<void>(() => {});
     await record();
     console.log(
-      `M1 foundation: http://127.0.0.1:${process.env.WEB_PORT ?? 5173}; identity and Lab endpoints are pending migration.`,
+      `Lab Word: http://127.0.0.1:${process.env.WEB_PORT ?? 5173}; Platform Core is available; Lab endpoints are pending migration.`,
     );
   }
 }

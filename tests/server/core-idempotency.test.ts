@@ -8,6 +8,7 @@ import { defaultRateOptions } from '../../packages/server/src/core/rate-limit/do
 import { accessIn } from '../../packages/server/src/core/api-keys/authentication.ts';
 import { databaseAudit } from '../../packages/server/src/core/audit/use-cases.ts';
 import { PublicFailure } from '../../packages/server/src/platform/http/failure.ts';
+import { sql } from '../../packages/server/src/platform/db/index.ts';
 import {
   claim,
   complete,
@@ -184,6 +185,93 @@ test('necessary transactional capability authorizes before replay and rolls clai
       perform('recovered'),
       (error: unknown) =>
         error instanceof PublicFailure && error.status === 401,
+    );
+  } finally {
+    await db.close();
+  }
+});
+
+test('necessary retained idempotency storage proof keeps twenty-four hours and reclaims at most twenty-five expired records per claim', async () => {
+  const db = new Database();
+  try {
+    await db.initialize();
+    const context = { db, clock: { now: () => new Date().toISOString() } };
+    const identity = await register(
+      context,
+      configuration().auth,
+      {
+        email: 'retention@example.test',
+        password: 'isolated-retention-password',
+      },
+      'retention-register',
+    );
+    const actorId = identity.session.user.id;
+    for (let index = 0; index < 30; index++) {
+      const attempt = {
+        actorId,
+        scope: 'owned-retention-proof',
+        key: `record-${index}`,
+        fingerprint: fingerprint({ index }),
+      };
+      await db.transaction(
+        { id: 'retention-create', kind: 'request' },
+        async (tx) => {
+          assert.equal(await claim(tx, attempt), undefined);
+          if (index === 0) {
+            const receipt = await tx.execute<{ seconds: string }>(
+              sql`select extract(epoch from expires_at-now())::text as seconds from labos_threejs_core.idempotency_records where actor_id=${actorId}::uuid and scope='owned-retention-proof' and request_key=${attempt.key}`,
+            );
+            assert.equal(Number(receipt.rows[0].seconds), 86400);
+          }
+          await complete(tx, attempt, { index });
+        },
+      );
+    }
+    // Controlled expiry changes only records produced through the actual capability.
+    await db.script(
+      { id: 'retention-expiry-control', kind: 'startup' },
+      "update labos_threejs_core.idempotency_records set expires_at=now()-interval '1 second' where scope='owned-retention-proof'",
+    );
+    const claimFresh = (key: string) =>
+      db.transaction(
+        { id: 'retention-reclaim', kind: 'request' },
+        async (tx) => {
+          const attempt = {
+            actorId,
+            scope: 'owned-retention-proof',
+            key,
+            fingerprint: fingerprint({ key }),
+          };
+          assert.equal(await claim(tx, attempt), undefined);
+          await complete(tx, attempt, { key });
+        },
+      );
+    const expiredCount = async () =>
+      Number(
+        (
+          await db.readSQL<{ count: string }>(
+            { id: 'retention-count', kind: 'request' },
+            "select count(*)::text as count from labos_threejs_core.idempotency_records where scope='owned-retention-proof' and expires_at<=now()",
+          )
+        )[0].count,
+      );
+    assert.equal(await expiredCount(), 30);
+    await claimFresh('fresh-one');
+    assert.equal(await expiredCount(), 5);
+    await claimFresh('fresh-two');
+    assert.equal(await expiredCount(), 0);
+    assert.deepEqual(
+      await db.transaction(
+        { id: 'retention-live-replay', kind: 'request' },
+        (tx) =>
+          claim(tx, {
+            actorId,
+            scope: 'owned-retention-proof',
+            key: 'fresh-one',
+            fingerprint: fingerprint({ key: 'fresh-one' }),
+          }),
+      ),
+      { key: 'fresh-one' },
     );
   } finally {
     await db.close();
