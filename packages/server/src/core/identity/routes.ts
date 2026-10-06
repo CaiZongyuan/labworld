@@ -18,7 +18,9 @@ const json = (schema: z.ZodType) => ({
   description: '',
   content: { 'application/json': { schema } },
 });
-const MemberRole = z.enum(['owner', 'admin', 'member']).openapi('MemberRole');
+export const MemberRole = z
+  .enum(['owner', 'admin', 'member'])
+  .openapi('MemberRole');
 export const CurrentUser = z
   .object({
     id: z.string(),

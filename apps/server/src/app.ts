@@ -1,5 +1,8 @@
 import { createApp } from '../../../packages/server/src/core/system/routes.ts';
 import { identityRoutes } from '../../../packages/server/src/core/identity/routes.ts';
+import { organizationRoutes } from '../../../packages/server/src/core/organization/routes.ts';
+import { apiKeyRoutes } from '../../../packages/server/src/core/api-keys/routes.ts';
+import { auditRoutes } from '../../../packages/server/src/core/audit/routes.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
 import type { AuthPolicy } from '../../../packages/server/src/core/identity/domain.ts';
 export function coreApp(
@@ -20,5 +23,11 @@ export function coreApp(
     );
   });
   identityRoutes(app, context, policy);
+  organizationRoutes(app, context, policy);
+  auditRoutes(app, context, policy);
+  apiKeyRoutes(app, context, policy, [
+    { id: 'profile:read', label: '读取自己的基本资料' },
+    { id: 'lab:full', label: 'Lab full access / 实验室完整访问' },
+  ]);
   return app;
 }

@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { trimmed, utf8Size } from './email.ts';
 import { sql, type DbSession } from '../../platform/db/index.ts';
 import type { FoundationContext } from '../../platform/context.ts';
@@ -87,6 +87,17 @@ export async function issueSession(
       csrf_token: csrfToken(value),
     } satisfies CurrentSession,
   };
+}
+export async function profiles(tx: DbSession, ids: string[]) {
+  if (!ids.length) return [];
+  return tx
+    .select({
+      id: users.id,
+      email: users.email,
+      display_name: users.displayName,
+    })
+    .from(users)
+    .where(inArray(users.id, ids));
 }
 export function sessionValue(
   policy: AuthPolicy,
