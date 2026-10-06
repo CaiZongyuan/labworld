@@ -1,21 +1,10 @@
-import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve, sep } from 'node:path';
 import ts from 'typescript';
 import { root } from './lib/process.mjs';
+import { checkServerBoundaries } from './lib/server-boundaries.mjs';
+checkServerBoundaries(join(root, 'packages/server/src'));
 
-const metadata = JSON.parse(
-  execFileSync(
-    'cargo',
-    ['metadata', '--no-deps', '--format-version', '1', '--locked'],
-    { cwd: root, encoding: 'utf8' },
-  ),
-);
-const platform = metadata.packages.find(
-  (pkg) => pkg.name === 'labos-threejs-platform',
-);
-if (platform.dependencies.some((dep) => dep.name === 'labos-threejs-app'))
-  throw new Error('Platform must not depend on app');
 const allowed = {
   contracts: [],
   sdk: ['@labos-threejs/contracts'],
@@ -191,5 +180,5 @@ for (const [name, dependencies] of Object.entries(allowed)) {
   }
 }
 console.log(
-  `Package imports and ${modules.length} Rust module ownership declarations verified. Dynamic SQL still requires review.`,
+  `Package imports and ${modules.length} retained module ownership declarations verified; TypeScript server boundaries verified. Dynamic SQL still requires review.`,
 );

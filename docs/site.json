@@ -347,6 +347,16 @@
       "titleEn": "Migration contract baseline",
       "group": "开发",
       "type": "guide"
+    },
+    {
+      "id": "server-foundation",
+      "source": "docs/guides/server-foundation.md",
+      "sourceEn": "docs/guides/server-foundation.en.md",
+      "route": "guides/server-foundation.md",
+      "title": "TypeScript 服务基础",
+      "titleEn": "TypeScript service foundation",
+      "group": "开发",
+      "type": "guide"
     }
   ],
   "references": [

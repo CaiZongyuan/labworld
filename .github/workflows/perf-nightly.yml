@@ -1,24 +1,16 @@
 name: Perf nightly
-# The load/saturation/soak evidence of spec §17.3: wall-clock throughput,
-# saturation ladders, long-run samples and the desktop renderer soak are
-# trends, not gates, so this runs nightly, on demand and on releases —
-# never on pull requests, which keep the short deterministic budgets in
-# `just check`.
+# Current M1 reports use isolated synthetic data and the new service. The full
+# Web journey workload remains pending migration; frozen legacy services do not run.
 on:
   schedule:
-    # 02:23 +08 daily, deliberately off the busy minute marks.
     - cron: '23 18 * * *'
   workflow_dispatch:
     inputs:
       soak_duration_secs:
-        description: Soak duration in seconds (local default is 600)
-        default: '300'
-      desktop_soak_duration_secs:
-        description: Desktop soak duration in seconds (local default is 300)
+        description: Synthetic M1 report duration in seconds
         default: '300'
   release:
-    types:
-      - published
+    types: [published]
 permissions:
   contents: read
 concurrency:
@@ -28,68 +20,6 @@ jobs:
   load-reports:
     runs-on: ubuntu-24.04
     timeout-minutes: 35
-    env:
-      CARGO_BUILD_JOBS: '4'
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .node-version
-      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-          restore-keys: ${{ runner.os }}-rust-
-      - name: Prepare Rust
-        run: rustup show
-      - name: Install k6 (pinned version, checksum-verified)
-        run: |
-          K6_VERSION=2.3.0
-          curl -sfL "https://github.com/grafana/k6/releases/download/v${K6_VERSION}/k6-v${K6_VERSION}-linux-amd64.tar.gz" -o /tmp/k6.tgz
-          curl -sfL "https://github.com/grafana/k6/releases/download/v${K6_VERSION}/k6-v${K6_VERSION}-checksums.txt" -o /tmp/k6-checksums.txt
-          grep "k6-v${K6_VERSION}-linux-amd64.tar.gz$" /tmp/k6-checksums.txt | (cd /tmp && sha256sum --check -)
-          tar -xzf /tmp/k6.tgz -C /tmp
-          sudo install /tmp/k6-v${K6_VERSION}-linux-amd64/k6 /usr/local/bin/k6
-          k6 version
-      - name: Load (steady read-heavy mix)
-        run: node scripts/perf/run-scenario.mjs load
-      - name: Saturation ladder (capped for the runner)
-        run: node scripts/perf/run-scenario.mjs saturation
-        env:
-          PERF_STEPS: '1,4,8,16'
-          PERF_STEP_SECS: '15'
-      - name: Trajectory (full user journey)
-        run: node scripts/perf/run-scenario.mjs trajectory
-      - name: Soak (capped for the nightly budget)
-        run: node scripts/perf/run-scenario.mjs soak
-        env:
-          PERF_DURATION: ${{ inputs.soak_duration_secs || '300' }}
-      - name: Keep the load reports
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: perf-load-reports
-          # Allowlist, not a directory dump (testing strategy §6): the
-          # reports only — the fixtures user list stays out of artifacts.
-          path: |
-            .scratch/perf/load-report.json
-            .scratch/perf/saturation-report.json
-            .scratch/perf/trajectory-report.json
-            .scratch/perf/soak-report.json
-          if-no-files-found: ignore
-          retention-days: 30
-  desktop-soak:
-    # Same harness as the CI shell smoke: Electron under a fresh X server,
-    # no Chromium user-namespace sandbox on the runner container.
-    runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    env:
-      CARGO_BUILD_JOBS: '4'
-      DESKTOP_ELECTRON_ARGS: '--no-sandbox --disable-gpu --disable-dev-shm-usage'
-      DESKTOP_SOAK_DURATION_SECS: ${{ inputs.desktop_soak_duration_secs || '300' }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -98,26 +28,16 @@ jobs:
       - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
         with:
           version: 11.17.0
-      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-            target
-          key: ${{ runner.os }}-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
-      - name: Prepare Rust and the X server for the shell
-        run: |
-          rustup show
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends xvfb
       - run: pnpm install --frozen-lockfile
-      - name: Desktop soak (renderer resource time series)
-        run: node scripts/perf/desktop-soak.mjs
-      - name: Keep the desktop soak report
+      - name: Report synthetic device persistence, concurrent HTTP and two SSE readers
+        run: pnpm spike:server --duration-seconds ${{ inputs.soak_duration_secs || '300' }}
+      - name: Report migrated and pending coverage
+        run: node scripts/migration-stage.mjs
+      - name: Keep synthetic report and owned cleanup receipts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: perf-desktop-soak-report
-          path: .scratch/perf/desktop-soak-report.json
+          name: m1-load-report
+          path: .scratch/vnext-m1/
           if-no-files-found: ignore
           retention-days: 30

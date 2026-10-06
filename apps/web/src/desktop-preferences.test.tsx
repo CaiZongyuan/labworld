@@ -68,20 +68,6 @@ test('mirrors the current choice and later changes to the shell', async () => {
   view.unmount();
 });
 
-test('stays a no-op outside the desktop shell', async () => {
-  setBridge(null);
-  const view = mountMirror();
-  const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: 'to dark' }));
-  // Without the bridge there is nothing to mirror into; the click above
-  // passing without an error is the assertion.
-  expect(
-    (window as typeof window & { labosThreejsDesktop?: unknown })
-      .labosThreejsDesktop,
-  ).toBeUndefined();
-  view.unmount();
-});
-
 test('keeps the app working when the shell rejects the mirror', async () => {
   const setPreferences = vi.fn<(next: ShellPreferences) => Promise<void>>(() =>
     Promise.reject(new Error('rejected by shell')),

@@ -21,6 +21,8 @@ function project(t) {
     'Cargo.toml',
     'Cargo.lock',
     'scripts/check-boundaries.mjs',
+    'scripts/lib/server-boundaries.mjs',
+    'packages/server/src',
     'scripts/lib/process.mjs',
     'scripts/lib/development-mail-key.mjs',
   ];

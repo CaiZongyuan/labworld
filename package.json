@@ -26,7 +26,20 @@
     "test:contract": "node scripts/contract.mjs",
     "test:contract:all": "node scripts/contract-suite.mjs",
     "test:contract:lifecycle": "node scripts/check-contract-lifecycle.mjs",
-    "contracts:baseline:check": "node scripts/contract-api-baseline.mjs"
+    "contracts:baseline:check": "node scripts/contract-api-baseline.mjs",
+    "dev": "node --experimental-strip-types scripts/server-dev.ts",
+    "dev:server": "node --experimental-strip-types apps/server/src/main.ts",
+    "test": "pnpm test:server && pnpm test:frontend && pnpm test:tooling:m1",
+    "test:server": "node --test --test-concurrency=1 --experimental-strip-types tests/server/*.test.ts",
+    "server:openapi": "node --experimental-strip-types apps/server/src/openapi.ts",
+    "db:generate": "pnpm --filter @labos-threejs/server exec drizzle-kit generate --config drizzle.config.ts",
+    "test:tooling:m1": "node scripts/test-tooling-m1.mjs",
+    "generate:server": "node scripts/generate-contracts.mjs --source server --output .scratch/vnext-m1/generated",
+    "contracts:m1:check": "node --experimental-strip-types scripts/check-server-contracts.ts",
+    "spike:server": "node --experimental-strip-types scripts/server-spike.ts",
+    "server:recover": "node --experimental-strip-types scripts/server-recover.ts",
+    "check:m1": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm boundaries:check && pnpm contracts:m1:check && pnpm contracts:baseline:check && pnpm test && node scripts/perf-bundle.mjs && pnpm docs:check && pnpm docs:build",
+    "dev:recover": "node --experimental-strip-types scripts/server-dev-recover.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
