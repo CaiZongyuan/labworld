@@ -70,6 +70,8 @@ export class ServerProcess {
   env: Record<string, string> = {};
   // Harness fault seam: lets the owned creator proof exercise slow Windows identity lookup.
   beforeIdentity?: () => Promise<void>;
+  // This fault fixture must survive Windows' normal kill-on-parent-exit Job.
+  detachedChildForRecoveryProof = false;
   private runId = randomUUID();
   private creator?: ProcessIdentity;
   private childProof?: ProcessIdentity;
@@ -164,6 +166,7 @@ export class ServerProcess {
             ...this.env,
           },
           stdio: ['ignore', 'pipe', 'pipe'],
+          detached: this.detachedChildForRecoveryProof,
         },
       );
       const child = this.child;

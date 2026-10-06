@@ -22,6 +22,10 @@ test(
     const [message] = (await once(creator, 'message')) as [
       { ledger: string; childPid: number; directory: string },
     ];
+    assert.ok(
+      await processIdentity(message.childPid),
+      'The pre-lease fault child must actually be alive before creator death',
+    );
     const exited = once(creator, 'exit');
     creator.kill('SIGKILL');
     await exited;
