@@ -108,12 +108,18 @@ test('necessary real DB/Core app fault maps authenticated metadata storage failu
       { id: 'fault-install', kind: 'startup' },
       `create function labos_threejs_core.reject_touch() returns trigger language plpgsql as $$ begin raise exception 'controlled session failure'; end $$; create trigger reject_touch before update on labos_threejs_core.sessions for each row execute function labos_threejs_core.reject_touch();`,
     );
-    for (const path of ['/api/v1/api-keys/scopes', '/api/v1/system/rate-limits']) {
+    for (const path of [
+      '/api/v1/api-keys/scopes',
+      '/api/v1/system/rate-limits',
+    ]) {
       const failed = await app.request(path, { headers: { cookie } });
       assert.equal(failed.status, 503);
       const envelope = await failed.json();
       assert.equal(envelope.error.code, 'auth.unavailable');
-      assert.equal(envelope.error.request_id, failed.headers.get('x-request-id'));
+      assert.equal(
+        envelope.error.request_id,
+        failed.headers.get('x-request-id'),
+      );
       assert.equal(JSON.stringify(envelope).includes(cookie), false);
     }
     await db.script(

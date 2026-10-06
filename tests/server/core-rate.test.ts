@@ -72,7 +72,8 @@ for (const [path, capacity, status] of [
   test(`primary local quota${capacity} denies quota+1, ignores forwarded headers and recovers a new window`, async () => {
     const target = await new ServerProcess().create();
     target.env.APP_ORIGIN = target.url;
-    target.env.RATE_LIMIT_WINDOW_SECS = '5';
+    const windowSecs = capacity === 600 ? 60 : 5;
+    target.env.RATE_LIMIT_WINDOW_SECS = String(windowSecs);
     try {
       await target.start();
       const client = new CoreHttp(target.url);
@@ -101,7 +102,7 @@ for (const [path, capacity, status] of [
       const first = await until(
         request,
         (response) => response.status !== 429,
-        15000,
+        windowSecs * 1000 + 15000,
       );
       assert.equal(first.status, status);
       await first.arrayBuffer();
@@ -113,7 +114,7 @@ for (const [path, capacity, status] of [
       const quota = await request();
       assert.equal(quota.status, 429);
       const seconds = Number(quota.headers.get('retry-after'));
-      assert.equal(seconds > 0 && seconds <= 5, true);
+      assert.equal(seconds > 0 && seconds <= windowSecs, true);
       const error = await quota.json();
       assert.equal(error.error.code, 'rate_limit.exceeded');
       assert.equal(error.error.details.retry_after_seconds, String(seconds));
@@ -122,7 +123,7 @@ for (const [path, capacity, status] of [
       const recovered = await until(
         request,
         (response) => response.status !== 429,
-        15000,
+        windowSecs * 1000 + 15000,
       );
       assert.equal(recovered.status, status);
       await recovered.arrayBuffer();
