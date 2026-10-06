@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { coreApp } from './app.ts';
 import { configuration } from './config.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
+import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
+import type { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
 // Schema generation does not open a DB. Handler context is unreachable here.
 const version = (
   JSON.parse(
@@ -14,6 +16,7 @@ const app = coreApp(
   configuration().auth,
   () => {},
 );
+assetRoutes(app, undefined as unknown as FileService);
 console.log(
   JSON.stringify(
     app.getOpenAPI31Document({

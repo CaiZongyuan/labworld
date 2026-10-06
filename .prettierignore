@@ -24,4 +24,6 @@ Cargo.lock
 pnpm-lock.yaml
 # Upstream decoders and original asset files retain their published bytes.
 apps/web/public/lab-assets/decoders/
+packages/server/codecs/basis/
+packages/server/codecs/validation/licenses/
 assets/source/

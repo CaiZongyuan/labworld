@@ -13,6 +13,7 @@ import { configuration } from './config.ts';
 import { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
 import { fileRoutes } from '../../../packages/server/src/core/files/routes.ts';
 import { fileScheduler } from '../../../packages/server/src/core/files/scheduler.ts';
+import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 export const version = (
   JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -106,6 +107,7 @@ export async function run(
       if (closing) return undefined;
       const app = coreApp(context, version, config.auth, log, config.rate);
       fileRoutes(app, files);
+      assetRoutes(app, files);
       const scheduler = fileScheduler(context, files, log);
       return { app, stop: () => scheduler.stop() };
     };

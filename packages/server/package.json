@@ -5,9 +5,10 @@
   "type": "module",
   "dependencies": {
     "@electric-sql/pglite": "0.5.8",
+    "@hono/zod-openapi": "1.6.3",
     "drizzle-orm": "0.45.3",
     "hono": "4.13.13",
-    "@hono/zod-openapi": "1.6.3",
+    "meshoptimizer": "1.1.1",
     "zod": "4.6.5"
   },
   "devDependencies": {
