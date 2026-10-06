@@ -44,6 +44,9 @@ export type VerifiedFile = {
   file: FileInfo;
   read: () => AsyncIterable<Uint8Array>;
 };
+// A caller validator uses this narrow signal only for permanent content refusal.
+// Other validator exceptions remain retryable and never poison the upload.
+export class FileContentRejected extends Error {}
 const failure = (
   status: PublicFailure['status'],
   code: string,
@@ -398,13 +401,47 @@ export class FileService {
           }
           key = await this.blobs.adopt(planned.stagingKey, hash);
         }
-        await validate?.({
-          file: info({
-            ...planned,
-            actualSize: planned.actualSize ?? planned.declaredSize,
-          }),
-          read: () => this.blobs.read(key),
-        });
+        try {
+          await validate?.({
+            file: info({
+              ...planned,
+              actualSize: planned.actualSize ?? planned.declaredSize,
+            }),
+            read: () => this.blobs.read(key),
+          });
+        } catch (error) {
+          if (!(error instanceof FileContentRejected)) throw error;
+          await this.context.db.transaction(
+            { id: requestId, kind: 'request' },
+            async (tx) => {
+              await revalidateIn(
+                tx,
+                this.context,
+                this.auth,
+                actor,
+                actor.authorizedScope,
+              );
+              await tx
+                .update(files)
+                .set({
+                  state: 'rejected',
+                  lastError: 'files.upload_rejected',
+                  updatedAt: this.context.clock.now(),
+                })
+                .where(
+                  and(
+                    eq(files.id, planned.id),
+                    eq(files.state, 'pending_upload'),
+                  ),
+                );
+            },
+          );
+          throw failure(
+            422,
+            'upload_rejected',
+            'Upload was rejected; start a new upload',
+          );
+        }
         return await this.context.db.transaction(
           { id: requestId, kind: 'request' },
           async (tx) => {

@@ -1,5 +1,7 @@
 # Server validation codecs
 
+Codec read, initialization and unexpected native failures return availability errors. The next request creates a fresh codec instance after recovery. Native validation refusal remains a content error. Only an explicit permanent content refusal changes a pending upload to rejected.
+
 The Node service loads the checked-in WASM files. Installation and startup do not invoke Rust, Cargo, Docker or an external decoder process.
 
 `validation/` contains a validation-only binding. Its locked dependencies are draco-core 2.2.1, image 0.25.10 and gltf 1.4.1. These versions match the retained GLB implementation. The artifact has no host imports. It returns validation results and does not export geometry or pixels to JavaScript.
@@ -20,3 +22,5 @@ node --test --experimental-strip-types tests/server/lab-codec.test.ts
 The builder uses Cargo.lock, an isolated temporary target directory and remapped source paths. It records the creator and compiler, stops admitted compiler work before cleanup, then publishes the complete WASM artifact. The local receipt records its size, SHA-256, exports and comparison with the previous artifact. Business identity, Asset/World state, authorization and transactions remain in TypeScript.
 
 After an abrupt builder exit, run `node --experimental-strip-types scripts/recover-validation-codec.ts <owned-resources.json>`. Recovery verifies the stopped creator, directory marker and compiler incarnations. It stops only compiler consumers with the same run marker. An active creator or unknown consumer prevents cleanup.
+
+Publication uses a unique run-owned staging file recorded in the ledger. Setup runs within signal admission and cleanup. Cleanup reconciles marked descendants after the compiler leader exits before removing the target directory.

@@ -1,74 +1,91 @@
-// Optional maintainer build. pnpm install/start use the checked-in WASM, never Cargo.
+// Optional Linux maintainer build. pnpm install/start use the checked-in WASM.
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, writeFile, rm, rename, mkdir } from 'node:fs/promises';
+import { writeFile, rm, rename, mkdir, readFile, open } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
 import { tmpdir, homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { randomUUID, createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { processIdentity } from '../tests/support/server-resources.ts';
+import {
+  stopCodecConsumers,
+  type CodecLedger,
+} from './lib/validation-codec-resources.ts';
 if (process.platform !== 'linux')
   throw new Error(
-    'The optional codec rebuild currently supports Linux; the checked-in WASM runs on Linux and Windows Node',
+    'The optional codec rebuild supports Linux; the checked-in WASM runs on Linux and Windows Node',
   );
-const runId = randomUUID();
-const directory = await mkdtemp(join(tmpdir(), 'lab-word-codec-'));
+const runId = randomUUID(),
+  directory = join(tmpdir(), `lab-word-codec-${runId}`);
 const evidence = resolve(
   process.env.CODEC_BUILD_EVIDENCE ?? '.scratch/m3a-codec-build',
   runId,
 );
-await mkdir(evidence, { recursive: true });
-const creator = await processIdentity(process.pid);
 const ledgerPath = join(evidence, 'owned-resources.json');
-let child: ChildProcess | undefined;
-let exited: Promise<number | null> | undefined;
-let stopping: Promise<void> | undefined;
-let interrupted = false;
-const ledger = {
-  owner: 'developer_m3a validation codec build',
-  runId,
-  directory,
-  creator,
-  processes: [] as unknown[],
-  docker: [],
-  ports: [],
-  state: 'owned',
-};
-await writeFile(
-  join(directory, '.codec-owner.json'),
-  JSON.stringify({ runId, creator }),
+const artifact = resolve('packages/server/codecs/validation/validation.wasm');
+const publicationStage = resolve(
+  'packages/server/codecs/validation',
+  `validation.${runId}.next`,
 );
-async function record() {
-  await writeFile(ledgerPath, JSON.stringify(ledger, null, 2));
-}
-await record();
-function stop(): Promise<void> {
-  interrupted = true;
-  if (!child?.pid || child.exitCode !== null) return Promise.resolve();
-  const pid = child.pid;
-  stopping ??= Promise.resolve().then(() => {
-    try {
-      process.kill(-pid, 'SIGKILL');
-    } catch (error) {
-      if (!(
-        error instanceof Error &&
-        'code' in error &&
-        error.code === 'ESRCH'
-      ))
-        throw error;
-    }
-  });
-  return stopping;
-}
-for (const signal of ['SIGINT', 'SIGTERM'] as const)
-  process.once(signal, () => {
-    void stop();
-  });
 const flags = [
   `--remap-path-prefix=${resolve('.')}=lab-word`,
   `--remap-path-prefix=${resolve(process.env.CARGO_HOME ?? join(homedir(), '.cargo'), 'registry/src')}=cargo-registry`,
 ];
-const artifact = 'packages/server/codecs/validation/validation.wasm';
+let ledger: CodecLedger | undefined,
+  child: ChildProcess | undefined,
+  exited: Promise<number | null> | undefined,
+  stopping: Promise<void> | undefined;
+let interrupted = false,
+  evidenceCreated = false,
+  directoryCreated = false,
+  stageCreated = false;
+function assertOpen() {
+  if (interrupted)
+    throw new Error('Codec build cancelled; new work admission refused');
+}
+async function record() {
+  if (ledger && evidenceCreated)
+    await writeFile(ledgerPath, JSON.stringify(ledger, null, 2));
+}
+function stop() {
+  interrupted = true;
+  if (ledger) stopping ??= stopCodecConsumers(ledger);
+  return stopping ?? Promise.resolve();
+}
+for (const signal of ['SIGINT', 'SIGTERM'] as const)
+  process.once(signal, () => {
+    void stop().catch((error) => {
+      console.error(String(error));
+      process.exitCode = 1;
+    });
+  });
 try {
+  const creator = await processIdentity(process.pid);
+  if (!creator) throw new Error('Codec creator identity unavailable');
+  assertOpen();
+  ledger = {
+    owner: 'developer_m3a validation codec build',
+    runId,
+    creator,
+    directory,
+    publicationStage,
+    processes: [],
+    docker: [],
+    state: 'planned',
+  };
+  await mkdir(evidence, { recursive: true });
+  evidenceCreated = true;
+  assertOpen();
+  await record();
+  assertOpen();
+  await mkdir(directory, { mode: 0o700 });
+  directoryCreated = true;
+  await writeFile(
+    join(directory, '.codec-owner.json'),
+    JSON.stringify({ runId, creator }),
+  );
+  ledger.state = 'owned';
+  await record();
+  assertOpen();
   child = spawn(
     'cargo',
     [
@@ -93,6 +110,8 @@ try {
       detached: true,
     },
   );
+  ledger.compilerGroup = child.pid;
+  writeFileSync(ledgerPath, JSON.stringify(ledger, null, 2));
   child.stdout!.on('data', (part) => process.stdout.write(part));
   child.stderr!.on('data', (part) => process.stderr.write(part));
   exited = new Promise<number | null>((resolve, reject) => {
@@ -104,11 +123,13 @@ try {
     child!.once('spawn', resolve);
     child!.once('error', reject);
   });
-  ledger.processes = [await processIdentity(child.pid!)];
+  const proof = await processIdentity(child.pid!);
+  if (proof) ledger.processes = [proof];
   await record();
+  assertOpen();
   const code = await exited;
-  if (code !== 0 || interrupted)
-    throw new Error('Codec build did not complete');
+  if (code !== 0) throw new Error('Codec compiler did not complete');
+  assertOpen();
   const bytes = await readFile(
     join(
       directory,
@@ -118,9 +139,20 @@ try {
   const module = await WebAssembly.compile(bytes);
   if (WebAssembly.Module.imports(module).length)
     throw new Error('Validation codec must have no host imports');
+  assertOpen();
   const previous = await readFile(artifact).catch(() => undefined);
-  await writeFile(artifact + '.next', bytes);
-  await rename(artifact + '.next', artifact);
+  const staged = await open(publicationStage, 'wx', 0o600);
+  stageCreated = true;
+  try {
+    assertOpen();
+    await staged.writeFile(bytes);
+    await staged.sync();
+  } finally {
+    await staged.close();
+  }
+  assertOpen();
+  await rename(publicationStage, artifact);
+  stageCreated = false;
   await writeFile(
     join(evidence, 'result.json'),
     JSON.stringify(
@@ -141,12 +173,16 @@ try {
 } finally {
   await stop();
   await exited?.catch(() => undefined);
-  await rm(artifact + '.next', { force: true });
-  await rm(directory, { recursive: true, force: true });
-  ledger.state = 'cleaned';
-  ledger.processes = [];
-  await record();
-  console.log(
-    JSON.stringify({ event: 'm3a.codec-build-ledger', path: ledgerPath }),
-  );
+  if (ledger) await stopCodecConsumers(ledger);
+  if (stageCreated) await rm(publicationStage, { force: true });
+  if (directoryCreated) await rm(directory, { recursive: true, force: true });
+  if (ledger) {
+    ledger.state = 'cleaned';
+    ledger.processes = [];
+    await record();
+  }
+  if (evidenceCreated)
+    console.log(
+      JSON.stringify({ event: 'm3a.codec-build-ledger', path: ledgerPath }),
+    );
 }

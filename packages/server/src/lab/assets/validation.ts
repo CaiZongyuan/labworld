@@ -1,4 +1,5 @@
 import {
+  CodecUnavailable,
   decodeBasis,
   decodeDraco,
   decodeImage,
@@ -71,7 +72,8 @@ function range(bytes: Uint8Array, offset: number, length: number) {
 function dataUri(uri: string) {
   const match = /^data:([^,]*),(.*)$/s.exec(uri);
   if (!match) throw new Error('External resource');
-  const mime = match[1].split(';')[0] || 'text/plain';
+  const mime = (match[1].split(';')[0] || 'text/plain').toLowerCase();
+  const base64 = match[1].toLowerCase().endsWith(';base64');
   const raw = Buffer.from(match[2], 'utf8');
   const decoded = Buffer.allocUnsafe(raw.length);
   let length = 0;
@@ -88,7 +90,7 @@ function dataUri(uri: string) {
   const encodedBytes = decoded.subarray(0, length);
   const encoded = encodedBytes.toString('ascii');
   if (
-    match[1].endsWith(';base64') &&
+    base64 &&
     (encodedBytes.some((byte) => byte > 127) ||
       !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(
         encoded,
@@ -98,9 +100,7 @@ function dataUri(uri: string) {
   return {
     mime,
     bytes: new Uint8Array(
-      match[1].endsWith(';base64')
-        ? Buffer.from(encoded, 'base64')
-        : encodedBytes,
+      base64 ? Buffer.from(encoded, 'base64') : encodedBytes,
     ),
   };
 }
@@ -168,7 +168,15 @@ async function loadBuffers(root: Root, binary: Uint8Array) {
       count * byteStride !== view.byteLength ||
       count * byteStride > MAX_DECODED_RESOURCE_BYTES ||
       !['ATTRIBUTES', 'TRIANGLES', 'INDICES'].includes(mode) ||
-      !['NONE', 'OCTAHEDRAL', 'QUATERNION', 'EXPONENTIAL'].includes(filter)
+      !['NONE', 'OCTAHEDRAL', 'QUATERNION', 'EXPONENTIAL'].includes(filter) ||
+      (mode === 'ATTRIBUTES' &&
+        (byteStride === 0 || byteStride > 256 || byteStride % 4 !== 0)) ||
+      (mode !== 'ATTRIBUTES' && ![2, 4].includes(byteStride)) ||
+      (mode === 'TRIANGLES' && count % 3 !== 0) ||
+      (mode === 'ATTRIBUTES' &&
+        filter === 'OCTAHEDRAL' &&
+        ![4, 8].includes(byteStride)) ||
+      (mode === 'ATTRIBUTES' && filter === 'QUATERNION' && byteStride !== 8)
     )
       throw new Error('Invalid Meshopt');
     const output = await decodeMeshopt(
@@ -176,7 +184,7 @@ async function loadBuffers(root: Root, binary: Uint8Array) {
       count,
       byteStride,
       mode,
-      filter,
+      mode === 'ATTRIBUTES' ? filter : 'NONE',
     );
     const target = buffers[view.buffer];
     if (!target) throw new Error('Missing target buffer');
@@ -398,7 +406,8 @@ export async function validGlb(bytes: Uint8Array) {
     return (
       (await validGeometry(root, buffers)) && (await validImages(root, buffers))
     );
-  } catch {
+  } catch (error) {
+    if (error instanceof CodecUnavailable) throw error;
     return false;
   }
 }

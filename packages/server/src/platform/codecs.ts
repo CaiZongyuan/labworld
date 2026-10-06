@@ -1,6 +1,11 @@
 import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
-import { MeshoptDecoder } from 'meshoptimizer/decoder';
+import type { MeshoptDecoder } from 'meshoptimizer/decoder';
+export class CodecUnavailable extends Error {
+  constructor(cause: unknown) {
+    super('Required file codec is temporarily unavailable', { cause });
+  }
+}
 type ValidationExports = {
   memory: WebAssembly.Memory;
   allocate: (size: number) => number;
@@ -22,10 +27,15 @@ let validation: Promise<ValidationExports> | undefined;
 async function validationCodec() {
   validation ??= readFile(
     new URL('../../codecs/validation/validation.wasm', import.meta.url),
-  ).then(async (bytes) => {
-    const { instance } = await WebAssembly.instantiate(bytes);
-    return instance.exports as unknown as ValidationExports;
-  });
+  )
+    .then(async (bytes) => {
+      const { instance } = await WebAssembly.instantiate(bytes);
+      return instance.exports as unknown as ValidationExports;
+    })
+    .catch((error) => {
+      validation = undefined;
+      throw new CodecUnavailable(error);
+    });
   return validation;
 }
 function withBytes<T>(
@@ -33,13 +43,33 @@ function withBytes<T>(
   bytes: Uint8Array,
   work: (pointer: number) => T,
 ) {
-  const pointer = codec.allocate(bytes.length);
+  let pointer: number | undefined;
+  let value: T | undefined,
+    failure: unknown,
+    failed = false;
   try {
+    pointer = codec.allocate(bytes.length) >>> 0;
     new Uint8Array(codec.memory.buffer, pointer, bytes.length).set(bytes);
-    return work(pointer);
+    value = work(pointer);
+  } catch (error) {
+    failure = error;
+    failed = true;
   } finally {
-    codec.deallocate(pointer, bytes.length);
+    if (pointer !== undefined)
+      try {
+        codec.deallocate(pointer, bytes.length);
+      } catch (error) {
+        if (!failed) {
+          failure = error;
+          failed = true;
+        }
+      }
   }
+  if (failed) {
+    validation = undefined;
+    throw new CodecUnavailable(failure);
+  }
+  return value as T;
 }
 export async function decodeDraco(
   bytes: Uint8Array,
@@ -95,10 +125,42 @@ export async function decodeMeshopt(
   mode: 'ATTRIBUTES' | 'TRIANGLES' | 'INDICES',
   filter: 'NONE' | 'OCTAHEDRAL' | 'QUATERNION' | 'EXPONENTIAL',
 ) {
-  await MeshoptDecoder.ready;
+  const decoder = await meshoptCodec();
   const output = new Uint8Array(count * stride);
-  MeshoptDecoder.decodeGltfBuffer(output, count, stride, bytes, mode, filter);
+  try {
+    decoder.decodeGltfBuffer(output, count, stride, bytes, mode, filter);
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      /^Malformed buffer data: -?\d+$/.test(error.message)
+    )
+      throw error;
+    resetMeshopt();
+    throw new CodecUnavailable(error);
+  }
   return output;
+}
+const require = createRequire(import.meta.url);
+let meshopt: Promise<typeof MeshoptDecoder> | undefined;
+function resetMeshopt() {
+  meshopt = undefined;
+  delete require.cache[
+    require.resolve('../../node_modules/meshoptimizer/meshopt_decoder.cjs')
+  ];
+}
+async function meshoptCodec() {
+  meshopt ??= Promise.resolve()
+    .then(async () => {
+      const decoder =
+        require('../../node_modules/meshoptimizer/meshopt_decoder.cjs') as typeof MeshoptDecoder;
+      await decoder.ready;
+      return decoder;
+    })
+    .catch((error) => {
+      resetMeshopt();
+      throw new CodecUnavailable(error);
+    });
+  return meshopt;
 }
 type KtxFile = {
   isValid: () => boolean;
@@ -135,44 +197,72 @@ let basis: Promise<Basis> | undefined;
 async function basisCodec() {
   basis ??= readFile(
     new URL('../../codecs/basis/basis_transcoder.wasm', import.meta.url),
-  ).then(async (wasmBinary) => {
-    const factory = createRequire(import.meta.url)(
-      '../../codecs/basis/basis_transcoder.cjs',
-    ) as (options: { wasmBinary: Uint8Array }) => Promise<Basis>;
-    const codec = await factory({ wasmBinary });
-    codec.initializeBasis();
-    return codec;
-  });
+  )
+    .then(async (wasmBinary) => {
+      const factory = createRequire(import.meta.url)(
+        '../../codecs/basis/basis_transcoder.cjs',
+      ) as (options: { wasmBinary: Uint8Array }) => Promise<Basis>;
+      const codec = await factory({ wasmBinary });
+      codec.initializeBasis();
+      return codec;
+    })
+    .catch((error) => {
+      basis = undefined;
+      throw new CodecUnavailable(error);
+    });
   return basis;
 }
 export async function decodeBasis(bytes: Uint8Array, limit: number) {
   const codec = await basisCodec();
-  const file = new codec.KTX2File(bytes);
+  let file: KtxFile | undefined;
+  let failure: unknown,
+    failed = false,
+    value = false;
   try {
+    file = new codec.KTX2File(bytes);
+    value = transcodeBasis(file, limit);
+  } catch (error) {
+    failure = error;
+    failed = true;
+  } finally {
+    if (file)
+      try {
+        file.close();
+        file.delete();
+      } catch (error) {
+        if (!failed) {
+          failure = error;
+          failed = true;
+        }
+      }
+  }
+  if (failed) {
+    basis = undefined;
+    throw new CodecUnavailable(failure);
+  }
+  return value;
+}
+function transcodeBasis(file: KtxFile, limit: number) {
+  if (
+    !file.isValid() ||
+    !file.getWidth() ||
+    !file.getHeight() ||
+    file.getWidth() * file.getHeight() * 4 > limit ||
+    file.getLayers() > 1 ||
+    file.getFaces() !== 1 ||
+    !file.getLevels() ||
+    !file.startTranscoding()
+  )
+    return false;
+  for (let level = 0; level < file.getLevels(); level++) {
+    const size = file.getImageTranscodedSizeInBytes(level, 0, 0, 13);
     if (
-      !file.isValid() ||
-      !file.getWidth() ||
-      !file.getHeight() ||
-      file.getWidth() * file.getHeight() * 4 > limit ||
-      file.getLayers() > 1 ||
-      file.getFaces() !== 1 ||
-      !file.getLevels() ||
-      !file.startTranscoding()
+      !Number.isSafeInteger(size) ||
+      size <= 0 ||
+      size > limit ||
+      !file.transcodeImage(new Uint8Array(size), level, 0, 0, 13, 0, -1, -1)
     )
       return false;
-    for (let level = 0; level < file.getLevels(); level++) {
-      const size = file.getImageTranscodedSizeInBytes(level, 0, 0, 13);
-      if (
-        !Number.isSafeInteger(size) ||
-        size <= 0 ||
-        size > limit ||
-        !file.transcodeImage(new Uint8Array(size), level, 0, 0, 13, 0, -1, -1)
-      )
-        return false;
-    }
-    return true;
-  } finally {
-    file.close();
-    file.delete();
   }
+  return true;
 }

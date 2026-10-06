@@ -1,6 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
-import type { FileService } from '../../core/files/use-cases.ts';
+import {
+  FileContentRejected,
+  type FileService,
+} from '../../core/files/use-cases.ts';
 import { normalizeUpload } from '../../core/files/domain.ts';
 import { accessIn, requireAccess } from '../../core/api-keys/authentication.ts';
 import { databaseAudit } from '../../core/audit/use-cases.ts';
@@ -237,10 +240,8 @@ export async function completeAssetUpload(
         const chunks: Uint8Array[] = [];
         for await (const chunk of candidate.read()) chunks.push(chunk);
         if (!(await validGlb(Buffer.concat(chunks))))
-          throw new PublicFailure(
-            422,
-            'files.upload_rejected',
-            'Upload was rejected; start a new upload',
+          throw new FileContentRejected(
+            'GLB content validation refused the immutable candidate',
           );
       },
     );
@@ -356,13 +357,13 @@ export async function renameAsset(
           'lab:full',
           true,
         );
-        name = name.trim();
         if (!validText(name, 120, true))
           throw new PublicFailure(
             400,
             'lab.invalid_input',
             'Use a valid asset name',
           );
+        name = name.trim();
         const asset = await loadAsset(tx, id);
         await tx
           .update(assets)
