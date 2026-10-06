@@ -6,6 +6,8 @@ import type {
   LabWorld,
   LabEntity,
   SceneNode,
+  AssetDefinition,
+  LabLayout,
 } from '../../packages/contracts/src/generated/types.gen.ts';
 import { ServerProcess } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
@@ -71,6 +73,129 @@ test('Member and Agent share a persistent Lab; CSRF refusal preserves its world 
       '/api/v1/lab/labs',
     );
     assert.deepEqual(list.data, [lab]);
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'm3a.owned-ledger',
+        path: target.evidence + '/owned-resources.json',
+      }),
+    );
+    await target.cleanup();
+  }
+});
+
+test('catalog and filtered physical/simulated Robots retain separate unknown identities and directional manual simulation links', async () => {
+  const target = await new ServerProcess().create();
+  target.env.APP_ORIGIN = target.url;
+  try {
+    await target.start();
+    await new CoreHttp(target.url).register('owner@example.test');
+    const client = new CoreHttp(target.url);
+    await client.register('member@example.test');
+    const definition = await client.json<AssetDefinition>(
+        'GET',
+        '/api/v1/lab/asset-definitions/robot/1.0',
+      ),
+      catalog = await client.json<{ data: AssetDefinition[] }>(
+        'GET',
+        '/api/v1/lab/asset-definitions',
+      );
+    assert.ok(catalog.data.some((entry) => entry.id === 'bench'));
+    assert.equal(definition.capabilities.length, 3);
+    const lab = await client.json<PersistentLab>(
+        'POST',
+        '/api/v1/lab/labs',
+        { name: 'Distinct Robots' },
+        201,
+      ),
+      path = `/api/v1/lab/labs/${lab.id}`;
+    const input = {
+      name: 'Robot',
+      definition_id: 'robot',
+      definition_version: '1.0',
+      configuration: {},
+      representation_id: null,
+    };
+    const simulated = await client.json<LabEntity>(
+        'POST',
+        path + '/entities',
+        { ...input, reality: 'simulated' },
+        201,
+      ),
+      physical = await client.json<LabEntity>(
+        'POST',
+        path + '/entities',
+        { ...input, reality: 'physical' },
+        201,
+      );
+    assert.notEqual(simulated.id, physical.id);
+    await client.json<LabEntity>(
+      'POST',
+      path + '/entities',
+      { ...input, name: 'Bench', definition_id: 'bench', reality: 'simulated' },
+      201,
+    );
+    const filtered = await client.json<LabWorld>(
+      'GET',
+      path + '/world?kind=robot&capability=robot.pick&state=unknown',
+    );
+    assert.equal(filtered.entities.length, 2);
+    assert.equal(filtered.nodes.length, 2);
+    for (const entity of filtered.entities) {
+      assert.deepEqual(entity.definition, definition);
+      assert.equal(entity.binding, null);
+      assert.equal(entity.program_run, null);
+      assert.equal(entity.observation, null);
+      assert.ok(
+        entity.capabilities.every(
+          (capability) =>
+            capability.definition_supported &&
+            !capability.binding_implemented &&
+            !capability.executable &&
+            capability.reason === 'binding_not_implemented',
+        ),
+      );
+    }
+    const all = await client.json<LabWorld>('GET', path + '/world'),
+      nodes = all.nodes.map(
+        ({ id, entity_id, representation_id, placement }) => ({
+          id,
+          entity_id,
+          representation_id,
+          placement,
+        }),
+      );
+    const relationship = {
+      id: '88a9fe22-d20d-4ce9-b09f-89e74bc307f7',
+      source_id: simulated.id,
+      target_id: physical.id,
+      kind: 'simulates',
+    };
+    const saved = await client.json<LabLayout>('PUT', path + '/layout', {
+      expected_version: all.lab.layout_version,
+      nodes,
+      relationships: [relationship],
+    });
+    assert.equal(saved.relationships[0].source, 'manual');
+    assert.equal(saved.relationships[0].registered_by, client.session!.user.id);
+    const before = await client.json<LabWorld>('GET', path + '/world');
+    await client.error(
+      'PUT',
+      path + '/layout',
+      {
+        expected_version: before.lab.layout_version,
+        nodes,
+        relationships: [
+          { ...relationship, source_id: physical.id, target_id: simulated.id },
+        ],
+      },
+      400,
+      'lab.invalid_reference',
+    );
+    assert.deepEqual(
+      await client.json<LabWorld>('GET', path + '/world'),
+      before,
+    );
   } finally {
     console.log(
       JSON.stringify({

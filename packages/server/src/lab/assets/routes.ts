@@ -114,16 +114,13 @@ export function assetRoutes(
       tags: ['Lab'],
       request: {
         query: z.object({
-          limit: z
-            .string()
-            .optional()
-            .openapi({
-              type: 'integer',
-              format: 'int32',
-              minimum: 1,
-              maximum: 100,
-              default: 50,
-            }),
+          limit: z.string().optional().openapi({
+            type: 'integer',
+            format: 'int32',
+            minimum: 1,
+            maximum: 100,
+            default: 50,
+          }),
           cursor: z.string().optional(),
         }),
       },

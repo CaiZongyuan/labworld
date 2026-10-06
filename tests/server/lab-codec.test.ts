@@ -59,15 +59,7 @@ test('the native Draco binding applies decoded attribute limits before the same 
   );
   assert.equal(await decodeDraco(data.bytes, false, ids, limits), true);
 });
-function crc32(bytes: Uint8Array) {
-  let crc = 0xffffffff;
-  for (const byte of bytes) {
-    crc ^= byte;
-    for (let bit = 0; bit < 8; bit++)
-      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-  }
-  return (crc ^ 0xffffffff) >>> 0;
-}
+import { crc32, corruptPngPixelStream } from '../support/png-fixture.ts';
 test('a valid PNG header and recomputed IDAT CRC cannot hide a malformed pixel stream', async () => {
   assert.equal(crc32(Buffer.from('IEND')), 0xae426082);
   const original = await readFile(
@@ -77,24 +69,7 @@ test('a valid PNG header and recomputed IDAT CRC cannot hide a malformed pixel s
     ),
   );
   assert.equal(await decodeImage(original, 'image/png'), true);
-  const bad = Buffer.from(original);
-  let changed = false;
-  for (let offset = 8; offset < bad.length;) {
-    const length = bad.readUInt32BE(offset),
-      type = bad.toString('ascii', offset + 4, offset + 8);
-    if (type === 'IDAT') {
-      assert.ok(length > 2);
-      bad[offset + 10] = 0xff; // Reserved DEFLATE block type, after the intact zlib header.
-      bad.writeUInt32BE(
-        crc32(bad.subarray(offset + 4, offset + 8 + length)),
-        offset + 8 + length,
-      );
-      changed = true;
-      break;
-    }
-    offset += 12 + length;
-  }
-  assert.equal(changed, true);
+  const bad = corruptPngPixelStream(original);
   assert.deepEqual(bad.subarray(0, 33), original.subarray(0, 33));
   assert.equal(await decodeImage(bad, 'image/png'), false);
   assert.equal(await decodeImage(original, 'image/png'), true);

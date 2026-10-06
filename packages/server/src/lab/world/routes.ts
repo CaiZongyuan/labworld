@@ -2,7 +2,7 @@ import { createRoute, z } from '@hono/zod-openapi';
 import type { createApp } from '../../core/system/routes.ts';
 import { ApiErrorResponse } from '../../platform/http/errors.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
-import { boundedJson } from '../../platform/http/json.ts';
+import { boundedJson, boundedJsonAt } from '../../platform/http/json.ts';
 import { duplicateStructField } from '../../platform/http/json-syntax.ts';
 import type { WorldService } from './use-cases.ts';
 import {
@@ -17,8 +17,11 @@ import {
   SceneNode,
   CreateSceneNode,
   CopyLabEntity,
+  SaveLabLayout,
+  LabLayout,
 } from './dto.ts';
 import type { Placement } from './domain.ts';
+import { saveLayout } from './layout.ts';
 const json = (schema: z.ZodType) => ({
   description: '',
   content: { 'application/json': { schema } },
@@ -36,10 +39,96 @@ const errors = {
     headers: { 'Retry-After': { schema: { type: 'integer' as const } } },
   },
 };
+const ordinaryErrors = {
+  400: errors[400],
+  401: errors[401],
+  403: errors[403],
+  404: errors[404],
+  429: errors[429],
+  503: errors[503],
+};
 export function worldRoutes(
   app: ReturnType<typeof createApp>,
   world: WorldService,
 ) {
+  const layoutJson = boundedJsonAt(512 * 1024);
+  app.use('/api/v1/lab/labs/:lab_id/layout', async (c, next) => {
+    if (c.req.method === 'PUT') await layoutJson(c, async () => {});
+    await next();
+  });
+  app.openapi(
+    createRoute({
+      method: 'put',
+      path: '/api/v1/lab/labs/{lab_id}/layout',
+      operationId: 'saveLabLayout',
+      tags: ['Lab'],
+      request: {
+        params: z.object({ lab_id: z.string() }),
+        body: {
+          required: true,
+          content: { 'application/json': { schema: SaveLabLayout } },
+        },
+      },
+      responses: { 200: json(LabLayout), ...errors },
+    }),
+    async (c) => {
+      const input = c.req.valid('json');
+      if (
+        duplicateStructField(c.req.raw, Object.keys(SaveLabLayout.shape)) ||
+        input.nodes.some(
+          (_, index) =>
+            duplicateStructField(
+              c.req.raw,
+              ['id', 'entity_id', 'representation_id', 'placement'],
+              ['nodes', index],
+            ) ||
+            duplicateStructField(
+              c.req.raw,
+              ['position', 'rotation', 'scale'],
+              ['nodes', index, 'placement'],
+            ),
+        ) ||
+        input.relationships?.some((_, index) =>
+          duplicateStructField(
+            c.req.raw,
+            ['id', 'source_id', 'target_id', 'kind'],
+            ['relationships', index],
+          ),
+        )
+      )
+        throw new PublicFailure(
+          400,
+          'http.invalid_json',
+          'Provide a valid JSON request',
+        );
+      return c.json(
+        await saveLayout(
+          world.context,
+          world.policy,
+          c.req.raw.headers,
+          c.get('requestId'),
+          c.req.valid('param').lab_id,
+          {
+            ...input,
+            nodes: input.nodes.map((node) => ({
+              ...node,
+              placement: node.placement as Placement,
+            })),
+          },
+        ),
+        200,
+      );
+    },
+    (result) => {
+      if (!result.success)
+        throw new PublicFailure(
+          400,
+          'http.invalid_json',
+          'Provide a valid JSON request',
+        );
+      return undefined;
+    },
+  );
   app.use('/api/v1/lab/labs/:lab_id/nodes', async (c, next) => {
     if (c.req.method === 'POST') await boundedJson(c, async () => {});
     await next();
@@ -64,7 +153,7 @@ export function worldRoutes(
           content: { 'application/json': { schema: CreateSceneNode } },
         },
       },
-      responses: { 201: json(SceneNode), ...errors },
+      responses: { 201: json(SceneNode), ...ordinaryErrors },
     }),
     async (c) => {
       if (
@@ -224,7 +313,7 @@ export function worldRoutes(
           content: { 'application/json': { schema: RegisterEntity } },
         },
       },
-      responses: { 201: json(LabEntity), ...errors },
+      responses: { 201: json(LabEntity), ...ordinaryErrors },
     }),
     async (c) => {
       if (duplicateStructField(c.req.raw, Object.keys(RegisterEntity.shape)))
@@ -273,7 +362,7 @@ export function worldRoutes(
             },
           },
         },
-        ...errors,
+        ...ordinaryErrors,
       },
     }),
     async (c) => {
@@ -303,7 +392,7 @@ export function worldRoutes(
           content: { 'application/json': { schema: ConfigureEntity } },
         },
       },
-      responses: { 200: json(LabEntity), ...errors },
+      responses: { 200: json(LabEntity), ...ordinaryErrors },
     }),
     async (c) => {
       if (duplicateStructField(c.req.raw, Object.keys(ConfigureEntity.shape)))
@@ -435,7 +524,14 @@ export function worldRoutes(
       path: '/api/v1/lab/labs/{lab_id}/world',
       operationId: 'getLabWorld',
       tags: ['Lab'],
-      request: { params: z.object({ lab_id: z.string() }) },
+      request: {
+        params: z.object({ lab_id: z.string() }),
+        query: z.object({
+          kind: z.string().optional(),
+          capability: z.string().optional(),
+          state: z.string().optional(),
+        }),
+      },
       responses: {
         200: {
           ...json(LabWorld),
@@ -447,7 +543,7 @@ export function worldRoutes(
             },
           },
         },
-        ...errors,
+        ...ordinaryErrors,
       },
     }),
     async (c) => {
@@ -457,6 +553,7 @@ export function worldRoutes(
           c.req.raw.headers,
           c.get('requestId'),
           c.req.valid('param').lab_id,
+          c.req.valid('query'),
         ),
         200,
       );

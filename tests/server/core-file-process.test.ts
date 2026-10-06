@@ -214,7 +214,7 @@ test(
           capability<{ state: string }>(target, 'load', headers, {
             fileId: cap.upload_id,
           }),
-        (file) => file.state === 'deleting',
+        (file) => file.state === 'expired',
         8000,
       );
       const child = target.child!;

@@ -384,7 +384,7 @@ test('real FileService returns a signed HTTP upload and publishes verified immut
     );
     now += defaultFilePolicy.uploadSecs * 1000 + 1;
     assert.equal(
-      (await service.cleanup('no-put-expired')).deleted.includes(
+      (await service.cleanup('no-put-expired')).retired.includes(
         missing.upload_id,
       ),
       true,
@@ -502,13 +502,13 @@ test('real FileService returns a signed HTTP upload and publishes verified immut
     );
     now += defaultFilePolicy.uploadSecs * 1000 + 1;
     assert.equal(
-      (await service.cleanup('bounded-cleanup-first')).deleted.includes(
+      (await service.cleanup('bounded-cleanup-first')).retired.includes(
         behind.upload_id,
       ),
       false,
     );
     assert.equal(
-      (await service.cleanup('bounded-cleanup-next')).deleted.includes(
+      (await service.cleanup('bounded-cleanup-next')).retired.includes(
         behind.upload_id,
       ),
       true,

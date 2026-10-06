@@ -30,6 +30,7 @@ import {
 } from './entities.ts';
 import { assetValue } from '../assets/use-cases.ts';
 import type { LabAsset } from '../assets/domain.ts';
+import type { EntityRelationship } from '../relationships/domain.ts';
 const columns = sql`id::text,name,layout_version,created_by::text,created_at`;
 function value(row: PersistentLab) {
   return {
@@ -306,7 +307,12 @@ export class WorldService {
       failure(error);
     }
   }
-  async world(headers: Headers, requestId: string, id: string) {
+  async world(
+    headers: Headers,
+    requestId: string,
+    id: string,
+    query: { kind?: string; capability?: string; state?: string } = {},
+  ) {
     try {
       return await this.context.db.operation(
         { id: requestId, kind: 'request', budget: 10 },
@@ -322,17 +328,18 @@ export class WorldService {
                 'lab:full',
               );
               const lab = await loadLab(tx, id);
+              const condition = sql`e.lab_id=${lab.id}::uuid and ${query.kind === undefined ? sql`true` : sql`e.kind=${query.kind}`} and ${query.capability === undefined ? sql`true` : sql`exists(select 1 from jsonb_array_elements(e.definition->'capabilities') c where c->>'id'=${query.capability})`} and ${query.state === undefined ? sql`true` : sql`((${query.state}='unknown' and not exists(select 1 from lab.current_observations o where o.entity_id=e.id)) or exists(select 1 from lab.current_observations o where o.entity_id=e.id and (o.values->>'on'=${query.state} or o.values->>'phase'=${query.state})))`}`;
               const result = await tx.execute<{
                 version: string;
                 entities: LabEntity[];
                 nodes: Record<string, unknown>[];
                 assets: LabAsset[];
-                relationships: Record<string, unknown>[];
+                relationships: EntityRelationship[];
               }>(sql`select c.version::text,
-        coalesce((select jsonb_agg(to_jsonb(x) order by x.id) from(select ${entityColumns} from lab.entities e where e.lab_id=${lab.id}::uuid) x),'[]'::jsonb) as entities,
-        coalesce((select jsonb_agg(to_jsonb(n) order by n.id) from lab.scene_nodes n where n.lab_id=${lab.id}::uuid),'[]'::jsonb) as nodes,
-        coalesce((select jsonb_agg(to_jsonb(a)||jsonb_build_object('representation',to_jsonb(r)-'asset_id') order by a.id) from lab.assets a join lab.asset_representations r on r.asset_id=a.id where r.id in(select representation_id from lab.entities where lab_id=${lab.id}::uuid union select representation_id from lab.scene_nodes where lab_id=${lab.id}::uuid)),'[]'::jsonb) as assets,
-        coalesce((select jsonb_agg(to_jsonb(r) order by r.id) from lab.entity_relationships r where r.lab_id=${lab.id}::uuid),'[]'::jsonb) as relationships
+        coalesce((select jsonb_agg(to_jsonb(x) order by x.id) from(select ${entityColumns} from lab.entities e where ${condition}) x),'[]'::jsonb) as entities,
+        coalesce((select jsonb_agg(to_jsonb(n) order by n.id) from lab.scene_nodes n where n.lab_id=${lab.id}::uuid and n.entity_id in(select e.id from lab.entities e where ${condition})),'[]'::jsonb) as nodes,
+        coalesce((select jsonb_agg(to_jsonb(a)||jsonb_build_object('representation',to_jsonb(r)-'asset_id') order by a.id) from lab.assets a join lab.asset_representations r on r.asset_id=a.id where r.id in(select e.representation_id from lab.entities e where ${condition} union select n.representation_id from lab.scene_nodes n where n.lab_id=${lab.id}::uuid and n.entity_id in(select e.id from lab.entities e where ${condition}))),'[]'::jsonb) as assets,
+        coalesce((select jsonb_agg(to_jsonb(r) order by r.id) from lab.entity_relationships r where r.lab_id=${lab.id}::uuid and r.source_id in(select e.id from lab.entities e where ${condition}) and r.target_id in(select e.id from lab.entities e where ${condition})),'[]'::jsonb) as relationships
         from lab.world_clock c where c.singleton`);
               const snapshot = result.rows[0];
               if (!snapshot) throw new Error('World clock unavailable');
@@ -341,6 +348,10 @@ export class WorldService {
                 lab,
                 entities: snapshot.entities.map(entityValue),
                 assets: snapshot.assets.map(assetValue),
+                relationships: snapshot.relationships.map((row) => ({
+                  ...row,
+                  registered_at: utcInstant(row.registered_at),
+                })),
               };
             },
           ),

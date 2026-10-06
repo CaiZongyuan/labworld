@@ -8,8 +8,10 @@ import type {
 } from '../../packages/contracts/src/generated/types.gen.ts';
 import { ServerProcess } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
+import { corruptPngPixelStream } from '../support/png-fixture.ts';
 import {
   beginAsset,
+  assetInput,
   publishAsset,
   rewriteGlb,
 } from '../support/lab-assets-http.ts';
@@ -27,6 +29,104 @@ const cube = () =>
   readFile(new URL('../fixtures/lab/cube.glb', import.meta.url));
 const library = (client: CoreHttp) =>
   client.json<AssetPage>('GET', '/api/v1/lab/assets');
+test('the actual asset HTTP pipeline rejects corrupt PNG pixels behind an intact header and recovers with the original image', async () => {
+  const target = await new ServerProcess().create();
+  try {
+    const client = await member(target),
+      before = await library(client),
+      bytes = await cube(),
+      png = await readFile(
+        new URL(
+          '../../apps/web/public/lab-assets/hdr/studio-thumbnail.png',
+          import.meta.url,
+        ),
+      ),
+      bad = corruptPngPixelStream(png);
+    assert.deepEqual(bad.subarray(0, 33), png.subarray(0, 33));
+    const withImage = (image: Buffer) =>
+      rewriteGlb(bytes, (root) => {
+        root.images = [
+          { uri: 'data:image/png;base64,' + image.toString('base64') },
+        ];
+      });
+    const attempt = await beginAsset(
+      client,
+      withImage(bad),
+      'Corrupt image stream',
+    );
+    await client.error(
+      'POST',
+      attempt.path,
+      undefined,
+      422,
+      'files.upload_rejected',
+    );
+    assert.deepEqual(await library(client), before);
+    const valid = withImage(png),
+      recovered = await publishAsset(client, valid, 'Original PNG image');
+    const signed = await client.json<DownloadCapability>(
+        'GET',
+        `/api/v1/lab/assets/${recovered.id}/download`,
+      ),
+      response = await fetch(signed.url);
+    assert.equal(response.status, 200);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), valid);
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'm3a.owned-ledger',
+        path: target.evidence + '/owned-resources.json',
+      }),
+    );
+    await target.cleanup();
+  }
+});
+test('lower current upload policy refuses large start inputs while a persisted ready asset still completes and downloads exact bytes', async () => {
+  const target = await new ServerProcess().create();
+  try {
+    const client = await member(target),
+      bytes = await cube(),
+      attempt = await beginAsset(client, bytes, 'Ready before policy change'),
+      ready = await client.json<LabAsset>('POST', attempt.path);
+    await target.stop();
+    target.env.FILE_MAX_BYTES = String(bytes.length - 1);
+    await target.start();
+    await client.login('member@example.test');
+    await client.error(
+      'POST',
+      '/api/v1/lab/asset-uploads',
+      attempt.input,
+      413,
+      'files.too_large',
+      attempt.headers,
+    );
+    await client.error(
+      'POST',
+      '/api/v1/lab/asset-uploads',
+      assetInput(bytes, 'Fresh too-large input'),
+      413,
+      'files.too_large',
+      { 'idempotency-key': 'new-policy-intent' },
+    );
+    assert.deepEqual(await client.json<LabAsset>('POST', attempt.path), ready);
+    const signed = await client.json<DownloadCapability>(
+        'GET',
+        `/api/v1/lab/assets/${ready.id}/download`,
+      ),
+      response = await fetch(signed.url);
+    assert.equal(response.status, 200);
+    assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+    assert.equal((await library(client)).max_upload_bytes, bytes.length - 1);
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'm3a.owned-ledger',
+        path: target.evidence + '/owned-resources.json',
+      }),
+    );
+    await target.cleanup();
+  }
+});
 test('permanent GLB rejection refuses the original upload intent and a fresh valid upload recovers', async () => {
   const target = await new ServerProcess().create();
   try {

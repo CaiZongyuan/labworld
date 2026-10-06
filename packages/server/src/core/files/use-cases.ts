@@ -40,6 +40,12 @@ import {
 import { PublicFailure } from '../../platform/http/failure.ts';
 type FileRow = typeof files.$inferSelect;
 export type FileReference = { ownerType: string; ownerId: string };
+export type ProvisionalFileReference = {
+  owner: string;
+  schema: string;
+  table: string;
+  column: string;
+};
 export type VerifiedFile = {
   file: FileInfo;
   read: () => AsyncIterable<Uint8Array>;
@@ -99,6 +105,8 @@ export class FileService {
   blobs: LocalBlobStore;
   private signingKey?: Buffer;
   private rescanAfter = '';
+  private provisionalReferences = new Map<string, string>();
+  private maintenanceStarted = false;
   constructor(
     context: FoundationContext,
     policy: FilePolicy,
@@ -112,6 +120,23 @@ export class FileService {
     this.origin = origin;
     this.directory = directory;
     this.blobs = new LocalBlobStore(join(directory, 'blobs'));
+  }
+  registerProvisionalReference(reference: ProvisionalFileReference) {
+    if (this.maintenanceStarted)
+      throw new Error('File ownership is immutable after maintenance starts');
+    const { owner, schema, table, column } = reference;
+    if (
+      !owner.trim() ||
+      owner.length > 200 ||
+      ![schema, table, column].every((name) =>
+        /^[a-z_][a-z0-9_]{0,62}$/.test(name),
+      )
+    )
+      throw new Error('Use an owner and exact qualified file reference');
+    const key = `${schema}.${table}.${column}`;
+    if (this.provisionalReferences.has(key))
+      throw new Error(`File reference already declared: ${key}`);
+    this.provisionalReferences.set(key, owner);
   }
   async initialize() {
     await this.blobs.initialize();
@@ -267,6 +292,12 @@ export class FileService {
         422,
         'upload_rejected',
         'Upload was rejected; start a new upload',
+      );
+    if (row.state === 'expired')
+      throw failure(
+        410,
+        'upload_expired',
+        'Upload expired; start a new upload',
       );
     if (row.state !== 'pending_upload')
       throw failure(404, 'not_found', 'Upload is unavailable');
@@ -535,6 +566,7 @@ export class FileService {
   private async referencesIn(
     tx: DbSession,
     predicate: ReturnType<typeof sql>,
+    physical = false,
   ): Promise<boolean> {
     const consumers = await tx.execute<{
       schema_name: string;
@@ -557,6 +589,13 @@ export class FileService {
         owned.has(consumer.table_name)
       )
         continue;
+      if (
+        physical &&
+        this.provisionalReferences.has(
+          `${consumer.schema_name}.${consumer.table_name}.${consumer.column_name}`,
+        )
+      )
+        continue;
       checks.push(
         sql`exists(select 1 from ${sql.identifier(consumer.schema_name)}.${sql.identifier(consumer.table_name)} r join labos_threejs_core.files f on r.${sql.identifier(consumer.column_name)}=f.id where ${predicate})`,
       );
@@ -572,12 +611,13 @@ export class FileService {
     );
     return (
       live.rows[0].present ||
-      (await this.referencesIn(tx, sql`f.sha256=${hash}`))
+      (await this.referencesIn(tx, sql`f.sha256=${hash}`, true))
     );
   }
   async cleanup(
     requestId: string,
-  ): Promise<{ deleted: string[]; retained: string[] }> {
+  ): Promise<{ deleted: string[]; retired: string[]; retained: string[] }> {
+    this.maintenanceStarted = true;
     const targets = await this.context.db.read(
       { id: requestId, kind: 'background' },
       (tx) =>
@@ -591,6 +631,7 @@ export class FileService {
           .limit(50),
     );
     const deleted: string[] = [],
+      retired: string[] = [],
       retained: string[] = [];
     for (const target of targets) {
       const hash = target.sha256.toString('hex');
@@ -599,33 +640,44 @@ export class FileService {
           { id: requestId, kind: 'background' },
           async (tx) => {
             const row = await this.load(tx, target.id);
+            if (
+              ![
+                'expired',
+                'rejected',
+                'deleting',
+                'pending_upload',
+                'ready',
+              ].includes(row.state) ||
+              (['pending_upload', 'ready'].includes(row.state) &&
+                Date.parse(row.expiresAt) >
+                  Date.parse(this.context.clock.now()))
+            )
+              return undefined;
+            const terminal = ['expired', 'rejected', 'pending_upload'].includes(
+              row.state,
+            );
             await tx
               .update(files)
               .set({
+                ...(row.state === 'pending_upload' ? { state: 'expired' } : {}),
                 nextCleanupCheckAt: new Date(
                   Date.parse(this.context.clock.now()) + 300000,
                 ).toISOString(),
               })
               .where(eq(files.id, row.id));
-            if (await this.referencesIn(tx, sql`f.id=${row.id}::uuid`)) {
+            if (await this.referencesIn(tx, sql`f.id=${row.id}::uuid`, true)) {
               retained.push(row.id);
               return undefined;
             }
-            if (
-              ['pending_upload', 'ready'].includes(row.state) &&
-              Date.parse(row.expiresAt) > Date.parse(this.context.clock.now())
-            )
-              return undefined;
-            await tx
-              .update(files)
-              .set({ state: 'deleting', updatedAt: this.context.clock.now() })
-              .where(eq(files.id, row.id));
-            const live = await tx.execute<{ present: boolean }>(
-              sql`select exists(select 1 from labos_threejs_core.files f where f.sha256=${row.sha256} and (f.state='ready' or (f.state='pending_upload' and f.expires_at>${this.context.clock.now()}::timestamptz))) or exists(select 1 from labos_threejs_core.file_candidates c join labos_threejs_core.files f on f.id=c.file_id where f.sha256=${row.sha256} and c.state in ('copying','adopted') and f.state in ('pending_upload','ready')) as present`,
-            );
+            if (!terminal)
+              await tx
+                .update(files)
+                .set({ state: 'deleting', updatedAt: this.context.clock.now() })
+                .where(eq(files.id, row.id));
             return {
+              terminal,
               stagingKey: row.stagingKey,
-              removePhysical: !live.rows[0].present,
+              removePhysical: !(await this.hashInUse(tx, row.sha256)),
             };
           },
         );
@@ -641,7 +693,9 @@ export class FileService {
               await tx
                 .update(files)
                 .set({
-                  lastError: 'files.cleanup_unavailable',
+                  ...(!plan.terminal
+                    ? { lastError: 'files.cleanup_unavailable' }
+                    : {}),
                   updatedAt: this.context.clock.now(),
                 })
                 .where(eq(files.id, target.id));
@@ -655,8 +709,9 @@ export class FileService {
             await tx
               .update(files)
               .set({
-                state: 'deleted',
-                lastError: null,
+                ...(!plan.terminal
+                  ? { state: 'deleted', lastError: null }
+                  : {}),
                 updatedAt: this.context.clock.now(),
               })
               .where(eq(files.id, target.id));
@@ -666,10 +721,10 @@ export class FileService {
               .where(eq(fileCandidates.fileId, target.id));
           },
         );
-        deleted.push(target.id);
+        (plan.terminal ? retired : deleted).push(target.id);
       });
     }
-    return { deleted, retained };
+    return { deleted, retired, retained };
   }
   async download(
     tx: DbSession,
@@ -717,6 +772,7 @@ export class FileService {
   async rescan(
     requestId: string,
   ): Promise<{ removed: string[]; retained: string[] }> {
+    this.maintenanceStarted = true;
     const entries = await this.blobs.entries(this.rescanAfter, 100);
     const removed: string[] = [],
       retained: string[] = [];
@@ -762,7 +818,9 @@ export class FileService {
               row?.state === 'ready' ||
               (row?.state === 'pending_upload' &&
                 Date.parse(row.expiresAt) >
-                  Date.parse(this.context.clock.now()))
+                  Date.parse(this.context.clock.now())) ||
+              (!!row &&
+                (await this.referencesIn(tx, sql`f.id=${row.id}::uuid`, true)))
             );
           },
         );
