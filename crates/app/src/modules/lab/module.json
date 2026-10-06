@@ -230,5 +230,53 @@
     "archiveLabEntity",
     "changeLabEntityAppearance",
     "changeLabEntityDefinition"
-  ]
+  ],
+  "vnext": {
+    "owner": "Lab Application",
+    "sourcePaths": [
+      "packages/server/src/lab/assets",
+      "packages/server/src/lab/world",
+      "packages/server/src/lab/relationships"
+    ],
+    "platformCodecAdapter": "packages/server/src/platform/codecs.ts",
+    "sharedMigration": "packages/server/migrations/0000_foundation.sql",
+    "migratedTables": [
+      "lab.assets",
+      "lab.asset_uploads",
+      "lab.asset_representations",
+      "lab.labs",
+      "lab.entities",
+      "lab.scene_nodes",
+      "lab.entity_relationships",
+      "lab.world_clock"
+    ],
+    "registrationMetadata": "lab.runtime_bindings (device execution owns subsequent lifecycle)",
+    "assemblyPoints": [
+      "apps/server/src/runtime.ts",
+      "apps/server/src/openapi.ts"
+    ],
+    "tests": [
+      "tests/server/lab-assets.test.ts",
+      "tests/server/lab-assets-recovery.test.ts",
+      "tests/server/lab-asset-gc.test.ts",
+      "tests/server/lab-codec.test.ts",
+      "tests/server/lab-world.test.ts",
+      "tests/server/lab-capacity.test.ts",
+      "tests/server/lab-budgets.test.ts",
+      "tests/server/lab-shutdown.test.ts",
+      "tests/e2e/lab-node-assets-world.spec.ts"
+    ],
+    "docs": [
+      "docs/guides/server-assets.md",
+      "docs/guides/server-assets.en.md",
+      "docs/guides/server-world.md",
+      "docs/guides/server-world.en.md"
+    ],
+    "examples": [
+      "examples/lab/import-asset.mjs",
+      "examples/lab/register-static-world.mjs",
+      "examples/lab/edit-layout.mjs"
+    ],
+    "pending": "Device runtime, sessions, business SSE, history/trends and entity lifecycle migrate separately; official SDK source switch follows"
+  }
 }

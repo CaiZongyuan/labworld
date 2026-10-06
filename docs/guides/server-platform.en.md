@@ -1,6 +1,6 @@
 # Use Platform Core
 
-This guide is for developers who call or extend Lab Word Server. The Node service implements identity, sessions, memberships, API keys, audit, idempotency, limits and file capabilities. Lab assets, world writes and device programs remain in later migration stages.
+This guide is for developers who call or extend Lab Word Server. The Node service implements identity, sessions, memberships, API keys, audit, idempotency, limits and file capabilities. See [Node assets](server-assets.en.md) and [Node World](server-world.en.md) for persistent assets, World writes and layouts. Device programs remain in migration.
 
 ## Register and read a session
 

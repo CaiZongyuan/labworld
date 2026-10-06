@@ -380,7 +380,31 @@
       "titleEn": "File publication and business references",
       "group": "开发",
       "type": "guide",
-      "previous": "server-platform"
+      "previous": "server-platform",
+      "next": "server-assets"
+    },
+    {
+      "id": "server-assets",
+      "source": "docs/guides/server-assets.md",
+      "sourceEn": "docs/guides/server-assets.en.md",
+      "route": "guides/server-assets.md",
+      "title": "Node 数字资产",
+      "titleEn": "Node digital assets",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-files",
+      "next": "server-world"
+    },
+    {
+      "id": "server-world",
+      "source": "docs/guides/server-world.md",
+      "sourceEn": "docs/guides/server-world.en.md",
+      "route": "guides/server-world.md",
+      "title": "Node 世界、登记与布局",
+      "titleEn": "Node World, registration and layout",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-assets"
     }
   ],
   "references": [

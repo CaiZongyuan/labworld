@@ -1,6 +1,6 @@
 # 使用 Platform Core
 
-本指南面向调用或扩展 Lab Word Server 的开发者。当前 Node 服务实现身份、会话、成员、API key、审计、幂等、限流与文件能力。Lab 资产、世界写入和设备程序仍按后续迁移阶段交付。
+本指南面向调用或扩展 Lab Word Server 的开发者。当前 Node 服务实现身份、会话、成员、API key、审计、幂等、限流与文件能力。持久资产、世界写入与布局见[Node 资产](server-assets.md)和[Node 世界](server-world.md)。设备程序仍在迁移。
 
 ## 注册并读取会话
 

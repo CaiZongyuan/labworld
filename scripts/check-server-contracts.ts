@@ -48,6 +48,20 @@ const paths = [
   '/api/v1/profile',
   '/api/v1/audit-events',
   '/api/v1/system/rate-limits',
+  '/api/v1/lab/asset-uploads',
+  '/api/v1/lab/asset-uploads/{id}/complete',
+  '/api/v1/lab/assets',
+  '/api/v1/lab/assets/{id}',
+  '/api/v1/lab/assets/{id}/download',
+  '/api/v1/lab/asset-definitions',
+  '/api/v1/lab/asset-definitions/{id}/{version}',
+  '/api/v1/lab/labs',
+  '/api/v1/lab/labs/{lab_id}/world',
+  '/api/v1/lab/labs/{lab_id}/entities',
+  '/api/v1/lab/labs/{lab_id}/entities/{entity_id}',
+  '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies',
+  '/api/v1/lab/labs/{lab_id}/nodes',
+  '/api/v1/lab/labs/{lab_id}/layout',
 ];
 const fileSchemas = [
   'UploadInput',
@@ -62,7 +76,7 @@ function project(document: Record<string, Json>): Json {
     paths: Object.fromEntries(
       paths.map((path) => {
         if (!sourcePaths[path])
-          throw new Error(`Missing migrated Core path: ${path}`);
+          throw new Error(`Missing migrated API path: ${path}`);
         return [path, sourcePaths[path]];
       }),
     ),
@@ -76,7 +90,7 @@ function project(document: Record<string, Json>): Json {
 }
 const differences = semanticDifferences(project(baseline), project(partial));
 if (differences.length)
-  throw new Error(`Migrated Core API drift: ${differences.join(', ')}`);
+  throw new Error(`Migrated API drift: ${differences.join(', ')}`);
 for (const mutate of [
   (x: Record<string, Json>) => {
     (x.paths as Record<string, Record<string, Record<string, Json>>>)[
@@ -118,6 +132,28 @@ for (const mutate of [
     };
     capability.properties.headers = { type: 'string' };
   },
+  (x: Record<string, Json>) => {
+    const schemas = (x.components as { schemas: Record<string, Json> }).schemas;
+    const placement = schemas.Placement as { properties: Record<string, Json> };
+    placement.properties.position = {
+      type: 'array',
+      items: { type: 'string' },
+    };
+  },
+  (x: Record<string, Json>) => {
+    const schemas = (x.components as { schemas: Record<string, Json> }).schemas;
+    const layout = schemas.SaveLabLayout as {
+      properties: Record<string, Json>;
+    };
+    layout.properties.expected_version = { type: 'string' };
+  },
+  (x: Record<string, Json>) => {
+    const schemas = (x.components as { schemas: Record<string, Json> }).schemas;
+    const relationship = schemas.EntityRelationship as {
+      properties: Record<string, Json>;
+    };
+    delete relationship.properties.registered_by;
+  },
 ]) {
   const changed = structuredClone(partial);
   mutate(changed);
@@ -135,7 +171,7 @@ const consumer = join(output, 'consumer.ts');
 writeFileSync(
   consumer,
   `import * as core from './packages/sdk/src/generated/sdk.gen';
-import type {FileInfo,UploadInput,ObjectCapability,UploadCapability,DownloadCapability} from './packages/contracts/src/generated/types.gen';
+import type {FileInfo,UploadInput,ObjectCapability,UploadCapability,DownloadCapability,CreateAssetUpload,RegisterEntity,SaveLabLayout,Placement} from './packages/contracts/src/generated/types.gen';
 const input:UploadInput={file_name:'sample.txt',content_type:'text/plain',size:1,sha256:'00'};
 const file:FileInfo={id:'file',file_name:input.file_name,content_type:input.content_type,size:input.size,sha256:input.sha256,created_at:'2026-10-07T00:00:00.123456Z',previewable:false};
 const request:ObjectCapability={url:'https://example.test/objects/file',method:'GET',headers:{},expires_at:'2026-10-07T00:01:00Z'};
@@ -148,6 +184,15 @@ void core.loginUser({body:{email:'reader@example.test',password:'example-long-pa
 void core.listMembers({query:{limit:1}});void core.updateMember({...mutation,path:{user_id:'user'},body:{role:'member',active:true,version:1}});
 void core.listApiKeys({query:{limit:1}});void core.createApiKey({...mutation,body:{name:'Example',scopes:['lab:full'],expires_in_days:1}});void core.listApiKeyScopes();void core.revokeApiKey({...mutation,path:{id:'key'}});
 void core.listAuditEvents({query:{limit:1,actor_id:'user',action:'identity.register'}});
+const asset:CreateAssetUpload={name:'Bench model',source:'Own geometry',license:'CC0',version:'1.0',file:{...input,file_name:'bench.glb',content_type:'model/gltf-binary'}};
+const placement:Placement={position:[0,0,0],rotation:[0,0,0],scale:[1,1,1]};
+const entity:RegisterEntity={name:'Bench',definition_id:'bench',definition_version:'1.0',reality:'physical',configuration:{},representation_id:null};
+const layout:SaveLabLayout={expected_version:1,nodes:[{id:'node',entity_id:'entity',placement}],relationships:[]};
+void core.startAssetUpload({...mutation,headers:{...mutation.headers,'idempotency-key':'intent'},body:asset});void core.completeAssetUpload({...mutation,path:{id:'upload'}});
+void core.listLabAssets({query:{limit:1}});void core.getLabAsset({path:{id:'asset'}});void core.renameLabAsset({...mutation,path:{id:'asset'},body:{name:'Renamed'}});void core.deleteLabAsset({...mutation,path:{id:'asset'}});void core.getLabAssetDownload({path:{id:'asset'}});
+void core.listAssetDefinitions();void core.getAssetDefinition({path:{id:'bench',version:'1.0'}});void core.listLabs();void core.createLab({...mutation,body:{name:'Teaching Lab'}});
+void core.registerLabEntity({...mutation,path:{lab_id:'lab'},body:entity});void core.getLabEntity({path:{lab_id:'lab',entity_id:'entity'}});void core.configureLabEntity({...mutation,path:{lab_id:'lab',entity_id:'entity'},body:{name:'Configured Bench',configuration:{}}});
+void core.createLabSceneNode({...mutation,path:{lab_id:'lab'},body:{entity_id:'entity',placement}});void core.copyLabEntity({...mutation,path:{lab_id:'lab',entity_id:'entity'},body:{expected_version:1,name:'Copy',placement}});void core.saveLabLayout({...mutation,path:{lab_id:'lab'},body:layout});void core.getLabWorld({path:{lab_id:'lab'},query:{kind:'furniture',capability:'light.switch',state:'idle'}});
 `,
 );
 
@@ -194,12 +239,13 @@ writeFileSync(
       fileSchemas,
       officialConsumersUnchanged: true,
       generatedCallerTypechecked: true,
-      fullApi: 'pending M5',
+      fullApi:
+        'Device/session/SSE/history/trends pending M4; official SDK source switch pending M5',
     },
     null,
     2,
   ),
 );
 console.log(
-  'Isolated recursive Core routes/file DTOs and representative SDK caller verified; full Lab API pending M5.',
+  'Isolated recursive Core and migrated Asset/World API plus representative SDK caller verified; runtime API pending M4 and official switch pending M5.',
 );

@@ -3,11 +3,15 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { join } from 'node:path';
-import { Database } from '../../packages/server/src/platform/db/index.ts';
+import { mkdir, rename, rmdir } from 'node:fs/promises';
+import { Database, sql } from '../../packages/server/src/platform/db/index.ts';
 import { configuration } from '../../apps/server/src/config.ts';
 import { coreApp } from '../../apps/server/src/app.ts';
 import { serve } from '../../apps/server/src/runtime.ts';
-import { FileService } from '../../packages/server/src/core/files/use-cases.ts';
+import {
+  FileService,
+  FileContentRejected,
+} from '../../packages/server/src/core/files/use-cases.ts';
 import { fileRoutes } from '../../packages/server/src/core/files/routes.ts';
 import {
   defaultFilePolicy,
@@ -117,6 +121,163 @@ async function fixture(
     throw error;
   }
 }
+test('exact provisional metadata cannot waive logical or same-hash unknown ownership; terminal diagnostics survive retirement failure and recovery', async () => {
+  const f = await fixture();
+  try {
+    const declaration = {
+      owner: 'owned provisional capability proof',
+      schema: 'file_proof',
+      table: 'receipts',
+      column: 'file_id',
+    };
+    assert.throws(() =>
+      f.files.registerProvisionalReference({
+        ...declaration,
+        column: 'file_id; drop table files',
+      }),
+    );
+    f.files.registerProvisionalReference(declaration);
+    assert.throws(() =>
+      f.files.registerProvisionalReference({
+        ...declaration,
+        owner: 'conflicting owner',
+      }),
+    );
+    await f.db.script(
+      { id: 'owned-reference-fixture', kind: 'startup' },
+      'create schema file_proof; create table file_proof.receipts(file_id uuid primary key references labos_threejs_core.files(id), durable_file_id uuid references labos_threejs_core.files(id))',
+    );
+    const actor = await f.access(),
+      first = await f.start(actor, 'first-rejected.txt'),
+      second = await f.start(actor, 'second-rejected.txt');
+    for (const cap of [first, second])
+      await assert.rejects(
+        f.files.complete(
+          actor,
+          cap.upload_id,
+          'owned-reject',
+          async (_tx, file) => file,
+          async () => {
+            throw new FileContentRejected('permanent owned refusal');
+          },
+        ),
+        (error: unknown) =>
+          error instanceof PublicFailure &&
+          error.code === 'files.upload_rejected',
+      );
+    await f.db.transaction(
+      { id: 'owned-exact-and-unknown-reference', kind: 'request' },
+      (tx) =>
+        tx.execute(
+          sql`insert into file_proof.receipts(file_id,durable_file_id) values(${first.upload_id}::uuid,${second.upload_id}::uuid)`,
+        ),
+    );
+    await assert.rejects(
+      f.db.transaction(
+        { id: 'owned-provisional-logical-dispose', kind: 'request' },
+        (tx) => f.files.dispose(tx, first.upload_id),
+      ),
+      (error: unknown) =>
+        error instanceof PublicFailure && error.code === 'files.in_use',
+    );
+    f.advance(defaultFilePolicy.uploadSecs * 1000 + 60000);
+    const cleanup = await f.files.cleanup('owned-same-hash-fence');
+    assert.deepEqual(cleanup.retired, [first.upload_id]);
+    assert.deepEqual(cleanup.retained, [second.upload_id]);
+    assert.throws(() =>
+      f.files.registerProvisionalReference({ ...declaration, table: 'late' }),
+    );
+    const key = `objects/${f.sha256.slice(0, 2)}/${f.sha256}`;
+    assert.equal(
+      (await f.files.blobs.inspect(key, f.bytes.length)).sha256,
+      f.sha256,
+    );
+    assert.equal(
+      (await f.files.rescan('owned-rescan-fence')).removed.includes(key),
+      false,
+    );
+    assert.equal(
+      (
+        await f.files.blobs.inspect(
+          `staging/${second.upload_id}`,
+          f.bytes.length,
+        )
+      ).sha256,
+      f.sha256,
+    );
+    await f.db.transaction(
+      { id: 'owned-release-unknown-column', kind: 'request' },
+      (tx) =>
+        tx.execute(sql`update file_proof.receipts set durable_file_id=null`),
+    );
+    f.advance(300001);
+    const physical = join(f.files.blobs.directory, key),
+      saved = join(
+        f.files.blobs.directory,
+        'temporary',
+        'owned-rejected-retirement',
+      );
+    await rename(physical, saved);
+    await mkdir(physical);
+    await assert.rejects(f.files.cleanup('owned-terminal-io-fault'));
+    for (const cap of [first, second]) {
+      const row = await f.db.read(
+        { id: 'owned-terminal-diagnostic', kind: 'request' },
+        (tx) => f.files.load(tx, cap.upload_id),
+      );
+      assert.equal(row.state, 'rejected');
+      assert.equal(row.lastError, 'files.upload_rejected');
+    }
+    await rmdir(physical);
+    await rename(saved, physical);
+    f.advance(300001);
+    const recovered = await f.files.cleanup('owned-terminal-retirement-retry');
+    assert.deepEqual(
+      new Set(recovered.retired),
+      new Set([first.upload_id, second.upload_id]),
+    );
+    assert.deepEqual(recovered.deleted, []);
+    await assert.rejects(f.files.blobs.inspect(key, f.bytes.length));
+    await assert.rejects(
+      f.files.complete(
+        actor,
+        first.upload_id,
+        'owned-retired-still-rejected',
+        async (_tx, file) => file,
+      ),
+      (error: unknown) =>
+        error instanceof PublicFailure && error.status === 422,
+    );
+    const expired = await f.start(actor, 'elapsed-upload.txt');
+    f.advance(defaultFilePolicy.uploadSecs * 1000 + 1);
+    assert.equal(
+      (await f.files.cleanup('owned-expired-retirement')).retired.includes(
+        expired.upload_id,
+      ),
+      true,
+    );
+    await assert.rejects(
+      f.files.complete(
+        actor,
+        expired.upload_id,
+        'owned-expired-still-410',
+        async (_tx, file) => file,
+      ),
+      (error: unknown) =>
+        error instanceof PublicFailure &&
+        error.status === 410 &&
+        error.code === 'files.upload_expired',
+    );
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'm3a.owned-ledger',
+        path: f.owned.evidence + '/owned-resources.json',
+      }),
+    );
+    await f.owned.cleanup();
+  }
+});
 test('caller validates the same immutable candidate outside DB and refusal leaves no ready pin audit before healthy recovery', async () => {
   const f = await fixture();
   try {

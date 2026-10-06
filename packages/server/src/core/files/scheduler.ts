@@ -21,6 +21,7 @@ export function fileScheduler(
         log({
           event: 'files.maintenance',
           deleted: cleanup.deleted.length,
+          retired: cleanup.retired.length,
           retained: cleanup.retained.length,
           orphan_removed: rescan.removed.length,
           orphan_retained: rescan.retained.length,

@@ -1,6 +1,8 @@
 import { serve } from '@hono/node-server';
 export { serve };
 import { readFileSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import { errorEnvelope } from '../../../packages/server/src/platform/http/errors.ts';
 import {
   Database,
   schemaVersion,
@@ -13,6 +15,10 @@ import { configuration } from './config.ts';
 import { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
 import { fileRoutes } from '../../../packages/server/src/core/files/routes.ts';
 import { fileScheduler } from '../../../packages/server/src/core/files/scheduler.ts';
+import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
+import { registerAssetFileOwnership } from '../../../packages/server/src/lab/assets/composition.ts';
+import { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
+import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
 export const version = (
   JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -40,6 +46,7 @@ export async function run(
   let stop: (() => Promise<void>) | undefined;
   let closing: Promise<void> | undefined;
   let preparing: Promise<Prepared | undefined> | undefined;
+  const admittedHandlers = new Set<Promise<Response>>();
   async function close() {
     if (closing) return closing;
     const admittedPreparation = preparing;
@@ -67,6 +74,9 @@ export async function run(
         }
         await stopping;
       } finally {
+        // A closed socket does not cancel an admitted validator or its later
+        // publication. Keep the database and lease until that work settles.
+        await Promise.allSettled([...admittedHandlers]);
         try {
           await db.close();
         } finally {
@@ -106,6 +116,9 @@ export async function run(
       if (closing) return undefined;
       const app = coreApp(context, version, config.auth, log, config.rate);
       fileRoutes(app, files);
+      registerAssetFileOwnership(files);
+      assetRoutes(app, files);
+      worldRoutes(app, new WorldService(context, config.auth));
       const scheduler = fileScheduler(context, files, log);
       return { app, stop: () => scheduler.stop() };
     };
@@ -126,7 +139,31 @@ export async function run(
     if (!prepared) throw new Error('Server preparation was cancelled');
     server = serve(
       {
-        fetch: prepared.app.fetch,
+        fetch: async (request, ...args) => {
+          if (closing) {
+            const id = randomUUID();
+            return Response.json(
+              errorEnvelope(
+                'system.unavailable',
+                'Server is shutting down',
+                id,
+              ),
+              {
+                status: 503,
+                headers: { 'x-request-id': id, 'cache-control': 'no-store' },
+              },
+            );
+          }
+          const handling = Promise.resolve(
+            prepared.app.fetch(request, ...args),
+          );
+          admittedHandlers.add(handling);
+          try {
+            return await handling;
+          } finally {
+            admittedHandlers.delete(handling);
+          }
+        },
         hostname: config.hostname,
         port: config.port,
       },

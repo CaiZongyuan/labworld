@@ -19,6 +19,7 @@ export default tseslint.config(
       'packages/contracts/src/generated/**',
       // Published third-party decoders are copied verbatim with their licenses.
       'apps/web/public/lab-assets/decoders/**',
+      'packages/server/codecs/basis/**',
     ],
   },
   js.configs.recommended,
