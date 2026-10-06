@@ -15,6 +15,7 @@ export type AccessActor = {
   user: CurrentUser;
   isApiKey: boolean;
   credentialId: string;
+  authorizedScope: string;
 };
 // Rechecks are performed by the caller inside its final publication transaction.
 export async function revalidateIn(
@@ -36,7 +37,11 @@ export async function revalidateIn(
         credentialId: actor.credentialId,
       };
   if (current.user.id !== actor.user.id) throw unauthorized();
-  return { ...current, isApiKey: actor.isApiKey };
+  return {
+    ...current,
+    isApiKey: actor.isApiKey,
+    authorizedScope: requiredScope,
+  };
 }
 const unauthorized = () =>
   new PublicFailure(401, 'auth.unauthorized', 'Provide an active credential');
@@ -93,6 +98,7 @@ export async function accessIn(
         sessionValue(policy, headers, mutation),
       )),
       isApiKey: false,
+      authorizedScope: requiredScope,
     };
   const token = bearer(headers);
   if (!token || !token.startsWith(secretPrefix)) throw unauthorized();
@@ -106,7 +112,7 @@ export async function accessIn(
     .update(apiKeys)
     .set({ lastUsedAt: context.clock.now() })
     .where(eq(apiKeys.id, actor.credentialId));
-  return { ...actor, isApiKey: true };
+  return { ...actor, isApiKey: true, authorizedScope: requiredScope };
 }
 export async function requireAccess(
   context: FoundationContext,

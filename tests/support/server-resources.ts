@@ -30,6 +30,11 @@ export type ServerLedger = {
   port: number;
   processes: ProcessIdentity[];
   launchIntent?: LaunchIntent;
+  inProcessConsumers?: Array<{
+    name: string;
+    creator: ProcessIdentity;
+    port: number;
+  }>;
   docker: never[];
   state: 'owned' | 'cleaned';
 };
@@ -200,6 +205,7 @@ export async function recoverServerResources(path: string) {
   await removeOwnedDirectory(ledger);
   ledger.directory = '';
   ledger.processes = [];
+  if (ledger.inProcessConsumers) ledger.inProcessConsumers = [];
   delete ledger.launchIntent;
   ledger.state = 'cleaned';
   await writeFile(path, JSON.stringify(ledger, null, 2));

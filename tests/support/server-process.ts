@@ -67,6 +67,8 @@ export class ServerProcess {
   child?: ChildProcess;
   logs = '';
   entry = 'apps/server/src/main.ts';
+  args: string[] = [];
+  input?: string;
   env: Record<string, string> = {};
   // Harness fault seam: lets the owned creator proof exercise slow Windows identity lookup.
   beforeIdentity?: () => Promise<void>;
@@ -80,6 +82,8 @@ export class ServerProcess {
   private cleanupPromise?: Promise<void>;
   private creating?: Promise<void>;
   private spawning?: Promise<void>;
+  private consuming?: Promise<void>;
+  private localConsumers = new Map<string, () => Promise<void>>();
   private assertOpen() {
     if (interrupted || this.closed)
       throw new Error(
@@ -128,6 +132,15 @@ export class ServerProcess {
       port: this.port,
       processes: this.childProof ? [this.childProof] : [],
       ...(this.launchIntent ? { launchIntent: this.launchIntent } : {}),
+      ...(this.localConsumers.size
+        ? {
+            inProcessConsumers: [...this.localConsumers.keys()].map((name) => ({
+              name,
+              creator: this.creator!,
+              port: this.port,
+            })),
+          }
+        : {}),
       docker: [],
       state: this.directory ? 'owned' : 'cleaned',
     };
@@ -156,6 +169,7 @@ export class ServerProcess {
           '--experimental-strip-types',
           `--title=${this.launchIntent.title}`,
           this.entry,
+          ...this.args,
         ],
         {
           cwd: resolve('.'),
@@ -165,11 +179,15 @@ export class ServerProcess {
             LAB_WORD_DATA_DIR: this.directory,
             ...this.env,
           },
-          stdio: ['ignore', 'pipe', 'pipe'],
+          stdio: [this.input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
           detached: this.detachedChildForRecoveryProof,
         },
       );
       const child = this.child;
+      if (this.input !== undefined) {
+        child.stdin!.end(this.input);
+        this.input = undefined;
+      }
       this.launchIntent.pid = child.pid;
       this.launchIntent.state = 'launched';
       writeFileSync(
@@ -192,6 +210,25 @@ export class ServerProcess {
       await this.spawning;
     } finally {
       this.spawning = undefined;
+    }
+  }
+  async startInProcess(
+    name: string,
+    start: () => Promise<void>,
+    stop: () => Promise<void>,
+  ) {
+    this.assertOpen();
+    if (this.localConsumers.has(name))
+      throw new Error('Consumer is already registered');
+    this.localConsumers.set(name, stop);
+    await this.record();
+    this.assertOpen();
+    this.consuming = start();
+    try {
+      await this.consuming;
+      this.assertOpen();
+    } finally {
+      this.consuming = undefined;
     }
   }
   async start() {
@@ -233,6 +270,9 @@ export class ServerProcess {
     this.cleanupPromise = (async () => {
       await this.creating?.catch(() => {});
       await this.spawning?.catch(() => {});
+      await this.consuming?.catch(() => {});
+      for (const stop of this.localConsumers.values()) await stop();
+      this.localConsumers.clear();
       await this.stop();
       if (this.directory) await removeOwnedDirectory(this.ledger());
       this.directory = '';

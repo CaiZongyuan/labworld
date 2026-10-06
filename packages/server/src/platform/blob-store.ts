@@ -7,6 +7,7 @@ import type { BlobStore } from './context.ts';
 export class BlobMissing extends Error {}
 export class BlobChanged extends Error {}
 export class BlobTooLarge extends Error {}
+export class BlobChecksumMismatch extends Error {}
 export type BlobDigest = {
   key: string;
   sha256: string;
@@ -56,6 +57,7 @@ export class LocalBlobStore implements BlobStore {
     key: string,
     content: AsyncIterable<Uint8Array>,
     maximumBytes: number,
+    expectedSha256?: string,
   ): Promise<BlobDigest> {
     return this.withLock(key, async () => {
       const destination = this.path(key);
@@ -98,12 +100,15 @@ export class LocalBlobStore implements BlobStore {
               await handle.write(chunk, written, chunk.byteLength - written)
             ).bytesWritten;
         }
+        const sha256 = hash.digest('hex');
+        if (expectedSha256 !== undefined && sha256 !== expectedSha256)
+          throw new BlobChecksumMismatch('Upload checksum does not match');
         await handle.sync();
         await handle.close();
         handle = undefined;
         await rename(temporary, destination);
         await this.syncDirectory(dirname(destination));
-        return { key, sha256: hash.digest('hex'), size, prefix };
+        return { key, sha256, size, prefix };
       } finally {
         await handle?.close();
         await rm(temporary, { force: true });
@@ -164,7 +169,16 @@ export class LocalBlobStore implements BlobStore {
   }
   async remove(key: string) {
     await rm(this.path(key), { force: true });
-    await this.syncDirectory(dirname(this.path(key)));
+    try {
+      await this.syncDirectory(dirname(this.path(key)));
+    } catch (error) {
+      if (!(
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ))
+        throw error;
+    }
   }
   private async syncDirectory(directory: string) {
     if (process.platform === 'win32') return; // Windows does not open directories for fsync.

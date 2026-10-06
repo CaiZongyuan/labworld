@@ -16,6 +16,7 @@ import {
   BlobMissing,
   BlobChanged,
   BlobTooLarge,
+  BlobChecksumMismatch,
 } from '../../platform/blob-store.ts';
 import type { AuthPolicy } from '../identity/domain.ts';
 import { revalidateIn, type AccessActor } from '../api-keys/authentication.ts';
@@ -57,6 +58,8 @@ function storageFailure(error: unknown): never {
     );
   if (error instanceof BlobTooLarge)
     throw failure(413, 'too_large', 'File exceeds the allowed size');
+  if (error instanceof BlobChecksumMismatch)
+    throw failure(400, 'invalid_input', 'Upload checksum does not match');
   throw unavailable();
 }
 function info(row: FileRow): FileInfo {
@@ -67,9 +70,12 @@ function info(row: FileRow): FileInfo {
     size: row.actualSize!,
     sha256: row.sha256.toString('hex'),
     created_at: utcInstant(row.createdAt),
-    previewable:
-      row.contentType.startsWith('image/') ||
-      row.contentType === 'application/pdf',
+    previewable: [
+      'image/png',
+      'image/jpeg',
+      'image/gif',
+      'image/webp',
+    ].includes(row.contentType),
   };
 }
 export class FileService {
@@ -174,12 +180,28 @@ export class FileService {
     if (!row) throw failure(404, 'not_found', 'File not found');
     return row;
   }
+  private async read(id: string, requestId: string) {
+    try {
+      return await this.context.db.read(
+        { id: requestId, kind: 'request' },
+        (tx) => this.load(tx, id),
+      );
+    } catch (error) {
+      storageFailure(error);
+    }
+  }
   async start(
     tx: DbSession,
     actor: AccessActor,
     input: UploadInput,
   ): Promise<UploadCapability> {
-    await revalidateIn(tx, this.context, this.auth, actor, 'lab:full');
+    await revalidateIn(
+      tx,
+      this.context,
+      this.auth,
+      actor,
+      actor.authorizedScope,
+    );
     const normalized = normalizeUpload(input, this.policy);
     if (normalized === 'too_large')
       throw failure(413, 'too_large', 'File exceeds the allowed size');
@@ -236,10 +258,7 @@ export class FileService {
     requestId: string,
   ) {
     this.checkCapability(id, 'PUT', query);
-    const row = await this.context.db.read(
-      { id: requestId, kind: 'request' },
-      (tx) => this.load(tx, id),
-    );
+    const row = await this.read(id, requestId);
     this.pending(row);
     if (contentType !== row.contentType)
       throw failure(
@@ -248,7 +267,12 @@ export class FileService {
         'Use the content type in the upload capability',
       );
     try {
-      await this.blobs.stageAt(row.stagingKey, bytes, this.policy.maxBytes);
+      await this.blobs.stageAt(
+        row.stagingKey,
+        bytes,
+        this.policy.maxBytes,
+        row.sha256.toString('hex'),
+      );
     } catch (error) {
       storageFailure(error);
     }
@@ -257,12 +281,13 @@ export class FileService {
     actor: AccessActor,
     id: string,
     requestId: string,
-    publish: (tx: DbSession, file: FileInfo) => Promise<T>,
+    publish: (
+      tx: DbSession,
+      file: FileInfo,
+      transitioned: boolean,
+    ) => Promise<T>,
   ): Promise<T> {
-    const planned = await this.context.db.read(
-      { id: requestId, kind: 'request' },
-      (tx) => this.load(tx, id),
-    );
+    const planned = await this.read(id, requestId);
     const hash = planned.sha256.toString('hex');
     return this.blobs.withHash(hash, async () => {
       let key: string;
@@ -291,7 +316,7 @@ export class FileService {
                   this.context,
                   this.auth,
                   actor,
-                  'lab:full',
+                  actor.authorizedScope,
                 );
                 await tx
                   .update(files)
@@ -324,10 +349,11 @@ export class FileService {
               this.context,
               this.auth,
               actor,
-              'lab:full',
+              actor.authorizedScope,
             );
             let row = await this.load(tx, planned.id);
-            if (row.state !== 'ready') {
+            const transitioned = row.state !== 'ready';
+            if (transitioned) {
               this.pending(row);
               const candidateId = randomUUID();
               await tx.insert(fileCandidates).values({
@@ -348,8 +374,8 @@ export class FileService {
                 .where(eq(files.id, row.id))
                 .returning();
             }
-            const result = await publish(tx, info(row));
-            if (planned.state !== 'ready')
+            const result = await publish(tx, info(row), transitioned);
+            if (transitioned)
               await databaseAudit.record(tx, {
                 actorId: currentActor.user.id,
                 actorType: currentActor.isApiKey ? 'agent' : 'user',
@@ -475,12 +501,8 @@ export class FileService {
               return undefined;
             await tx
               .update(files)
-              .set({ state: 'deleted', updatedAt: this.context.clock.now() })
+              .set({ state: 'deleting', updatedAt: this.context.clock.now() })
               .where(eq(files.id, row.id));
-            await tx
-              .update(fileCandidates)
-              .set({ state: 'deleted', updatedAt: this.context.clock.now() })
-              .where(eq(fileCandidates.fileId, row.id));
             const live = await tx.execute<{ present: boolean }>(
               sql`select exists(select 1 from labos_threejs_core.files f where f.sha256=${row.sha256} and (f.state='ready' or (f.state='pending_upload' and f.expires_at>${this.context.clock.now()}::timestamptz))) or exists(select 1 from labos_threejs_core.file_candidates c join labos_threejs_core.files f on f.id=c.file_id where f.sha256=${row.sha256} and c.state in ('copying','adopted') and f.state in ('pending_upload','ready')) as present`,
             );
@@ -491,9 +513,42 @@ export class FileService {
           },
         );
         if (!plan) return;
-        await this.blobs.remove(plan.stagingKey);
-        if (plan.removePhysical)
-          await this.blobs.remove(`objects/${hash.slice(0, 2)}/${hash}`);
+        try {
+          await this.blobs.remove(plan.stagingKey);
+          if (plan.removePhysical)
+            await this.blobs.remove(`objects/${hash.slice(0, 2)}/${hash}`);
+        } catch (error) {
+          await this.context.db.transaction(
+            { id: requestId, kind: 'background' },
+            async (tx) => {
+              await tx
+                .update(files)
+                .set({
+                  lastError: 'files.cleanup_unavailable',
+                  updatedAt: this.context.clock.now(),
+                })
+                .where(eq(files.id, target.id));
+            },
+          );
+          storageFailure(error);
+        }
+        await this.context.db.transaction(
+          { id: requestId, kind: 'background' },
+          async (tx) => {
+            await tx
+              .update(files)
+              .set({
+                state: 'deleted',
+                lastError: null,
+                updatedAt: this.context.clock.now(),
+              })
+              .where(eq(files.id, target.id));
+            await tx
+              .update(fileCandidates)
+              .set({ state: 'deleted', updatedAt: this.context.clock.now() })
+              .where(eq(fileCandidates.fileId, target.id));
+          },
+        );
         deleted.push(target.id);
       });
     }
@@ -504,7 +559,13 @@ export class FileService {
     actor: AccessActor,
     id: string,
   ): Promise<DownloadCapability> {
-    await revalidateIn(tx, this.context, this.auth, actor, 'lab:full');
+    await revalidateIn(
+      tx,
+      this.context,
+      this.auth,
+      actor,
+      actor.authorizedScope,
+    );
     const row = await this.load(tx, id);
     if (row.state !== 'ready')
       throw failure(404, 'not_found', 'Ready file not found');
@@ -512,10 +573,7 @@ export class FileService {
   }
   async signedDownload(id: string, query: URLSearchParams, requestId: string) {
     this.checkCapability(id, 'GET', query);
-    const row = await this.context.db.read(
-      { id: requestId, kind: 'request' },
-      (tx) => this.load(tx, id),
-    );
+    const row = await this.read(id, requestId);
     if (row.state !== 'ready')
       throw failure(404, 'not_found', 'Ready file not found');
     try {
