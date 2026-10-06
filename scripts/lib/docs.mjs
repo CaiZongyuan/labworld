@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, extname, posix, relative, resolve, sep } from 'node:path';
 import { root } from './process.mjs';
+import { loadLegacyConfigFields } from './legacy-config.mjs';
 import { sitePath, validateSiteModel } from './docs-locales.mjs';
 
 // Renders the public documentation in both locales from one declaration:
@@ -166,13 +167,13 @@ function localizedReferenceTexts() {
   return {
     zh: {
       apiIntro: (version) =>
-        `# API 合同\n\n从 Rust OpenAPI 自动生成。当前 API 版本：${version}。`,
+        `# API 合同\n\n保留的完整 Rust OpenAPI 冻结参考（版本 ${version}）。新服务的已迁移范围见 [TypeScript 服务基础](../guides/server-foundation.md)。完整客户端合同仍待切换。`,
       apiTable:
         '\n\n| 方法 | 路径 | operationId | 响应 |\n| --- | --- | --- | --- |\n',
       apiOutro:
-        '\n[下载 OpenAPI JSON](SITE_LINK:public/openapi.json)。开发服务也直接提供 `/api/openapi.json`。响应和 SDK 不维护手写的第二份 DTO。\n',
+        '\n[下载 OpenAPI JSON](SITE_LINK:public/openapi.json)。新开发服务的 `/api/openapi.json` 当前只包含已迁移端点。响应和 SDK 不维护手写的第二份 DTO。\n',
       configIntro:
-        '# API 配置\n\n从 Settings 定义自动生成；生产秘密不进入文档。',
+        '# API 配置\n\n此表保留冻结旧栈的 Settings/FIELDS 元数据，并校验对应源码哈希。它不是当前 TypeScript 服务的配置清单；实际入口见 [TypeScript 服务基础](../guides/server-foundation.md)。生产秘密不进入文档。',
       configTable:
         '\n\n| 变量 | 默认值 | 敏感值 | 说明 |\n| --- | --- | --- | --- |\n',
       configDescription: (field) => field.descriptionZh,
@@ -184,13 +185,13 @@ function localizedReferenceTexts() {
     },
     en: {
       apiIntro: (version) =>
-        `# API contract\n\nGenerated from the Rust OpenAPI definition. Current API version: ${version}.`,
+        `# API contract\n\nFrozen reference for the retained full Rust OpenAPI (version ${version}). See [TypeScript service foundation](../guides/server-foundation.md) for migrated service coverage. The complete client contract has not switched yet.`,
       apiTable:
         '\n\n| Method | Path | operationId | Responses |\n| --- | --- | --- | --- |\n',
       apiOutro:
-        '\n[Download the OpenAPI JSON](SITE_LINK:public/openapi.json). The development server also serves `/api/openapi.json` directly. Responses and the SDK never maintain a hand-written second copy of the DTOs.\n',
+        '\n[Download the OpenAPI JSON](SITE_LINK:public/openapi.json). The new development server currently exposes only migrated endpoints at `/api/openapi.json`. Responses and the SDK never maintain a hand-written second copy of the DTOs.\n',
       configIntro:
-        '# API configuration\n\nGenerated from the Settings definitions; production secrets never enter the documentation.',
+        '# API configuration\n\nThis table preserves frozen legacy Settings/FIELDS metadata and checks its source hashes. It is not the current TypeScript service configuration. Use [TypeScript service foundation](../guides/server-foundation.md) for the implemented entrypoint. Production secrets never enter the documentation.',
       configTable:
         '\n\n| Variable | Default | Secret | Description |\n| --- | --- | --- | --- |\n',
       configDescription: (field) => field.description,
@@ -225,31 +226,6 @@ function renderConfigReference(fields, exampleText, texts, sourceLink) {
   return (
     config +
     texts.configOutro.replace('{{envExample}}', sourceLink('.env.example'))
-  );
-}
-
-function loadConfigFields() {
-  return JSON.parse(
-    execFileSync(
-      'cargo',
-      [
-        'run',
-        '--quiet',
-        '--locked',
-        '-p',
-        'labos-threejs-api',
-        '--bin',
-        'config-reference',
-      ],
-      {
-        cwd: root,
-        encoding: 'utf8',
-        env: {
-          ...process.env,
-          CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? '4',
-        },
-      },
-    ),
   );
 }
 
@@ -360,7 +336,7 @@ export function renderDocs() {
 
   const contractPath = repositoryFile('packages/contracts/openapi.json');
   const contract = JSON.parse(readFileSync(contractPath, 'utf8'));
-  const fields = loadConfigFields();
+  const fields = loadLegacyConfigFields(root);
   const example = readFileSync(repositoryFile('.env.example'), 'utf8');
   const texts = localizedReferenceTexts();
   const api = site.references.find((r) => r.id === 'api-reference');

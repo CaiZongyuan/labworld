@@ -1,13 +1,18 @@
 import { schemaVersion } from '../../platform/db/index.ts';
 import type { FoundationContext } from '../../platform/context.ts';
 export async function ready(context: FoundationContext, requestId: string) {
-  return Promise.race([
-    context.db.ready(requestId),
-    new Promise<false>((resolve) => {
-      const timer = setTimeout(() => resolve(false), 2000);
-      timer.unref();
-    }),
-  ]);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      context.db.ready(requestId),
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => resolve(false), 2000);
+        timer.unref();
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 export async function systemStatus(
   context: FoundationContext,

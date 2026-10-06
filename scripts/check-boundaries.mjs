@@ -180,5 +180,5 @@ for (const [name, dependencies] of Object.entries(allowed)) {
   }
 }
 console.log(
-  `Package imports and ${modules.length} retained module ownership declarations and TypeScript server boundaries verified. Dynamic SQL still requires review.`,
+  `Package imports and ${modules.length} retained module ownership declarations verified; TypeScript server boundaries verified. Dynamic SQL still requires review.`,
 );

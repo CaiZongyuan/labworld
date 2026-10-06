@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { ServerProcess } from '../support/server-process.ts';
 
 test('live HTTP process reports the retained health response', async () => {
@@ -32,8 +33,11 @@ test('real TCP readiness/status report actual migrations/version and retain erro
       status: 'ok',
       service: 'labos-threejs-api',
       database: 'connected',
-      schema_version: 1,
-      version: '0.1.0',
+      schema_version: JSON.parse(
+        readFileSync('packages/server/migrations/meta/_journal.json', 'utf8'),
+      ).entries.length,
+      version: JSON.parse(readFileSync('apps/server/package.json', 'utf8'))
+        .version,
     });
     const ids: string[] = [];
     for (let i = 0; i < 2; i++) {
@@ -68,3 +72,43 @@ test('real TCP readiness/status report actual migrations/version and retain erro
     await target.cleanup();
   }
 });
+
+test(
+  'real TCP readiness and status return 503 when the actual database is closed',
+  { timeout: 60000 },
+  async () => {
+    const target = await new ServerProcess().create();
+    target.entry = 'tests/support/spike-process.ts';
+    try {
+      await target.start();
+      assert.equal(
+        (
+          await fetch(`${target.url}/proof/database-unavailable`, {
+            method: 'POST',
+          })
+        ).status,
+        200,
+      );
+      for (const path of ['/health/ready', '/api/v1/system/status']) {
+        const response = await fetch(target.url + path);
+        assert.equal(response.status, 503);
+        const body = (await response.json()) as {
+          error: {
+            code: string;
+            request_id: string;
+            details: Record<string, string>;
+          };
+        };
+        assert.equal(body.error.code, 'database.unavailable');
+        assert.equal(
+          body.error.request_id,
+          response.headers.get('x-request-id'),
+        );
+        assert.deepEqual(body.error.details, {});
+      }
+      assert.equal((await fetch(`${target.url}/health/live`)).status, 200);
+    } finally {
+      await target.cleanup();
+    }
+  },
+);

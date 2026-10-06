@@ -145,7 +145,7 @@ export class Database {
     this.tail = result.catch(() => {});
     return result;
   }
-  async initialize() {
+  async initialize(migrationFolder = migrationsDirectory) {
     await this.enqueue(
       { id: 'database:migrate', kind: 'startup' },
       async () => {
@@ -174,7 +174,7 @@ export class Database {
           this.active!.measurement.commands.push(command);
         };
         await this.client.waitReady;
-        await migrate(this.orm(), { migrationsFolder: migrationsDirectory });
+        await migrate(this.orm(), { migrationsFolder: migrationFolder });
       },
     );
     if (!(await this.ready('database:startup-check')))
@@ -250,7 +250,7 @@ export class Database {
   async close() {
     this.accepting = false;
     await this.tail;
-    if (!this.client) return;
+    if (!this.client || this.client.closed) return;
     const token = Symbol('database:close');
     this.active = {
       token,

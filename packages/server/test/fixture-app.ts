@@ -121,6 +121,10 @@ export async function fixtureApp(context: FoundationContext) {
       subscriber.wake?.();
     }
   };
+  app.post('/proof/database-unavailable', async (c) => {
+    await db.close();
+    return c.json({ closed: true });
+  });
   app.get('/proof/devices', (c) => c.json(seed));
   const persist = async (requestId: string, samples: Sample[]) => {
     const committed = await db.transaction(

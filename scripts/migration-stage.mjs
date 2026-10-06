@@ -13,9 +13,10 @@ const stage = {
     M2: '#48 identity/membership/Agent/audit/idempotency/rate/files',
     M3a: '#49 assets/world/layout/relationships',
     M3b: '#50 devices/SSE/history/records/trends/lifecycle/business SQL budgets',
-    M4M5: '#51 operations/Web/Electron/complete SDK and retained journeys',
+    M4M5: '#51 operations/Web/complete SDK and retained journeys',
     M6: '#52 full pnpm check/Migration Gate/legacy deletion',
   },
+  currentScope: 'Web; Electron CI removed, source retained',
   frozenExecution: false,
 };
 console.log(JSON.stringify(stage, null, 2));

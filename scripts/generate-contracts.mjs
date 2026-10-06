@@ -5,12 +5,13 @@ import {
   mkdtempSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const checking = process.argv.includes('--check');
@@ -27,6 +28,29 @@ const outputRoot = isolated
   : root;
 if (isolated && outputRoot === root)
   throw new Error('Partial server output cannot overwrite the complete SDK');
+function physicalPath(path) {
+  const suffix = [];
+  let ancestor = path;
+  while (!existsSync(ancestor)) {
+    suffix.unshift(relative(dirname(ancestor), ancestor));
+    ancestor = dirname(ancestor);
+  }
+  return resolve(realpathSync(ancestor), ...suffix);
+}
+const protectedRoots = ['packages/contracts', 'packages/sdk'].map((path) =>
+  physicalPath(join(root, path)),
+);
+function assertIsolated(path) {
+  const physical = physicalPath(path);
+  if (
+    isolated &&
+    protectedRoots.some(
+      (directory) =>
+        physical === directory || physical.startsWith(directory + sep),
+    )
+  )
+    throw new Error('Partial output overlaps official consumers');
+}
 const temporary = mkdtempSync(join(tmpdir(), 'labos-threejs-contracts-'));
 const files = new Map();
 
@@ -75,7 +99,7 @@ try {
   });
   files.set('packages/contracts/openapi.json', contract);
   for (const path of collect(generated)) {
-    const local = relative(generated, path);
+    const local = relative(generated, path).split(sep).join('/');
     if (local === 'types.gen.ts') {
       files.set(
         'packages/contracts/src/generated/types.gen.ts',
@@ -94,17 +118,10 @@ try {
       );
     }
   }
+  for (const path of files.keys()) assertIsolated(join(outputRoot, path));
   const drift = [];
   for (const [path, content] of files) {
     const absolute = join(outputRoot, path);
-    if (
-      isolated &&
-      [join(root, 'packages/contracts'), join(root, 'packages/sdk')].some(
-        (directory) =>
-          absolute === directory || absolute.startsWith(directory + '/'),
-      )
-    )
-      throw new Error('Partial output overlaps official consumers');
     if (checking) {
       let current;
       try {
@@ -123,9 +140,10 @@ try {
     'packages/sdk/src/generated',
   ]) {
     const absolute = join(outputRoot, directory);
+    assertIsolated(absolute);
     if (!existsSync(absolute)) continue;
     for (const path of collect(absolute)) {
-      const local = relative(outputRoot, path);
+      const local = relative(outputRoot, path).split(sep).join('/');
       if (!files.has(local)) {
         if (checking) drift.push(local);
         else rmSync(path);

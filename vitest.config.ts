@@ -6,12 +6,11 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     maxWorkers: 2,
-    include: [
-      'packages/**/*.test.{ts,tsx}',
-      'apps/web/src/**/*.test.{ts,tsx}',
-      'apps/desktop/src/**/*.test.{ts,tsx}',
+    include: ['packages/**/*.test.{ts,tsx}', 'apps/web/src/**/*.test.{ts,tsx}'],
+    exclude: [
+      'packages/server/**',
+      'apps/web/src/desktop-preferences.test.tsx',
     ],
-    exclude: ['packages/server/**'],
     setupFiles: ['tests/frontend/setup.ts'],
     restoreMocks: true,
     clearMocks: true,

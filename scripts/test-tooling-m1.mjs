@@ -2,6 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 // Frozen deployment/storage/mail tooling stays present until M6, but is not executed by M1.
 const pending = new Set([
+  'desktop-soak-report.test.mjs',
   'production-compose.test.mjs',
   'dev-ports.test.mjs',
   'development-mail-key.test.mjs',
