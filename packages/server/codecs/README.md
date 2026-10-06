@@ -2,6 +2,8 @@
 
 Codec read, initialization and unexpected native failures return availability errors. The next request creates a fresh codec instance after recovery. Native validation refusal remains a content error. Only an explicit permanent content refusal changes a pending upload to rejected.
 
+A failed instance is marked invalid. Pending callers reject it before a native call. An older instance cannot discard a newer cache entry. Trapped instances are discarded without further native cleanup calls.
+
 The Node service loads the checked-in WASM files. Installation and startup do not invoke Rust, Cargo, Docker or an external decoder process.
 
 `validation/` contains a validation-only binding. Its locked dependencies are draco-core 2.2.1, image 0.25.10 and gltf 1.4.1. These versions match the retained GLB implementation. The artifact has no host imports. It returns validation results and does not export geometry or pixels to JavaScript.

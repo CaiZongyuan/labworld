@@ -66,6 +66,71 @@ test('permanent GLB rejection refuses the original upload intent and a fresh val
     await target.cleanup();
   }
 });
+
+test('two admitted validators never invoke a trapped native instance again; fresh initialization recovers both uploads', async () => {
+  const target = await new ServerProcess().create();
+  target.entry = 'tests/support/lab-native-trap.ts';
+  target.ipc = true;
+  async function message(command: string, stage: string) {
+    const reply = new Promise<Record<string, unknown>>((resolve) => {
+      const receive = (value: unknown) => {
+        if (
+          value &&
+          typeof value === 'object' &&
+          'stage' in value &&
+          value.stage === stage
+        ) {
+          target.child!.off('message', receive);
+          resolve(value as Record<string, unknown>);
+        }
+      };
+      target.child!.on('message', receive);
+    });
+    target.child!.send(command);
+    return reply;
+  }
+  try {
+    const client = await member(target),
+      before = await library(client),
+      bytes = await cube();
+    const first = await beginAsset(client, bytes, 'First native validator'),
+      second = await beginAsset(
+        client,
+        rewriteGlb(bytes, (root) => {
+          root.asset = {
+            ...(root.asset as Record<string, unknown>),
+            generator: 'Distinct parallel bytes',
+          };
+        }),
+        'Second native validator',
+      );
+    const outcomes = await Promise.allSettled([
+      client.error('POST', first.path, undefined, 503, 'files.unavailable'),
+      client.error('POST', second.path, undefined, 503, 'files.unavailable'),
+    ]);
+    for (const outcome of outcomes)
+      if (outcome.status === 'rejected') throw outcome.reason;
+    assert.deepEqual(await library(client), before);
+    assert.equal(
+      (await message('native-status', 'native-status')).unsafeCalls,
+      0,
+    );
+    await message('restore-native', 'native-restored');
+    const a = await client.json<LabAsset>('POST', first.path),
+      b = await client.json<LabAsset>('POST', second.path);
+    assert.equal(a.representation.file_id, first.upload.upload_id);
+    assert.equal(b.representation.file_id, second.upload.upload_id);
+    assert.equal((await library(client)).data.length, 2);
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'm3a.owned-ledger',
+        path: target.evidence + '/owned-resources.json',
+      }),
+    );
+    await target.cleanup();
+  }
+});
 test('a real embedded PNG data URI keeps MIME and base64 case normalization and exact uploaded bytes', async () => {
   const target = await new ServerProcess().create();
   try {
@@ -139,6 +204,55 @@ test('a real codec read outage returns availability failure and the same process
     const client = await member(target),
       before = await library(client),
       attempt = await beginAsset(client, await cube(), 'Recoverable codec');
+    await client.error(
+      'POST',
+      attempt.path,
+      undefined,
+      503,
+      'files.unavailable',
+    );
+    assert.deepEqual(await library(client), before);
+    const restored = new Promise<void>((resolve) => {
+      const receive = (message: unknown) => {
+        if (
+          message &&
+          typeof message === 'object' &&
+          'stage' in message &&
+          message.stage === 'codec-restored'
+        ) {
+          target.child!.off('message', receive);
+          resolve();
+        }
+      };
+      target.child!.on('message', receive);
+    });
+    target.child!.send('restore-codec');
+    await restored;
+    const recovered = await client.json<LabAsset>('POST', attempt.path);
+    assert.equal(recovered.representation.file_id, attempt.upload.upload_id);
+    assert.deepEqual((await library(client)).data, [recovered]);
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'm3a.owned-ledger',
+        path: target.evidence + '/owned-resources.json',
+      }),
+    );
+    await target.cleanup();
+  }
+});
+
+test('a missing Meshopt module keeps availability classification while cache cleanup and same-upload recovery run', async () => {
+  const target = await new ServerProcess().create();
+  target.entry = 'tests/support/lab-meshopt-fault.ts';
+  target.ipc = true;
+  try {
+    const client = await member(target),
+      before = await library(client),
+      bytes = await readFile(
+        new URL('../fixtures/lab/cube-meshopt.glb', import.meta.url),
+      ),
+      attempt = await beginAsset(client, bytes, 'Recoverable Meshopt');
     await client.error(
       'POST',
       attempt.path,

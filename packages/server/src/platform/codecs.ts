@@ -24,16 +24,28 @@ type ValidationExports = {
   validate_glb_structure: (pointer: number, size: number) => number;
 };
 let validation: Promise<ValidationExports> | undefined;
+let currentValidation: ValidationExports | undefined;
+const failedValidation = new WeakSet<ValidationExports>();
+function discardValidation(codec: ValidationExports) {
+  failedValidation.add(codec);
+  if (currentValidation === codec) {
+    validation = undefined;
+    currentValidation = undefined;
+  }
+}
 async function validationCodec() {
   validation ??= readFile(
     new URL('../../codecs/validation/validation.wasm', import.meta.url),
   )
     .then(async (bytes) => {
       const { instance } = await WebAssembly.instantiate(bytes);
-      return instance.exports as unknown as ValidationExports;
+      const codec = instance.exports as unknown as ValidationExports;
+      currentValidation = codec;
+      return codec;
     })
     .catch((error) => {
       validation = undefined;
+      currentValidation = undefined;
       throw new CodecUnavailable(error);
     });
   return validation;
@@ -43,6 +55,8 @@ function withBytes<T>(
   bytes: Uint8Array,
   work: (pointer: number) => T,
 ) {
+  if (failedValidation.has(codec))
+    throw new CodecUnavailable(new Error('Discarded validation codec'));
   let pointer: number | undefined;
   let value: T | undefined,
     failure: unknown,
@@ -54,8 +68,9 @@ function withBytes<T>(
   } catch (error) {
     failure = error;
     failed = true;
+    discardValidation(codec);
   } finally {
-    if (pointer !== undefined)
+    if (pointer !== undefined && !failedValidation.has(codec))
       try {
         codec.deallocate(pointer, bytes.length);
       } catch (error) {
@@ -63,10 +78,11 @@ function withBytes<T>(
           failure = error;
           failed = true;
         }
+        discardValidation(codec);
       }
   }
   if (failed) {
-    validation = undefined;
+    discardValidation(codec);
     throw new CodecUnavailable(failure);
   }
   return value as T;
@@ -126,6 +142,8 @@ export async function decodeMeshopt(
   filter: 'NONE' | 'OCTAHEDRAL' | 'QUATERNION' | 'EXPONENTIAL',
 ) {
   const decoder = await meshoptCodec();
+  if (failedMeshopt.has(decoder))
+    throw new CodecUnavailable(new Error('Discarded Meshopt codec'));
   const output = new Uint8Array(count * stride);
   try {
     decoder.decodeGltfBuffer(output, count, stride, bytes, mode, filter);
@@ -135,18 +153,29 @@ export async function decodeMeshopt(
       /^Malformed buffer data: -?\d+$/.test(error.message)
     )
       throw error;
-    resetMeshopt();
+    resetMeshopt(decoder);
     throw new CodecUnavailable(error);
   }
   return output;
 }
 const require = createRequire(import.meta.url);
 let meshopt: Promise<typeof MeshoptDecoder> | undefined;
-function resetMeshopt() {
+let currentMeshopt: typeof MeshoptDecoder | undefined;
+const failedMeshopt = new WeakSet<typeof MeshoptDecoder>();
+function resetMeshopt(decoder?: typeof MeshoptDecoder) {
+  if (decoder) {
+    failedMeshopt.add(decoder);
+    if (currentMeshopt !== decoder) return;
+  }
   meshopt = undefined;
-  delete require.cache[
-    require.resolve('../../node_modules/meshoptimizer/meshopt_decoder.cjs')
-  ];
+  currentMeshopt = undefined;
+  try {
+    delete require.cache[
+      require.resolve('../../node_modules/meshoptimizer/meshopt_decoder.cjs')
+    ];
+  } catch {
+    // A missing module has no cached instance; cleanup preserves the loader failure.
+  }
 }
 async function meshoptCodec() {
   meshopt ??= Promise.resolve()
@@ -154,6 +183,7 @@ async function meshoptCodec() {
       const decoder =
         require('../../node_modules/meshoptimizer/meshopt_decoder.cjs') as typeof MeshoptDecoder;
       await decoder.ready;
+      currentMeshopt = decoder;
       return decoder;
     })
     .catch((error) => {
@@ -194,6 +224,15 @@ type Basis = {
   KTX2File: new (bytes: Uint8Array) => KtxFile;
 };
 let basis: Promise<Basis> | undefined;
+let currentBasis: Basis | undefined;
+const failedBasis = new WeakSet<Basis>();
+function discardBasis(codec: Basis) {
+  failedBasis.add(codec);
+  if (currentBasis === codec) {
+    basis = undefined;
+    currentBasis = undefined;
+  }
+}
 async function basisCodec() {
   basis ??= readFile(
     new URL('../../codecs/basis/basis_transcoder.wasm', import.meta.url),
@@ -204,16 +243,20 @@ async function basisCodec() {
       ) as (options: { wasmBinary: Uint8Array }) => Promise<Basis>;
       const codec = await factory({ wasmBinary });
       codec.initializeBasis();
+      currentBasis = codec;
       return codec;
     })
     .catch((error) => {
       basis = undefined;
+      currentBasis = undefined;
       throw new CodecUnavailable(error);
     });
   return basis;
 }
 export async function decodeBasis(bytes: Uint8Array, limit: number) {
   const codec = await basisCodec();
+  if (failedBasis.has(codec))
+    throw new CodecUnavailable(new Error('Discarded Basis codec'));
   let file: KtxFile | undefined;
   let failure: unknown,
     failed = false,
@@ -224,8 +267,9 @@ export async function decodeBasis(bytes: Uint8Array, limit: number) {
   } catch (error) {
     failure = error;
     failed = true;
+    discardBasis(codec);
   } finally {
-    if (file)
+    if (file && !failedBasis.has(codec))
       try {
         file.close();
         file.delete();
@@ -234,10 +278,11 @@ export async function decodeBasis(bytes: Uint8Array, limit: number) {
           failure = error;
           failed = true;
         }
+        discardBasis(codec);
       }
   }
   if (failed) {
-    basis = undefined;
+    discardBasis(codec);
     throw new CodecUnavailable(failure);
   }
   return value;
