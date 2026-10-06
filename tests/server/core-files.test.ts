@@ -200,6 +200,7 @@ test('real FileService returns a signed HTTP upload and publishes verified immut
         sql`delete from file_proof.references where file_id=${ready.id}::uuid`,
       ),
     );
+    now += 300001; // Referenced files are reconsidered after the bounded cleanup defer interval.
     assert.deepEqual((await service.cleanup('unreferenced-cleanup')).deleted, [
       ready.id,
     ]);
@@ -448,6 +449,64 @@ test('real FileService returns a signed HTTP upload and publishes verified immut
         defaultFilePolicy.maxBytes,
       ),
       BlobMissing,
+    );
+    const retainedBytes = Buffer.from('bounded cleanup bytes');
+    const retainedHash = createHash('sha256')
+      .update(retainedBytes)
+      .digest('hex');
+    for (let index = 0; index < 51; index++) {
+      const cap = await db.transaction(
+        { id: 'bounded-retained-start', kind: 'request' },
+        (tx) =>
+          service.start(tx, actor, {
+            file_name: `retained-${index}`,
+            content_type: 'text/plain',
+            size: retainedBytes.length,
+            sha256: retainedHash,
+          }),
+      );
+      const uploaded = await fetch(cap.upload!.url, {
+        method: 'PUT',
+        headers: cap.upload!.headers,
+        body: retainedBytes,
+      });
+      assert.equal(uploaded.status, 204);
+      await uploaded.arrayBuffer();
+      await service.complete(
+        actor,
+        cap.upload_id,
+        'bounded-retained-ready',
+        async (tx, file) => {
+          await service.pin(tx, file.id, {
+            ownerType: 'owned-file-capability',
+            ownerId: `bounded-${index}`,
+          });
+          return file;
+        },
+      );
+    }
+    const behind = await db.transaction(
+      { id: 'bounded-disposable-start', kind: 'request' },
+      (tx) =>
+        service.start(tx, actor, {
+          file_name: 'after-retained',
+          content_type: 'text/plain',
+          size: 7,
+          sha256: createHash('sha256').update('bounded').digest('hex'),
+        }),
+    );
+    now += defaultFilePolicy.uploadSecs * 1000 + 1;
+    assert.equal(
+      (await service.cleanup('bounded-cleanup-first')).deleted.includes(
+        behind.upload_id,
+      ),
+      false,
+    );
+    assert.equal(
+      (await service.cleanup('bounded-cleanup-next')).deleted.includes(
+        behind.upload_id,
+      ),
+      true,
     );
   } finally {
     await owned.cleanup();

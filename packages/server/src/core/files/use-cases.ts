@@ -477,8 +477,9 @@ export class FileService {
           .select()
           .from(files)
           .where(
-            sql`${files.state} in ('expired','rejected','deleting') or (${files.state} in ('pending_upload','ready') and ${files.expiresAt}<=${this.context.clock.now()}::timestamptz)`,
+            sql`(${files.state} in ('expired','rejected','deleting') or (${files.state} in ('pending_upload','ready') and ${files.expiresAt}<=${this.context.clock.now()}::timestamptz)) and (${files.state}='deleting' or ${files.nextCleanupCheckAt}<=${this.context.clock.now()}::timestamptz)`,
           )
+          .orderBy(files.nextCleanupCheckAt, files.id)
           .limit(50),
     );
     const deleted: string[] = [],
@@ -490,6 +491,14 @@ export class FileService {
           { id: requestId, kind: 'background' },
           async (tx) => {
             const row = await this.load(tx, target.id);
+            await tx
+              .update(files)
+              .set({
+                nextCleanupCheckAt: new Date(
+                  Date.parse(this.context.clock.now()) + 300000,
+                ).toISOString(),
+              })
+              .where(eq(files.id, row.id));
             if ((await this.referencesIn(tx, row.id)).length) {
               retained.push(row.id);
               return undefined;
