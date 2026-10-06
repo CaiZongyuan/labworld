@@ -12,7 +12,13 @@ process.on('message', (message) => {
   if (message === 'continue-preparation') release();
 });
 process.on('SIGTERM', () => process.send?.({ stage: 'interruption-observed' }));
-await run(async (context) => {
+await run(async (context, lifecycle) => {
+  process.on('message', (message) => {
+    if (message === 'owned-stop') {
+      process.send?.({ stage: 'interruption-observed' });
+      void lifecycle.stop();
+    }
+  });
   const files = new FileService(
     context,
     config.files,

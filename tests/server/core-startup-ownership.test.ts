@@ -23,7 +23,8 @@ test(
         (yes) => yes,
         10000,
       );
-      target.child!.kill('SIGTERM');
+      if (process.platform === 'win32') target.child!.send('owned-stop');
+      else target.child!.kill('SIGTERM');
       await until(
         async () => stages.includes('interruption-observed'),
         (yes) => yes,

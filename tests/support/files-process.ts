@@ -24,7 +24,7 @@ type Request = {
   input?: UploadInput;
 };
 const config = configuration();
-await run(async (context) => {
+await run(async (context, lifecycle) => {
   const files = new FileService(
     context,
     config.files,
@@ -43,7 +43,11 @@ await run(async (context) => {
         Number(process.env.OWNED_FILE_SCHEDULER_MS),
       )
     : undefined;
-  process.on('message', async (raw: Request) => {
+  process.on('message', async (raw: Request | 'owned-stop') => {
+    if (raw === 'owned-stop') {
+      void lifecycle.stop();
+      return;
+    }
     try {
       const result = await context.db.operation(
         {

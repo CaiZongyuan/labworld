@@ -22,8 +22,12 @@ type Prepared = {
   app: ReturnType<typeof createApp>;
   stop?: () => Promise<void>;
 };
+export type RuntimeControl = { stop: () => Promise<void> };
 export async function run(
-  factory?: (context: FoundationContext) => Promise<Prepared>,
+  factory?: (
+    context: FoundationContext,
+    control: RuntimeControl,
+  ) => Promise<Prepared>,
 ) {
   const config = configuration();
   const log = (entry: Record<string, unknown>) =>
@@ -106,7 +110,11 @@ export async function run(
       return { app, stop: () => scheduler.stop() };
     };
     preparing = Promise.resolve().then(() =>
-      closing ? undefined : factory ? factory(context) : prepareCore(),
+      closing
+        ? undefined
+        : factory
+          ? factory(context, { stop: close })
+          : prepareCore(),
     );
     const prepared = await preparing;
     preparing = undefined;

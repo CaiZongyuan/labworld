@@ -218,7 +218,23 @@ test(
         8000,
       );
       const child = target.child!;
-      await target.stop();
+      if (process.platform === 'win32') {
+        child.send('owned-stop');
+        await until(
+          async () => child.exitCode,
+          (code) => code !== null,
+          5000,
+        );
+        await target.stop();
+      } else await target.stop();
+      console.log(
+        JSON.stringify({
+          event: 'shutdown.method',
+          platform: process.platform,
+          method:
+            process.platform === 'win32' ? 'owned-runtime-control' : 'SIGTERM',
+        }),
+      );
       assert.equal(
         child.signalCode,
         null,
