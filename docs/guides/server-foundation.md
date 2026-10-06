@@ -21,7 +21,7 @@ curl http://127.0.0.1:3000/api/v1/system/status
 
 两个健康响应都为 `{"status":"ok"}`。系统状态保留兼容标识 `labos-threejs-api`；`version` 来自服务包，`schema_version` 只报告实际已应用的迁移。数据库或迁移元数据不可用时，就绪与系统状态返回 503，错误代码为 `database.unavailable`。
 
-按 Ctrl+C 停止两个开发进程。开发数据保留在 `data/`。服务代码变更后重新运行 `pnpm dev`；Web 继续使用 Vite 的热更新。
+按 Ctrl+C 停止两个开发进程。开发数据保留在 `data/`。启动输出会给出开发归属回执的位置。创建者异常终止后，可运行 `pnpm dev:recover <development-owned-resources.json>`，核对并停止它登记或标记的消费者；此命令保留开发数据。服务代码变更后重新运行 `pnpm dev`；Web 继续使用 Vite 的热更新。
 
 ## 使用独立目录和端口
 

@@ -38,7 +38,8 @@
     "contracts:m1:check": "node --experimental-strip-types scripts/check-server-contracts.ts",
     "spike:server": "node --experimental-strip-types scripts/server-spike.ts",
     "server:recover": "node --experimental-strip-types scripts/server-recover.ts",
-    "check:m1": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm boundaries:check && pnpm contracts:m1:check && pnpm contracts:baseline:check && pnpm test && node scripts/perf-bundle.mjs && pnpm docs:check && pnpm docs:build"
+    "check:m1": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm boundaries:check && pnpm contracts:m1:check && pnpm contracts:baseline:check && pnpm test && node scripts/perf-bundle.mjs && pnpm docs:check && pnpm docs:build",
+    "dev:recover": "node --experimental-strip-types scripts/server-dev-recover.ts"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

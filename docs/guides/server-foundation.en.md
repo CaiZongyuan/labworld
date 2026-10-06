@@ -21,7 +21,7 @@ curl http://127.0.0.1:3000/api/v1/system/status
 
 Both health responses contain `{"status":"ok"}`. System status retains the compatible identifier `labos-threejs-api`. `version` comes from the service package. `schema_version` reports only migrations that were actually applied. If the database or migration metadata is unavailable, readiness and system status return 503 with error code `database.unavailable`.
 
-Press Ctrl+C to stop both development processes. Development data remains in `data/`. Restart `pnpm dev` after a service code change. Web continues to use Vite hot updates.
+Press Ctrl+C to stop both development processes. Development data remains in `data/`. The startup output names the development ownership ledger. After an abnormal creator termination, run `pnpm dev:recover <development-owned-resources.json>` to verify and stop only its recorded or marked consumers. This command preserves development data. Restart `pnpm dev` after a service code change. Web continues to use Vite hot updates.
 
 ## Use a separate directory and ports
 
