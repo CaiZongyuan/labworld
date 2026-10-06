@@ -42,6 +42,7 @@ export function fileRoutes(
       c.req.param('id'),
       new URL(c.req.url).searchParams,
       c.get('requestId'),
+      c.req.method,
     );
     const iterator = download.bytes[Symbol.asyncIterator]();
     const stream = new ReadableStream<Uint8Array>({

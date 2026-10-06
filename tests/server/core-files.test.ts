@@ -127,6 +127,11 @@ test('real FileService returns a signed HTTP upload and publishes verified immut
     const response = await fetch(download.url);
     assert.equal(response.status, 200);
     assert.deepEqual(Buffer.from(await response.arrayBuffer()), bytes);
+    const deniedHead=await fetch(download.url,{method:'HEAD'});
+    assert.equal(deniedHead.status,403);
+    const afterHead=await fetch(download.url);
+    assert.equal(afterHead.status,200);
+    assert.deepEqual(Buffer.from(await afterHead.arrayBuffer()),bytes);
     const second = await db.transaction(
       { id: 'same-hash-start', kind: 'request' },
       (tx) =>

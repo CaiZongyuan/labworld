@@ -151,11 +151,7 @@ export class FileService {
       expires_at: new Date(Number(expires)).toISOString(),
     };
   }
-  private checkCapability(
-    id: string,
-    method: 'PUT' | 'GET',
-    query: URLSearchParams,
-  ) {
+  private checkCapability(id: string, method: string, query: URLSearchParams) {
     const expires = query.get('expires'),
       signature = query.get('signature');
     if (
@@ -429,7 +425,7 @@ export class FileService {
   }
   async dispose(tx: DbSession, id: string) {
     const row = await this.load(tx, id);
-    if ((await this.referencesIn(tx, row.id)).length)
+    if (await this.referencesIn(tx, sql`f.id=${row.id}::uuid`))
       throw failure(409, 'in_use', 'File is still referenced');
     await tx
       .update(files)
@@ -437,14 +433,10 @@ export class FileService {
       .where(eq(files.id, row.id));
   }
   // Inspect actual foreign-key consumers generically; Core never imports Lab ownership.
-  private async referencesIn(tx: DbSession, id: string): Promise<string[]> {
-    const refs = await tx
-      .select()
-      .from(fileReferences)
-      .where(eq(fileReferences.fileId, id));
-    const retained = refs.map(
-      (reference) => `${reference.ownerType}:${reference.ownerId}`,
-    );
+  private async referencesIn(
+    tx: DbSession,
+    predicate: ReturnType<typeof sql>,
+  ): Promise<boolean> {
     const consumers = await tx.execute<{
       schema_name: string;
       table_name: string;
@@ -452,6 +444,9 @@ export class FileService {
     }>(
       sql`select distinct n.nspname as schema_name,t.relname as table_name,a.attname as column_name from pg_constraint c join pg_class t on t.oid=c.conrelid join pg_namespace n on n.oid=t.relnamespace cross join lateral generate_subscripts(c.conkey,1) g(i) join pg_attribute a on a.attrelid=c.conrelid and a.attnum=c.conkey[g.i] join pg_attribute b on b.attrelid=c.confrelid and b.attnum=c.confkey[g.i] where c.contype='f' and c.confrelid='labos_threejs_core.files'::regclass and b.attname='id'`,
     );
+    const checks = [
+      sql`exists(select 1 from labos_threejs_core.file_references r join labos_threejs_core.files f on f.id=r.file_id where ${predicate})`,
+    ];
     const owned = new Set([
       'file_references',
       'file_candidates',
@@ -463,15 +458,23 @@ export class FileService {
         owned.has(consumer.table_name)
       )
         continue;
-      const result = await tx.execute<{ present: boolean }>(
-        sql`select exists(select 1 from ${sql.identifier(consumer.schema_name)}.${sql.identifier(consumer.table_name)} where ${sql.identifier(consumer.column_name)}=${id}::uuid) as present`,
+      checks.push(
+        sql`exists(select 1 from ${sql.identifier(consumer.schema_name)}.${sql.identifier(consumer.table_name)} r join labos_threejs_core.files f on r.${sql.identifier(consumer.column_name)}=f.id where ${predicate})`,
       );
-      if (result.rows[0].present)
-        retained.push(
-          `foreign-key:${consumer.schema_name}.${consumer.table_name}`,
-        );
     }
-    return retained;
+    const result = await tx.execute<{ present: boolean }>(
+      sql`select ${sql.join(checks, sql` or `)} as present`,
+    );
+    return result.rows[0].present;
+  }
+  private async hashInUse(tx: DbSession, hash: Buffer): Promise<boolean> {
+    const live = await tx.execute<{ present: boolean }>(
+      sql`select exists(select 1 from labos_threejs_core.files f where f.sha256=${hash} and (f.state='ready' or (f.state='pending_upload' and f.expires_at>${this.context.clock.now()}::timestamptz))) or exists(select 1 from labos_threejs_core.file_candidates c join labos_threejs_core.files f on f.id=c.file_id where f.sha256=${hash} and c.state in ('copying','adopted') and f.state in ('pending_upload','ready')) or exists(select 1 from labos_threejs_core.file_references r join labos_threejs_core.files f on f.id=r.file_id where f.sha256=${hash}) as present`,
+    );
+    return (
+      live.rows[0].present ||
+      (await this.referencesIn(tx, sql`f.sha256=${hash}`))
+    );
   }
   async cleanup(
     requestId: string,
@@ -505,7 +508,7 @@ export class FileService {
                 ).toISOString(),
               })
               .where(eq(files.id, row.id));
-            if ((await this.referencesIn(tx, row.id)).length) {
+            if (await this.referencesIn(tx, sql`f.id=${row.id}::uuid`)) {
               retained.push(row.id);
               return undefined;
             }
@@ -586,8 +589,13 @@ export class FileService {
       throw failure(404, 'not_found', 'Ready file not found');
     return { ...this.capability(row, 'GET'), file: info(row) };
   }
-  async signedDownload(id: string, query: URLSearchParams, requestId: string) {
-    this.checkCapability(id, 'GET', query);
+  async signedDownload(
+    id: string,
+    query: URLSearchParams,
+    requestId: string,
+    method = 'GET',
+  ) {
+    this.checkCapability(id, method, query);
     const row = await this.read(id, requestId);
     if (row.state !== 'ready')
       throw failure(404, 'not_found', 'Ready file not found');
@@ -638,26 +646,7 @@ export class FileService {
         await this.blobs.withHash(hash, async () => {
           const keep = await this.context.db.read(
             { id: requestId, kind: 'background' },
-            async (tx) => {
-              const rows = await tx
-                .select()
-                .from(files)
-                .where(eq(files.sha256, Buffer.from(hash, 'hex')));
-              for (const row of rows) {
-                if (
-                  row.state === 'ready' ||
-                  (row.state === 'pending_upload' &&
-                    Date.parse(row.expiresAt) >
-                      Date.parse(this.context.clock.now())) ||
-                  (await this.referencesIn(tx, row.id)).length
-                )
-                  return true;
-              }
-              const live = await tx.execute<{ present: boolean }>(
-                sql`select exists(select 1 from labos_threejs_core.file_candidates c join labos_threejs_core.files f on f.id=c.file_id where f.sha256=${Buffer.from(hash, 'hex')} and c.state in ('copying','adopted') and f.state in ('pending_upload','ready')) as present`,
-              );
-              return live.rows[0].present;
-            },
+            (tx) => this.hashInUse(tx, Buffer.from(hash, 'hex')),
           );
           if (keep || entry.modifiedAt > cutoff) retained.push(entry.key);
           else {

@@ -18,11 +18,12 @@ export const version = (
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
   ) as { version: string }
 ).version;
+type Prepared = {
+  app: ReturnType<typeof createApp>;
+  stop?: () => Promise<void>;
+};
 export async function run(
-  factory?: (context: FoundationContext) => Promise<{
-    app: ReturnType<typeof createApp>;
-    stop?: () => Promise<void>;
-  }>,
+  factory?: (context: FoundationContext) => Promise<Prepared>,
 ) {
   const config = configuration();
   const log = (entry: Record<string, unknown>) =>
@@ -34,10 +35,16 @@ export async function run(
   let server: ReturnType<typeof serve> | undefined;
   let stop: (() => Promise<void>) | undefined;
   let closing: Promise<void> | undefined;
+  let preparing: Promise<Prepared | undefined> | undefined;
   async function close() {
     if (closing) return closing;
+    const admittedPreparation = preparing;
     closing = (async () => {
-      const stopping = Promise.resolve().then(() => stop?.());
+      const stopping = Promise.resolve().then(async () => {
+        const prepared = await admittedPreparation?.catch(() => undefined);
+        if (prepared) stop ??= prepared.stop;
+        await stop?.();
+      });
       stopping.catch(() => {});
       try {
         if (server) {
@@ -92,18 +99,23 @@ export async function run(
         config.directory,
       );
       await files.initialize();
+      if (closing) return undefined;
       const app = coreApp(context, version, config.auth, log, config.rate);
       fileRoutes(app, files);
       const scheduler = fileScheduler(context, files, log);
       return { app, stop: () => scheduler.stop() };
     };
-    const prepared = factory ? await factory(context) : await prepareCore();
-    stop = prepared.stop;
+    preparing = Promise.resolve().then(() =>
+      closing ? undefined : factory ? factory(context) : prepareCore(),
+    );
+    const prepared = await preparing;
+    preparing = undefined;
+    if (prepared) stop = prepared.stop;
     if (closing) {
-      await stop?.();
       await closing;
       return;
     }
+    if (!prepared) throw new Error('Server preparation was cancelled');
     server = serve(
       {
         fetch: prepared.app.fetch,
