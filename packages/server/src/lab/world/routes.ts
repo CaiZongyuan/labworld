@@ -53,6 +53,7 @@ const ordinaryErrors = {
 export function worldRoutes(
   app: ReturnType<typeof createApp>,
   world: WorldService,
+  runtimeReady: () => boolean = () => false,
 ) {
   const layoutJson = boundedJsonAt(512 * 1024);
   app.use('/api/v1/lab/labs/:lab_id/layout', async (c, next) => {
@@ -371,7 +372,7 @@ export function worldRoutes(
       },
     }),
     async (c) => {
-      c.header('x-lab-runtime', 'unavailable');
+      c.header('x-lab-runtime', runtimeReady() ? 'ready' : 'unavailable');
       const p = c.req.valid('param');
       return c.json(
         await world.entity(
@@ -552,7 +553,7 @@ export function worldRoutes(
       },
     }),
     async (c) => {
-      c.header('x-lab-runtime', 'unavailable');
+      c.header('x-lab-runtime', runtimeReady() ? 'ready' : 'unavailable');
       return c.json(
         await world.world(
           c.req.raw.headers,

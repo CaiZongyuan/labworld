@@ -19,6 +19,9 @@ import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 import { registerAssetFileOwnership } from '../../../packages/server/src/lab/assets/composition.ts';
 import { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
 import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
+import { DeviceRuntime } from '../../../packages/server/src/lab/devices/runtime.ts';
+import { DeviceService } from '../../../packages/server/src/lab/devices/use-cases.ts';
+import { deviceRoutes } from '../../../packages/server/src/lab/devices/routes.ts';
 export const version = (
   JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -118,9 +121,23 @@ export async function run(
       fileRoutes(app, files);
       registerAssetFileOwnership(files);
       assetRoutes(app, files);
-      worldRoutes(app, new WorldService(context, config.auth));
+      const devices = new DeviceRuntime(context, log);
+      await devices.initialize();
+      worldRoutes(
+        app,
+        new WorldService(context, config.auth),
+        () => devices.ready,
+      );
+      deviceRoutes(app, new DeviceService(context, config.auth, devices));
+      devices.start();
       const scheduler = fileScheduler(context, files, log);
-      return { app, stop: () => scheduler.stop() };
+      return {
+        app,
+        stop: async () => {
+          await devices.stop();
+          await scheduler.stop();
+        },
+      };
     };
     preparing = Promise.resolve().then(() =>
       closing

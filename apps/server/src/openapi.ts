@@ -6,6 +6,8 @@ import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 import type { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
 import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
 import type { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
+import { deviceRoutes } from '../../../packages/server/src/lab/devices/routes.ts';
+import type { DeviceService } from '../../../packages/server/src/lab/devices/use-cases.ts';
 // Schema generation does not open a DB. Handler context is unreachable here.
 const version = (
   JSON.parse(
@@ -20,6 +22,7 @@ const app = coreApp(
 );
 assetRoutes(app, undefined as unknown as FileService);
 worldRoutes(app, undefined as unknown as WorldService);
+deviceRoutes(app, undefined as unknown as DeviceService);
 console.log(
   JSON.stringify(
     app.getOpenAPI31Document({
