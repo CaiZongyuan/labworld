@@ -85,9 +85,11 @@ export function inspectJson(text: string): JsonInspection {
       const token = text.slice(start, position);
       if (/^[-0-9]/.test(token) && !Number.isFinite(Number(token)))
         throw new SyntaxError('JSON number out of range');
+      // Serde treats -0 as a float despite JavaScript/BigInt integer conversion.
       if (
         /^[-0-9]/.test(token) &&
-        (!/^-?(?:0|[1-9][0-9]*)$/.test(token) ||
+        (token === '-0' ||
+          !/^-?(?:0|[1-9][0-9]*)$/.test(token) ||
           BigInt(token) < -9223372036854775808n ||
           BigInt(token) > 9223372036854775807n)
       )

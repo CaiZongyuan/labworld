@@ -14,6 +14,58 @@ import { CoreHttp } from '../support/core-http.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
 import { readFile } from 'node:fs/promises';
 
+test('raw negative zero refuses a fresh layout without changes; literal integer zero saves normally', async () => {
+  const target = await new ServerProcess().create();
+  target.env.APP_ORIGIN = target.url;
+  try {
+    await target.start();
+    const client = new CoreHttp(target.url);
+    await client.register('negative-zero@example.test');
+    const lab = await client.json<PersistentLab>(
+        'POST',
+        '/api/v1/lab/labs',
+        { name: 'Negative zero wire proof' },
+        201,
+      ),
+      path = `/api/v1/lab/labs/${lab.id}`,
+      before = await client.json<LabWorld>('GET', path + '/world');
+    assert.equal(before.lab.layout_version, 0);
+    const refused = await fetch(client.url + path + '/layout', {
+      method: 'PUT',
+      headers: {
+        'content-type': 'application/json',
+        origin: client.url,
+        cookie: client.cookie!,
+        'x-csrf-token': client.csrf!,
+      },
+      body: '{"expected_version":-0,"nodes":[]}',
+    });
+    assert.equal(refused.status, 400);
+    assert.equal((await refused.json()).error.code, 'http.invalid_json');
+    assert.deepEqual(
+      await client.json<LabWorld>('GET', path + '/world'),
+      before,
+    );
+    const saved = await client.json<LabLayout>('PUT', path + '/layout', {
+      expected_version: 0,
+      nodes: [],
+    });
+    assert.equal(saved.layout_version, 1);
+    const after = await client.json<LabWorld>('GET', path + '/world');
+    assert.equal(after.lab.layout_version, 1);
+    assert.deepEqual(after.nodes, []);
+    assert.deepEqual(after.entities, []);
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'm3a.owned-ledger',
+        path: target.evidence + '/owned-resources.json',
+      }),
+    );
+    await target.cleanup();
+  }
+});
+
 test('Member and Agent share a persistent Lab; CSRF refusal preserves its world across reopen', async () => {
   const target = await new ServerProcess().create();
   target.env.APP_ORIGIN = target.url;
