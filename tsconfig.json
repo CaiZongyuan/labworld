@@ -29,7 +29,12 @@
     "vitest.config.ts",
     "playwright.config.ts",
     "tests/contract",
-    "vitest.contract.config.ts"
+    "vitest.contract.config.ts",
+    "apps/server/src",
+    "tests/server",
+    "tests/support/server-process.ts",
+    "scripts/server-*.ts",
+    "scripts/check-server-contracts.ts"
   ],
   "exclude": ["node_modules", "target", "apps/docs/.generated"]
 }

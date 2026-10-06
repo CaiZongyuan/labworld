@@ -1,0 +1,10 @@
+{
+  "private": true,
+  "name": "@labos-threejs/server-app",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@labos-threejs/server": "workspace:*",
+    "@hono/node-server": "2.1.3"
+  }
+}

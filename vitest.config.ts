@@ -11,6 +11,7 @@ export default defineConfig({
       'apps/web/src/**/*.test.{ts,tsx}',
       'apps/desktop/src/**/*.test.{ts,tsx}',
     ],
+    exclude: ['packages/server/**'],
     setupFiles: ['tests/frontend/setup.ts'],
     restoreMocks: true,
     clearMocks: true,

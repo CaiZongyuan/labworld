@@ -14,6 +14,19 @@ import { dirname, join, relative, resolve } from 'node:path';
 
 const root = resolve(import.meta.dirname, '..');
 const checking = process.argv.includes('--check');
+const source = process.argv.includes('--source')
+  ? process.argv[process.argv.indexOf('--source') + 1]
+  : 'rust';
+if (!['rust', 'server'].includes(source))
+  throw new Error('Contract source must be rust or server');
+const isolated = source === 'server';
+if (isolated && !process.argv.includes('--output'))
+  throw new Error('Partial server generation requires --output isolation');
+const outputRoot = isolated
+  ? resolve(process.argv[process.argv.indexOf('--output') + 1])
+  : root;
+if (isolated && outputRoot === root)
+  throw new Error('Partial server output cannot overwrite the complete SDK');
 const temporary = mkdtempSync(join(tmpdir(), 'labos-threejs-contracts-'));
 const files = new Map();
 
@@ -25,26 +38,32 @@ function collect(directory) {
 }
 
 try {
-  const contract = execFileSync(
-    'cargo',
-    [
-      'run',
-      '--quiet',
-      '--locked',
-      '-p',
-      'labos-threejs-api',
-      '--bin',
-      'openapi',
-    ],
-    {
-      cwd: root,
-      encoding: 'utf8',
-      env: {
-        ...process.env,
-        CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? '4',
-      },
-    },
-  );
+  const contract = isolated
+    ? execFileSync(
+        process.execPath,
+        ['--experimental-strip-types', 'apps/server/src/openapi.ts'],
+        { cwd: root, encoding: 'utf8' },
+      )
+    : execFileSync(
+        'cargo',
+        [
+          'run',
+          '--quiet',
+          '--locked',
+          '-p',
+          'labos-threejs-api',
+          '--bin',
+          'openapi',
+        ],
+        {
+          cwd: root,
+          encoding: 'utf8',
+          env: {
+            ...process.env,
+            CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? '4',
+          },
+        },
+      );
   JSON.parse(contract);
   const input = join(temporary, 'openapi.json');
   writeFileSync(input, contract);
@@ -64,7 +83,9 @@ try {
       );
       files.set(
         'packages/sdk/src/generated/types.gen.ts',
-        '// Generated contract bridge. Run pnpm generate.\nexport type * from "@labos-threejs/contracts";\n',
+        isolated
+          ? '// Isolated M1 contract bridge.\nexport type * from "../../../contracts/src/generated/types.gen";\n'
+          : '// Generated contract bridge. Run pnpm generate.\nexport type * from "@labos-threejs/contracts";\n',
       );
     } else {
       files.set(
@@ -75,7 +96,15 @@ try {
   }
   const drift = [];
   for (const [path, content] of files) {
-    const absolute = join(root, path);
+    const absolute = join(outputRoot, path);
+    if (
+      isolated &&
+      [join(root, 'packages/contracts'), join(root, 'packages/sdk')].some(
+        (directory) =>
+          absolute === directory || absolute.startsWith(directory + '/'),
+      )
+    )
+      throw new Error('Partial output overlaps official consumers');
     if (checking) {
       let current;
       try {
@@ -93,10 +122,10 @@ try {
     'packages/contracts/src/generated',
     'packages/sdk/src/generated',
   ]) {
-    const absolute = join(root, directory);
+    const absolute = join(outputRoot, directory);
     if (!existsSync(absolute)) continue;
     for (const path of collect(absolute)) {
-      const local = relative(root, path);
+      const local = relative(outputRoot, path);
       if (!files.has(local)) {
         if (checking) drift.push(local);
         else rmSync(path);
@@ -106,7 +135,7 @@ try {
   if (drift.length)
     throw new Error(`Contract drift: ${drift.join(', ')}. Run pnpm generate.`);
   console.log(
-    `${checking ? 'Verified' : 'Generated'} OpenAPI, TypeScript contracts and SDK (${files.size} files).`,
+    `${checking ? 'Verified' : 'Generated'} OpenAPI, TypeScript contracts and SDK (${files.size} files; ${source} source${isolated ? '; isolated partial output' : ''}).`,
   );
 } finally {
   rmSync(temporary, { recursive: true, force: true });

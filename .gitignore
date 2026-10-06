@@ -19,3 +19,4 @@ apps/docs/.vitepress/dist/
 
 .runtime/
 .worktrees/
+/data/
