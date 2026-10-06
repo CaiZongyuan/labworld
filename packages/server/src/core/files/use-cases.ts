@@ -21,7 +21,12 @@ import {
 import type { AuthPolicy } from '../identity/domain.ts';
 import { revalidateIn, type AccessActor } from '../api-keys/authentication.ts';
 import { databaseAudit } from '../audit/use-cases.ts';
-import { files, fileCandidates, fileReferences } from './schema.ts';
+import {
+  files,
+  fileCandidates,
+  fileReferences,
+  fileCleanupControl,
+} from './schema.ts';
 import {
   normalizeUpload,
   validContents,
@@ -86,6 +91,7 @@ export class FileService {
   directory: string;
   blobs: LocalBlobStore;
   private signingKey?: Buffer;
+  private rescanAfter = '';
   constructor(
     context: FoundationContext,
     policy: FilePolicy,
@@ -603,5 +609,96 @@ export class FileService {
       size: row.actualSize!,
       bytes: this.blobs.read(row.readyKey!),
     };
+  }
+  async rescan(
+    requestId: string,
+  ): Promise<{ removed: string[]; retained: string[] }> {
+    const entries = await this.blobs.entries(this.rescanAfter, 100);
+    const removed: string[] = [],
+      retained: string[] = [];
+    const cutoff =
+      Date.parse(this.context.clock.now()) - this.policy.uploadSecs * 1000;
+    for (const entry of entries) {
+      this.rescanAfter = entry.key;
+      if (entry.active || entry.kind === 'unknown') {
+        retained.push(entry.key);
+        continue;
+      }
+      if (entry.kind === 'temporary') {
+        if (
+          entry.modifiedAt > cutoff ||
+          !(await this.blobs.removeTemporary(entry))
+        )
+          retained.push(entry.key);
+        else removed.push(entry.key);
+        continue;
+      }
+      if (entry.kind === 'object') {
+        const hash = entry.key.split('/')[2];
+        await this.blobs.withHash(hash, async () => {
+          const keep = await this.context.db.read(
+            { id: requestId, kind: 'background' },
+            async (tx) => {
+              const rows = await tx
+                .select()
+                .from(files)
+                .where(eq(files.sha256, Buffer.from(hash, 'hex')));
+              for (const row of rows) {
+                if (
+                  row.state === 'ready' ||
+                  (row.state === 'pending_upload' &&
+                    Date.parse(row.expiresAt) >
+                      Date.parse(this.context.clock.now())) ||
+                  (await this.referencesIn(tx, row.id)).length
+                )
+                  return true;
+              }
+              const live = await tx.execute<{ present: boolean }>(
+                sql`select exists(select 1 from labos_threejs_core.file_candidates c join labos_threejs_core.files f on f.id=c.file_id where f.sha256=${Buffer.from(hash, 'hex')} and c.state in ('copying','adopted') and f.state in ('pending_upload','ready')) as present`,
+              );
+              return live.rows[0].present;
+            },
+          );
+          if (keep || entry.modifiedAt > cutoff) retained.push(entry.key);
+          else {
+            await this.blobs.remove(entry.key);
+            removed.push(entry.key);
+          }
+        });
+      } else {
+        const keep = await this.context.db.read(
+          { id: requestId, kind: 'background' },
+          async (tx) => {
+            const [row] = await tx
+              .select()
+              .from(files)
+              .where(eq(files.stagingKey, entry.key));
+            return (
+              row?.state === 'ready' ||
+              (row?.state === 'pending_upload' &&
+                Date.parse(row.expiresAt) >
+                  Date.parse(this.context.clock.now()))
+            );
+          },
+        );
+        if (keep || entry.modifiedAt > cutoff) retained.push(entry.key);
+        else {
+          await this.blobs.remove(entry.key);
+          removed.push(entry.key);
+        }
+      }
+    }
+    await this.context.db.transaction(
+      { id: requestId, kind: 'background' },
+      (tx) =>
+        tx
+          .insert(fileCleanupControl)
+          .values({ id: 1, lastRescanAt: this.context.clock.now() })
+          .onConflictDoUpdate({
+            target: fileCleanupControl.id,
+            set: { lastRescanAt: this.context.clock.now() },
+          }),
+    );
+    return { removed, retained };
   }
 }

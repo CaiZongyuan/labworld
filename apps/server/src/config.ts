@@ -1,5 +1,6 @@
 import { resolve } from 'node:path';
 import { defaultRateOptions } from '../../../packages/server/src/core/rate-limit/domain.ts';
+import { defaultFilePolicy } from '../../../packages/server/src/core/files/domain.ts';
 export function configuration(env: NodeJS.ProcessEnv = process.env) {
   const bind = env.APP_BIND?.match(/^(.*):(\d+)$/);
   const hostname = env.LAB_WORD_HOST ?? bind?.[1] ?? '127.0.0.1';
@@ -69,10 +70,39 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
   for (const policy of ['registration', 'authentication', 'resource'] as const)
     if (rate[`${policy}Fallback`] > rate[policy])
       throw new Error(`${policy} overflow capacity exceeds its primary limit`);
+  const files = { ...defaultFilePolicy };
+  for (const [name, key, max] of [
+    ['FILE_MAX_BYTES', 'maxBytes', 104857600],
+    ['UPLOAD_SESSION_SECS', 'uploadSecs', 3600],
+    ['DOWNLOAD_URL_SECS', 'downloadSecs', 300],
+  ] as const) {
+    const value = Number(env[name] ?? files[key]);
+    if (!Number.isSafeInteger(value) || value < 1 || value > max)
+      throw new Error(`${name} is invalid`);
+    files[key] = value;
+  }
+  const fileOrigin = new URL(env.FILE_PUBLIC_ORIGIN ?? origin.origin);
+  if (
+    !(
+      fileOrigin.protocol === 'https:' ||
+      (fileOrigin.protocol === 'http:' &&
+        ['localhost', '127.0.0.1', '[::1]'].includes(fileOrigin.hostname))
+    ) ||
+    fileOrigin.pathname !== '/' ||
+    fileOrigin.search ||
+    fileOrigin.hash ||
+    fileOrigin.username ||
+    fileOrigin.password
+  )
+    throw new Error(
+      'FILE_PUBLIC_ORIGIN must be an HTTPS origin or loopback HTTP origin',
+    );
   return {
     hostname,
     port,
     rate,
+    files,
+    fileOrigin: fileOrigin.origin,
     auth: {
       origin: origin.origin,
       absoluteSecs,

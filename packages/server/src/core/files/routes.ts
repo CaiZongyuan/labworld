@@ -1,5 +1,6 @@
 import type { createApp } from '../system/routes.ts';
 import type { FileService } from './use-cases.ts';
+import { cors } from 'hono/cors';
 async function* requestBytes(body: ReadableStream<Uint8Array> | null) {
   if (!body) return;
   const reader = body.getReader();
@@ -18,6 +19,14 @@ export function fileRoutes(
   app: ReturnType<typeof createApp>,
   files: FileService,
 ) {
+  app.use(
+    '/objects/*',
+    cors({
+      origin: files.auth.origin,
+      allowMethods: ['GET', 'PUT'],
+      allowHeaders: ['Content-Type'],
+    }),
+  );
   app.put('/objects/:id', async (c) => {
     await files.upload(
       c.req.param('id'),

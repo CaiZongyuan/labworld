@@ -10,6 +10,9 @@ import { createApp } from '../../../packages/server/src/core/system/routes.ts';
 import { coreApp } from './app.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
 import { configuration } from './config.ts';
+import { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
+import { fileRoutes } from '../../../packages/server/src/core/files/routes.ts';
+import { fileScheduler } from '../../../packages/server/src/core/files/scheduler.ts';
 export const version = (
   JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -34,20 +37,30 @@ export async function run(
   async function close() {
     if (closing) return closing;
     closing = (async () => {
-      await stop?.();
-      if (server) {
-        if ('closeIdleConnections' in server) server.closeIdleConnections();
-        const deadline = setTimeout(() => {
-          if (server && 'closeAllConnections' in server)
-            server.closeAllConnections();
-        }, 4000);
-        await new Promise<void>((resolve) => server!.close(() => resolve()));
-        clearTimeout(deadline);
-      }
+      const stopping = Promise.resolve().then(() => stop?.());
+      stopping.catch(() => {});
       try {
-        await db.close();
+        if (server) {
+          if ('closeIdleConnections' in server) server.closeIdleConnections();
+          const deadline = setTimeout(() => {
+            if (server && 'closeAllConnections' in server)
+              server.closeAllConnections();
+          }, 4000);
+          try {
+            await new Promise<void>((resolve) =>
+              server!.close(() => resolve()),
+            );
+          } finally {
+            clearTimeout(deadline);
+          }
+        }
+        await stopping;
       } finally {
-        await lease.release();
+        try {
+          await db.close();
+        } finally {
+          await lease.release();
+        }
       }
     })();
     return closing;
@@ -70,9 +83,21 @@ export async function run(
       return;
     }
     const context = { db, clock: { now: () => new Date().toISOString() } };
-    const prepared = factory
-      ? await factory(context)
-      : { app: coreApp(context, version, config.auth, log, config.rate) };
+    const prepareCore = async () => {
+      const files = new FileService(
+        context,
+        config.files,
+        config.auth,
+        config.fileOrigin,
+        config.directory,
+      );
+      await files.initialize();
+      const app = coreApp(context, version, config.auth, log, config.rate);
+      fileRoutes(app, files);
+      const scheduler = fileScheduler(context, files, log);
+      return { app, stop: () => scheduler.stop() };
+    };
+    const prepared = factory ? await factory(context) : await prepareCore();
     stop = prepared.stop;
     if (closing) {
       await stop?.();

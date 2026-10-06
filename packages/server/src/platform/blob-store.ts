@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { open, mkdir, rename, rm, stat, link } from 'node:fs/promises';
+import { open, mkdir, rename, rm, stat, link, readdir } from 'node:fs/promises';
 import { join, dirname } from 'node:path';
 import type { BlobStore } from './context.ts';
 
@@ -13,6 +13,12 @@ export type BlobDigest = {
   sha256: string;
   size: number;
   prefix: Buffer;
+};
+export type BlobEntry = {
+  key: string;
+  kind: 'staging' | 'object' | 'temporary' | 'unknown';
+  modifiedAt: number;
+  active: boolean;
 };
 export class LocalBlobStore implements BlobStore {
   directory: string;
@@ -110,9 +116,12 @@ export class LocalBlobStore implements BlobStore {
         await this.syncDirectory(dirname(destination));
         return { key, sha256, size, prefix };
       } finally {
-        await handle?.close();
-        await rm(temporary, { force: true });
-        this.writing.delete(temporary);
+        try {
+          await handle?.close();
+          await rm(temporary, { force: true });
+        } finally {
+          this.writing.delete(temporary);
+        }
       }
     });
   }
@@ -155,12 +164,17 @@ export class LocalBlobStore implements BlobStore {
       if (!(error instanceof BlobMissing)) throw error;
     }
     const temporary = join(dirname(destination), `${randomUUID()}.part`);
+    this.writing.add(temporary);
     try {
       await link(this.path(stagedKey), temporary);
       await rename(temporary, destination);
       await this.syncDirectory(dirname(destination));
     } finally {
-      await rm(temporary, { force: true });
+      try {
+        await rm(temporary, { force: true });
+      } finally {
+        this.writing.delete(temporary);
+      }
     }
     return key;
   }
@@ -168,17 +182,85 @@ export class LocalBlobStore implements BlobStore {
     yield* createReadStream(this.path(key));
   }
   async remove(key: string) {
-    await rm(this.path(key), { force: true });
-    try {
-      await this.syncDirectory(dirname(this.path(key)));
-    } catch (error) {
-      if (!(
-        error instanceof Error &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ))
-        throw error;
+    await this.withLock(key, async () => {
+      await rm(this.path(key), { force: true });
+      try {
+        await this.syncDirectory(dirname(this.path(key)));
+      } catch (error) {
+        if (!(
+          error instanceof Error &&
+          'code' in error &&
+          error.code === 'ENOENT'
+        ))
+          throw error;
+      }
+    });
+  }
+  async entries(after: string, limit: number): Promise<BlobEntry[]> {
+    const keys: string[] = [];
+    for (const folder of ['staging', 'temporary'])
+      for (const entry of await readdir(join(this.directory, folder), {
+        withFileTypes: true,
+      }))
+        keys.push(`${folder}/${entry.name}`);
+    for (const prefix of await readdir(join(this.directory, 'objects'), {
+      withFileTypes: true,
+    })) {
+      if (prefix.isDirectory() && /^[0-9a-f]{2}$/.test(prefix.name))
+        for (const entry of await readdir(
+          join(this.directory, 'objects', prefix.name),
+          { withFileTypes: true },
+        ))
+          keys.push(`objects/${prefix.name}/${entry.name}`);
+      else keys.push(`objects/${prefix.name}`);
     }
+    keys.sort();
+    let selected = keys.filter((key) => key > after).slice(0, limit);
+    if (!selected.length && after) selected = keys.slice(0, limit);
+    const entries: BlobEntry[] = [];
+    const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+    for (const key of selected) {
+      const path = join(this.directory, key);
+      let details: Awaited<ReturnType<typeof stat>>;
+      try {
+        details = await stat(path);
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          'code' in error &&
+          error.code === 'ENOENT'
+        )
+          continue;
+        throw error;
+      }
+      const object = /^objects\/([0-9a-f]{2})\/([0-9a-f]{64})$/.exec(key);
+      const kind = !details.isFile()
+        ? 'unknown'
+        : new RegExp(`^staging/${uuid}$`).test(key)
+          ? 'staging'
+          : new RegExp(`^(temporary|objects/[0-9a-f]{2})/${uuid}\\.part$`).test(
+                key,
+              )
+            ? 'temporary'
+            : object && object[1] === object[2].slice(0, 2)
+              ? 'object'
+              : 'unknown';
+      entries.push({
+        key,
+        kind,
+        modifiedAt: details.mtimeMs,
+        active: this.writing.has(path),
+      });
+    }
+    return entries;
+  }
+  async removeTemporary(entry: BlobEntry) {
+    if (entry.kind !== 'temporary')
+      throw new BlobChanged('Content is not a managed temporary file');
+    const path = join(this.directory, entry.key);
+    if (this.writing.has(path)) return false;
+    await rm(path, { force: true });
+    return true;
   }
   private async syncDirectory(directory: string) {
     if (process.platform === 'win32') return; // Windows does not open directories for fsync.

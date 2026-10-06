@@ -508,6 +508,34 @@ test('real FileService returns a signed HTTP upload and publishes verified immut
       ),
       true,
     );
+    const orphanBytes = Buffer.from(
+      'owned orphan after interrupted publication',
+    );
+    const orphan = await service.blobs.stage(
+      (async function* () {
+        yield orphanBytes;
+      })(),
+      defaultFilePolicy.maxBytes,
+    );
+    const orphanObject = await service.blobs.withHash(orphan.sha256, () =>
+      service.blobs.adopt(orphan.key, orphan.sha256),
+    );
+    const rescanned = await service.rescan('orphan-rescan');
+    assert.equal(rescanned.removed.includes(orphan.key), true);
+    assert.equal(rescanned.removed.includes(orphanObject), true);
+    await assert.rejects(
+      service.blobs.inspect(orphanObject, defaultFilePolicy.maxBytes),
+      BlobMissing,
+    );
+    assert.equal(
+      (
+        await service.blobs.inspect(
+          `objects/${retainedHash.slice(0, 2)}/${retainedHash}`,
+          defaultFilePolicy.maxBytes,
+        )
+      ).sha256,
+      retainedHash,
+    );
   } finally {
     await owned.cleanup();
   }

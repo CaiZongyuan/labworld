@@ -69,6 +69,7 @@ export class ServerProcess {
   entry = 'apps/server/src/main.ts';
   args: string[] = [];
   input?: string;
+  ipc = false;
   env: Record<string, string> = {};
   // Harness fault seam: lets the owned creator proof exercise slow Windows identity lookup.
   beforeIdentity?: () => Promise<void>;
@@ -179,7 +180,14 @@ export class ServerProcess {
             LAB_WORD_DATA_DIR: this.directory,
             ...this.env,
           },
-          stdio: [this.input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
+          stdio: this.ipc
+            ? [
+                this.input === undefined ? 'ignore' : 'pipe',
+                'pipe',
+                'pipe',
+                'ipc',
+              ]
+            : [this.input === undefined ? 'ignore' : 'pipe', 'pipe', 'pipe'],
           detached: this.detachedChildForRecoveryProof,
         },
       );
