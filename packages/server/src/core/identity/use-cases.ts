@@ -214,16 +214,37 @@ export async function register(
     );
   }
 }
+export async function sessionCredentialIn(
+  tx: DbSession,
+  policy: AuthPolicy,
+  value: string,
+): Promise<{ user: CurrentUser; credentialId: string }> {
+  const result = await tx.execute<CurrentUser & { credential_id: string }>(
+    sql`with active_session as (update labos_threejs_core.sessions set last_seen_at=now() where secret_hash=${secretHash(value)} and not revoked and expires_at>now() and last_seen_at>now()-make_interval(secs=>${policy.idleSecs}) returning id,user_id) select u.id::text,u.email,u.display_name,m.role,s.id::text as credential_id from active_session s join labos_threejs_core.users u on u.id=s.user_id join labos_threejs_core.memberships m on m.user_id=u.id and m.active`,
+  );
+  if (!result.rows[0]) throw unauthorized();
+  const { credential_id, ...user } = result.rows[0];
+  return { user, credentialId: credential_id };
+}
+// Final publication/subscription checks must not refresh idle expiry.
+export async function revalidateSessionIn(
+  tx: DbSession,
+  policy: AuthPolicy,
+  credentialId: string,
+): Promise<CurrentUser> {
+  const result = await tx.execute<CurrentUser>(
+    sql`select u.id::text,u.email,u.display_name,m.role from labos_threejs_core.sessions s join labos_threejs_core.users u on u.id=s.user_id join labos_threejs_core.memberships m on m.user_id=u.id and m.active where s.id=${credentialId}::uuid and not s.revoked and s.expires_at>now() and s.last_seen_at>now()-make_interval(secs=>${policy.idleSecs})`,
+  );
+  if (!result.rows[0]) throw unauthorized();
+  return result.rows[0];
+}
 export async function sessionIn(
   tx: DbSession,
   policy: AuthPolicy,
   value: string,
 ): Promise<CurrentSession> {
-  const result = await tx.execute<CurrentUser>(
-    sql`with active_session as (update labos_threejs_core.sessions set last_seen_at=now() where secret_hash=${secretHash(value)} and not revoked and expires_at>now() and last_seen_at>now()-make_interval(secs=>${policy.idleSecs}) returning user_id) select u.id::text,u.email,u.display_name,m.role from active_session s join labos_threejs_core.users u on u.id=s.user_id join labos_threejs_core.memberships m on m.user_id=u.id and m.active`,
-  );
-  if (!result.rows[0]) throw unauthorized();
-  return { user: result.rows[0], csrf_token: csrfToken(value) };
+  const actor = await sessionCredentialIn(tx, policy, value);
+  return { user: actor.user, csrf_token: csrfToken(value) };
 }
 export async function currentSession(
   context: FoundationContext,
