@@ -259,7 +259,8 @@ export async function run(
           schema_version: schemaVersion,
         }),
     );
-    server.on('error', () => {
+    server.on('error', (error) => {
+      log({ event: 'server.start_failed', message: error.message });
       void close()
         .catch((error) =>
           log({ event: 'server.close_failed', message: error.message }),
