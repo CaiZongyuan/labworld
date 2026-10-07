@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { showRunHistory } from './lab-desktop';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -123,6 +124,7 @@ test('members and Agents query real history, recover a failed page and clean exp
     const originalCommand = await get(
       `${path}/commands/${completed.task.command_id}`,
     );
+    await showRunHistory(page);
     const history = page.getByRole('region', { name: '运行历史' });
     await history.getByRole('tab', { name: '任务', exact: true }).click();
     await expect(history.getByText('已完成', { exact: true })).toBeVisible();

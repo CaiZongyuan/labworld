@@ -28,6 +28,15 @@ export default class SafeBrowserReporter {
       file: relative(root, test.location.file),
       line: test.location.line,
       errorCount: result.errors.length,
+      failureLocations: result.errors.flatMap((error) => {
+        const pattern =
+          /(?:\/|\\)(tests[\\/]e2e[\\/][A-Za-z0-9_.-]+):([0-9]+):([0-9]+)/g;
+        return [...(error.stack ?? '').matchAll(pattern)].map((match) => ({
+          file: match[1].replaceAll('\\', '/'),
+          line: Number(match[2]),
+          column: Number(match[3]),
+        }));
+      }),
     };
     this.tests.push(entry);
     console.log(

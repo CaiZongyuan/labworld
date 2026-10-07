@@ -6,6 +6,9 @@ import {
 } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { showObjectDirectory } from './lab-desktop';
+
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
 
@@ -51,7 +54,8 @@ test('WebGL unavailability keeps its recovery message clear of the canvas tools'
       configurable: true,
     }),
   );
-  await page.setViewportSize({ width: 390, height: 844 });
+  if (!desktopMigration)
+    await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/register');
   await page
     .getByLabel('邮箱', { exact: true })
@@ -83,7 +87,7 @@ test('WebGL unavailability keeps its recovery message clear of the canvas tools'
     toolBounds!.y + toolBounds!.height,
   );
   await page.screenshot({
-    path: 'test-results/lab-foundation/t02-webgl-unavailable-mobile.png',
+    path: `test-results/lab-foundation/t02-webgl-unavailable-${desktopMigration ? 'desktop' : 'mobile'}.png`,
     fullPage: true,
   });
 });
@@ -149,6 +153,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   await expect
     .poll(async () => Number((await triangles.innerText()).replaceAll(',', '')))
     .toBeGreaterThanOrEqual(24);
+  await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
   await expectCanvasPixels(page);
   await page.getByRole('button', { name: '选择 Cube A', exact: true }).click();
   const inspector = page.getByRole('complementary', { name: '对象信息' });
@@ -258,6 +263,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   expect(tutorial.entity_ids).toHaveLength(2);
   await page.reload();
   await page.getByLabel('打开 Lab').selectOption(labId);
+  await showObjectDirectory(page);
   await expect(
     page.getByRole('button', { name: '选择 Robot A', exact: true }),
   ).toBeVisible();
@@ -299,6 +305,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     .fill('world-browser-test-password');
   await other.getByRole('button', { name: '创建账号' }).click();
   await other.getByLabel('打开 Lab').selectOption(labId);
+  await showObjectDirectory(other);
   await other.getByRole('button', { name: '选择 Cube A', exact: true }).click();
   const otherInspector = other.getByRole('complementary', { name: '对象信息' });
   await expect(
@@ -340,6 +347,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     other.getByRole('heading', { name: 'Empty resource lab', exact: true }),
   ).toBeVisible();
   const emptyId = await other.getByLabel('打开 Lab').inputValue();
+  await other.getByRole('button', { name: '性能', exact: true }).click();
   await expect
     .poll(async () => Number(await otherGeometries.innerText()))
     .toBeLessThan(Number(loadedCount));
@@ -350,6 +358,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
       'aria-busy',
       'false',
     );
+    await other.getByRole('button', { name: '性能', exact: true }).click();
     await expect
       .poll(async () => Number(await otherGeometries.innerText()))
       .toBeGreaterThan(baseline);
@@ -357,17 +366,21 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
       .poll(async () => Number(await otherGeometries.innerText()))
       .toBeLessThanOrEqual(Number(loadedCount));
     await other.getByLabel('打开 Lab').selectOption(emptyId);
+    await other.getByRole('button', { name: '性能', exact: true }).click();
     await expect(otherGeometries).toHaveText(emptyCount);
   }
   await other.getByLabel('打开 Lab').selectOption(labId);
+  await showObjectDirectory(other);
   await other.getByRole('button', { name: '选择 Cube A', exact: true }).click();
-  await other.setViewportSize({ width: 390, height: 844 });
+  if (!desktopMigration)
+    await other.setViewportSize({ width: 390, height: 844 });
   await other.getByRole('button', { name: 'English', exact: true }).click();
   await other.evaluate(() =>
     localStorage.setItem('labos-threejs.theme', 'dark'),
   );
   await other.reload();
   await other.getByLabel('Open Lab').selectOption(labId);
+  await showObjectDirectory(other);
   await other
     .getByRole('button', { name: 'Select Cube A', exact: true })
     .click();
@@ -378,7 +391,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     ),
   ).toBe(true);
   await other.screenshot({
-    path: 'test-results/lab-foundation/t02-world-mobile-dark-en.png',
+    path: `test-results/lab-foundation/t02-world-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
     fullPage: true,
   });
   await other
@@ -386,7 +399,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     .getByText(firstId, { exact: true })
     .scrollIntoViewIfNeeded();
   await other.screenshot({
-    path: 'test-results/lab-foundation/t02-inspector-mobile-dark-en.png',
+    path: `test-results/lab-foundation/t02-inspector-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
     fullPage: true,
   });
   await second.close();
@@ -620,16 +633,20 @@ test('persistent Draco, Meshopt and Basis models render at their original scale 
       (await page.locator('canvas').screenshot()).equals(before),
     )
     .toBe(false);
-  await page.setViewportSize({ width: 390, height: 844 });
+  if (!desktopMigration)
+    await page.setViewportSize({ width: 390, height: 844 });
   await expectCanvasPixels(page);
   await page.screenshot({
-    path: 'test-results/lab-foundation/t01-viewer-mobile.png',
+    path: `test-results/lab-foundation/t01-viewer-${desktopMigration ? 'desktop' : 'mobile'}.png`,
     fullPage: true,
   });
-  await page.getByRole('button', { name: '打开导航菜单', exact: true }).click();
+  if (!desktopMigration)
+    await page
+      .getByRole('button', { name: '打开导航菜单', exact: true })
+      .click();
   await page.getByRole('link', { name: '资产库', exact: true }).click();
   await expect(page.getByText('冷冻离心机', { exact: true })).toBeVisible();
-  for (const width of [390, 320]) {
+  for (const width of desktopMigration ? [1440] : [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     expect(
       await page.evaluate(

@@ -1,3 +1,4 @@
+import { showObjectDirectory } from './lab-desktop';
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
@@ -99,6 +100,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
   const registered = await (
     await page.request.get(`/api/v1/lab/labs/${lab}/world`)
   ).json();
+  await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
   await page.getByRole('button', { name: '移动', exact: true }).click();
   await expect
     .poll(async () => (await redHandle(page)).count)
@@ -242,6 +244,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
     await other
       .getByRole('combobox', { name: '打开 Lab', exact: true })
       .selectOption(lab);
+    await showObjectDirectory(other);
     await other
       .getByRole('button', { name: '选择 Bench', exact: true })
       .click();
@@ -278,6 +281,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
       '已保存',
     );
     await other.reload();
+    await showObjectDirectory(other);
     await other
       .getByRole('button', { name: '选择 Beaker', exact: true })
       .click();

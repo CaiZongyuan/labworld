@@ -36,7 +36,9 @@ test('two browsers register, refresh, log out and sign in with isolated sessions
       // The fresh-member role badge and the sign-out control live on the
       // generic home view.
       await page.getByRole('link', { name: '首页' }).click();
-      await expect(page.getByText('成员', { exact: true })).toBeVisible();
+      await expect(
+        page.getByRole('main').getByText('成员', { exact: true }),
+      ).toBeVisible();
       await page.getByRole('button', { name: '退出登录' }).click();
       await expect(
         page.getByRole('link', { name: '登录', exact: true }),

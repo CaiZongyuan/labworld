@@ -1,3 +1,4 @@
+import { showObjectDirectory } from './lab-desktop';
 import {
   expect,
   test,
@@ -160,6 +161,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     expect((await retry.json()).id).toBe(command.id);
   }
   try {
+    await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
     for (const id of ids) await apply(id, 'light.set_power', { on: false });
     await page
       .getByRole('button', { name: '选择 Light A', exact: true })
@@ -218,6 +220,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     await reopened
       .getByRole('combobox', { name: '打开 Lab' })
       .selectOption(lab);
+    await showObjectDirectory(reopened);
     await reopened
       .getByRole('button', { name: '选择 Light B', exact: true })
       .click();
@@ -279,6 +282,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     await reopened
       .getByRole('combobox', { name: 'Open Lab' })
       .selectOption(lab);
+    await showObjectDirectory(reopened);
     await reopened
       .getByRole('button', { name: 'Select Light B', exact: true })
       .click();

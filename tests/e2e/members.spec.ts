@@ -43,7 +43,9 @@ test('an Owner manages a member and disabling invalidates the original browser s
     await member.getByRole('button', { name: '保存成员' }).click();
     await expect(member.getByRole('status')).toHaveText('成员已保存');
     await colleague.reload();
-    await expect(colleague.getByText('管理员', { exact: true })).toBeVisible();
+    await expect(
+      colleague.getByRole('main').getByText('管理员', { exact: true }),
+    ).toBeVisible();
     await member.getByRole('switch', { name: '启用成员' }).click();
     await member.getByRole('button', { name: '保存成员' }).click();
     await expect(member.getByText('已停用')).toBeVisible();

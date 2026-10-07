@@ -1,3 +1,4 @@
+import { showObjectDirectory } from './lab-desktop';
 import {
   expect,
   test,
@@ -180,6 +181,7 @@ test('backend temperatures stay independent across browser closure, source expir
       await reopened
         .getByRole('combobox', { name: '打开 Lab' })
         .selectOption(lab);
+      await showObjectDirectory(reopened);
       await reopened
         .getByRole('button', { name: '选择 Sensor A', exact: true })
         .click();

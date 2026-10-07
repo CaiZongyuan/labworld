@@ -6,6 +6,7 @@ import {
 } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { showObjectDirectory } from './lab-desktop';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -197,6 +198,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
       await reopened
         .getByRole('combobox', { name: '打开 Lab' })
         .selectOption(lab);
+      await showObjectDirectory(reopened);
       await reopened
         .getByRole('button', { name: '选择 Centrifuge A', exact: true })
         .click();

@@ -301,10 +301,11 @@ test('real World structural updates preserve an orbited camera until explicit Fi
     await page.getByRole('button', { name: '关闭对象目录' }).click();
     await verify('archived-node');
     const loadedGlb = page.waitForResponse(async (response) => {
+      const url = new URL(response.url());
       if (
         response.request().resourceType() !== 'fetch' ||
-        new URL(response.url()).origin ===
-          new URL(process.env.E2E_WEB_URL!).origin
+        url.origin !== new URL(process.env.E2E_WEB_URL!).origin ||
+        !url.pathname.startsWith('/objects/')
       )
         return false;
       const bytes = await response.body();

@@ -1,3 +1,4 @@
+import { showObjectDirectory } from './lab-desktop';
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import {
@@ -89,6 +90,7 @@ test('two browsers and an Agent recover the same world and revoked Agent access 
     await observer
       .getByRole('combobox', { name: '打开 Lab' })
       .selectOption(lab);
+    await showObjectDirectory(observer);
     await observer
       .getByRole('button', { name: '选择 Shared light', exact: true })
       .click();
@@ -121,6 +123,20 @@ test('two browsers and an Agent recover the same world and revoked Agent access 
     await second.setOffline(false);
     await expect(other).not.toBeChecked();
     await expect(observer.getByText('实时同步', { exact: true })).toBeVisible();
+    // The active 1 Hz source can advance between separate snapshot calls.
+    // Stop and observe the Run before requiring exact multi-client equality.
+    const entityId = agentWorld!.entities[0].id;
+    await inspector
+      .getByRole('button', { name: '停止程序', exact: true })
+      .click();
+    await expect
+      .poll(async () => {
+        const entity = await (
+          await page.request.get(`${path}/entities/${entityId}`)
+        ).json();
+        return entity.program_run?.status;
+      })
+      .toBe('stopped');
     const authoritative = await (
       await page.request.get(`${path}/world`)
     ).json();
