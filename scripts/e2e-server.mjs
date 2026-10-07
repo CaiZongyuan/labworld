@@ -94,7 +94,7 @@ async function recordProfileClosure() {
         service.state !== 'cleaned' ||
         service.directory ||
         service.processes?.length ||
-        service.consumers?.length ||
+        service.inProcessConsumers?.length ||
         service.launchIntent
       )
         throw new Error('Browser service cleanup is incomplete');

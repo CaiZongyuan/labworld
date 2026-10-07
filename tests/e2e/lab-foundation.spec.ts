@@ -293,42 +293,55 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
       if (!observerReady)
         await (async () => {
           const assertionEndedAtMs = performance.now() - readinessStart;
-          const dom = await observer.evaluate(() => {
-            const root = document.querySelector('.world-page');
-            const visible = (element: Element | null) =>
-              !!element &&
-              element.getClientRects().length > 0 &&
-              getComputedStyle(element).visibility === 'visible';
-            const canvas = root?.querySelector('canvas');
-            const version = root?.querySelector(
-              '[aria-label="世界版本"]',
-            )?.textContent;
-            const selected = (
-              root?.querySelector(
-                'select[aria-label="打开 Lab"]',
-              ) as HTMLSelectElement | null
-            )?.value;
-            return {
-              busy: root?.getAttribute('aria-busy'),
-              selectedLab: /^[0-9a-f-]{36}$/i.test(selected ?? '')
-                ? selected
-                : null,
-              worldLabel: /^W\d+$/.test(version ?? '') ? version : null,
-              headingVisible: visible(root?.querySelector('h1') ?? null),
-              loadingVisible: visible(
-                root?.querySelector('.lab-loading') ?? null,
-              ),
-              renderErrorVisible: visible(
-                root?.querySelector('.world-render-error') ?? null,
-              ),
-              canvas: {
-                count: root?.querySelectorAll('canvas').length ?? 0,
-                visible: visible(canvas ?? null),
-                width: canvas?.width,
-                height: canvas?.height,
-              },
-            };
-          });
+          let captureTimer: ReturnType<typeof setTimeout> | undefined;
+          const dom = await Promise.race([
+            observer
+              .locator('.world-page')
+              .evaluate(
+                (root) => {
+                  const visible = (element: Element | null) =>
+                    !!element &&
+                    element.getClientRects().length > 0 &&
+                    getComputedStyle(element).visibility === 'visible';
+                  const canvas = root?.querySelector('canvas');
+                  const version = root?.querySelector(
+                    '[aria-label="世界版本"]',
+                  )?.textContent;
+                  const selected = (
+                    root?.querySelector(
+                      'select[aria-label="打开 Lab"]',
+                    ) as HTMLSelectElement | null
+                  )?.value;
+                  return {
+                    busy: root?.getAttribute('aria-busy'),
+                    selectedLab: /^[0-9a-f-]{36}$/i.test(selected ?? '')
+                      ? selected
+                      : null,
+                    worldLabel: /^W\d+$/.test(version ?? '') ? version : null,
+                    headingVisible: visible(root?.querySelector('h1') ?? null),
+                    loadingVisible: visible(
+                      root?.querySelector('.lab-loading') ?? null,
+                    ),
+                    renderErrorVisible: visible(
+                      root?.querySelector('.world-render-error') ?? null,
+                    ),
+                    canvas: {
+                      count: root?.querySelectorAll('canvas').length ?? 0,
+                      visible: visible(canvas ?? null),
+                      width: canvas?.width,
+                      height: canvas?.height,
+                    },
+                  };
+                },
+                undefined,
+                { timeout: 250 },
+              )
+              .catch(() => null),
+            new Promise<null>((resolve) => {
+              captureTimer = setTimeout(() => resolve(null), 250);
+            }),
+          ]);
+          clearTimeout(captureTimer);
           writeFileSync(
             `${process.env.LAB_NODE_EVIDENCE}/observer-readiness.json`,
             JSON.stringify({
