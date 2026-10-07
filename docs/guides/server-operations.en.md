@@ -27,7 +27,7 @@ pnpm server restore --archive .scratch/archives/lab-backup
 pnpm dev
 ```
 
-Success reports `status: restored`. Restore rejects linked directories at each archive path component. It checks format, paths and every file, then verifies the size and SHA256 of the actual staged copies. It checks database history and ready references in owned staging. It acquires destination exclusion and publishes only after validation. Nonempty destinations, wrong content and unsupported history fail. Correct the input or select a new directory, then retry.
+Success reports `status: restored`. Restore rejects linked directories at each archive path component. It checks format, paths and every file, then verifies the size and SHA256 of the actual staged copies. It checks database history and ready references in owned staging. It reserves destination exclusion without creating the destination and publishes the validated directory with one rename. A failed publication keeps a new destination absent or recreates the original empty directory. Nonempty destinations, wrong content and unsupported history fail. Correct the input or select a new directory, then retry.
 
 Log in with the original account. Open its Lab and download the asset. Identity and bytes remain the same. Retry an acknowledged Command with its original key and parameters to receive the original result. Startup interrupts old Runs. It does not replay Commands or resume long Tasks. A fresh signer issues new byte URLs.
 

@@ -7,23 +7,17 @@ import {
   mkdtemp,
   readdir,
   readFile,
-  realpath,
   rename,
   rmdir,
   rm,
   writeFile,
 } from 'node:fs/promises';
-import {
-  basename,
-  dirname,
-  isAbsolute,
-  join,
-  relative,
-  resolve,
-  sep,
-} from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { Database } from '../../../packages/server/src/platform/db/index.ts';
-import { DirectoryLease } from '../../../packages/server/src/platform/db/lease.ts';
+import {
+  canonicalPath,
+  DirectoryLease,
+} from '../../../packages/server/src/platform/db/lease.ts';
 import { copyDatabaseSnapshot } from '../../../packages/server/src/platform/db/snapshot.ts';
 import {
   readyArchiveFiles,
@@ -91,30 +85,23 @@ async function entries(
 }
 async function absentOrEmpty(path: string) {
   try {
-    if (!(await lstat(path)).isDirectory() || (await readdir(path)).length)
+    const info = await lstat(path);
+    if (!info.isDirectory() || (await readdir(path)).length)
       throw new Error('Destination must be new or empty');
+    return info;
   } catch (error) {
     if (!(error instanceof Error && 'code' in error && error.code === 'ENOENT'))
       throw error;
   }
 }
-async function canonicalPath(path: string) {
-  let ancestor = resolve(path);
-  const suffix: string[] = [];
-  while (true) {
-    try {
-      return resolve(await realpath(ancestor), ...suffix);
-    } catch (error) {
-      if (!(
-        error instanceof Error &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ))
-        throw error;
-      if (dirname(ancestor) === ancestor) throw error;
-      suffix.unshift(basename(ancestor));
-      ancestor = dirname(ancestor);
-    }
+async function publish(staging: string, destination: string) {
+  const empty = await absentOrEmpty(destination);
+  if (empty) await rmdir(destination);
+  try {
+    await rename(staging, destination);
+  } catch (error) {
+    if (empty) await mkdir(destination, { mode: empty.mode });
+    throw error;
   }
 }
 function within(root: string, path: string) {
@@ -144,7 +131,7 @@ export async function backup(directory: string, output: string) {
   await absentOrEmpty(output);
   const lease = await DirectoryLease.acquire(directory),
     db = new Database(lease);
-  let staging: string | undefined;
+  let staging: string | undefined, outputLease: DirectoryLease | undefined;
   try {
     await db.openExisting();
     const facts = await db.archiveFacts(),
@@ -162,6 +149,7 @@ export async function backup(directory: string, output: string) {
     }
     await db.close();
     await mkdir(dirname(output), { recursive: true });
+    outputLease = await DirectoryLease.reserve(output);
     staging = await mkdtemp(join(dirname(output), '.lab-word-backup-'));
     await copyDatabaseSnapshot(lease, join(staging, 'pgdata'));
     for (const file of files) {
@@ -198,18 +186,7 @@ export async function backup(directory: string, output: string) {
       join(staging, 'manifest.json'),
       JSON.stringify(manifest, null, 2) + '\n',
     );
-    await absentOrEmpty(output);
-    try {
-      await rmdir(output);
-    } catch (error) {
-      if (!(
-        error instanceof Error &&
-        'code' in error &&
-        error.code === 'ENOENT'
-      ))
-        throw error;
-    }
-    await rename(staging, output);
+    await publish(staging, output);
     staging = undefined;
     return {
       status: 'backed-up',
@@ -224,7 +201,11 @@ export async function backup(directory: string, output: string) {
       try {
         if (staging) await rm(staging, { recursive: true, force: true });
       } finally {
-        await lease.release();
+        try {
+          await outputLease?.release();
+        } finally {
+          await lease.release();
+        }
       }
     }
   }
@@ -304,11 +285,8 @@ export async function restore(directory: string, archive: string) {
     await db.close();
     await stageLease.release();
     stageLease = undefined;
-    targetLease = await DirectoryLease.acquire(directory);
-    await absentOrEmpty(directory);
-    // Keep the target's canonical lease while publishing its validated children.
-    for (const name of await readdir(staging))
-      await rename(join(staging, name), join(directory, name));
+    targetLease = await DirectoryLease.reserve(directory);
+    await publish(staging, directory);
     return {
       status: 'restored',
       format: manifest.format,

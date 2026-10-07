@@ -1,6 +1,27 @@
 import { createHash } from 'node:crypto';
 import { mkdir, realpath } from 'node:fs/promises';
 import { createServer, type Server } from 'node:net';
+import { basename, dirname, resolve } from 'node:path';
+
+export async function canonicalPath(path: string) {
+  let ancestor = resolve(path);
+  const suffix: string[] = [];
+  while (true) {
+    try {
+      return resolve(await realpath(ancestor), ...suffix);
+    } catch (error) {
+      if (!(
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ))
+        throw error;
+      if (dirname(ancestor) === ancestor) throw error;
+      suffix.unshift(basename(ancestor));
+      ancestor = dirname(ancestor);
+    }
+  }
+}
 
 export class DirectoryLease {
   private server: Server;
@@ -13,7 +34,12 @@ export class DirectoryLease {
   }
   static async acquire(directory: string) {
     await mkdir(directory, { recursive: true });
-    const canonical = await realpath(directory);
+    return DirectoryLease.reserve(directory);
+  }
+  // Hold the same canonical exclusion before an atomic directory publication,
+  // without creating or changing the destination.
+  static async reserve(directory: string) {
+    const canonical = await canonicalPath(directory);
     const digest = createHash('sha256')
       .update(
         process.platform === 'win32' ? canonical.toLowerCase() : canonical,
