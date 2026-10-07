@@ -90,7 +90,10 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: web-journeys-evidence
-          path: .scratch/vnext-m1/
+          path: |
+            .scratch/vnext-m1/
+            test-results/summary.json
+            test-results/lab-foundation/*.png
           if-no-files-found: ignore
           retention-days: 7
       - name: Keep small browser and resource facts
@@ -98,7 +101,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: gate-facts-web-journeys
-          path: .scratch/vnext-m1/**/*.json
+          path: |
+            .scratch/vnext-m1/**/*.json
+            test-results/summary.json
           if-no-files-found: ignore
           retention-days: 7
   windows-foundation:

@@ -42,6 +42,10 @@ export default class SafeBrowserReporter {
     console.log(
       `${entry.status}: ${entry.title} (${entry.file}:${entry.line})`,
     );
+    for (const location of entry.failureLocations)
+      console.log(
+        `failure location: ${location.file}:${location.line}:${location.column}`,
+      );
   }
 
   onError() {
