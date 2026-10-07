@@ -59,7 +59,7 @@ test(
     };
     let failed = false,
       originalError: unknown,
-      cleanupErrors: unknown[] = [];
+      cleanupErrors: unknown[];
     try {
       await source.start();
       const member = new CoreHttp(source.url),
