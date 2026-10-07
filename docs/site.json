@@ -440,7 +440,19 @@
       "titleEn": "Node operational records and lifecycle",
       "group": "开发",
       "type": "guide",
-      "previous": "server-sync"
+      "previous": "server-sync",
+      "next": "server-operations"
+    },
+    {
+      "id": "server-operations",
+      "source": "docs/guides/server-operations.md",
+      "sourceEn": "docs/guides/server-operations.en.md",
+      "route": "guides/server-operations.md",
+      "title": "Node 离线备份与恢复",
+      "titleEn": "Node offline backup and restore",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-traceability"
     }
   ],
   "references": [

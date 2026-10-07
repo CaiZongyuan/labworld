@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { lstat } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { fileURLToPath } from 'node:url';
@@ -194,7 +195,7 @@ export class Database {
     }
     return result;
   }
-  async initialize(migrationFolder = migrationsDirectory) {
+  private async open(migrationFolder?: string) {
     await this.enqueue(
       { id: 'database:migrate', kind: 'startup' },
       async () => {
@@ -223,11 +224,33 @@ export class Database {
           this.active!.measurement.commands.push(command);
         };
         await this.client.waitReady;
-        await migrate(this.orm(), { migrationsFolder: migrationFolder });
+        if (migrationFolder)
+          await migrate(this.orm(), { migrationsFolder: migrationFolder });
       },
     );
-    if (!(await this.ready('database:startup-check')))
+    if (migrationFolder && !(await this.ready('database:startup-check')))
       throw new Error('Applied migrations do not match this build');
+  }
+  initialize(migrationFolder = migrationsDirectory) {
+    return this.open(migrationFolder);
+  }
+  async openExisting() {
+    if (
+      !this.directory ||
+      !(await lstat(join(this.directory, 'pgdata'))).isDirectory()
+    )
+      throw new Error('Existing Node database required');
+    await this.open();
+  }
+  async archiveFacts() {
+    if (!(await this.ready('database:archive-history')))
+      throw new Error('Unsupported Node migration history');
+    const history = await this.readSQL<{ hash: string; created_at: string }>(
+      { id: 'database:archive-facts', kind: 'startup', budget: 1 },
+      'select hash,created_at::text from drizzle.__drizzle_migrations order by created_at',
+    );
+    const engine = await this.metadata();
+    return { schemaVersion, history, engine: engine[0] };
   }
   read<T>(
     operation: DbOperation,

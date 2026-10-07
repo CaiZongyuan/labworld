@@ -29,6 +29,7 @@
     "contracts:baseline:check": "node scripts/contract-api-baseline.mjs",
     "dev": "node --experimental-strip-types scripts/server-dev.ts",
     "dev:server": "node --experimental-strip-types apps/server/src/main.ts",
+    "server": "node --experimental-strip-types apps/server/src/cli.ts",
     "test": "pnpm test:server && pnpm test:frontend && pnpm test:tooling:m1",
     "test:server": "node --test --test-concurrency=1 --experimental-strip-types tests/server/*.test.ts",
     "server:openapi": "node --experimental-strip-types apps/server/src/openapi.ts",
