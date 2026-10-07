@@ -136,6 +136,32 @@ test(
       const delivered = await fetch(download.url);
       assert.equal(delivered.status, 200);
       assert.deepEqual(Buffer.from(await delivered.arrayBuffer()), bytes);
+      for (const name of [
+        'cube-draco.glb',
+        'cube-meshopt.glb',
+        'cube-basis.glb',
+      ]) {
+        const compressed = await readFile('tests/fixtures/lab/' + name),
+          attempt = await beginAsset(member, compressed, name),
+          published = await member.json<LabAsset>('POST', attempt.path),
+          capability = await member.json<DownloadCapability>(
+            'GET',
+            '/api/v1/lab/assets/' + published.id + '/download',
+          ),
+          response = await fetch(capability.url);
+        assert.equal(response.status, 200);
+        assert.deepEqual(Buffer.from(await response.arrayBuffer()), compressed);
+      }
+      const corrupted = await readFile('tests/fixtures/lab/cube-meshopt.glb');
+      corrupted.fill(0, 28 + corrupted.readUInt32LE(12));
+      const rejected = await beginAsset(member, corrupted, 'Broken Meshopt');
+      await member.error(
+        'POST',
+        rejected.path,
+        undefined,
+        422,
+        'files.upload_rejected',
+      );
       console.log(
         JSON.stringify({
           event: 'm4.production-web-http',

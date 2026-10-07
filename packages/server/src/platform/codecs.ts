@@ -170,9 +170,7 @@ function resetMeshopt(decoder?: typeof MeshoptDecoder) {
   meshopt = undefined;
   currentMeshopt = undefined;
   try {
-    delete require.cache[
-      require.resolve('../../node_modules/meshoptimizer/meshopt_decoder.cjs')
-    ];
+    delete require.cache[require.resolve('meshoptimizer/decoder.cjs')];
   } catch {
     // A missing module has no cached instance; cleanup preserves the loader failure.
   }
@@ -181,7 +179,7 @@ async function meshoptCodec() {
   meshopt ??= Promise.resolve()
     .then(async () => {
       const decoder =
-        require('../../node_modules/meshoptimizer/meshopt_decoder.cjs') as typeof MeshoptDecoder;
+        require('meshoptimizer/decoder.cjs') as typeof MeshoptDecoder;
       await decoder.ready;
       currentMeshopt = decoder;
       return decoder;

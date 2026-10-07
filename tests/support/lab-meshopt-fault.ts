@@ -13,7 +13,7 @@ registerHooks({
   resolve(specifier, context, nextResolve) {
     if (
       blocked &&
-      specifier.endsWith('/meshopt_decoder.cjs') &&
+      specifier === 'meshoptimizer/decoder.cjs' &&
       context.parentURL?.endsWith('/platform/codecs.ts')
     )
       throw Object.assign(new Error('Owned missing Meshopt module'), {
