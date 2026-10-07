@@ -175,11 +175,8 @@ async function probe(mode) {
     assert(reconciliation.consumers.every((entry) => !entry.alive));
     const before = result.inventories[0],
       after = result.inventories.at(-1);
-    for (const field of ['containers', 'volumes', 'networks'])
-      assert.deepEqual(
-        after[field].map((entry) => entry.ID ?? entry.Name).sort(),
-        before[field].map((entry) => entry.ID ?? entry.Name).sort(),
-      );
+    assert.equal(before.docker, 'not-used');
+    assert.equal(after.docker, 'not-used');
     checks.push({ mode, runId, ledger, outcome: 'passed' });
     writeFileSync(
       resolve(root, '.scratch/vnext-m0/lifecycle-results.json'),
@@ -193,7 +190,7 @@ async function probe(mode) {
       child.kill('SIGKILL');
     const data = read(ledger);
     if (!['recovered', 'interrupted'].includes(data.state)) {
-      // Recovery always validates stored process identity and container labels.
+      // Recovery validates stored process identity and refuses historical Docker ledgers.
       const recovery = spawn(
         process.execPath,
         ['scripts/contract.mjs', '--recover', ledger],
@@ -219,4 +216,4 @@ writeFileSync(
   resolve(root, '.scratch/vnext-m0/lifecycle-results.json'),
   JSON.stringify(checks, null, 2) + '\n',
 );
-console.log(`${checks.length} actual Rust supervisor lifecycle checks passed`);
+console.log(`${checks.length} actual Node supervisor lifecycle checks passed`);

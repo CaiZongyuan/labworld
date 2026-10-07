@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { schemaVersion } from '../packages/server/src/platform/db/index.ts';
+import { configurationFields } from '../apps/server/src/config.ts';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
@@ -166,8 +167,16 @@ if (values.recover) {
       });
       const env = {
         ...process.env,
+        ...Object.fromEntries(
+          configurationFields().map((field) => [field.name, field.default]),
+        ),
         APP_BIND: `127.0.0.1:${port}`,
+        LAB_WORD_HOST: '127.0.0.1',
+        SERVER_PORT: String(port),
+        LAB_WORD_DATA_DIR: resolve(directory, 'data'),
+        LAB_WORD_WEB_DIR: '',
         APP_ORIGIN: origin,
+        FILE_PUBLIC_ORIGIN: origin,
         CONTRACT_LEDGER_PATH: resource.path,
         CONTRACT_RUN_ID: runId,
         CONTRACT_PROCESS_PROOF_JOURNAL: proofJournal,
