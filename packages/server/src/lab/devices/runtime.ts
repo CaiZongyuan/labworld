@@ -422,30 +422,31 @@ export class DeviceRuntime {
     if (capability === 'centrifuge.start') {
       if (!taskId) throw new Error('Missing reserved Task');
       const task = await this.taskIn(tx, source, taskId);
-      if (task?.status === 'pending')
+      if (task?.status === 'pending') {
         await tx.execute(
           sql`update lab.device_tasks set status='preparing',last_tick_at=${now}::timestamptz where id=${taskId}::uuid and status='pending'`,
         );
-      const previous = await this.valuesIn(tx, source);
-      if (
-        !(await this.observeIn(
-          tx,
-          source,
-          {
-            sequence: Number(source.sequence) + 1,
-            values: {
-              speed: 0,
-              temperature: previous.temperature,
-              phase: 'preparing',
-              elapsed_seconds: 0,
+        const previous = await this.valuesIn(tx, source);
+        if (
+          !(await this.observeIn(
+            tx,
+            source,
+            {
+              sequence: Number(source.sequence) + 1,
+              values: {
+                speed: 0,
+                temperature: previous.temperature,
+                phase: 'preparing',
+                elapsed_seconds: 0,
+              },
+              observed_at: now,
+              quality: 'good',
             },
-            observed_at: now,
-            quality: 'good',
-          },
-          now,
-        ))
-      )
-        throw new Error('Device report would regress source time');
+            now,
+          ))
+        )
+          throw new Error('Device report would regress source time');
+      }
     } else if (capability === 'centrifuge.stop' && taskId) {
       const task = await this.taskIn(tx, source, taskId);
       if (task) {
@@ -501,7 +502,7 @@ export class DeviceRuntime {
           sql`update lab.device_task_results set status=${next.status},reason=coalesce(reason,${next.status === 'unknown' ? 'execution_uncertain' : null}),ended_at=${now}::timestamptz where id=${task.result_id}::uuid`,
         );
       values = next.values;
-    }
+    } else values = { ...values, phase: 'idle' };
     if (
       !(await this.observeIn(
         tx,

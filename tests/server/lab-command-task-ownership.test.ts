@@ -1,6 +1,39 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deviceHttpFixture } from '../support/device-http.ts';
+test('internal.observation: executing a preempted terminal Start leaves actual centrifuge phase idle after the next sample', async () => {
+  const f = await deviceHttpFixture();
+  try {
+    const light = await f.register('light'),
+      entity = await f.register('centrifuge');
+    await f.start(light.id);
+    const run = await f.start(entity.id);
+    await f.action(light.id, 'light.set_power', { on: true }, 'earlier-light');
+    const command = await f.action(
+      entity.id,
+      'centrifuge.start',
+      { rpm: 500, temperature: 22, duration_seconds: 6 },
+      'preempted-start',
+    );
+    await f.runtime.report(run.binding_id, run.id, {
+      sequence: 1,
+      values: { speed: 0 },
+      observed_at: f.context.clock.now(),
+      quality: 'bad',
+    });
+    await f.runtime.tick();
+    assert.equal((await f.task(entity.id, command.task_id!)).status, 'failed');
+    await f.runtime.tick();
+    f.setTime('2026-10-10T12:00:01.000Z');
+    await f.runtime.tick();
+    const current = await f.entity(entity.id);
+    assert.equal(current.task!.status, 'failed');
+    assert.equal(current.task_result!.reason, 'device_fault');
+    assert.equal(current.observation!.properties.phase.value, 'idle');
+  } finally {
+    await f.close();
+  }
+});
 test('internal.observation: an old queued Stop retains Task A ownership after A completes and a new Task B is pending', async () => {
   const f = await deviceHttpFixture();
   try {
