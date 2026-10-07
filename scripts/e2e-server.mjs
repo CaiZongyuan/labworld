@@ -78,6 +78,38 @@ async function close() {
   })();
   return closing;
 }
+async function recordProfileClosure() {
+  if (process.env.LAB_NODE_BROWSER_PROFILE_RESULT) {
+    const consumers = resources?.data.reconciliations.at(-1)?.consumers ?? [];
+    if (
+      consumers.some(
+        (consumer) => consumer.alive || consumer.actualMembers.length,
+      )
+    )
+      throw new Error('Browser cleanup has unclosed consumers');
+    const serviceLedgers = resources?.data.serviceLedgers ?? [];
+    for (const path of serviceLedgers) {
+      const service = JSON.parse(await readFile(path, 'utf8'));
+      if (
+        service.state !== 'cleaned' ||
+        service.directory ||
+        service.processes?.length ||
+        service.consumers?.length ||
+        service.launchIntent
+      )
+        throw new Error('Browser service cleanup is incomplete');
+    }
+    await writeFile(
+      process.env.LAB_NODE_BROWSER_PROFILE_RESULT,
+      JSON.stringify({
+        cleanupCompleted: true,
+        browserLedger: resources?.path ?? null,
+        serviceLedgers,
+      }) + '\n',
+      { mode: 0o600 },
+    );
+  }
+}
 for (const signal of ['SIGINT', 'SIGTERM'])
   process.once(signal, () => {
     void close();
@@ -247,5 +279,6 @@ try {
   throw error;
 } finally {
   await close();
+  await recordProfileClosure();
   console.log(`Node browser evidence: ${backend.evidence}`);
 }

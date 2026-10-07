@@ -143,6 +143,12 @@ test('a member keeps the last observation through duplicate, old, interrupted an
   );
   const user = userEvent.setup();
   await waitFor(() => expect(connectionCount).toBe(1), { timeout: 5000 });
+  await waitFor(() =>
+    expect(document.querySelector('.world-page')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    ),
+  );
   await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(await screen.findByRole('button', { name: '选择 Light A' }));
   expect(await screen.findByText('实时同步')).toBeVisible();
@@ -166,6 +172,10 @@ test('a member keeps the last observation through duplicate, old, interrupted an
   };
   send(update);
   await waitFor(() => expect(power).toBeChecked());
+  expect(document.querySelector('.world-page')).toHaveAttribute(
+    'aria-busy',
+    'false',
+  );
   await act(async () => {
     releaseHttp();
     await httpReply;
