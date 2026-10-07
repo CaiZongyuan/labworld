@@ -68,14 +68,13 @@ try {
     console.log(
       JSON.stringify(await restore(config.directory, values.archive)),
     );
-  else if (
-    operation === 'reset-password' &&
-    values.email &&
-    !values.output &&
-    !values.archive
-  )
+  else if (operation === 'reset-password' && !values.output && !values.archive)
     console.log(
-      JSON.stringify(await resetPasswordOperation(['--email', values.email])),
+      JSON.stringify(
+        await resetPasswordOperation(
+          values.email === undefined ? [] : ['--email', values.email],
+        ),
+      ),
     );
   else
     throw new Error(

@@ -47,9 +47,25 @@ jobs:
           name: docs-site
           path: apps/docs/.vitepress/dist
           retention-days: 7
+      - name: Keep small gate facts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: gate-facts-linux
+          path: |
+            .scratch/vnext-m0/suite-*.json
+            .scratch/vnext-m0/coverage-*.json
+            .scratch/vnext-m0/runs/**/owned-resources.json
+            .scratch/vnext-m0/runs/**/results.json
+            .scratch/vnext-m0/runs/**/target.json
+            .scratch/vnext-m0/runs/**/config.json
+            .scratch/vnext-m0/runs/**/target-process-proof.jsonl
+            .scratch/vnext-m1/**/*.json
+          if-no-files-found: ignore
+          retention-days: 7
   windows-foundation:
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -71,6 +87,22 @@ jobs:
           path: |
             .scratch/vnext-m1/
             .scratch/vnext-m0/
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Keep small gate facts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: gate-facts-windows
+          path: |
+            .scratch/vnext-m0/suite-*.json
+            .scratch/vnext-m0/coverage-*.json
+            .scratch/vnext-m0/runs/**/owned-resources.json
+            .scratch/vnext-m0/runs/**/results.json
+            .scratch/vnext-m0/runs/**/target.json
+            .scratch/vnext-m0/runs/**/config.json
+            .scratch/vnext-m0/runs/**/target-process-proof.jsonl
+            .scratch/vnext-m1/**/*.json
           if-no-files-found: ignore
           retention-days: 7
   publish-docs:

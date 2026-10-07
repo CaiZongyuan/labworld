@@ -40,7 +40,10 @@ type Prepared = {
   app: ReturnType<typeof createApp>;
   stop?: () => Promise<void>;
 };
-export type RuntimeControl = { stop: () => Promise<void> };
+export type RuntimeControl = {
+  stop: () => Promise<void>;
+  ownStop: (stop: () => Promise<void>) => void;
+};
 export async function run(
   factory?: (
     context: FoundationContext,
@@ -59,16 +62,36 @@ export async function run(
   let closing: Promise<void> | undefined;
   let preparing: Promise<Prepared | undefined> | undefined;
   const admittedHandlers = new Set<Promise<Response>>();
+  const ownedStops: Array<() => Promise<void>> = [],
+    seenStops = new Set<() => Promise<void>>();
+  let stoppingOwners = false;
+  function ownStop(stop: () => Promise<void>) {
+    if (seenStops.has(stop)) return;
+    if (stoppingOwners) throw new Error('Service owner registration is closed');
+    seenStops.add(stop);
+    ownedStops.push(stop);
+  }
   async function close() {
     if (closing) return closing;
     const admittedPreparation = preparing;
     closing = (async () => {
+      const errors: unknown[] = [];
       const stopping = Promise.resolve().then(async () => {
         const prepared = await admittedPreparation?.catch(() => undefined);
         if (prepared) stop ??= prepared.stop;
-        await stop?.();
+        if (stop) ownStop(stop);
+        stoppingOwners = true;
+        const settled = await Promise.allSettled(
+          ownedStops
+            .reverse()
+            .map((closeOwner) => Promise.resolve().then(closeOwner)),
+        );
+        for (const result of settled)
+          if (result.status === 'rejected') errors.push(result.reason);
       });
-      stopping.catch(() => {});
+      stopping.catch((error) => {
+        errors.push(error);
+      });
       try {
         if (server) {
           if ('closeIdleConnections' in server) server.closeIdleConnections();
@@ -84,30 +107,54 @@ export async function run(
             clearTimeout(deadline);
           }
         }
-        await stopping;
+      } catch (error) {
+        errors.push(error);
       } finally {
+        await stopping.catch(() => {});
         // A closed socket does not cancel an admitted validator or its later
         // publication. Keep the database and lease until that work settles.
         await Promise.allSettled([...admittedHandlers]);
         try {
           await db.close();
-        } finally {
+        } catch (error) {
+          errors.push(error);
+        }
+        try {
           await lease.release();
+        } catch (error) {
+          errors.push(error);
         }
       }
+      if (errors.length)
+        throw new AggregateError(
+          errors,
+          'Shutdown failed: ' +
+            errors
+              .map((error) =>
+                error instanceof Error ? error.message : String(error),
+              )
+              .join('; '),
+        );
     })();
     return closing;
   }
   lease.onLost(() => {
     db.loseLease();
-    void close().finally(() => {
-      process.exitCode = 1;
-    });
+    void close()
+      .catch((error) =>
+        log({ event: 'server.close_failed', message: error.message }),
+      )
+      .finally(() => {
+        process.exitCode = 1;
+      });
   });
   const signals = ['SIGTERM', 'SIGINT'] as const;
   for (const signal of signals)
     process.once(signal, () => {
-      void close();
+      void close().catch((error) => {
+        log({ event: 'server.close_failed', message: error.message });
+        process.exitCode = 1;
+      });
     });
   try {
     await db.initialize();
@@ -131,15 +178,15 @@ export async function run(
       registerAssetFileOwnership(files);
       assetRoutes(app, files);
       const devices = new DeviceRuntime(context, log);
+      ownStop(() => devices.stop());
       await devices.initialize();
       const world = new WorldService(context, config.auth);
       worldRoutes(app, world, () => devices.ready);
       lifecycleRoutes(app, world);
       const subscriptions = new WorldSubscriptions(world, () => devices.ready);
+      ownStop(() => subscriptions.stop());
       subscriptionRoutes(app, subscriptions);
       deviceRoutes(app, new DeviceService(context, config.auth, devices));
-      devices.start();
-      subscriptions.start();
       const history = new HistoryService(
         context,
         config.auth,
@@ -149,22 +196,20 @@ export async function run(
       recordsRoutes(app, new RecordsService(history));
       trendRoutes(app, history);
       const maintenance = historyScheduler(history, log);
+      ownStop(() => maintenance.stop());
       const scheduler = fileScheduler(context, files, log);
+      ownStop(() => scheduler.stop());
+      devices.start();
+      subscriptions.start();
       return {
         app,
-        stop: async () => {
-          await maintenance.stop();
-          await subscriptions.stop();
-          await devices.stop();
-          await scheduler.stop();
-        },
       };
     };
     preparing = Promise.resolve().then(() =>
       closing
         ? undefined
         : factory
-          ? factory(context, { stop: close })
+          ? factory(context, { stop: close, ownStop })
           : prepareCore(),
     );
     const prepared = await preparing;
@@ -215,16 +260,27 @@ export async function run(
         }),
     );
     server.on('error', () => {
-      void close().finally(() => {
-        process.exitCode = 1;
-      });
+      void close()
+        .catch((error) =>
+          log({ event: 'server.close_failed', message: error.message }),
+        )
+        .finally(() => {
+          process.exitCode = 1;
+        });
     });
   } catch (error) {
     log({
       event: 'server.start_failed',
       message: error instanceof Error ? error.message : 'Startup failed',
     });
-    await close();
+    try {
+      await close();
+    } catch (cleanup) {
+      log({
+        event: 'server.close_failed',
+        message: cleanup instanceof Error ? cleanup.message : 'Cleanup failed',
+      });
+    }
     process.exitCode = 1;
   }
 }

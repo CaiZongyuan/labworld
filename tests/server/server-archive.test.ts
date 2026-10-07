@@ -759,3 +759,31 @@ test(
     }
   },
 );
+
+test('unified password reset classifies missing or empty email as invalid input without directory mutation or password output', async () => {
+  const source = await new ServerProcess().create();
+  try {
+    const before = await treeState(source.directory),
+      password = 'invalid-argument-password';
+    for (const args of [
+      ['reset-password'],
+      ['reset-password', '--email', ''],
+    ]) {
+      const result = await cli(
+        source.directory,
+        args,
+        1,
+        undefined,
+        password + '\n',
+      );
+      assert.equal(
+        (result.error as { code: string }).code,
+        'auth.invalid_input',
+      );
+      assert.equal(JSON.stringify(result).includes(password), false);
+      assert.deepEqual(await treeState(source.directory), before);
+    }
+  } finally {
+    await source.cleanup();
+  }
+});

@@ -47,3 +47,11 @@ unset recovery_password
 Migration reports the verified schema version. It does not start devices or maintenance loops. Password recovery reads standard input and excludes the password from output. It preserves user identity, revokes old sessions and records a system audit. Restart the service and log in with the new password. The original `pnpm reset-password --email ...` entrypoint remains available.
 
 Owners: [unified CLI](../../apps/server/src/cli.ts), [archive composition](../../apps/server/src/operations.ts), [shared password operation](../../apps/server/src/password-operation.ts), [database history and opening](../../packages/server/src/platform/db/index.ts), [closed database snapshot](../../packages/server/src/platform/db/snapshot.ts), and [Files ready references](../../packages/server/src/core/files/archive.ts).
+
+## Own Startup and Shutdown Resources
+
+Startup acquires directory exclusion and migrates the database. It completes device interruption recovery, then starts the separate schedulers, device loop, subscriptions and HTTP. Each owner registers cleanup when it acquires its resource. Later preparation failures still invoke those actions.
+
+Shutdown stops HTTP admission, ends subscriptions and stops service timers and device admission. It attempts every registered owner's cleanup. One error does not skip another owner. Admitted HTTP validation, reports and database operations settle before database closure and lease release. Results and logs retain startup or shutdown failures. A failed exit does not report success.
+
+Composition lives in [runtime](../../apps/server/src/runtime.ts). Existing prepared.stop callbacks remain supported. New owners register RuntimeControl.ownStop immediately after acquisition.

@@ -47,3 +47,11 @@ unset recovery_password
 迁移输出实际验证的 schema 版本，不启动设备或清理循环。密码操作通过标准输入读取新密码，不把密码写入输出。它保留用户身份，撤销旧会话并记录 system 审计。重新启动服务后，用新密码登录。原 `pnpm reset-password --email ...` 入口仍可用。
 
 源码归属：[统一 CLI](../../apps/server/src/cli.ts)、[归档组合](../../apps/server/src/operations.ts)、[共享密码操作](../../apps/server/src/password-operation.ts)、[数据库历史与打开能力](../../packages/server/src/platform/db/index.ts)、[关闭后的数据库快照](../../packages/server/src/platform/db/snapshot.ts)和[Files ready 引用](../../packages/server/src/core/files/archive.ts)。
+
+## 启动与关闭的资源归属
+
+服务先取得目录锁并迁移，完成设备中断恢复，再启动各自的调度器、设备循环、订阅和 HTTP。每个 owner 取得资源时立即登记关闭动作；后续准备失败也会调用这些动作。
+
+关闭先停止 HTTP 接入，同时结束订阅、停止服务定时器与设备接入。全部已登记 owner 都尝试关闭；一个错误不会跳过其他 owner。服务等待已接入 HTTP 校验、设备报告和数据库操作，再关闭数据库并释放目录锁。原始启动或关闭错误保留在结果与日志中，失败退出不描述为成功。
+
+组合入口见 [runtime](../../apps/server/src/runtime.ts)。原 prepared.stop 回调继续受支持；新增 owner 使用 RuntimeControl.ownStop 在取得资源时登记。
