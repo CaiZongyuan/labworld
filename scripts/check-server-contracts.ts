@@ -32,37 +32,7 @@ const baseline = JSON.parse(
 const partial = JSON.parse(
   readFileSync(join(output, 'packages/contracts/openapi.json'), 'utf8'),
 ) as Record<string, Json>;
-const paths = [
-  '/health/live',
-  '/health/ready',
-  '/api/v1/system/status',
-  '/api/v1/auth/register',
-  '/api/v1/auth/login',
-  '/api/v1/auth/session',
-  '/api/v1/auth/logout',
-  '/api/v1/organization/members',
-  '/api/v1/organization/members/{user_id}',
-  '/api/v1/api-keys',
-  '/api/v1/api-keys/{id}',
-  '/api/v1/api-keys/scopes',
-  '/api/v1/profile',
-  '/api/v1/audit-events',
-  '/api/v1/system/rate-limits',
-  '/api/v1/lab/asset-uploads',
-  '/api/v1/lab/asset-uploads/{id}/complete',
-  '/api/v1/lab/assets',
-  '/api/v1/lab/assets/{id}',
-  '/api/v1/lab/assets/{id}/download',
-  '/api/v1/lab/asset-definitions',
-  '/api/v1/lab/asset-definitions/{id}/{version}',
-  '/api/v1/lab/labs',
-  '/api/v1/lab/labs/{lab_id}/world',
-  '/api/v1/lab/labs/{lab_id}/entities',
-  '/api/v1/lab/labs/{lab_id}/entities/{entity_id}',
-  '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies',
-  '/api/v1/lab/labs/{lab_id}/nodes',
-  '/api/v1/lab/labs/{lab_id}/layout',
-];
+const paths = Object.keys(baseline.paths as Record<string, Json>);
 const fileSchemas = [
   'UploadInput',
   'FileInfo',
@@ -166,7 +136,7 @@ if (
       before !== hash(['packages/contracts', 'packages/sdk'][index]),
   )
 )
-  throw new Error('Partial generation changed complete SDK/contracts');
+  throw new Error('Isolated generation changed official SDK/contracts');
 const consumer = join(output, 'consumer.ts');
 writeFileSync(
   consumer,
@@ -240,7 +210,7 @@ writeFileSync(
       officialConsumersUnchanged: true,
       generatedCallerTypechecked: true,
       fullApi:
-        'Device/session/SSE/history/trends pending M4; official SDK source switch pending M5',
+        'Complete retained Node API; official SDK/default application source switch pending #51',
     },
     null,
     2,

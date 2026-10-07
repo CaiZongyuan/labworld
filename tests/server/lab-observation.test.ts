@@ -16,6 +16,70 @@ import { DeviceService } from '../../packages/server/src/lab/devices/use-cases.t
 import { deviceRoutes } from '../../packages/server/src/lab/devices/routes.ts';
 import { ServerProcess } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
+import { deviceHttpFixture } from '../support/device-http.ts';
+test('internal.observation: heartbeat and another property do not refresh an older reading; sequence and quality remain distinct', async () => {
+  const f = await deviceHttpFixture();
+  try {
+    const entity = await f.register('light'),
+      run = await f.start(entity.id),
+      base = f.context.clock.now();
+    await f.runtime.report(run.binding_id, run.id, {
+      sequence: 1,
+      values: { on: false, brightness: 20 },
+      observed_at: base,
+      quality: 'good',
+    });
+    const original = (await f.entity(entity.id)).observation!.properties.on;
+    f.setTime('2026-10-10T12:00:02.000Z');
+    await f.runtime.report(run.binding_id, run.id, {
+      sequence: 2,
+      values: {},
+      observed_at: null,
+      quality: 'bad',
+    });
+    assert.deepEqual(
+      (await f.entity(entity.id)).observation!.properties.on,
+      original,
+    );
+    f.setTime('2026-10-10T12:00:03.000Z');
+    await f.runtime.report(run.binding_id, run.id, {
+      sequence: 3,
+      values: { brightness: 0 },
+      observed_at: f.context.clock.now(),
+      quality: 'uncertain',
+    });
+    const current = await f.entity(entity.id);
+    assert.deepEqual(current.observation!.properties.on, original);
+    assert.equal(current.observation!.properties.brightness.value, 0);
+    assert.equal(
+      current.observation!.properties.brightness.quality,
+      'uncertain',
+    );
+    assert.equal(
+      await f.runtime.report(run.binding_id, run.id, {
+        sequence: 3,
+        values: { on: true },
+        observed_at: f.context.clock.now(),
+        quality: 'good',
+      }),
+      'out_of_order',
+    );
+    assert.equal(
+      (await f.entity(entity.id)).observation!.properties.on.value,
+      false,
+    );
+    f.setTime('2026-10-10T12:00:05.000Z');
+    await f.runtime.tick();
+    const expired = await f.entity(entity.id);
+    assert.equal(expired.observation!.properties.on.freshness, 'stale');
+    assert.equal(
+      expired.observation!.properties.brightness.freshness,
+      'current',
+    );
+  } finally {
+    await f.close();
+  }
+});
 test('internal.observation: exact source watermark survives unknown time; expiry preserves fractional reception and rejected ingress leaves public World unchanged', async () => {
   const target = await new ServerProcess().create(),
     db = new Database();

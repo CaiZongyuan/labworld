@@ -2,7 +2,10 @@ import { instantNanoseconds } from '../time.ts';
 import { createRoute, z } from '@hono/zod-openapi';
 import type { createApp } from '../../core/system/routes.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
-import { ApiErrorResponse } from '../../platform/http/errors.ts';
+import {
+  ApiErrorResponse,
+  requestBudgetResponse,
+} from '../../platform/http/errors.ts';
 import { RetentionPolicy } from '../history/routes.ts';
 import type { RecordsService } from './use-cases.ts';
 const instant = z.string().openapi({ format: 'date-time' }),
@@ -44,9 +47,11 @@ const LabRecordGap = z
 const LabRecordCoverage = z
   .object({
     record_type: z.string(),
-    retention_seconds: nullable(
-      z.number().openapi({ type: 'integer', format: 'int32', minimum: 0 }),
-    ),
+    retention_seconds: z
+      .number()
+      .nullable()
+      .optional()
+      .openapi({ type: ['integer', 'null'], format: 'int32', minimum: 0 }),
     preserves_unfinished: z.boolean(),
     captured_since: nullable(instant),
     fully_captured_since: nullable(instant),
@@ -64,16 +69,17 @@ const LabRecordsPage = z
     queried_at: instant,
     query_upper_bound: instant,
     entity_id: nullable(z.string()),
-    record_type: nullable(LabRecordType),
+    record_type: z
+      .union([LabRecordType, z.null()])
+      .openapi({}, { unionPreferredType: 'oneOf' })
+      .optional(),
     retention: RetentionPolicy,
     coverage: z.array(LabRecordCoverage),
     max_page_items: z
       .number()
       .openapi({ type: 'integer', format: 'int32', minimum: 0 }),
     max_range_seconds: z.number().openapi({ type: 'integer', format: 'int64' }),
-    max_response_bytes: z
-      .number()
-      .openapi({ type: 'integer', format: 'int64', minimum: 0 }),
+    max_response_bytes: z.number().openapi({ type: 'integer', minimum: 0 }),
     items: z.array(LabRecord),
     next_cursor: nullable(z.string()),
   })
@@ -86,12 +92,15 @@ const inputInstant = instant.refine((value) => {
     return false;
   }
 });
-const errors = Object.fromEntries(
-  [400, 401, 403, 404, 413, 503].map((status) => [
-    status,
-    json(ApiErrorResponse),
-  ]),
-);
+const errors = {
+  ...Object.fromEntries(
+    [400, 401, 403, 404, 413, 503].map((status) => [
+      status,
+      json(ApiErrorResponse),
+    ]),
+  ),
+  429: requestBudgetResponse,
+};
 export function recordsRoutes(
   app: ReturnType<typeof createApp>,
   records: RecordsService,

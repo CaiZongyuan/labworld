@@ -28,9 +28,10 @@ export async function deviceHttpFixture() {
       idleSecs: 86400,
       secureCookie: false,
     },
-    runtime = new DeviceRuntime(context, (event) =>
+    initialRuntime = new DeviceRuntime(context, (event) =>
       console.log(JSON.stringify(event)),
     );
+  let runtime = initialRuntime;
   async function close() {
     await target.cleanup();
     await runtime.stop();
@@ -39,14 +40,17 @@ export async function deviceHttpFixture() {
   try {
     await db.initialize();
     await runtime.initialize();
-    const app = coreApp(context, '0.1.0', policy, () => {});
-    worldRoutes(app, new WorldService(context, policy), () => runtime.ready);
-    deviceRoutes(app, new DeviceService(context, policy, runtime));
+    function appForRuntime() {
+      const app = coreApp(context, '0.1.0', policy, () => {});
+      worldRoutes(app, new WorldService(context, policy), () => runtime.ready);
+      deviceRoutes(app, new DeviceService(context, policy, runtime));
+      return app;
+    }
     await target.startInProcess(
       'controlled-device-http',
       async () => {
         server = serve({
-          fetch: app.fetch,
+          fetch: appForRuntime().fetch,
           port: target.port,
           hostname: '127.0.0.1',
         });
@@ -70,7 +74,23 @@ export async function deviceHttpFixture() {
       '/api/v1/lab/labs/' + lab.id + '/entities/' + entity;
     return {
       db,
-      runtime,
+      get runtime() {
+        return runtime;
+      },
+      restart: async () => {
+        await runtime.stop();
+        if (server)
+          await new Promise<void>((resolve) => server!.close(() => resolve()));
+        runtime = new DeviceRuntime(context, (event) =>
+          console.log(JSON.stringify(event)),
+        );
+        await runtime.initialize();
+        server = serve({
+          fetch: appForRuntime().fetch,
+          port: target.port,
+          hostname: '127.0.0.1',
+        });
+      },
       client,
       lab,
       target,

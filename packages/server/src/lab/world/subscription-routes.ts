@@ -1,6 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type { createApp } from '../../core/system/routes.ts';
-import { ApiErrorResponse } from '../../platform/http/errors.ts';
+import {
+  ApiErrorResponse,
+  requestBudgetResponse,
+} from '../../platform/http/errors.ts';
 import { LabWorld, PersistentLab } from './dto.ts';
 import type { WorldSubscriptions } from './subscriptions.ts';
 const WorldCollection = z
@@ -10,7 +13,10 @@ const WorldChange = z
   .object({
     collection: WorldCollection,
     id: z.string(),
-    patch: z.unknown().nullable().optional(),
+    patch: z.unknown().nullable().optional().openapi({
+      description:
+        'Changed top-level properties; null removes the item. New items carry all properties.',
+    }),
   })
   .openapi('WorldChange');
 const WorldEvent = z
@@ -20,7 +26,10 @@ const WorldEvent = z
       type: z.literal('update'),
       version: z.string(),
       base_version: z.string(),
-      lab: PersistentLab.nullable().optional(),
+      lab: z
+        .union([PersistentLab, z.null()])
+        .openapi({}, { unionPreferredType: 'oneOf' })
+        .optional(),
       changes: z.array(WorldChange),
     }),
     z.object({ type: z.literal('heartbeat'), version: z.string() }),
@@ -29,15 +38,18 @@ const WorldEvent = z
     z.object({ type: z.literal('runtime_status'), available: z.boolean() }),
   ])
   .openapi('WorldEvent', {}, { unionPreferredType: 'oneOf' });
-const errors = Object.fromEntries(
-  [400, 401, 403, 404, 413, 503].map((status) => [
-    status,
-    {
-      description: '',
-      content: { 'application/json': { schema: ApiErrorResponse } },
-    },
-  ]),
-);
+const errors = {
+  ...Object.fromEntries(
+    [400, 401, 403, 404, 413, 503].map((status) => [
+      status,
+      {
+        description: '',
+        content: { 'application/json': { schema: ApiErrorResponse } },
+      },
+    ]),
+  ),
+  429: requestBudgetResponse,
+};
 export function subscriptionRoutes(
   app: ReturnType<typeof createApp>,
   subscriptions: WorldSubscriptions,
@@ -56,6 +68,7 @@ export function subscriptionRoutes(
           content: { 'text/event-stream': { schema: WorldEvent } },
         },
         ...errors,
+        429: requestBudgetResponse,
       },
     }),
     async (c) =>

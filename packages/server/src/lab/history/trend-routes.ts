@@ -1,14 +1,15 @@
 import { instantNanoseconds } from '../time.ts';
 import { createRoute, z } from '@hono/zod-openapi';
 import type { createApp } from '../../core/system/routes.ts';
-import { ApiErrorResponse } from '../../platform/http/errors.ts';
+import {
+  ApiErrorResponse,
+  requestBudgetResponse,
+} from '../../platform/http/errors.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
 import type { HistoryService } from './use-cases.ts';
 import { entityTrend } from './trend.ts';
 const instant = z.string().openapi({ format: 'date-time' }),
-  integer = z
-    .number()
-    .openapi({ type: 'integer', format: 'int64', minimum: 0 }),
+  integer = z.number().openapi({ type: 'integer', minimum: 0 }),
   nullable = (schema: z.ZodType) => schema.nullable().optional(),
   json = (schema: z.ZodType) => ({
     description: '',
@@ -73,12 +74,15 @@ const inputInstant = instant.refine((value) => {
     return false;
   }
 });
-const errors = Object.fromEntries(
-  [400, 401, 403, 404, 413, 503].map((status) => [
-    status,
-    json(ApiErrorResponse),
-  ]),
-);
+const errors = {
+  ...Object.fromEntries(
+    [400, 401, 403, 404, 413, 503].map((status) => [
+      status,
+      json(ApiErrorResponse),
+    ]),
+  ),
+  429: requestBudgetResponse,
+};
 export function trendRoutes(
   app: ReturnType<typeof createApp>,
   history: HistoryService,

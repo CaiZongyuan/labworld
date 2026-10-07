@@ -1,7 +1,10 @@
 import { instantNanoseconds } from '../time.ts';
 import { createRoute, z } from '@hono/zod-openapi';
 import type { createApp } from '../../core/system/routes.ts';
-import { ApiErrorResponse } from '../../platform/http/errors.ts';
+import {
+  ApiErrorResponse,
+  requestBudgetResponse,
+} from '../../platform/http/errors.ts';
 import { PublicFailure } from '../../platform/http/failure.ts';
 import type { HistoryService } from './use-cases.ts';
 const instant = z.string().openapi({ format: 'date-time' }),
@@ -43,7 +46,7 @@ const HistoryPage = z
     gap: z.boolean(),
     retention: RetentionPolicy,
     max_range_seconds: z.number().openapi({ type: 'integer', format: 'int64' }),
-    max_response_bytes: u64,
+    max_response_bytes: z.number().openapi({ type: 'integer', minimum: 0 }),
     items: z.array(HistoryRecord),
     next_cursor: z.string().nullable().optional(),
   })
@@ -67,9 +70,12 @@ const inputInstant = instant.refine((value) => {
     return false;
   }
 });
-const errors = Object.fromEntries(
-  [400, 401, 403, 404, 503].map((status) => [status, json(ApiErrorResponse)]),
-);
+const errors = {
+  ...Object.fromEntries(
+    [400, 401, 403, 404, 503].map((status) => [status, json(ApiErrorResponse)]),
+  ),
+  429: requestBudgetResponse,
+};
 export function historyRoutes(
   app: ReturnType<typeof createApp>,
   history: HistoryService,

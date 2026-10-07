@@ -4,6 +4,50 @@ import type { WorldEvent } from '../../packages/contracts/src/generated/types.ge
 import { WorldSubscriptions } from '../../packages/server/src/lab/world/subscriptions.ts';
 import { WorldService } from '../../packages/server/src/lab/world/use-cases.ts';
 import { deviceHttpFixture } from '../support/device-http.ts';
+test(
+  'internal.sse-queue: a later oversized actual update discards queued content and ends the previously valid stream',
+  { timeout: 15000 },
+  async () => {
+    const f = await deviceHttpFixture(),
+      manager = new WorldSubscriptions(
+        new WorldService(f.context, f.policy),
+        () => f.runtime.ready,
+      );
+    try {
+      const response = await manager.subscribe(
+          headers(f),
+          'valid-before-payload-growth',
+          f.lab.id,
+        ),
+        reader = response.body!.getReader();
+      assert.equal((await frame(manager, reader))!.type, 'snapshot');
+      for (let index = 0; index < 130; index++)
+        await f.client.json(
+          'POST',
+          '/api/v1/lab/labs/' + f.lab.id + '/entities',
+          {
+            name: 'Payload ' + index,
+            definition_id: 'model',
+            definition_version: '1.0',
+            reality: 'physical',
+            configuration: { data: 'x'.repeat(8000) },
+            representation_id: null,
+          },
+          201,
+        );
+      await manager.tick();
+      const first = await reader.read();
+      assert.deepEqual(
+        JSON.parse(new TextDecoder().decode(first.value).trim().slice(6)),
+        { type: 'resync', reason: 'payload_limit' },
+      );
+      assert.equal((await reader.read()).done, true);
+    } finally {
+      await manager.stop();
+      await f.close();
+    }
+  },
+);
 type Fixture = Awaited<ReturnType<typeof deviceHttpFixture>>;
 const headers = (f: Fixture) =>
   new Headers({ cookie: f.client.cookie!, origin: f.target.url });

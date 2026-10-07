@@ -15,6 +15,7 @@ import type { HistoryService } from '../../../packages/server/src/lab/history/us
 import { recordsRoutes } from '../../../packages/server/src/lab/records/routes.ts';
 import type { RecordsService } from '../../../packages/server/src/lab/records/use-cases.ts';
 import { trendRoutes } from '../../../packages/server/src/lab/history/trend-routes.ts';
+import { lifecycleRoutes } from '../../../packages/server/src/lab/world/lifecycle-routes.ts';
 // Schema generation does not open a DB. Handler context is unreachable here.
 const version = (
   JSON.parse(
@@ -29,18 +30,20 @@ const app = coreApp(
 );
 assetRoutes(app, undefined as unknown as FileService);
 worldRoutes(app, undefined as unknown as WorldService);
+lifecycleRoutes(app, undefined as unknown as WorldService);
 deviceRoutes(app, undefined as unknown as DeviceService);
 subscriptionRoutes(app, undefined as unknown as WorldSubscriptions);
 historyRoutes(app, undefined as unknown as HistoryService);
 recordsRoutes(app, undefined as unknown as RecordsService);
 trendRoutes(app, undefined as unknown as HistoryService);
-console.log(
-  JSON.stringify(
-    app.getOpenAPI31Document({
-      openapi: '3.1.0',
-      info: { title: 'Lab Word Server', version },
-    }),
-    null,
-    2,
-  ),
-);
+const document = app.getOpenAPI31Document({
+  openapi: '3.1.0',
+  info: {
+    title: 'Lab Word API',
+    description: '',
+    license: { name: '' },
+    version,
+  },
+});
+delete document.webhooks;
+console.log(JSON.stringify(document, null, 2));

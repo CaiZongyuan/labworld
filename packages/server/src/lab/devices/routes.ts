@@ -1,6 +1,9 @@
 import { createRoute, z } from '@hono/zod-openapi';
 import type { createApp } from '../../core/system/routes.ts';
-import { ApiErrorResponse } from '../../platform/http/errors.ts';
+import {
+  ApiErrorResponse,
+  requestBudgetResponse,
+} from '../../platform/http/errors.ts';
 import { boundedJson } from '../../platform/http/json.ts';
 import {
   duplicateStructField,
@@ -41,12 +44,15 @@ const json = (schema: z.ZodType) => ({
   description: '',
   content: { 'application/json': { schema } },
 });
-const errors = Object.fromEntries(
-  [400, 401, 403, 404, 409, 422, 503].map((status) => [
-    status,
-    json(ApiErrorResponse),
-  ]),
-);
+const errors = {
+  ...Object.fromEntries(
+    [400, 401, 403, 404, 409, 422, 503].map((status) => [
+      status,
+      json(ApiErrorResponse),
+    ]),
+  ),
+  429: requestBudgetResponse,
+};
 export function deviceRoutes(
   app: ReturnType<typeof createApp>,
   devices: DeviceService,
@@ -64,6 +70,7 @@ export function deviceRoutes(
         201: json(DeviceProgramRun),
         200: json(DeviceProgramRun),
         ...errors,
+        429: requestBudgetResponse,
       },
     }),
     async (c) => {
@@ -109,10 +116,17 @@ export function deviceRoutes(
       request: {
         params,
         headers: z.object({
-          'Idempotency-Key': z.string().optional().openapi({
-            description:
-              'Required for implemented actions: reuse the same key and parameters after an uncertain response. An expired original Command returns 410 without re-execution. Changed parameters still return 409.',
-          }),
+          'Idempotency-Key': z
+            .string()
+            .nullable()
+            .optional()
+            .openapi({
+              type: ['string', 'null'],
+              param: {
+                description:
+                  'Required for implemented actions: reuse the same key and parameters after an uncertain response. An expired original Command returns 410 without re-execution. Changed parameters still return 409.',
+              },
+            }),
         }),
         body: {
           required: true,
@@ -123,6 +137,7 @@ export function deviceRoutes(
         202: json(DeviceCommand),
         410: json(ApiErrorResponse),
         ...errors,
+        429: requestBudgetResponse,
       },
     }),
     async (c) => {
@@ -173,6 +188,7 @@ export function deviceRoutes(
         403: json(ApiErrorResponse),
         404: json(ApiErrorResponse),
         503: json(ApiErrorResponse),
+        429: requestBudgetResponse,
       },
     }),
     async (c) => {
@@ -208,6 +224,7 @@ export function deviceRoutes(
           403: json(ApiErrorResponse),
           404: json(ApiErrorResponse),
           503: json(ApiErrorResponse),
+          429: requestBudgetResponse,
         },
       }),
       async (c) => {

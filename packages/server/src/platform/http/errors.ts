@@ -20,3 +20,9 @@ export function errorEnvelope(
 ) {
   return { error: { code, details, message, request_id: requestId } };
 }
+
+export const requestBudgetResponse = {
+  description: 'Request budget exceeded; retry after the specified seconds',
+  headers: { 'Retry-After': { schema: { type: 'integer' as const } } },
+  content: { 'application/json': { schema: ApiErrorResponse } },
+};

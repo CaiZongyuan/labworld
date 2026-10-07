@@ -3,6 +3,15 @@ import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { root } from './lib/process.mjs';
+import { parseArgs } from 'node:util';
+const { values } = parseArgs({
+  options: {
+    target: { type: 'string', default: 'rust' },
+    descriptor: { type: 'string' },
+  },
+});
+if (values.target !== 'rust' && !values.descriptor)
+  throw new Error('Candidate suite requires its owned executable descriptor');
 const batches = [
   {
     profile: 'baseline',
@@ -56,6 +65,9 @@ try {
     save();
     const args = [
       'scripts/contract.mjs',
+      '--target',
+      values.target,
+      ...(values.descriptor ? ['--descriptor', values.descriptor] : []),
       '--run-id',
       runId,
       '--profile',

@@ -30,6 +30,7 @@ import { historyScheduler } from '../../../packages/server/src/lab/history/sched
 import { RecordsService } from '../../../packages/server/src/lab/records/use-cases.ts';
 import { recordsRoutes } from '../../../packages/server/src/lab/records/routes.ts';
 import { trendRoutes } from '../../../packages/server/src/lab/history/trend-routes.ts';
+import { lifecycleRoutes } from '../../../packages/server/src/lab/world/lifecycle-routes.ts';
 export const version = (
   JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -133,6 +134,7 @@ export async function run(
       await devices.initialize();
       const world = new WorldService(context, config.auth);
       worldRoutes(app, world, () => devices.ready);
+      lifecycleRoutes(app, world);
       const subscriptions = new WorldSubscriptions(world, () => devices.ready);
       subscriptionRoutes(app, subscriptions);
       deviceRoutes(app, new DeviceService(context, config.auth, devices));
