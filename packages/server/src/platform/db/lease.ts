@@ -33,8 +33,14 @@ export class DirectoryLease {
     this.server = server;
   }
   static async acquire(directory: string) {
-    await mkdir(directory, { recursive: true });
-    return DirectoryLease.reserve(directory);
+    const lease = await DirectoryLease.reserve(directory);
+    try {
+      await mkdir(lease.directory, { recursive: true });
+      return lease;
+    } catch (error) {
+      await lease.release();
+      throw error;
+    }
   }
   // Hold the same canonical exclusion before an atomic directory publication,
   // without creating or changing the destination.

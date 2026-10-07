@@ -29,6 +29,8 @@ pnpm dev
 
 Success reports `status: restored`. Restore rejects linked directories at each archive path component. It checks format, paths and every file, then verifies the size and SHA256 of the actual staged copies. It checks database history and ready references in owned staging. It reserves destination exclusion without creating the destination and publishes the validated directory with one rename. A failed publication keeps a new destination absent or recreates the original empty directory. Nonempty destinations, wrong content and unsupported history fail. Correct the input or select a new directory, then retry.
 
+On Linux, SIGTERM/SIGINT cancels archive work, drains the current copy and closes database and directory owners before exit. An abrupt process exit can leave a `.lab-word-backup-*.json` or `.lab-word-restore-*.json` ownership ledger beside its temporary directory. Retry the same command and destination after the old process has stopped. The command holds both destination and staging exclusion while reconciling a valid matching ledger, restores a previous empty destination if publication was interrupted, then removes its owned staging. A live staging consumer blocks recovery. Unknown directories and invalid or unrelated ledgers are preserved. Windows process termination uses this abrupt-exit recovery path. A directory already published successfully is preserved and remains a nonempty destination.
+
 Log in with the original account. Open its Lab and download the asset. Identity and bytes remain the same. Retry an acknowledged Command with its original key and parameters to receive the original result. Startup interrupts old Runs. It does not replay Commands or resume long Tasks. A fresh signer issues new byte URLs.
 
 The current format supports only this implementation's verified Node migration history and database format. Later baseline compression must provide verified compatibility or refuse old history before target mutation. Preserve earlier Node directories and archives. This command does not convert or delete old Rust/PostgreSQL data.
@@ -46,7 +48,7 @@ unset recovery_password
 
 Migration reports the verified schema version. It does not start devices or maintenance loops. Password recovery reads standard input and excludes the password from output. It preserves user identity, revokes old sessions and records a system audit. Restart the service and log in with the new password. The original `pnpm reset-password --email ...` entrypoint remains available.
 
-Owners: [unified CLI](../../apps/server/src/cli.ts), [archive composition](../../apps/server/src/operations.ts), [shared password operation](../../apps/server/src/password-operation.ts), [database history and opening](../../packages/server/src/platform/db/index.ts), [closed database snapshot](../../packages/server/src/platform/db/snapshot.ts), and [Files ready references](../../packages/server/src/core/files/archive.ts).
+Owners: [unified CLI](../../apps/server/src/cli.ts), [archive composition](../../apps/server/src/operations.ts), [staging ownership and recovery](../../apps/server/src/archive-workspace.ts), [shared password operation](../../apps/server/src/password-operation.ts), [database history and opening](../../packages/server/src/platform/db/index.ts), [closed database snapshot](../../packages/server/src/platform/db/snapshot.ts), and [Files ready references](../../packages/server/src/core/files/archive.ts).
 
 ## Own Startup and Shutdown Resources
 

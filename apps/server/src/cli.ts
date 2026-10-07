@@ -6,6 +6,26 @@ import { DirectoryLease } from '../../../packages/server/src/platform/db/lease.t
 import { PublicFailure } from '../../../packages/server/src/platform/http/failure.ts';
 import { resetPasswordOperation } from './password-operation.ts';
 import { run } from './runtime.ts';
+async function archiveOperation<T>(
+  operate: (signal: AbortSignal) => Promise<T>,
+) {
+  const cancellation = new AbortController();
+  const signals = ['SIGTERM', 'SIGINT'] as const;
+  const handlers = signals.map((signal) => () => {
+    process.exitCode = signal === 'SIGTERM' ? 143 : 130;
+    cancellation.abort(new Error('Archive operation interrupted by ' + signal));
+  });
+  signals.forEach((signal, index) => process.once(signal, handlers[index]));
+  try {
+    const result = await operate(cancellation.signal);
+    cancellation.signal.throwIfAborted();
+    return result;
+  } finally {
+    signals.forEach((signal, index) =>
+      process.removeListener(signal, handlers[index]),
+    );
+  }
+}
 let operation: string | undefined;
 try {
   const { values, positionals } = parseArgs({
@@ -58,7 +78,13 @@ try {
     !values.archive &&
     !values.email
   )
-    console.log(JSON.stringify(await backup(config.directory, values.output)));
+    console.log(
+      JSON.stringify(
+        await archiveOperation((signal) =>
+          backup(config.directory, values.output!, signal),
+        ),
+      ),
+    );
   else if (
     operation === 'restore' &&
     values.archive &&
@@ -66,7 +92,11 @@ try {
     !values.email
   )
     console.log(
-      JSON.stringify(await restore(config.directory, values.archive)),
+      JSON.stringify(
+        await archiveOperation((signal) =>
+          restore(config.directory, values.archive!, signal),
+        ),
+      ),
     );
   else if (operation === 'reset-password' && !values.output && !values.archive)
     console.log(
@@ -102,5 +132,5 @@ try {
       },
     }),
   );
-  process.exitCode = 1;
+  process.exitCode ||= 1;
 }

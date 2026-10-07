@@ -6,8 +6,10 @@ import type { DirectoryLease } from './lease.ts';
 export async function copyDatabaseSnapshot(
   lease: DirectoryLease,
   destination: string,
+  signal?: AbortSignal,
 ) {
   async function copy(source: string, target: string) {
+    signal?.throwIfAborted();
     const info = await lstat(source);
     if (info.isSymbolicLink() || (!info.isDirectory() && !info.isFile()))
       throw new Error('Database snapshot contains a link or unsupported entry');
@@ -15,7 +17,10 @@ export async function copyDatabaseSnapshot(
       await mkdir(target, { recursive: true });
       for (const name of await readdir(source))
         await copy(join(source, name), join(target, name));
-    } else await copyFile(source, target);
+    } else {
+      await copyFile(source, target);
+      signal?.throwIfAborted();
+    }
   }
   await copy(join(lease.directory, 'pgdata'), destination);
 }
