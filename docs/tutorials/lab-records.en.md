@@ -1,14 +1,16 @@
 # Query Records Across A Lab
 
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+
 Goal: read Command, Task, Event and device program Run records through the generated SDK. Filter records and continue with a stable cursor.
 
 ## Starting State
 
-Use a source version that contains [records.rs](../../crates/app/src/modules/lab/records.rs). Complete [centrifuge tasks](centrifuge-tasks.en.md) or [backend lighting](backend-lights.en.md) first. The Lab needs real Runs, Commands and events. A centrifuge action also creates a Task.
+Use a source version that contains [records.rs](../../packages/server/src/lab/records/use-cases.ts). Complete [centrifuge tasks](centrifuge-tasks.en.md) or [backend lighting](backend-lights.en.md) first. The Lab needs real Runs, Commands and events. A centrifuge action also creates a Task.
 
-Run commands from the repository root. Run `pnpm install --frozen-lockfile`, then `just dev`. Members need an active session. Agents need an active `lab:full` key. These queries do not change World or clean records.
+Run commands from the repository root. Run `pnpm install --frozen-lockfile`, then `pnpm dev`. Members need an active session. Agents need an active `lab:full` key. These queries do not change World or clean records.
 
-Sources: [mixed records](../../crates/app/src/modules/lab/records/list.sql), [category coverage](../../crates/app/src/modules/lab/records/coverage.sql), and [deployment retention](../../crates/app/src/modules/lab/history/retention.rs). Rust OpenAPI generates the contracts.
+Sources: [mixed records](../../packages/server/src/lab/records/list.sql), [category coverage](../../packages/server/src/lab/records/coverage.sql), and [deployment retention](../../packages/server/src/lab/history/use-cases.ts). Node Zod/OpenAPI supplies the migrated contract. The official SDK source switch follows.
 
 ## Read Two Pages
 

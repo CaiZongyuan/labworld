@@ -86,10 +86,12 @@ export class DeviceService {
             'lab.invalid_parameters',
             'Use the program input types and allowed range',
           );
-        const run = randomUUID();
-        await tx.execute(
-          sql`insert into lab.program_runs(id,entity_id,binding_id,generation,configuration,status,started_by) values(${run}::uuid,${entity.id}::uuid,${entity.binding.id}::uuid,${this.runtime.generation},${JSON.stringify(entity.configuration)}::jsonb,'running',${actor.user.id}::uuid)`,
+        // Entity projections break tied storage timestamps by Run ID. Use
+        // the platform's ordered UUID generator for this creation order.
+        const inserted = await tx.execute<{ id: string }>(
+          sql`insert into lab.program_runs(id,entity_id,binding_id,generation,configuration,status,started_by) values(uuidv7(),${entity.id}::uuid,${entity.binding.id}::uuid,${this.runtime.generation},${JSON.stringify(entity.configuration)}::jsonb,'running',${actor.user.id}::uuid) returning id::text`,
         );
+        const run = inserted.rows[0].id;
         await this.audit(
           tx,
           actor.user.id,
@@ -187,16 +189,15 @@ export class DeviceService {
         const receipt = await tx.execute<{ fingerprint: string }>(
           sql`select fingerprint from lab.command_receipts where actor_id=${actor.user.id}::uuid and entity_id=${entity.id}::uuid and request_key=${key}`,
         );
-        if (receipt.rows[0])
+        if (receipt.rows[0]) {
+          const same =
+            receipt.rows[0].fingerprint === fingerprint(input).toString('hex');
           deviceFailure(
-            receipt.rows[0].fingerprint === fingerprint(input).toString('hex')
-              ? 410
-              : 409,
-            receipt.rows[0].fingerprint === fingerprint(input).toString('hex')
-              ? 'lab.command_expired'
-              : 'idempotency.conflict',
+            same ? 410 : 409,
+            same ? 'lab.command_expired' : 'idempotency.conflict',
             'The original Command expired; this request was not executed again',
           );
+        }
         if (entity.archived_at)
           deviceFailure(409, 'lab.entity_archived', 'This Entity is archived');
         this.available();
@@ -242,17 +243,17 @@ export class DeviceService {
             'lab.device_busy',
             'Finish the current task before starting another',
           );
-        const command = randomUUID();
-        await tx.execute(
-          sql`insert into lab.device_commands(id,entity_id,run_id,actor_id,actor_source,request_key,capability,parameters,status) values(${command}::uuid,${entity.id}::uuid,${entity.program_run.id}::uuid,${actor.user.id}::uuid,${actor.isApiKey ? 'agent' : 'member'},${key},${input.capability},${JSON.stringify(input.parameters)}::jsonb,'accepted')`,
+        const insertedCommand = await tx.execute<{ id: string }>(
+          sql`insert into lab.device_commands(id,entity_id,run_id,actor_id,actor_source,request_key,capability,parameters,status) values(uuidv7(),${entity.id}::uuid,${entity.program_run.id}::uuid,${actor.user.id}::uuid,${actor.isApiKey ? 'agent' : 'member'},${key},${input.capability},${JSON.stringify(input.parameters)}::jsonb,'accepted') returning id::text`,
         );
+        const command = insertedCommand.rows[0].id;
         let task: string | null = null;
         if (input.capability === 'centrifuge.start') {
-          task = randomUUID();
           const result = randomUUID();
-          await tx.execute(
-            sql`insert into lab.device_tasks(id,entity_id,run_id,command_id,result_id,parameters,status) values(${task}::uuid,${entity.id}::uuid,${entity.program_run.id}::uuid,${command}::uuid,${result}::uuid,${JSON.stringify(input.parameters)}::jsonb,'pending')`,
+          const insertedTask = await tx.execute<{ id: string }>(
+            sql`insert into lab.device_tasks(id,entity_id,run_id,command_id,result_id,parameters,status) values(uuidv7(),${entity.id}::uuid,${entity.program_run.id}::uuid,${command}::uuid,${result}::uuid,${JSON.stringify(input.parameters)}::jsonb,'pending') returning id::text`,
           );
+          task = insertedTask.rows[0].id;
           await tx.execute(
             sql`insert into lab.device_task_results(id,task_id,status) values(${result}::uuid,${task}::uuid,'pending')`,
           );

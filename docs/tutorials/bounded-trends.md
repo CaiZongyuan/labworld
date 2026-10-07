@@ -1,14 +1,16 @@
 # 查询有界、来源明确的趋势
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：用生成 SDK 查询一个 Entity 的温度或实际转速。识别真实样本、简化粒度和历史缺口。
 
 ## 起始状态
 
-先完成[连续温度](continuous-temperature.md)或[离心任务](centrifuge-tasks.md)。使用包含本章[趋势路由](../../crates/app/src/modules/lab/trend.rs)的源码版本。API 与设备程序应已启动；查询不需要浏览器持续打开。
+先完成[连续温度](continuous-temperature.md)或[离心任务](centrifuge-tasks.md)。使用包含本章[趋势路由](../../packages/server/src/lab/history/trend.ts)的源码版本。API 与设备程序应已启动；查询不需要浏览器持续打开。
 
 在仓库根目录执行命令。Member 需要有效会话；Agent 需要有效 `lab:full` 密钥。查询与失败检查只读，不创建对象、启动程序或改变保留期。
 
-源码：[数据库趋势读模型](../../crates/app/src/modules/lab/trend.sql)、[公开 HTTP 验证](../../apps/api/tests/lab_trends.rs)、[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。原始观测仍从[运行历史](run-history.md)查询。
+源码：[数据库趋势读模型](../../packages/server/src/lab/history/trend.sql)、[公开 HTTP 验证](../../tests/server/lab-trend-supplement.test.ts)、[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。原始观测仍从[运行历史](run-history.md)查询。
 
 ## 取得第一个结果
 

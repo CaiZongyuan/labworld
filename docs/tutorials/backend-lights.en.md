@@ -1,18 +1,20 @@
 # Control Backend Lighting Programs
 
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+
 Goal: start two independent lights, invoke the same commands as a Member and an Agent, and distinguish command results from observations with an identified source.
 
 ## Starting Revision and Changes
 
 Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [persistent Labs and objects](persistent-world.en.md) first. You need a Lab, Entities, separate nodes, pinned definitions and a `lab:full` credential. Run commands from the repository root. Browser operations and the script write development data.
 
-Entry points are [device HTTP](../../crates/app/src/modules/lab/devices.rs), the [public device runtime and observation interface](../../crates/app/src/modules/lab/runtime.rs), [migration](../../migrations/0020_lab_devices.sql), [source-order migration](../../migrations/0021_lab_observation_order.sql), [Inspector](../../packages/views/src/lab/device-panel.tsx), [3D appearance](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) registers the new tables, contracts, tests and tutorials.
+Entry points are [device HTTP](../../packages/server/src/lab/devices/use-cases.ts), the [public device runtime and observation interface](../../packages/server/src/lab/devices/runtime.ts), [migration](../../packages/server/migrations/0000_foundation.sql), [source-order migration](../../packages/server/migrations/0000_foundation.sql), [Inspector](../../packages/views/src/lab/device-panel.tsx), [3D appearance](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) registers the new tables, contracts, tests and tutorials.
 
 ## Get the First Browser Observation
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 Open <http://127.0.0.1:5173/lab>, sign in as a Member and create `Lighting lab`. Register `Light A` and `Light B` using `Smart light · 1.0`, built-in appearance and simulated identity.
@@ -53,16 +55,16 @@ Complete executable requests:
 
 The script verifies that `brightness=101` produces `422 lab.invalid_parameters` and a new action after stopping produces `422 lab.program_not_running`, without changing observations. Unimplemented Robot actions return `422 lab.capability_not_implemented`. Member and Agent rejections agree. Session writes require CSRF; invalid, expired or revoked Agent credentials cannot write.
 
-After a lost response, the page shows **Submission uncertain** and retains the parameters and key, including after selecting another Entity and returning. **Retry same command** reuses that key; **Refresh command** queries a known command. Do not automatically repeat unknown execution using a new key. Backend restart marks former Runs `interrupted` and unfinished commands `unknown`, keeps the last observation and requires explicitly starting a new Run. Reports from old Runs or runtime hosts are rejected. Rust hot reload during development follows the same restart rule.
+After a lost response, the page shows **Submission uncertain** and retains the parameters and key, including after selecting another Entity and returning. **Retry same command** reuses that key; **Refresh command** queries a known command. Do not automatically repeat unknown execution using a new key. Backend restart marks former Runs `interrupted` and unfinished commands `unknown`, keeps the last observation and requires explicitly starting a new Run. Reports from old Runs or runtime hosts are rejected. After server code changes, stop and rerun `pnpm dev` with the same recovery rule.
 
-Before migrations, readiness returns 503 and the API does not migrate automatically. Before runtime initialization, authenticated program startup and actions return `503 lab.runtime_unavailable` without accepting commands that have no executor. Initialization retries only while no runtime has been established; queue processing after success does not repeatedly interrupt Runs. Explicitly retry the original key once dependencies recover.
+Node acquires its directory lease, migrates and recovers before HTTP admission. Startup failure prevents new actions. After recovery, query or retry uncertain requests with the original key.
 
 ## Verification and Next Stage
 
 ```bash
-node scripts/test-backend.mjs --test lab_devices --test lab_world
+pnpm test:contract:server
 pnpm test:frontend apps/web/src/lab-devices.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-devices.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
 HTTP uses the real Router and isolated PostgreSQL; the public runtime verifies ordering and restart; component tests mock only HTTP with MSW; the browser uses the real app, an independent Agent and WebGL. Continue with [Edit Layout and Register Location](edit-layout.md) for layout and manual relationship operations. [Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) adds continuous sensors and stale detection. Layout versions remain separate from runtime observations.

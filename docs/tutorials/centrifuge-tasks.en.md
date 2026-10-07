@@ -1,5 +1,7 @@
 # Run Centrifuge Tasks And Recover After Restart
 
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+
 Goal: complete one centrifuge task and cancel another. Query their separate identities. Keep the results after browsers close and the backend restarts.
 
 ## Starting Version
@@ -8,7 +10,7 @@ Use the common version specified in the [complete journey](complete-foundation.e
 
 Run commands from the repository root. The operations write persistent development data. Members need an active session. Agents need an active `lab:full` API key.
 
-Source: [task HTTP contract](../../crates/app/src/modules/lab/tasks.rs), [backend program](../../crates/app/src/modules/lab/runtime/centrifuge.rs), [migration](../../migrations/0025_lab_device_tasks.sql), and [task panel](../../packages/views/src/lab/centrifuge-panel.tsx).
+Source: [task HTTP contract](../../packages/server/src/lab/devices/routes.ts), [backend program](../../packages/server/src/lab/devices/domain.ts), [migration](../../packages/server/migrations/0000_foundation.sql), and [task panel](../../packages/views/src/lab/centrifuge-panel.tsx).
 
 ## Complete One Task
 
@@ -21,7 +23,7 @@ Source: [task HTTP contract](../../crates/app/src/modules/lab/tasks.rs), [backen
 2. Start development.
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 3. Open <http://127.0.0.1:5173/lab>.
@@ -125,14 +127,12 @@ A succeeded Start Command means the program started the task. It does not mean t
 6. Record its Entity, Command, Run, Task and result identities.
 7. Stop the development stack while the task is active.
 
-   ```bash
-   just dev-stop
-   ```
+Press Ctrl+C in the terminal running `pnpm dev`.
 
 8. Start development again.
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 9. If an existing page shows **Connection interrupted**, select **Reconnect**.

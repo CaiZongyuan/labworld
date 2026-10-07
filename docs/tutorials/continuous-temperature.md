@@ -1,5 +1,7 @@
 # 查看连续温度与来源新鲜度
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：查看两个后端温度来源。停止一个来源，保留最后值并观察过期。恢复来源后，核对新的运行身份与时间。
 
 ## 起始版本
@@ -8,7 +10,7 @@
 
 在仓库根目录运行命令。操作会写入开发数据库。普通 Member 需要有效会话。Agent 需要有效的 `lab:full` API 密钥。
 
-实现入口：[后端程序与观测入口](../../crates/app/src/modules/lab/runtime.rs)、[属性观测合同](../../crates/app/src/modules/lab/devices.rs)、[新增迁移](../../migrations/0024_lab_observation_properties.sql)、[观测面板](../../packages/views/src/lab/observation-reading.tsx)。旧迁移保持原校验和。
+实现入口：[后端程序与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[属性观测合同](../../packages/server/src/lab/devices/use-cases.ts)、[新增迁移](../../packages/server/migrations/0000_foundation.sql)、[观测面板](../../packages/views/src/lab/observation-reading.tsx)。Node 使用共享保留 schema。
 
 ## 查看两个来源
 
@@ -21,7 +23,7 @@
 2. 启动开发栈。
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
    API 启动内置设备程序。Worker 继续处理原有后台任务。
@@ -128,9 +130,9 @@ API 把过期转换持久化，并推进 `world.version`。相同版本不会因
 示例向 Entity PATCH 请求加入 `observation`，并要求 HTTP 400。API 拒绝直接覆写测量，最后值保持不变。普通 Member 得到相同约束。删除这个字段后，使用程序启动/停止操作继续工作。
 
 ```bash
-node scripts/test-backend.mjs --test lab_sensors --test lab_devices --test lab_sync
+pnpm test:contract:server
 pnpm test:frontend apps/web/src/lab-sensors.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-sensors.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
 这些检查覆盖真实 Router、隔离数据库、受控时钟、页面操作与真实 WebGL。下一章[离心任务与重启恢复](centrifuge-tasks.md)提供固定任务参数、减速取消和显式重启恢复。

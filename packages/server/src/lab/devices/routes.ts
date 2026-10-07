@@ -70,7 +70,6 @@ export function deviceRoutes(
         201: json(DeviceProgramRun),
         200: json(DeviceProgramRun),
         ...errors,
-        429: requestBudgetResponse,
       },
     }),
     async (c) => {
@@ -137,7 +136,6 @@ export function deviceRoutes(
         202: json(DeviceCommand),
         410: json(ApiErrorResponse),
         ...errors,
-        429: requestBudgetResponse,
       },
     }),
     async (c) => {

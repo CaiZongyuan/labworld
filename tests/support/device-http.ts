@@ -61,8 +61,11 @@ export async function deviceHttpFixture() {
           await new Promise<void>((resolve) => server!.close(() => resolve()));
       },
     );
-    await new CoreHttp(target.url).register('owner@example.test');
-    const client = new CoreHttp(target.url);
+    // This fixture deliberately closes/reopens the same listener. Avoid
+    // carrying an undici keepalive socket across that controlled boundary.
+    const transport = { connection: 'close' };
+    await new CoreHttp(target.url, transport).register('owner@example.test');
+    const client = new CoreHttp(target.url, transport);
     await client.register('member@example.test');
     const lab = await client.json<PersistentLab>(
       'POST',
@@ -81,15 +84,35 @@ export async function deviceHttpFixture() {
         await runtime.stop();
         if (server)
           await new Promise<void>((resolve) => server!.close(() => resolve()));
+        const oldListening = server?.listening ?? false;
         runtime = new DeviceRuntime(context, (event) =>
           console.log(JSON.stringify(event)),
         );
         await runtime.initialize();
-        server = serve({
-          fetch: appForRuntime().fetch,
-          port: target.port,
-          hostname: '127.0.0.1',
+        await new Promise<void>((resolve) => {
+          server = serve(
+            {
+              fetch: appForRuntime().fetch,
+              port: target.port,
+              hostname: '127.0.0.1',
+            },
+            () => resolve(),
+          );
         });
+        const live = await client.response('GET', '/health/live');
+        if (!live.ok || oldListening || !server?.listening)
+          throw new Error('Controlled restart listener did not become ready');
+        await live.arrayBuffer();
+        console.log(
+          JSON.stringify({
+            event: 'fixture.device_restarted',
+            oldListening,
+            newListening: server.listening,
+            freshConnection: true,
+            liveStatus: live.status,
+            generation: runtime.generation,
+          }),
+        );
       },
       client,
       lab,

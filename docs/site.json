@@ -404,7 +404,43 @@
       "titleEn": "Node World, registration and layout",
       "group": "开发",
       "type": "guide",
-      "previous": "server-assets"
+      "previous": "server-assets",
+      "next": "server-devices"
+    },
+    {
+      "id": "server-devices",
+      "source": "docs/guides/server-devices.md",
+      "sourceEn": "docs/guides/server-devices.en.md",
+      "route": "guides/server-devices.md",
+      "title": "Node 设备程序与任务",
+      "titleEn": "Node device programs and Tasks",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-world",
+      "next": "server-sync"
+    },
+    {
+      "id": "server-sync",
+      "source": "docs/guides/server-sync.md",
+      "sourceEn": "docs/guides/server-sync.en.md",
+      "route": "guides/server-sync.md",
+      "title": "Node 世界同步",
+      "titleEn": "Node World synchronization",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-devices",
+      "next": "server-traceability"
+    },
+    {
+      "id": "server-traceability",
+      "source": "docs/guides/server-traceability.md",
+      "sourceEn": "docs/guides/server-traceability.en.md",
+      "route": "guides/server-traceability.md",
+      "title": "Node 运行追溯与生命周期",
+      "titleEn": "Node operational records and lifecycle",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-sync"
     }
   ],
   "references": [

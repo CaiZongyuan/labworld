@@ -56,7 +56,6 @@ export function lifecycleRoutes(
         200: json(LabEntity),
         409: json(ApiErrorResponse),
         ...errors,
-        429: requestBudgetResponse,
       },
     }),
     async (c) => {
@@ -96,7 +95,6 @@ export function lifecycleRoutes(
           200: json(LabEntity),
           ...(kind === 'definition' ? { 409: json(ApiErrorResponse) } : {}),
           ...errors,
-          429: requestBudgetResponse,
         },
       }),
       async (c) => {

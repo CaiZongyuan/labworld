@@ -1,16 +1,18 @@
 # 归档对象并替换外观
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：移除并放回设备的 Scene Node（场景节点），替换 GLB 外观，在任务结束且程序停止后归档设备。
 
 ## 起始版本
 
-使用[完整旅程](complete-foundation.md)指定的共同版本，其中包含生命周期迁移 `0028_lab_entity_lifecycle.sql`。先完成[运行历史](run-history.md)，取得可查询记录和保留策略。
+使用[完整旅程](complete-foundation.md)指定的共同版本，使用 Node 共享 schema。先完成[运行历史](run-history.md)，取得可查询记录和保留策略。
 
-命令从仓库根目录运行。用 `just dev` 启动服务。使用可丢弃的 Lab 数据；这些操作会修改持久数据。
+命令从仓库根目录运行。用 `pnpm dev` 启动服务。使用可丢弃的 Lab 数据；这些操作会修改持久数据。
 
 Member 需要有效会话，写入需要 CSRF。Agent 需要有效的 `lab:full` 密钥。两类调用者遵守相同生命周期规则。
 
-源码：[生命周期 HTTP](../../crates/app/src/modules/lab/lifecycle.rs)、[Inspector 控件](../../packages/views/src/lab/entity-lifecycle-panel.tsx)和[迁移](../../migrations/0028_lab_entity_lifecycle.sql)。
+源码：[生命周期 HTTP](../../packages/server/src/lab/world/lifecycle.ts)、[Inspector 控件](../../packages/views/src/lab/entity-lifecycle-panel.tsx)和[迁移](../../packages/server/migrations/0000_foundation.sql)。
 
 ## 移除并放回节点
 

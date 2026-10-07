@@ -217,5 +217,5 @@ writeFileSync(
   ),
 );
 console.log(
-  'Isolated recursive Core and migrated Asset/World API plus representative SDK caller verified; runtime API pending M4 and official switch pending M5.',
+  'Complete retained Node API and representative generated SDK caller verified; official source switch remains #51.',
 );

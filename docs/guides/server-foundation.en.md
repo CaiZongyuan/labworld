@@ -1,6 +1,6 @@
 # Start the TypeScript service foundation
 
-This guide is for developers of Lab Word Server. The current foundation provides health, system status, error envelopes, a persistent database and contract generation. Identity, memberships, API keys, audit, limits and file capabilities are implemented. The Web app can use Core identity, persistent assets, Labs, Entities, Scene Nodes and layouts. Devices, business subscriptions and history remain in migration. Continue with [Platform Core](server-platform.md).
+This guide is for developers of Lab Word Server. The current foundation provides health, system status, error envelopes, a persistent database and contract generation. Identity, memberships, API keys, audit, limits and file capabilities are implemented. The Web app can use Core identity, persistent assets, Labs, Entities, Scene Nodes and layouts. Device programs, business subscriptions, history, records, trends and lifecycle are implemented. Continue with [Node devices](server-devices.en.md). Continue with [Platform Core](server-platform.md).
 
 ## Get the first result
 
@@ -58,9 +58,9 @@ pnpm check:m1
 
 Service tests start real child processes. They verify health, errors, persistence, reopening, microsecond timestamps, transaction rollback, SQL counting and directory exclusivity. The error test requests a missing resource. Its 404 response contains `code`, `details`, `message` and `request_id`. The request ID matches the `x-request-id` response header. Responses use `cache-control: no-store`.
 
-`contracts:m1:check` generates OpenAPI from Zod routes. The existing SDK generator writes to `.scratch/vnext-m1/generated/`. The check compares the 29 migrated paths and 62 recursively referenced schemas, including five file DTOs, compiles a generated caller and confirms that the official contracts and SDK are unchanged. A partial service does not overwrite complete client contracts.
+`contracts:m1:check` generates OpenAPI from Zod routes. The existing SDK generator writes to `.scratch/vnext-m1/generated/`. The check compares all retained paths and their recursively referenced schemas, including five file DTOs, compiles a generated caller and confirms that the official contracts and SDK are unchanged. Isolated generation does not switch the official client source.
 
-`check:m1` runs service, Web, retained tooling, boundary, bundle and documentation checks. Current CI focuses on Web and does not build or run Electron. The old service, complete business contracts and browser journeys remain pending their migration stages. This command does not claim that Migration Gate has passed.
+`check:m1` runs service, Web, retained tooling, boundary, bundle and documentation checks. Current CI focuses on Web and does not build or run Electron. Linux CI also runs the complete Node HTTP/SSE contract suite. The official application composition, operational commands and retained browser integration complete in later migration stages. This command does not claim that Migration Gate has passed.
 
 ## Replay the persistence spike
 

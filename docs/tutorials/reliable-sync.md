@@ -1,18 +1,20 @@
 # 同步世界并从断线恢复
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：让两个浏览器和一个 Agent 观察同一后端设备，保留断线前的最后观测，并验证撤销凭据终止现有订阅。
 
 ## 起始版本与本章变更
 
 使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[编辑布局与登记位置](edit-layout.md)，建立持久世界、设备程序和布局草稿。命令在仓库根目录运行。浏览器操作会写入开发数据库。
 
-实现入口：[持久世界版本](../../migrations/0023_lab_world_version.sql)、[公开 SSE 接口](../../crates/app/src/modules/lab/sync.rs)、[SDK 订阅和版本应用](../../packages/sdk/src/lab-world.ts)、[页面订阅](../../packages/views/src/lab/world-subscription.ts)、[Lab ownership](../../crates/app/src/modules/lab/module.json)。已有迁移保持原校验和。
+实现入口：[持久世界版本](../../packages/server/migrations/0000_foundation.sql)、[公开 SSE 接口](../../packages/server/src/lab/world/subscriptions.ts)、[SDK 订阅和版本应用](../../packages/sdk/src/lab-world.ts)、[页面订阅](../../packages/views/src/lab/world-subscription.ts)、[Lab ownership](../../crates/app/src/modules/lab/module.json)。Node 使用共享保留 schema。
 
 ## 两个浏览器观察同一设备
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 打开 <http://127.0.0.1:5173/lab>，使用普通 Member，沿用[后端照明控制](backend-lights.md)中的 Lab 和 `Light A`。启动程序并打开电源。在另一浏览器登录同一企业，打开相同 Lab、选择同一对象。两端显示 **实时同步**，Inspector 和灯罩来自相同设备观测，页脚的 `W` 数字为世界版本，标题的 `v` 数字仍是独立布局版本。
@@ -54,9 +56,9 @@ World 和单 Entity 读取的 `X-Lab-Runtime: ready | unavailable`，以及订�
 ## 验证与下一阶段
 
 ```bash
-node scripts/test-backend.mjs --test lab_sync --test lab_assets
+pnpm test:contract:server
 pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.test.ts
-node scripts/e2e.mjs tests/e2e/lab-sync.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
 真实 Router 和隔离 PostgreSQL 验证交接、版本、撤权及有界队列。页面只用 MSW 替代 HTTP。关键旅程使用真实两浏览器、Agent、后端程序及 WebGL。[下一章](continuous-temperature.md)使用相同属性合同读取连续温度与过期状态。[完整旅程](complete-foundation.md)组合布局草稿与网络恢复。

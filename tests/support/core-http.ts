@@ -5,8 +5,10 @@ export class CoreHttp {
   csrf?: string;
   session?: CurrentSession;
   url: string;
-  constructor(url: string) {
+  headers: Record<string, string>;
+  constructor(url: string, headers: Record<string, string> = {}) {
     this.url = url;
+    this.headers = headers;
   }
   response(
     method: string,
@@ -19,6 +21,7 @@ export class CoreHttp {
       headers: {
         'content-type': 'application/json',
         origin: this.url,
+        ...this.headers,
         ...(this.cookie ? { cookie: this.cookie } : {}),
         ...(this.csrf ? { 'x-csrf-token': this.csrf } : {}),
         ...extra,

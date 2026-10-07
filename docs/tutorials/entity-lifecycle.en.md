@@ -1,16 +1,18 @@
 # Archive An Entity And Replace Its Appearance
 
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+
 Goal: remove and restore a device's Scene Node. Replace its GLB appearance. Archive the device after its Task ends and program stops.
 
 ## Starting Version
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). It includes lifecycle migration `0028_lab_entity_lifecycle.sql`. Complete [run history](run-history.en.md) first. You need queryable records and retention.
+Use the common version specified in the [complete journey](complete-foundation.en.md). Use the Node shared schema. Complete [run history](run-history.en.md) first. You need queryable records and retention.
 
-Run commands from the repository root. Start services with `just dev`. Use disposable Lab data. These operations change persistent data.
+Run commands from the repository root. Start services with `pnpm dev`. Use disposable Lab data. These operations change persistent data.
 
 Members need an active session and CSRF for writes. Agents need an active `lab:full` key. Both callers follow the same lifecycle rules.
 
-Source: [lifecycle HTTP](../../crates/app/src/modules/lab/lifecycle.rs), [Inspector controls](../../packages/views/src/lab/entity-lifecycle-panel.tsx), and [migration](../../migrations/0028_lab_entity_lifecycle.sql).
+Source: [lifecycle HTTP](../../packages/server/src/lab/world/lifecycle.ts), [Inspector controls](../../packages/views/src/lab/entity-lifecycle-panel.tsx), and [migration](../../packages/server/migrations/0000_foundation.sql).
 
 ## Remove And Restore A Node
 

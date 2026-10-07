@@ -1,14 +1,16 @@
 # Query Run History And Clean Expired Records
 
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+
 Goal: query a centrifuge task and its temperature reports. Change retention in an isolated development deployment. Check the records after cleanup.
 
 ## Starting Version
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). It includes history migration `0026` and Command receipt migration `0027`. Complete [centrifuge tasks](centrifuge-tasks.en.md) first. You need separate Command, Run, Task and result identities.
+Use the common version specified in the [complete journey](complete-foundation.en.md). Use the Node shared schema and current device loop. Complete [centrifuge tasks](centrifuge-tasks.en.md) first. You need separate Command, Run, Task and result identities.
 
-Run commands from the repository root. Start the services with `just dev`. Members need an active session. Agents need an active `lab:full` key. Cleanup deletes persistent history in the selected Lab. Use disposable development data for short retention periods.
+Run commands from the repository root. Start the services with `pnpm dev`. Members need an active session. Agents need an active `lab:full` key. Cleanup deletes persistent history in the selected Lab. Use disposable development data for short retention periods.
 
-Source: [history HTTP](../../crates/app/src/modules/lab/history.rs), [retention](../../crates/app/src/modules/lab/history/retention.rs), [migration](../../migrations/0026_lab_history.sql), and [history panel](../../packages/views/src/lab/history-panel.tsx).
+Source: [history HTTP](../../packages/server/src/lab/history/use-cases.ts), [retention](../../packages/server/src/lab/history/use-cases.ts), [migration](../../packages/server/migrations/0000_foundation.sql), and [history panel](../../packages/views/src/lab/history-panel.tsx).
 
 ## Query A Task And Temperature
 
@@ -114,9 +116,7 @@ Restart interrupts existing Runs and active tasks. Start a new Run explicitly wh
 
 1. Stop development.
 
-   ```bash
-   just dev-stop
-   ```
+Press Ctrl+C in the terminal running `pnpm dev`.
 
 2. Set observation retention.
 
@@ -133,7 +133,7 @@ Restart interrupts existing Runs and active tasks. Start a new Run explicitly wh
 4. Start development.
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 5. Complete a short task.

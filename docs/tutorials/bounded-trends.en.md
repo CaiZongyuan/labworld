@@ -1,14 +1,16 @@
 # Query Bounded Trends With Preserved Sources
 
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+
 Goal: query one Entity's temperature or actual speed with the generated SDK. Identify real samples, sampling resolution, and history gaps.
 
 ## Starting State
 
-Complete [continuous temperature](continuous-temperature.md) or [centrifuge tasks](centrifuge-tasks.md). Use a source revision containing this chapter's [trend route](../../crates/app/src/modules/lab/trend.rs). Start the API and device programs. Queries do not require an open browser.
+Complete [continuous temperature](continuous-temperature.md) or [centrifuge tasks](centrifuge-tasks.md). Use a source revision containing this chapter's [trend route](../../packages/server/src/lab/history/trend.ts). Start the API and device programs. Queries do not require an open browser.
 
 Run commands from the repository root. A Member needs an active session. An Agent needs an active `lab:full` key. These queries and failure checks do not create objects, start programs, or change retention.
 
-Sources: [database trend model](../../crates/app/src/modules/lab/trend.sql), [public HTTP checks](../../apps/api/tests/lab_trends.rs), and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). Use [run history](run-history.md) to read raw observations.
+Sources: [database trend model](../../packages/server/src/lab/history/trend.sql), [public HTTP checks](../../tests/server/lab-trend-supplement.test.ts), and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). Use [run history](run-history.md) to read raw observations.
 
 ## Get A First Result
 

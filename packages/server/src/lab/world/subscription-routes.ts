@@ -68,7 +68,6 @@ export function subscriptionRoutes(
           content: { 'text/event-stream': { schema: WorldEvent } },
         },
         ...errors,
-        429: requestBudgetResponse,
       },
     }),
     async (c) =>
