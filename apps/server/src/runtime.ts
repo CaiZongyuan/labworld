@@ -22,6 +22,8 @@ import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
 import { DeviceRuntime } from '../../../packages/server/src/lab/devices/runtime.ts';
 import { DeviceService } from '../../../packages/server/src/lab/devices/use-cases.ts';
 import { deviceRoutes } from '../../../packages/server/src/lab/devices/routes.ts';
+import { WorldSubscriptions } from '../../../packages/server/src/lab/world/subscriptions.ts';
+import { subscriptionRoutes } from '../../../packages/server/src/lab/world/subscription-routes.ts';
 export const version = (
   JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -123,17 +125,18 @@ export async function run(
       assetRoutes(app, files);
       const devices = new DeviceRuntime(context, log);
       await devices.initialize();
-      worldRoutes(
-        app,
-        new WorldService(context, config.auth),
-        () => devices.ready,
-      );
+      const world = new WorldService(context, config.auth);
+      worldRoutes(app, world, () => devices.ready);
+      const subscriptions = new WorldSubscriptions(world, () => devices.ready);
+      subscriptionRoutes(app, subscriptions);
       deviceRoutes(app, new DeviceService(context, config.auth, devices));
       devices.start();
+      subscriptions.start();
       const scheduler = fileScheduler(context, files, log);
       return {
         app,
         stop: async () => {
+          await subscriptions.stop();
           await devices.stop();
           await scheduler.stop();
         },

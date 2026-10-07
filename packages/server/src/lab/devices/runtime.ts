@@ -230,17 +230,19 @@ export class DeviceRuntime {
       await this.context.db.transaction(
         { id, kind: 'background' },
         async (tx) => {
-          await tx.execute(
-            sql`update lab.device_commands set status='unknown',result=jsonb_build_object('reason','execution_uncertain'),updated_at=now() where id=${command.id}::uuid and status='executing'`,
+          const uncertain = await tx.execute<{ task_id: string | null }>(
+            sql`update lab.device_commands set status='unknown',result=jsonb_build_object('reason','execution_uncertain'),updated_at=now() where id=${command.id}::uuid and status='executing' returning task_id::text`,
           );
-          const source = await this.sourceIn(tx, command.run_id);
-          if (source?.program_id === 'centrifuge.v1')
+          const source = await this.sourceIn(tx, command.run_id),
+            taskId = uncertain.rows[0]?.task_id;
+          if (source?.program_id === 'centrifuge.v1' && taskId)
             await this.failTaskIn(
               tx,
               source,
               'unknown',
               'execution_uncertain',
               this.context.clock.now(),
+              taskId,
             );
         },
       );
@@ -375,18 +377,17 @@ export class DeviceRuntime {
     const result = await tx.execute<{ values: Record<string, unknown> }>(
       sql`select values from lab.current_observations where entity_id=${source.entity_id}::uuid and run_id=${source.run_id}::uuid`,
     );
-    return (
-      result.rows[0]?.values ?? {
-        speed: 0,
-        temperature: source.configuration.initial_temperature ?? 22,
-        phase: 'idle',
-        elapsed_seconds: 0,
-      }
-    );
+    return {
+      speed: 0,
+      temperature: source.configuration.initial_temperature ?? 22,
+      phase: 'idle',
+      elapsed_seconds: 0,
+      ...result.rows[0]?.values,
+    };
   }
-  private async taskIn(tx: DbSession, source: Source) {
+  private async taskIn(tx: DbSession, source: Source, taskId?: string) {
     const rows = await tx.execute<CentrifugeTask>(
-      sql`select id::text,result_id::text,parameters,status,elapsed_seconds,last_tick_at,pending_outcome from lab.device_tasks where run_id=${source.run_id}::uuid and status in('pending','preparing','running','decelerating')`,
+      sql`select id::text,result_id::text,parameters,status,elapsed_seconds,last_tick_at,pending_outcome from lab.device_tasks where run_id=${source.run_id}::uuid and status in('pending','preparing','running','decelerating') and ${taskId === undefined ? sql`true` : sql`id=${taskId}::uuid`}`,
     );
     return rows.rows[0];
   }
@@ -396,8 +397,9 @@ export class DeviceRuntime {
     outcome: string,
     reason: string,
     now: string,
+    taskId?: string,
   ) {
-    const task = await this.taskIn(tx, source);
+    const task = await this.taskIn(tx, source, taskId);
     if (!task) return;
     await tx.execute(
       sql`update lab.device_task_results set reason=${reason} where id=${task.result_id}::uuid`,
@@ -419,9 +421,11 @@ export class DeviceRuntime {
       taskId = commands.rows[0].task_id;
     if (capability === 'centrifuge.start') {
       if (!taskId) throw new Error('Missing reserved Task');
-      await tx.execute(
-        sql`update lab.device_tasks set status='preparing',last_tick_at=${now}::timestamptz where id=${taskId}::uuid`,
-      );
+      const task = await this.taskIn(tx, source, taskId);
+      if (task?.status === 'pending')
+        await tx.execute(
+          sql`update lab.device_tasks set status='preparing',last_tick_at=${now}::timestamptz where id=${taskId}::uuid and status='pending'`,
+        );
       const previous = await this.valuesIn(tx, source);
       if (
         !(await this.observeIn(
@@ -443,7 +447,7 @@ export class DeviceRuntime {
       )
         throw new Error('Device report would regress source time');
     } else if (capability === 'centrifuge.stop' && taskId) {
-      const task = await this.taskIn(tx, source);
+      const task = await this.taskIn(tx, source, taskId);
       if (task) {
         const elapsed =
           task.status === 'running'
