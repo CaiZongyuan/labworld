@@ -6,6 +6,12 @@ import {
   type Page,
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import type {
+  DeviceProgramRun,
+  LabWorld,
+} from '../../packages/contracts/src/generated/types.gen';
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
@@ -85,6 +91,45 @@ test('two backend lights report independent pixels to a Member and an Agent afte
   const inspector = page.getByRole('complementary', { name: '对象信息' });
   const ids: string[] = [];
   let lab = '';
+  const readinessStarted = performance.now();
+  const responseFacts: Record<string, unknown>[] = [];
+  page.on('response', (response) => {
+    const path = new URL(response.url()).pathname;
+    if (!path.endsWith('/world') && !path.endsWith('/program/start')) return;
+    const fact: Record<string, unknown> = {
+      order: responseFacts.length,
+      seenAtMs: performance.now() - readinessStarted,
+      path,
+      status: response.status(),
+    };
+    responseFacts.push(fact);
+    if (!response.ok()) return;
+    void (async () => {
+      try {
+        if (path.endsWith('/world')) {
+          const world = (await response.json()) as LabWorld;
+          fact.version = world.version;
+          fact.entities = world.entities.map((entity) => ({
+            id: entity.id,
+            run: entity.program_run
+              ? { id: entity.program_run.id, status: entity.program_run.status }
+              : null,
+            capabilities: entity.capabilities.map((capability) => ({
+              id: capability.id,
+              executable: capability.executable,
+              reason: capability.reason,
+            })),
+          }));
+        } else {
+          const run = (await response.json()) as DeviceProgramRun;
+          fact.run = { id: run.id, status: run.status };
+        }
+        fact.parsedAtMs = performance.now() - readinessStarted;
+      } catch {
+        fact.bodyAvailable = false;
+      }
+    })();
+  });
   for (const name of ['Light A', 'Light B']) {
     await page.getByRole('button', { name: '登记对象', exact: true }).click();
     const dialog = page.getByRole('dialog');
@@ -112,9 +157,101 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })
       .click();
-    await expect(
-      inspector.getByRole('switch', { name: '电源', exact: true }),
-    ).toBeEnabled();
+    let enableFailed = false;
+    try {
+      await expect(
+        inspector.getByRole('switch', { name: '电源', exact: true }),
+      ).toBeEnabled();
+    } catch (error) {
+      enableFailed = true;
+      throw error;
+    } finally {
+      if (enableFailed)
+        await (async () => {
+          const assertionEndedAtMs = performance.now() - readinessStarted;
+          const dom = await inspector
+            .evaluate(
+              (root) => {
+                const entity = Array.from(root.querySelectorAll('dt')).find(
+                  (entry) => entry.textContent === 'Entity',
+                )?.nextElementSibling?.textContent;
+                const world = document.querySelector(
+                  '[aria-label="世界版本"]',
+                )?.textContent;
+                const switches = Array.from(
+                  root.querySelectorAll('[role="switch"]'),
+                );
+                const programs = Array.from(
+                  root.querySelectorAll('button'),
+                ).filter((button) =>
+                  /^(启动程序|停止程序)$/.test(
+                    button.textContent?.trim() ?? '',
+                  ),
+                );
+                const known = [
+                  '运行端尚未就绪',
+                  '操作未完成',
+                  '实时同步',
+                  '正在连接',
+                  '连接中断',
+                  '访问已结束',
+                ];
+                const visible = Array.from(document.querySelectorAll('*'))
+                  .filter(
+                    (element) =>
+                      element.children.length === 0 &&
+                      known.includes(element.textContent ?? '') &&
+                      element.getClientRects().length > 0 &&
+                      getComputedStyle(element).visibility === 'visible',
+                  )
+                  .map((element) => element.textContent);
+                return {
+                  selectedEntityId: /^[0-9a-f-]{36}$/i.test(entity ?? '')
+                    ? entity
+                    : null,
+                  worldLabel: /^W\d+$/.test(world ?? '') ? world : null,
+                  switchCount: switches.length,
+                  switch:
+                    switches.length === 1
+                      ? {
+                          nativeEnabled: !(switches[0] as HTMLButtonElement)
+                            .disabled,
+                          ariaDisabled:
+                            switches[0].getAttribute('aria-disabled'),
+                          dataDisabled:
+                            switches[0].hasAttribute('data-disabled'),
+                        }
+                      : null,
+                  program: programs.map((button) => ({
+                    label: button.textContent?.trim(),
+                    enabled: !button.disabled,
+                  })),
+                  runtimeAlert: visible.includes('运行端尚未就绪'),
+                  errorVisible: visible.includes('操作未完成'),
+                  sync: visible.filter(
+                    (label) =>
+                      !['运行端尚未就绪', '操作未完成'].includes(label ?? ''),
+                  ),
+                };
+              },
+              undefined,
+              { timeout: 250 },
+            )
+            .catch(() => null);
+          await writeFile(
+            join(process.env.LAB_NODE_EVIDENCE!, 'light-start-facts.json'),
+            JSON.stringify({
+              assertionEndedAtMs,
+              capturedAtMs: performance.now() - readinessStarted,
+              requestedEntityId: ids.at(-1),
+              dom,
+              responses: responseFacts,
+            }) + '\n',
+          );
+        })().catch(() => {
+          // Optional diagnostics must preserve the original assertion failure.
+        });
+    }
   }
   const session = await (await page.request.get('/api/v1/auth/session')).json();
   const credential = await page.request.post('/api/v1/api-keys', {
