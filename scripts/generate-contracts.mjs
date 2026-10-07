@@ -18,11 +18,8 @@ const checking = process.argv.includes('--check');
 const source = process.argv.includes('--source')
   ? process.argv[process.argv.indexOf('--source') + 1]
   : 'server';
-if (!['rust', 'server'].includes(source))
-  throw new Error('Contract source must be rust or server');
+if (source !== 'server') throw new Error('Contract source must be server');
 const isolated = process.argv.includes('--output');
-if (source === 'rust' && !isolated)
-  throw new Error('Frozen Rust generation requires an isolated --output');
 const outputRoot = isolated
   ? resolve(process.argv[process.argv.indexOf('--output') + 1])
   : root;
@@ -63,33 +60,11 @@ function collect(directory) {
 }
 
 try {
-  const contract =
-    source === 'server'
-      ? execFileSync(
-          process.execPath,
-          ['--experimental-strip-types', 'apps/server/src/openapi.ts'],
-          { cwd: root, encoding: 'utf8' },
-        )
-      : execFileSync(
-          'cargo',
-          [
-            'run',
-            '--quiet',
-            '--locked',
-            '-p',
-            'labos-threejs-api',
-            '--bin',
-            'openapi',
-          ],
-          {
-            cwd: root,
-            encoding: 'utf8',
-            env: {
-              ...process.env,
-              CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? '4',
-            },
-          },
-        );
+  const contract = execFileSync(
+    process.execPath,
+    ['--experimental-strip-types', 'apps/server/src/openapi.ts'],
+    { cwd: root, encoding: 'utf8' },
+  );
   JSON.parse(contract);
   const input = join(temporary, 'openapi.json');
   writeFileSync(input, contract);

@@ -64,14 +64,14 @@ async function probe(mode) {
     assert.equal(statSync(ledger).mtimeMs, beforeMtime);
     assert(!existsSync(`${ledger}.next`));
     const invalid = read(ledger);
-    invalid.containers[0].labels = {};
+    invalid.supervisor.token = '';
     const invalidPath = resolve(directory, 'invalid-proof.json');
     writeFileSync(invalidPath, JSON.stringify(invalid));
     const invalidBytes = readFileSync(invalidPath);
     const invalidMtime = statSync(invalidPath).mtimeMs;
     assert.throws(
       () => new ContractResources(invalidPath),
-      /required run\/owner/,
+      /Invalid owned resource ledger/,
     );
     assert.deepEqual(readFileSync(invalidPath), invalidBytes);
     assert.equal(statSync(invalidPath).mtimeMs, invalidMtime);
@@ -212,7 +212,6 @@ for (const mode of selected.length
       'orphan-recover',
       'orphan-restart',
       'consumer-orphan',
-      'worker-wait',
       'register-wait',
     ])
   await probe(mode);

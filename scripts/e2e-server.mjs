@@ -130,6 +130,19 @@ try {
       ),
     );
     await web.stop();
+    web.entry = 'scripts/build-server.mjs';
+    web.args = ['--outDir', join(web.directory, 'server')];
+    await web.spawn();
+    await new Promise((resolve, reject) =>
+      web.child.once('exit', (code) =>
+        code === 0
+          ? resolve()
+          : reject(new Error('Owned production server build failed')),
+      ),
+    );
+    await web.stop();
+    if (!statusControl && !reference)
+      backend.entry = join(web.directory, 'server/apps/server/src/main.js');
     backend.env.LAB_WORD_WEB_DIR = join(web.directory, 'web');
     web.port = backend.port;
     await web.startInProcess(

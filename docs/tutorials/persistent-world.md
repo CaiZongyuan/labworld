@@ -8,13 +8,13 @@
 
 使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[持久数字资产](persistent-assets.md)，取得服务器资产、内置定义目录和 `lab:full` Agent 凭据。命令在仓库根目录运行。浏览器登记和脚本会写入开发数据库。
 
-实现位于 [World HTTP](../../crates/app/src/modules/lab/world.rs)、[持久模型迁移](../../migrations/0019_lab_world.sql)、[工作台](../../packages/views/src/lab/world-view.tsx)、[多对象场景](../../packages/views/src/lab/world-viewport.tsx)与[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)登记表、合同、测试和教程；身份、CSRF、文件与审计继续通过 Core 公开能力提供。
+实现位于 [World HTTP](../../packages/server/src/lab/world/use-cases.ts)、[持久模型迁移](../../packages/server/migrations/0000_baseline.sql)、[工作台](../../packages/views/src/lab/world-view.tsx)、[多对象场景](../../packages/views/src/lab/world-viewport.tsx)与[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../packages/server/src/lab/ownership.json)登记表、合同、测试和教程；身份、CSRF、文件与审计继续通过 Core 公开能力提供。
 
 ## 在浏览器登记两个对象
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 打开 <http://127.0.0.1:5173/lab>，登录普通 Member，点击 **创建 Lab**，输入 `Identity lab` 并创建。
@@ -61,7 +61,7 @@ World 查询 `GET /api/v1/lab/labs/{lab_id}/world` 返回世界版本、Lab 布�
 ```bash
 node scripts/test-backend.mjs --test lab_world --test lab_assets
 pnpm exec vitest run apps/web/src/lab-world.test.tsx apps/web/src/lab.test.tsx
-node scripts/e2e.mjs tests/e2e/lab.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab.spec.ts
 ```
 
 HTTP 使用真实 Router、隔离 PostgreSQL，文件用真实对象存储；组件只用 MSW 替代 HTTP；浏览器用真实 GLB/WebGL 验证目录与画布身份、跨上下文恢复、压缩加载及资源隔离。继续[后端照明控制](backend-lights.md)，为照明对象加入独立设备程序、命令和观测；本章布局与实例配置不会假装成运行测量。

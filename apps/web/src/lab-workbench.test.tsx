@@ -24,7 +24,7 @@ function open(path = '/lab') {
   const lab = { id: 'lab-one', name: 'Spatial lab', layout_version: 0 };
   const secondLab = { id: 'lab-two', name: 'Second lab', layout_version: 0 };
   const definitions = JSON.parse(
-    readFileSync('crates/app/src/modules/lab/definitions.json', 'utf8'),
+    readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
   );
   const definition = definitions.find(
     (entry: { id: string }) => entry.id === 'bench',

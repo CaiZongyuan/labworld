@@ -111,7 +111,7 @@ Codex 官方说明同名技能不会自动合并，因此不要把 pstack 的 `t
 2. **补齐 PM Advisor 的输入输出合同。** 输入只包括当前争议、原始约束、可复核证据、候选、具体问题和未验证项。输出为 verdict、下一步和剩余风险。仅 PM 管理咨询状态，按 run / ticket 隔离，不共享 Cursor 的单项目状态文件。
 3. **先试一个独立 pstack 方法。** 小改动风险不明时试 `blast-radius`；测量性能时试 `benchmark-checklist`；未决复杂模块设计试 `architect` / `arena`。后两者限定为设计产物，不让它们启动第二套实施与交付流程。
 4. **审查容量按现有风险判断。** `interrogate` 可以替换或增强高风险审查，不把“Advisor 同意”作为审查或 CI 的替代证明。
-5. **复用验证 harness 与记录。** 本项目已有 [just check / check-full](../../justfile)、[Vitest / Playwright 与检查命令](../../package.json)、[CI](../../.github/workflows/ci.yml)，不能按“没有测试框架”重新生成整套验证。`create-verification-skill` 自身要求先找既有 harness；可借它的 feature map 与 Launch / Doctor / Drive / Evidence / Cleanup 来补足 Agent 如何使用现有入口。改进记录进入现有 development-timeline / retro。[verification 生成器][verification]、[本地交付控制](../../.agents/skills/pm-development/references/delivery.md)
+5. **复用验证 harness 与记录。** 本项目已有 [just check / check-full](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/justfile)、[Vitest / Playwright 与检查命令](../../package.json)、[CI](../../.github/workflows/ci.yml)，不能按“没有测试框架”重新生成整套验证。`create-verification-skill` 自身要求先找既有 harness；可借它的 feature map 与 Launch / Doctor / Drive / Evidence / Cleanup 来补足 Agent 如何使用现有入口。改进记录进入现有 development-timeline / retro。[verification 生成器][verification]、[本地交付控制](../../.agents/skills/pm-development/references/delivery.md)
 
 对一个真实高风险设计或连续返工任务做试用即可判断是否继续。记录 Advisor 是否找到可证伪、原流程遗漏的问题；修复是否减少后续返工；实际新增等待、输入输出用量及费用；是否重复已有 reviewer 工作。没有新证据或只给泛化意见的咨询记录为无有效发现。不以 Agent 数量、讨论长度或一致意见数量作为收益。这是评估建议，不是新增完成门禁。
 

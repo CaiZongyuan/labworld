@@ -10,7 +10,7 @@
 
 在仓库根目录执行命令。用 `pnpm dev` 启动服务。Member 需要有效会话。Agent 需要有效的 `lab:full` 密钥。清理会删除所选 Lab 的持久历史。短保留期只能用于可丢弃的开发数据。
 
-源码：[历史 HTTP](../../packages/server/src/lab/history/use-cases.ts)、[保留策略](../../packages/server/src/lab/history/use-cases.ts)、[迁移](../../packages/server/migrations/0000_foundation.sql)、[历史面板](../../packages/views/src/lab/history-panel.tsx)。
+源码：[历史 HTTP](../../packages/server/src/lab/history/use-cases.ts)、[保留策略](../../packages/server/src/lab/history/use-cases.ts)、[迁移](../../packages/server/migrations/0000_baseline.sql)、[历史面板](../../packages/views/src/lab/history-panel.tsx)。
 
 ## 查询任务与温度
 

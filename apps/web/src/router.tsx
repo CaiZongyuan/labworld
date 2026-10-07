@@ -43,7 +43,7 @@ const rootRoute = createRootRouteWithContext<AppContext>()({
 
 // The universal shell renders the assembled result; the actual Router
 // wiring (TanStack) lives only in this adapter. Core pages are registered
-// below, example pages come from the explicit assembly point. Preferences
+// below, Lab pages come from the explicit application entry. Preferences
 // (language + appearance) wrap the message catalog so every page — auth
 // included — renders in the resolved language and theme.
 

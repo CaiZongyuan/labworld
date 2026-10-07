@@ -11,6 +11,6 @@ curl -i http://127.0.0.1:3000/api/openapi.json
 
 Core 不引用 Lab。角色管理属于 Core；用户和有效 `lab:full` Agent 的完整 Lab 访问合同见 [ADR 0008](../adr/0008-full-lab-access-for-users-and-agents.md)。Lab 保留业务 validator、引用与提交回调的职责。
 
-[生成 API](site:reference/api.md)与[配置参考](site:reference/config.md)来自正式 Node 来源。冻结 Rust 模块与 Docker 配置暂时保留，正式 SDK 已使用 Node；普通开发不依赖旧栈。最终清理与 Migration Gate 证据仍待完成。
+[生成 API](site:reference/api.md)与[配置参考](site:reference/config.md)来自正式 Node 来源。已移除 Rust 和部署源码保存在 `legacy-rust-final`；当前源码、命令与正式 SDK 使用 Node。Migration Gate 由最终 CI 与实际集成判定。
 
 从仓库根目录运行 `pnpm test:server` 检查真实 Node HTTP、能力与事务恢复。前端测试在 HTTP 边界使用 MSW，不能证明真实存储集成。选择受影响入口见[测试指南](../testing/t01-feedback-loop.md)。备份、恢复与密码恢复见[服务运维](server-operations.md)，生产同源访问见 [Web 托管](server-web.md)。

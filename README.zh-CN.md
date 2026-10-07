@@ -6,7 +6,7 @@
 
 应用提供持久 Lab、资产、Entity、Scene Node、已保存布局、观测、Command、Task、记录和趋势。用户与 Agent 共用保留的 HTTP/SSE 合同。一个 Node 服务持有嵌入数据库、本地字节与运行状态，React Web 消费生成 SDK。
 
-迁移按 [#45](https://github.com/CaiZongyuan/labworld/issues/45)推进。冻结 Rust 与容器源码保留到最终清理阶段，普通开发与正式合同生成已使用 Node。参见[产品架构](docs/architecture/lab-word.md)和[领域词汇](CONTEXT.md)。
+迁移按 [#45](https://github.com/CaiZongyuan/labworld/issues/45)推进。普通开发、构建、检查与合同生成使用 Node；历史 Rust 源码保存在不可变 `legacy-rust-final` tag。参见[产品架构](docs/architecture/lab-word.md)和[领域词汇](CONTEXT.md)。
 
 ## 运行应用
 

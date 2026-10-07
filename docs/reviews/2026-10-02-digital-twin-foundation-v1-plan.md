@@ -18,13 +18,13 @@
 
 ## 实际起点
 
-| 范围           | 当前代码事实                                                                                                                                        | 对本计划的影响                                                     |
-| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| 导入与资产管理 | [catalog.ts](../../packages/views/src/lab/catalog.ts)第 51–99 行将目录与本地 `File` 保存在用户身份下的 React Query 内存中                           | 已有会话内导入与管理；自定义资产跨刷新、跨浏览器恢复需要新增持久化 |
-| 三维展示       | [lab-view.tsx](../../packages/views/src/lab/lab-view.tsx)第 55–63 行选择一个 activeAsset，选择状态为 boolean                                        | 多 Entity 选择、布局、场景绑定和保存均是新增能力                   |
-| 后端业务       | [模块组装](../../crates/app/src/modules/mod.rs)与 [API 组装](../../apps/api/src/lib.rs)尚无 Lab 业务模块/路由；已有身份、数据库、文件与任务基础设施 | 可以复用平台能力，但没有现成 World/Asset/Runtime API               |
-| Agent 身份     | [API key 认证](../../crates/app/src/modules/api_keys/authentication.rs)第 52–59 行提供带 scope 的读取认证，并要求资源方另查权限                     | Lab 读取、控制和订阅授权需要业务合同                               |
-| 契约与性能     | 已有 [契约生成](../../scripts/generate-contracts.mjs)、[包体预算](../../scripts/perf/baselines.json)和 [Lab E2E](../../tests/e2e/lab.spec.ts)       | 可复用工程工具；没有多实体世界与状态更新的现成性能保证             |
+| 范围           | 当前代码事实                                                                                                                                                                                                                                                          | 对本计划的影响                                                     |
+| -------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| 导入与资产管理 | [catalog.ts](../../packages/views/src/lab/catalog.ts)第 51–99 行将目录与本地 `File` 保存在用户身份下的 React Query 内存中                                                                                                                                             | 已有会话内导入与管理；自定义资产跨刷新、跨浏览器恢复需要新增持久化 |
+| 三维展示       | [lab-view.tsx](../../packages/views/src/lab/lab-view.tsx)第 55–63 行选择一个 activeAsset，选择状态为 boolean                                                                                                                                                          | 多 Entity 选择、布局、场景绑定和保存均是新增能力                   |
+| 后端业务       | [模块组装](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/mod.rs)与 [API 组装](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/apps/api/src/lib.rs)尚无 Lab 业务模块/路由；已有身份、数据库、文件与任务基础设施 | 可以复用平台能力，但没有现成 World/Asset/Runtime API               |
+| Agent 身份     | [API key 认证](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/api_keys/authentication.rs)第 52–59 行提供带 scope 的读取认证，并要求资源方另查权限                                                                              | Lab 读取、控制和订阅授权需要业务合同                               |
+| 契约与性能     | 已有 [契约生成](../../scripts/generate-contracts.mjs)、[包体预算](../../scripts/perf/baselines.json)和 [Lab E2E](../../tests/e2e/lab.spec.ts)                                                                                                                         | 可复用工程工具；没有多实体世界与状态更新的现成性能保证             |
 
 初审时产品架构页的“正式 Lab 待接入”等描述落后于代码及[查看器验收记录](2026-10-02-lab-viewer-implementation.md)；交接整理已更新[产品架构页](../architecture/lab-word.md)。已有查看器工作应作为复用基线。
 
@@ -180,7 +180,7 @@ flowchart TD
 
 ## 第二轮：已确认
 
-已补查当前代码：企业角色为 Owner/Admin/Member；只读 API key 可复用 scope 与有效成员校验，但业务资源授权需由 Lab 实现。当前没有布局编辑、Asset 引用删除保护或设备历史保留策略；已有审计/任务分页习惯可供实施参考。事实来源是 [Organization](../../crates/app/src/modules/organization/mod.rs)、[API key 认证](../../crates/app/src/modules/api_keys/authentication.rs)、[文件清理](../../crates/app/src/modules/files/cleanup.rs)与[审计查询](../../crates/app/src/modules/audit/management.rs)。
+已补查当前代码：企业角色为 Owner/Admin/Member；只读 API key 可复用 scope 与有效成员校验，但业务资源授权需由 Lab 实现。当前没有布局编辑、Asset 引用删除保护或设备历史保留策略；已有审计/任务分页习惯可供实施参考。事实来源是 [Organization](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/organization/mod.rs)、[API key 认证](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/api_keys/authentication.rs)、[文件清理](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/files/cleanup.rs)与[审计查询](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/audit/management.rs)。
 
 用户明确：“q5 不用搞复杂的权限控制，agent，普通用户都可以full access。 q6 剩下都按照你的建议”。Q5 按用户修正收敛，Q6–Q9 接受推荐。
 
@@ -188,7 +188,7 @@ flowchart TD
 
 已确认：V1 的 Lab 在企业内共享，通过认证的普通用户与 Agent 均可完整读取、编辑和控制，不按角色分级，也不建设逐 Lab 授权管理。两类入口使用同一业务操作与规则，记录操作者；见 ADR 0008。
 
-实施事实补充：现有 `require_read` 的会话分支不做写入 CSRF 检查，不能直接作为写认证；现有业务写入也没有 Bearer key 接入先例。Lab 写入口需分别沿用会话写认证和有效 API key 校验，再进入同一业务逻辑，无需新增角色分级。证据见 [API key 认证](../../crates/app/src/modules/api_keys/authentication.rs)第 54–107 行、[会话认证](../../crates/app/src/modules/identity/mod.rs)第 501–545 行以及[已有业务 key 测试](../../apps/api/tests/key_documents.rs)第 170 行。
+实施事实补充：现有 `require_read` 的会话分支不做写入 CSRF 检查，不能直接作为写认证；现有业务写入也没有 Bearer key 接入先例。Lab 写入口需分别沿用会话写认证和有效 API key 校验，再进入同一业务逻辑，无需新增角色分级。证据见 [API key 认证](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/api_keys/authentication.rs)第 54–107 行、[会话认证](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/identity/mod.rs)第 501–545 行以及[已有业务 key 测试](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/apps/api/tests/key_documents.rs)第 170 行。
 
 **Q6 — 位置关系**：把烧杯图形拖到另一张工作台上，是否同时改变其登记位置？
 

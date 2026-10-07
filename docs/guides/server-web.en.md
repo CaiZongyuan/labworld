@@ -16,7 +16,7 @@ Stop your development supervisor, then build Web and select a separate data dire
 
 ```bash
 pnpm build
-LAB_WORD_DATA_DIR=.scratch/hosted-lab SERVER_PORT=3100 APP_ORIGIN=http://127.0.0.1:3100 FILE_PUBLIC_ORIGIN=http://127.0.0.1:3100 LAB_WORD_WEB_DIR=apps/web/dist pnpm server
+LAB_WORD_DATA_DIR=.scratch/hosted-lab SERVER_PORT=3100 APP_ORIGIN=http://127.0.0.1:3100 FILE_PUBLIC_ORIGIN=http://127.0.0.1:3100 LAB_WORD_WEB_DIR=apps/web/dist pnpm start
 ```
 
 PowerShell:
@@ -28,8 +28,10 @@ $env:SERVER_PORT = '3100'
 $env:APP_ORIGIN = 'http://127.0.0.1:3100'
 $env:FILE_PUBLIC_ORIGIN = 'http://127.0.0.1:3100'
 $env:LAB_WORD_WEB_DIR = 'apps/web/dist'
-pnpm server
+pnpm start
 ```
+
+`pnpm start` runs the compiled service. The build includes its SQL, JSON catalog and WASM codecs; installed dependencies remain pinned by pnpm.
 
 Open <http://127.0.0.1:3100/register>, create an account and open a Lab. Upload a GLB, open it from Assets and refresh the Lab with its selected Entity. Direct document entry at `/api-keys` and `/settings` loads the application. Signed PUT/GET capabilities use the same origin and preserve the verified asset bytes.
 

@@ -11,7 +11,7 @@ pnpm install --frozen-lockfile
 pnpm test:contract core.test.ts
 ```
 
-runner 编译独立 Rust target，创建隔离 PostgreSQL、Redis、RustFS 和 Mailpit，执行迁移，再启动 API 和文件清理 Worker。它通过 HTTP 创建首个 Owner。用例中的其他注册用户是 Member。
+runner 使用已构建 Node 入口和独立数据目录，通过 HTTP 创建首个 Owner。服务持有嵌入数据库、文件清理与设备运行，不启动容器。用例中的其他注册用户是 Member。
 
 终端显示实际收集和执行的测试数量。`CORE-02` 验证缺少 CSRF 的写入被拒绝，Lab 列表保持不变，正确写入随后成功。`CORE-03` 验证有效 Agent、无效 Bearer 不回退 Cookie，以及撤销后的拒绝。
 

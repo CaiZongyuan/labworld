@@ -8,7 +8,7 @@ Goal: observe one backend device from two browsers and an Agent, keep the last o
 
 Use the current checkout containing this chapter's Node implementation. Complete [Node device programs](../guides/server-devices.en.md) first. You need a persistent world and device programs. Run commands from the repository root. Browser operations write development data.
 
-Implementation: [transactional world versions](../../packages/server/migrations/0000_foundation.sql), [public SSE API](../../packages/server/src/lab/world/subscriptions.ts), [SDK subscriptions and version application](../../packages/sdk/src/lab-world.ts), [page subscriptions](../../packages/views/src/lab/world-subscription.ts), and [Lab ownership](../../crates/app/src/modules/lab/module.json). Node uses the shared retained schema.
+Implementation: [transactional world versions](../../packages/server/migrations/0000_baseline.sql), [public SSE API](../../packages/server/src/lab/world/subscriptions.ts), [SDK subscriptions and version application](../../packages/sdk/src/lab-world.ts), [page subscriptions](../../packages/views/src/lab/world-subscription.ts), and [Lab ownership](../../packages/server/src/lab/ownership.json). Node uses the shared retained schema.
 
 ## Two Browsers Observe One Device
 

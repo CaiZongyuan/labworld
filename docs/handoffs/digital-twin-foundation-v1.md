@@ -1,5 +1,6 @@
 # Digital Twin Foundation V1 开发交接
 
+本记录保存原 Foundation 范围、接受的体验与历史来源。当前 Node 开发和验证从[快速开始](../getting-started/quickstart.md)、[服务运维](../guides/server-operations.md)与[反馈循环](../testing/t01-feedback-loop.md)进入；旧栈来源仅由 `legacy-rust-final` 追溯。
 交接日期：2026-10-03。用户已批准产品范围、v1 交互预览和 10 张实施票的粒度/依赖，随后要求交给其他开发者实施。**Foundation 正式业务代码尚未开始编写；接手从 Issue #2 开始。**
 
 ## 先读什么
@@ -45,15 +46,15 @@ pnpm install --frozen-lockfile
 
 最后一个应用代码基线为 `55a27be3bc717ebedda94f81a2c6d9e6d4dd7012`；交接整理在其上补充文档与开发端口工具。接手以最新 `origin/main` 建立工作树。
 
-| 已有能力                  | 入口与接手注意事项                                                                                                                                                                              |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 正式 Lab 页面与会话资产库 | [Lab 组装](../../packages/views/src/lab/app.tsx)已注册 `/lab`、`/assets`；[catalog](../../packages/views/src/lab/catalog.ts)仍是按用户划分的浏览器内存，没有资产后端                            |
-| 正式三维加载              | [model-loader](../../packages/views/src/lab/model-loader.ts)支持 Draco/KTX2/Meshopt、取消与资源释放；多节点扩展需明确共享几何/纹理和实例可变材质的所有权                                        |
-| 文件基础设施              | [FileService](../../crates/app/src/modules/files/mod.rs)与[附件先例](../../crates/app/src/modules/knowledge/attachments.rs)可复用生命周期；Lab 自己拥有资源关联，沿用 Core 接口而非借用文档端点 |
-| 身份                      | [API key 认证](../../crates/app/src/modules/api_keys/authentication.rs)当前只有读取入口；会话写入需 CSRF，Agent 写入须显式接入有效 key 校验，再调用同一 Lab 业务操作                            |
-| 后端组装                  | [API 组装](../../apps/api/src/lib.rs)当前没有 Lab 模块/路由；新增迁移需登记模块 ownership，通过边界检查                                                                                         |
-| 合同与 SDK                | [生成脚本](../../scripts/generate-contracts.mjs)从 Rust OpenAPI 生成 TypeScript；前端消费生成合同                                                                                               |
-| 实时                      | 当前没有 World 实时服务；[SDK](../../packages/sdk/src/index.ts)默认请求超时为 5 秒，长连接不能直接套用这个生命周期                                                                              |
+| 已有能力                  | 入口与接手注意事项                                                                                                                                                                                                                                                                                                |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 正式 Lab 页面与会话资产库 | [Lab 组装](../../packages/views/src/lab/app.tsx)已注册 `/lab`、`/assets`；[catalog](../../packages/views/src/lab/catalog.ts)仍是按用户划分的浏览器内存，没有资产后端                                                                                                                                              |
+| 正式三维加载              | [model-loader](../../packages/views/src/lab/model-loader.ts)支持 Draco/KTX2/Meshopt、取消与资源释放；多节点扩展需明确共享几何/纹理和实例可变材质的所有权                                                                                                                                                          |
+| 文件基础设施              | [FileService](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/files/mod.rs)与[附件先例](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/knowledge/attachments.rs)可复用生命周期；Lab 自己拥有资源关联，沿用 Core 接口而非借用文档端点 |
+| 身份                      | [API key 认证](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/api_keys/authentication.rs)当前只有读取入口；会话写入需 CSRF，Agent 写入须显式接入有效 key 校验，再调用同一 Lab 业务操作                                                                                     |
+| 后端组装                  | [API 组装](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/apps/api/src/lib.rs)当前没有 Lab 模块/路由；新增迁移需登记模块 ownership，通过边界检查                                                                                                                                                  |
+| 合同与 SDK                | [生成脚本](../../scripts/generate-contracts.mjs)从 Rust OpenAPI 生成 TypeScript；前端消费生成合同                                                                                                                                                                                                                 |
+| 实时                      | 当前没有 World 实时服务；[SDK](../../packages/sdk/src/index.ts)默认请求超时为 5 秒，长连接不能直接套用这个生命周期                                                                                                                                                                                                |
 
 第一票特别注意：FileService 默认文件上限是 20 MiB，最终以部署配置为准；通用字节校验不等于 GLB 格式校验。数据库保存稳定 `file_id`，按请求获取短期签名下载；GLB 使用普通下载 GET，不套图片 inline 限制。发布文件与业务引用要保持一致，删除 ready 对象需检查引用后显式进入清理流程。
 
@@ -83,7 +84,7 @@ pnpm dev
 
 ## 验证与首片完成标准
 
-- **现有先例**：[附件 HTTP 测试](../../apps/api/tests/attachments.rs)、[API key 测试](../../apps/api/tests/key_documents.rs)、[Lab 页面测试](../../apps/web/src/lab.test.tsx)、[真实三维 E2E](../../tests/e2e/lab.spec.ts)。
+- **现有先例**：[附件 HTTP 测试](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/apps/api/tests/attachments.rs)、[API key 测试](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/apps/api/tests/key_documents.rs)、[Lab 页面测试](../../apps/web/src/lab.test.tsx)、[真实三维 E2E](../../tests/e2e/lab.spec.ts)。
 - **隔离后端检查**：`node scripts/test-backend.mjs --test <测试目标>` 自动创建本次 Docker 依赖和测试库，不使用已有开发数据。具体命令见[测试说明](../testing/t01-feedback-loop.md)。
 - **正式开发**：`just dev` 启动依赖、迁移、存储初始化和应用。开发进程占用端口时，按 `just dev` 提示核对；`just dev-stop` 只管理本工作树的 API/Worker/Web，数据服务由 `just services-down` 管理。
 - **既有预算**：[性能基线](../../scripts/perf/baselines.json)保持初始 gzip 400 KiB、单异步 chunk 500 KiB；Foundation 的规模与查询预算按各票建立，保留实际测量环境。

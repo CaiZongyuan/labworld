@@ -11,7 +11,7 @@ pnpm install --frozen-lockfile
 pnpm test:contract core.test.ts
 ```
 
-The runner builds an isolated Rust target. It creates temporary PostgreSQL, Redis, RustFS, and Mailpit services. It applies migrations and starts the API and file cleanup Worker. It creates the first Owner through HTTP. Later registered test users are Members.
+Build the Node service first. The runner starts that compiled entry with an isolated data directory and creates the first Owner through HTTP. The service owns its embedded database, file cleanup and device runtime. It starts no containers. Later registered test users are Members.
 
 The terminal reports actual discovery and execution counts. `CORE-02` rejects a write without CSRF, checks the unchanged Lab list, then performs a valid write. `CORE-03` checks Agent access, invalid Bearer rejection without Cookie fallback, and revocation.
 

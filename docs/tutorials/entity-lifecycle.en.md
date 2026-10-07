@@ -12,7 +12,7 @@ Run commands from the repository root. Start services with `pnpm dev`. Use dispo
 
 Members need an active session and CSRF for writes. Agents need an active `lab:full` key. Both callers follow the same lifecycle rules.
 
-Source: [lifecycle HTTP](../../packages/server/src/lab/world/lifecycle.ts), [Inspector controls](../../packages/views/src/lab/entity-lifecycle-panel.tsx), and [migration](../../packages/server/migrations/0000_foundation.sql).
+Source: [lifecycle HTTP](../../packages/server/src/lab/world/lifecycle.ts), [Inspector controls](../../packages/views/src/lab/entity-lifecycle-panel.tsx), and [migration](../../packages/server/migrations/0000_baseline.sql).
 
 ## Remove And Restore A Node
 

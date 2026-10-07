@@ -6,8 +6,8 @@
 
 | 接口 | 工具与依赖 | 验证责任 |
 | --- | --- | --- |
-| 后端 HTTP | Rust、真实 Axum Router、隔离 PostgreSQL | 身份、成员、权限、CRUD、错误与持久化 |
-| 公开任务/存储 | PostgreSQL/Redis/RustFS 与 Worker | 租约、重试、对象清理、缓存与事务恢复 |
+| 后端 HTTP | Node/Hono、真实 HTTP、隔离 PGlite 目录 | 身份、成员、权限、CRUD、错误与持久化 |
+| 公开任务/存储 | Node 服务、目录租约与本地校验字节 | 租约、重试、对象清理、缓存与事务恢复 |
 | React Views | Vitest、Testing Library、user-event；MSW 仅替代 HTTP | 表单、选择、导入反馈、拒绝、冲突与恢复 |
 | 真实应用浏览器 | Playwright 与真实应用栈 | Cookie/CSRF、SDK、权限、文件、任务及关键旅程 |
 | Lab 三维浏览器 | Playwright、真实 GLB/HDR 和 WebGL | 实际像素、取景、相机、点选、快速切换与资源释放 |
@@ -26,7 +26,7 @@
 
 正式 Lab Viewer 与会话资产库已有渲染、导入、相机、选择、失败恢复、响应式和重复导入资源计数证据，记录在[体验文件](../ui/lab-viewer-experience.md)与[实现验证](../reviews/2026-10-02-lab-viewer-implementation.md)。主导航为 Lab 与资产库，登录后的默认业务入口为 Lab。
 
-当前模型文件仍在浏览器会话处理。Foundation V1 的持久资产、对象、布局、后端虚拟程序、用户/Agent 共用接口和恢复行为按[已发布规格](https://github.com/CaiZongyuan/labworld/issues/1)逐票验证；入口见[开发交接](../handoffs/digital-twin-foundation-v1.md)。正式实现同时保持既有登录入口、导航、按需加载、包体与资源释放合同。
+持久资产、对象、布局、后端程序、用户/Agent 共用接口和恢复已在 Node 实现。既有登录入口、导航、按需加载、包体与资源释放合同继续保留。历史 Foundation 体验见[开发交接](../handoffs/digital-twin-foundation-v1.md)，当前命令见[快速开始](../getting-started/quickstart.md)。
 
 FPS 和内存趋势附场景、资产、浏览器与硬件；软件渲染及单次采样不构成跨机器性能门槛或泄漏结论。
 
@@ -34,7 +34,7 @@ FPS 和内存趋势附场景、资产、浏览器与硬件；软件渲染及单�
 
 数据库、缓存、对象存储和浏览器状态按测试隔离，清理只作用于本次资源。并发使用 barrier/显式条件，不依赖任意 sleep。失败证据脱敏，认证旅程不默认保存凭据、token 或完整签名 URL。
 
-编辑循环跑定向检查。稳定最终候选的完整门禁 `just check` 在负责环境运行一次；本地定向检查与最终 head 的 CI 完整门禁可以共同覆盖交付。本地也跑完整门禁时注明需要它的原因。它已经包含的受影响检查按覆盖矩阵引用，不先重复执行。失败、修复或 main 前进后，按语义、依赖和环境变化刷新受影响检查与审查；影响无法界定时再完整重跑。记录 base、candidate commit/tree、实际环境、覆盖入口、结果和可复用证据，简化与独立双轴评审按[开发流程](../agents/development-flow.md)完成。
+编辑循环跑定向检查。稳定最终候选的完整门禁 `pnpm check` 在负责环境运行一次；本地定向检查与最终 head 的 CI 完整门禁可以共同覆盖交付。本地也跑完整门禁时注明需要它的原因。它已经包含的受影响检查按覆盖矩阵引用，不先重复执行。失败、修复或 main 前进后，按语义、依赖和环境变化刷新受影响检查与审查；影响无法界定时再完整重跑。记录 base、candidate commit/tree、实际环境、覆盖入口、结果和可复用证据，简化与独立双轴评审按[开发流程](../agents/development-flow.md)完成。
 
 新的关键旅程、浏览器回归或里程碑验收需要真实 E2E；已有旅程按有效输入复用。CSS/布局修复跑受影响状态和约定视口的 focused case。heavy browser 前先核对 discovery、测试数量与场景前提，再通过显式 ready 条件观察稳定的外部几何。三维可见性同时核对外部遮挡、可见像素或真实操作，不能用 canvas 存在替代场景曝光证据。
 

@@ -8,7 +8,7 @@
 
 使用包含本章 Node 实现的当前 checkout。先完成[Node 设备程序](../guides/server-devices.md)，建立持久世界和设备程序。命令在仓库根目录运行。浏览器操作会写入开发数据库。
 
-实现入口：[持久世界版本](../../packages/server/migrations/0000_foundation.sql)、[公开 SSE 接口](../../packages/server/src/lab/world/subscriptions.ts)、[SDK 订阅和版本应用](../../packages/sdk/src/lab-world.ts)、[页面订阅](../../packages/views/src/lab/world-subscription.ts)、[Lab ownership](../../crates/app/src/modules/lab/module.json)。Node 使用共享保留 schema。
+实现入口：[持久世界版本](../../packages/server/migrations/0000_baseline.sql)、[公开 SSE 接口](../../packages/server/src/lab/world/subscriptions.ts)、[SDK 订阅和版本应用](../../packages/sdk/src/lab-world.ts)、[页面订阅](../../packages/views/src/lab/world-subscription.ts)、[Lab ownership](../../packages/server/src/lab/ownership.json)。Node 使用共享保留 schema。
 
 ## 两个浏览器观察同一设备
 

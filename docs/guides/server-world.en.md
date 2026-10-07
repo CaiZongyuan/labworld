@@ -51,7 +51,7 @@ A Lab has at most 1000 Entities, 1000 Scene Nodes and 1000 relationships. Layout
 
 ```bash
 node --test --experimental-strip-types tests/server/lab-world.test.ts tests/server/lab-capacity.test.ts tests/server/lab-budgets.test.ts
-pnpm contracts:m1:check
+pnpm contracts:baseline:check
 ```
 
 The isolated desktop browser supplement runs on Linux:
@@ -61,4 +61,4 @@ pnpm exec playwright install chromium
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-It uses the real Node server, Vite, existing Web/SDK and WebGL. It checks asset deep links, visible scene pixels, selection and conflict drafts in two browsers. It records and cleans owned processes and temporary data; the printed directory retains evidence. It does not start the old service. The official SDK source and default application composition switch remain later migration work. Node now implements device, synchronization and history contracts. HTTP types and errors come from the [generated API](site:reference/api.md). Lab ownership is recorded in the `vnext` field of [module.json](../../crates/app/src/modules/lab/module.json).
+It uses the real Node server, Vite, existing Web/SDK and WebGL. It checks asset deep links, visible scene pixels, selection and conflict drafts in two browsers. It records and cleans owned processes and temporary data; the printed directory retains evidence. It does not start the old service. The official SDK and direct Lab application use Node. Node now implements device, synchronization and history contracts. HTTP types and errors come from the [generated API](site:reference/api.md). Lab ownership is recorded in [module.json](../../packages/server/src/lab/ownership.json).

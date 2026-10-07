@@ -50,7 +50,7 @@ GLB loading/error/replacement 和 archived viewport 原证据保存在 `.worktre
 
 ## 确定性合同、文档与审查
 
-[perf_lab.rs](../../apps/api/tests/perf_lab.rs)从真实 HTTP Router 捕获 sqlx statement 事件。1 Entity 和 100 Entity 都是 10 次 statement；字节数分别 2376 和 137577。Lab 列表 cursor 无重复，超出 100 的 limit 返回 400。不同模型/设备状态会改变字节数，SQL 数保持不随 Entity 数增长。
+[perf_lab.rs](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/apps/api/tests/perf_lab.rs)从真实 HTTP Router 捕获 sqlx statement 事件。1 Entity 和 100 Entity 都是 10 次 statement；字节数分别 2376 和 137577。Lab 列表 cursor 无重复，超出 100 的 limit 返回 400。不同模型/设备状态会改变字节数，SQL 数保持不随 Entity 数增长。
 
 已有 sync Router 检查继续验证 1 MiB 初始事件、8 条待发队列、慢客户端 discard/resync、可靠交接与撤权。历史检查验证 100 项、256 KiB、31 天区间和同时间 cursor，无静默放宽。布局保持 512 KiB，Entity/Node/关系各有 1000 项边界。bundle 保持首屏 400 KiB、异步 500 KiB gzip。相应 Lab 基线新增到 `scripts/perf/baselines.json`，原门槛未改变。
 

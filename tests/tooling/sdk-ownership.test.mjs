@@ -18,24 +18,14 @@ function project(t) {
   const fixture = mkdtempSync(join(tmpdir(), 'labword-sdk-ownership-'));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
   const files = [
-    'Cargo.toml',
-    'Cargo.lock',
     'scripts/check-boundaries.mjs',
     'scripts/lib/server-boundaries.mjs',
     'packages/server/src',
+    'packages/server/migrations',
     'scripts/lib/process.mjs',
-    'scripts/lib/development-mail-key.mjs',
   ];
-  for (const root of [
-    'crates/app',
-    'crates/platform',
-    'apps/api',
-    'apps/worker',
-  ])
-    files.push(`${root}/Cargo.toml`, `${root}/src`);
   for (const pkg of ['contracts', 'sdk', 'core', 'ui', 'views'])
     files.push(`packages/${pkg}/package.json`, `packages/${pkg}/src`);
-  files.push('migrations');
   for (const file of files) {
     mkdirSync(dirname(join(fixture, file)), { recursive: true });
     cpSync(join(repository, file), join(fixture, file), { recursive: true });
@@ -69,9 +59,23 @@ test('the public boundary checker allows owned SDK helpers and rejects business 
       () => check(fixture),
       (error) =>
         error.status !== 0 &&
-        /Core imports a reference contract/.test(error.stderr.toString()),
+        /Core imports a Lab contract/.test(error.stderr.toString()),
     );
     rmSync(probe);
   }
   assert.match(check(fixture), /ownership declarations verified/);
+});
+
+test('the public boundary checker refuses an unowned qualified table in Node migrations', (t) => {
+  const fixture = project(t);
+  writeFileSync(
+    join(fixture, 'packages/server/migrations/9999_unowned.sql'),
+    'CREATE TABLE lab.unowned_probe(id integer);',
+  );
+  assert.throws(
+    () => check(fixture),
+    (error) =>
+      error.status !== 0 &&
+      /unowned table lab.unowned_probe/.test(error.stderr),
+  );
 });

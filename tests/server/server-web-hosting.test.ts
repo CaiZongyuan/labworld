@@ -35,6 +35,17 @@ test(
       );
       assert.equal(build.child!.exitCode, 0, build.logs);
       await build.stop();
+      build.entry = 'scripts/build-server.mjs';
+      build.args = ['--outDir', join(build.directory, 'server')];
+      await build.spawn();
+      await until(
+        async () => build.child!.exitCode,
+        (code) => code !== null,
+        60000,
+      );
+      assert.equal(build.child!.exitCode, 0, build.logs);
+      await build.stop();
+      target.entry = join(build.directory, 'server/apps/server/src/main.js');
       const index = await readFile(join(directory, 'index.html'), 'utf8');
       target.env = {
         APP_ORIGIN: target.url,
@@ -42,7 +53,13 @@ test(
         RATE_LIMIT_ENABLED: 'false',
         LAB_WORD_WEB_DIR: directory,
       };
-      await target.start();
+      await build.startInProcess(
+        'compiled server and static Web consumer',
+        async () => {
+          await target.start();
+        },
+        () => target.cleanup(),
+      );
       for (const path of [
         '/',
         '/lab?lab=chosen&entity=selected',

@@ -145,7 +145,7 @@ Run focused validation from the repository root:
 
 ```bash
 node --test --experimental-strip-types tests/server/core-identity.test.ts tests/server/core-members.test.ts tests/server/core-keys.test.ts tests/server/core-password-command.test.ts
-pnpm contracts:m1:check
+pnpm contracts:baseline:check
 ```
 
 These checks observe refusal, readback and recovery through HTTP or the password command. See transaction, concurrency and phase ownership in the [assertion map](../testing/vnext-core-assertions.md). Continue with the [file guide](server-files.md) to publish files and business references in one transaction.

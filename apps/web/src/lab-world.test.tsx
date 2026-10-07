@@ -21,7 +21,7 @@ const identity = {
 
 function open() {
   const definitions = JSON.parse(
-    readFileSync('crates/app/src/modules/lab/definitions.json', 'utf8'),
+    readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
   );
   let lab: { id: string; name: string; layout_version: number } | null = null;
   const entities: Record<string, unknown>[] = [];

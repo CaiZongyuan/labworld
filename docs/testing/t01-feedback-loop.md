@@ -7,18 +7,18 @@
 | 变更              | 命令                                      | 观察结果与前提                                       |
 | ----------------- | ----------------------------------------- | ---------------------------------------------------- |
 | Web 行为          | `pnpm test:frontend`                      | 真实组件操作；HTTP 使用 MSW                          |
-| TypeScript 与边界 | `pnpm typecheck`、`pnpm boundaries:check` | 类型、包依赖、Node 模块边界与冻结 Rust 归属          |
+| TypeScript 与边界 | `pnpm typecheck`、`pnpm boundaries:check` | 类型、包依赖、Node 模块、限定表与 SDK 归属           |
 | 后端行为          | `pnpm test:server`                        | 真实 Node HTTP/CLI 与隔离嵌入数据                    |
 | 合同              | `pnpm generate`、`pnpm contracts:check`   | Node OpenAPI、正式生成类型与 SDK 一致                |
 | 文档              | `pnpm docs:check`、`pnpm docs:build`      | 来源、双语、Node 生成参考与构建链接                  |
-| 文档浏览器旅程    | `just e2e-docs`                           | 语言、主题、搜索、约定视口与自定义 base；需 Chromium |
+| 文档浏览器旅程    | `pnpm test:e2e:docs`                      | 语言、主题、搜索、约定视口与自定义 base；需 Chromium |
 | 应用关键旅程      | `pnpm test:e2e`                           | 所属 Node/Web 与真实 Chromium/WebGL                  |
 
-首次浏览器验证执行 `pnpm exec playwright install chromium`。`pnpm check:m1` 包含当前 Node、格式、静态、行为、性能预算与构建检查，不含浏览器 E2E。`pnpm test:e2e` 运行所属真实应用浏览器旅程。
+首次浏览器验证执行 `pnpm exec playwright install chromium`。`pnpm check` 包含当前 Node、格式、静态、行为、性能预算与构建检查，不含浏览器 E2E。`pnpm test:e2e` 运行所属真实应用浏览器旅程。
 
 命令能力不扩大任务范围。默认验证 desktop web；移动适配、窄屏、触屏或真机只按明确批准的范围加入。heavy browser 前先核对 discovery 与前提；已有关键旅程复用，CSS/布局变更选择受影响的 focused case。
 
-`docs:check` 与 `docs:build` 读取正式 Node OpenAPI 和当前配置解析器。`pnpm test:e2e` 使用所属 Linux Node/Web 浏览器监督入口。当前 CI 执行 `pnpm check:m1`，最终清理阶段会更新冻结的 `just check` 别名。明确实际浏览器前提与任务范围。
+`docs:check` 与 `docs:build` 读取正式 Node OpenAPI 和当前配置解析器。`pnpm test:e2e` 使用所属 Linux Node/Web 浏览器监督入口。当前 CI 执行 `pnpm check`，先检查静态、完整前端和工具，再运行长服务与合同套件。明确实际浏览器前提与任务范围。
 
 ## Lab Viewer 的实际边界
 

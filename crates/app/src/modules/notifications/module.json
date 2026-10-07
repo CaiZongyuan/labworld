@@ -1,7 +1,0 @@
-{
-  "kind": "core",
-  "tables": [
-    "labos_threejs_core.notifications",
-    "labos_threejs_core.job_notifications"
-  ]
-}

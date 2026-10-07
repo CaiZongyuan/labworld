@@ -10,7 +10,7 @@ Use the current checkout containing this chapter's Node implementation, shared s
 
 Run commands from the repository root. Start the services with `pnpm dev`. Members need an active session. Agents need an active `lab:full` key. Cleanup deletes persistent history in the selected Lab. Use disposable development data for short retention periods.
 
-Source: [history HTTP](../../packages/server/src/lab/history/use-cases.ts), [retention](../../packages/server/src/lab/history/use-cases.ts), [migration](../../packages/server/migrations/0000_foundation.sql), and [history panel](../../packages/views/src/lab/history-panel.tsx).
+Source: [history HTTP](../../packages/server/src/lab/history/use-cases.ts), [retention](../../packages/server/src/lab/history/use-cases.ts), [migration](../../packages/server/migrations/0000_baseline.sql), and [history panel](../../packages/views/src/lab/history-panel.tsx).
 
 ## Query A Task And Temperature
 

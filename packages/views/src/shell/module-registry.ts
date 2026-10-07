@@ -12,7 +12,7 @@ import type { ModuleIconEntry } from './app-contract';
 // The shell-owned half of the module registry (docs/ui/design.md §6 Q9):
 // every sidebar-visible Core page maps to one fixed category color,
 // declared explicitly here rather than derived from an algorithm. Example
-// modules register their own paths through ExampleContribution.moduleIcons
+// modules register their own paths through AppDefinition.moduleIcons
 // and the assembler merges the two halves — a removed example therefore
 // removes its color with it. Auth pages render without the sidebar and
 // stay out of the registry.

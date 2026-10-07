@@ -8,13 +8,13 @@ Goal: register two independent Entities from one definition, find the same ident
 
 Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [persistent digital assets](persistent-assets.en.md) first. You need server assets, the built-in definition catalog and a `lab:full` Agent credential. Run commands from the repository root. Browser registration and the script write development data.
 
-Sources: [World HTTP](../../crates/app/src/modules/lab/world.rs), [persistent model migration](../../migrations/0019_lab_world.sql), [workbench](../../packages/views/src/lab/world-view.tsx), [multi-object scene](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) declares tables, contracts, tests and tutorials. Identity, CSRF, files and audit remain Core public capabilities.
+Sources: [World HTTP](../../packages/server/src/lab/world/use-cases.ts), [persistent model migration](../../packages/server/migrations/0000_baseline.sql), [workbench](../../packages/views/src/lab/world-view.tsx), [multi-object scene](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../packages/server/src/lab/ownership.json) declares tables, contracts, tests and tutorials. Identity, CSRF, files and audit remain Core public capabilities.
 
 ## Register Two Objects in the Browser
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 Open <http://127.0.0.1:5173/lab>, sign in as an ordinary Member, click **Create Lab**, enter `Identity lab`, then create it.
@@ -61,7 +61,7 @@ Referenced asset deletion returns `409 lab.asset_in_use`; use an unreferenced as
 ```bash
 node scripts/test-backend.mjs --test lab_world --test lab_assets
 pnpm exec vitest run apps/web/src/lab-world.test.tsx apps/web/src/lab.test.tsx
-node scripts/e2e.mjs tests/e2e/lab.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab.spec.ts
 ```
 
 HTTP uses the real Router and isolated PostgreSQL, with real object storage for files. Components replace only HTTP with MSW. Browsers use real GLB/WebGL for directory/canvas identity, cross-context recovery, compressed loading and resource isolation. Continue with [backend lighting control](backend-lights.md) for independent programs, commands and observations. Layout and instance configuration never stand in for measured runtime state.

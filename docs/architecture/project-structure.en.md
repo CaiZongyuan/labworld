@@ -24,11 +24,11 @@ docs/                      Guides, domain vocabulary and decisions
 
 The [application entry](../../apps/web/src/app.ts) imports the [Lab application](../../packages/views/src/lab/app.tsx) directly. Its [router](../../apps/web/src/router.tsx) supplies navigation and API-client ports. The [shell interface](../../packages/views/src/shell/app-contract.ts) describes pages, navigation and bilingual messages. Lab opens after login; `/` remains the shared home. Heavy views and 3D code load on demand.
 
-The [runtime](../../apps/server/src/runtime.ts) owns service initialization and shutdown. Database drivers and migrations stay in [platform/db](../../packages/server/src/platform/db/index.ts). Platform Core does not import Lab. Web uses the generated SDK; server database code never enters the Web bundle. Frozen Rust and infrastructure sources remain temporarily until the migration cleanup ticket; they are outside ordinary startup and official contract generation.
+The [runtime](../../apps/server/src/runtime.ts) owns service initialization and shutdown. Database drivers and migrations stay in [platform/db](../../packages/server/src/platform/db/index.ts). Platform Core does not import Lab. Web uses the generated SDK; server database code never enters the Web bundle. Retired source and infrastructure are preserved only at `legacy-rust-final`. Current commands use Node.
 
 ```bash
 pnpm boundaries:check
 pnpm typecheck
 ```
 
-Run from the repository root. Boundary checks cover package dependencies and the TypeScript service, while the frozen Rust ownership check remains until cleanup. See [development and validation](../testing/t01-feedback-loop.md), [module boundaries](module-boundaries.md) and the [Lab guide](../guides/lab-viewer.md).
+Run from the repository root. Boundary checks cover package dependencies and the TypeScript service, and Node table/SDK ownership. See [development and validation](../testing/t01-feedback-loop.md), [module boundaries](module-boundaries.md) and the [Lab guide](../guides/lab-viewer.md).

@@ -55,7 +55,7 @@ function savedWidth() {
 }
 
 // The shell layout (docs/ui/design.md §4): a left sidebar — assembled
-// business groups, notifications, the permission-gated administration
+// business groups and the permission-gated administration
 // group, and one bottom account/settings entry — beside the main workspace. On
 // narrow screens the sidebar folds into a drawer behind a toggling button
 // (touch targets stay ≥44px); on wide screens it is a sticky column. The

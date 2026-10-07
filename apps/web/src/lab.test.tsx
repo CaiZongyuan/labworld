@@ -38,7 +38,7 @@ function open(
     http.get('http://api.test/api/v1/lab/asset-definitions', () =>
       HttpResponse.json({
         data: JSON.parse(
-          readFileSync('crates/app/src/modules/lab/definitions.json', 'utf8'),
+          readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
         ),
       }),
     ),

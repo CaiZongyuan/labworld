@@ -52,15 +52,15 @@ Only one process can open a canonical data directory. If a second start fails, p
 ```bash
 pnpm typecheck
 pnpm test:server
-pnpm contracts:m1:check
-pnpm check:m1
+pnpm contracts:baseline:check
+pnpm check
 ```
 
 Service tests start real child processes. They verify health, errors, persistence, reopening, microsecond timestamps, transaction rollback, SQL counting and directory exclusivity. The error test requests a missing resource. Its 404 response contains `code`, `details`, `message` and `request_id`. The request ID matches the `x-request-id` response header. Responses use `cache-control: no-store`.
 
-`contracts:m1:check` generates OpenAPI from Zod routes. The existing SDK generator writes to `.scratch/vnext-m1/generated/`. The check compares all retained paths and their recursively referenced schemas, including five file DTOs, compiles a generated caller and confirms that the official contracts and SDK are unchanged. Official `pnpm generate` and `pnpm contracts:check` now use the complete Node source. Isolated generation remains a separate consumer check and cannot overwrite official output.
+`pnpm contracts:baseline:check` compares complete retained HTTP semantics with the immutable M0 baseline. Official generation and drift checks use Node; typecheck covers real SDK consumers. Isolated output retains official-directory and alias protection.
 
-`check:m1` runs service, Web, retained tooling, boundary, bundle and documentation checks. Current CI focuses on Web and does not build or run Electron. Linux CI also runs the complete Node HTTP/SSE contract suite. Lab is connected directly and operational commands are available; retained browser acceptance and final Migration Gate evidence are tracked separately. This command does not claim that Migration Gate has passed.
+`pnpm check` runs static/generation/ownership and complete frontend/tooling checks before service and full HTTP/SSE suites, builds, deterministic budgets and docs. Linux CI adds real desktop Web and built production journeys. Windows verifies Node service behavior. Integration and Migration Gate remain separate decisions.
 
 ## Replay the persistence spike
 

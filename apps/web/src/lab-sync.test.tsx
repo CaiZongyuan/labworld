@@ -11,7 +11,7 @@ import { createAppRouter } from './router';
 
 test('a member keeps the last observation through duplicate, old, interrupted and reconnected updates', async () => {
   const definitions = JSON.parse(
-    readFileSync('crates/app/src/modules/lab/definitions.json', 'utf8'),
+    readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
   );
   const definition = definitions.find(
     (entry: { id: string }) => entry.id === 'light',

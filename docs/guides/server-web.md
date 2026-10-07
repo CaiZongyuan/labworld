@@ -16,7 +16,7 @@ Vite 在 `http://127.0.0.1:5173` 提供 Web，将 `/api/v1`、`/api/openapi.json
 
 ```bash
 pnpm build
-LAB_WORD_DATA_DIR=.scratch/hosted-lab SERVER_PORT=3100 APP_ORIGIN=http://127.0.0.1:3100 FILE_PUBLIC_ORIGIN=http://127.0.0.1:3100 LAB_WORD_WEB_DIR=apps/web/dist pnpm server
+LAB_WORD_DATA_DIR=.scratch/hosted-lab SERVER_PORT=3100 APP_ORIGIN=http://127.0.0.1:3100 FILE_PUBLIC_ORIGIN=http://127.0.0.1:3100 LAB_WORD_WEB_DIR=apps/web/dist pnpm start
 ```
 
 PowerShell：
@@ -28,8 +28,10 @@ $env:SERVER_PORT = '3100'
 $env:APP_ORIGIN = 'http://127.0.0.1:3100'
 $env:FILE_PUBLIC_ORIGIN = 'http://127.0.0.1:3100'
 $env:LAB_WORD_WEB_DIR = 'apps/web/dist'
-pnpm server
+pnpm start
 ```
+
+`pnpm start` 运行编译后的服务。构建包含 SQL、JSON catalog 与 WASM codec，依赖由 pnpm 锁定。
 
 打开 <http://127.0.0.1:3100/register>，创建账户与 Lab。上传 GLB，从资产库打开，刷新含有所选 Entity 的 Lab。直接进入 `/api-keys` 与 `/settings` 会加载应用。签名 PUT/GET capability 使用同一 origin，保留校验后的资产字节。
 

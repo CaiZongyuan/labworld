@@ -24,11 +24,11 @@ docs/                      指南、领域词汇与决策
 
 [应用入口](../../apps/web/src/app.ts)直接接入 [Lab 应用](../../packages/views/src/lab/app.tsx)，[路由适配](../../apps/web/src/router.tsx)提供导航与 API client 端口。[壳接口](../../packages/views/src/shell/app-contract.ts)描述页面、导航和双语消息。登录后进入 Lab，`/` 保持共享首页。大型页面与三维代码按需加载。
 
-[runtime](../../apps/server/src/runtime.ts)负责服务启动与关闭。驱动与迁移只由 [platform/db](../../packages/server/src/platform/db/index.ts)持有，Platform Core 不导入 Lab。Web 使用生成 SDK，数据库源码不进入 Web 产物。冻结的 Rust 与基础设施源码待迁移清理票移除；普通启动和正式合同生成已不使用它们。
+[runtime](../../apps/server/src/runtime.ts)负责服务启动与关闭。驱动与迁移只由 [platform/db](../../packages/server/src/platform/db/index.ts)持有，Platform Core 不导入 Lab。Web 使用生成 SDK，数据库源码不进入 Web 产物。已移除源码和基础设施仅在 `legacy-rust-final` 保留；当前命令使用 Node。
 
 ```bash
 pnpm boundaries:check
 pnpm typecheck
 ```
 
-从仓库根目录运行。边界检查覆盖包依赖与 TypeScript 服务，冻结 Rust 所有权检查保留到清理阶段。继续阅读[开发与验证](../testing/t01-feedback-loop.md)、[模块边界](module-boundaries.md)和 [Lab 指南](../guides/lab-viewer.md)。
+从仓库根目录运行。边界检查覆盖包依赖与 TypeScript 服务，表与 SDK 归属来自 Node 声明。继续阅读[开发与验证](../testing/t01-feedback-loop.md)、[模块边界](module-boundaries.md)和 [Lab 指南](../guides/lab-viewer.md)。

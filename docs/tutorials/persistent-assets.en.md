@@ -8,13 +8,13 @@ Goal: a normal Member saves a GLB and its metadata, a new browser and a real Age
 
 Use the Foundation V1 checkout specified in the [complete journey](complete-foundation.en.md). Keep the same version throughout the chapters. Asset, representation and file identities are separate. They use the existing file lifecycle. Run commands from the repository root. Uploads write development data.
 
-The complete change lives in [Lab asset operations](../../crates/app/src/modules/lab/assets.rs), the [migration](../../migrations/0018_lab_assets.sql), [built-in definitions](../../crates/app/src/modules/lab/definitions.json), the [asset library](../../packages/views/src/lab/asset-library.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). Lab's [module.json](../../crates/app/src/modules/lab/module.json) declares ownership. Core provides public file and identity interfaces.
+The complete change lives in [Lab asset operations](../../packages/server/src/lab/assets/use-cases.ts), the [migration](../../packages/server/migrations/0000_baseline.sql), [built-in definitions](../../packages/server/src/lab/world/catalog.json), the [asset library](../../packages/views/src/lab/asset-library.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). Lab's [module.json](../../packages/server/src/lab/ownership.json) declares ownership. Core provides public file and identity interfaces.
 
 ## Save A Model In The Browser
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 Open <http://127.0.0.1:5173/assets> and sign in as a normal Member. On a new deployment, register the Owner first, then a second account. Choose **Import GLB**, select `tests/fixtures/lab/cube.glb`, fill in name, source, license and version, and select **Publish asset**. The page displays this deployment's actual upload limit; defaults and settings are in the [generated configuration reference](site:reference/config.md). Unknown source or license may be left blank and appears as “Unspecified”.
@@ -58,7 +58,7 @@ The complete request sequence is executable source:
 ```bash
 node scripts/test-backend.mjs --test lab_assets
 pnpm exec vitest run apps/web/src/lab.test.tsx
-node scripts/e2e.mjs tests/e2e/lab.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab.spec.ts
 ```
 
 HTTP checks use isolated PostgreSQL and real object storage. Page tests replace only HTTP with MSW. Browser checks cover another context, a real Agent, GLB/WebGL, and Draco, Meshopt and Basis decoding.

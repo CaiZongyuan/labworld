@@ -10,7 +10,7 @@ Use the current checkout containing this chapter's Node implementation. Complete
 
 Run commands from the repository root. The operations write persistent development data. Members need an active session. Agents need an active `lab:full` API key.
 
-Source: [task HTTP contract](../../packages/server/src/lab/devices/routes.ts), [backend program](../../packages/server/src/lab/devices/domain.ts), [migration](../../packages/server/migrations/0000_foundation.sql), and [task panel](../../packages/views/src/lab/centrifuge-panel.tsx).
+Source: [task HTTP contract](../../packages/server/src/lab/devices/routes.ts), [backend program](../../packages/server/src/lab/devices/domain.ts), [migration](../../packages/server/migrations/0000_baseline.sql), and [task panel](../../packages/views/src/lab/centrifuge-panel.tsx).
 
 ## Complete One Task
 

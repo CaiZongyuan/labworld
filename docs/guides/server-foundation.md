@@ -52,15 +52,15 @@ pnpm dev
 ```bash
 pnpm typecheck
 pnpm test:server
-pnpm contracts:m1:check
-pnpm check:m1
+pnpm contracts:baseline:check
+pnpm check
 ```
 
 服务测试启动真实子进程。它们验证健康、错误、持久化、重开、微秒时间、事务回滚、SQL 计量与目录独占。错误测试请求不存在的资源：响应为 404，包含 `code`、`details`、`message`、`request_id`，并与 `x-request-id` 响应头对应。响应使用 `cache-control: no-store`。
 
-`contracts:m1:check` 从 Zod 路由生成 OpenAPI，并通过现有 SDK 生成器写入 `.scratch/vnext-m1/generated/`。它比较全部保留路径与递归引用 schema，包含五个文件 DTO，编译生成的调用，并检查正式合同与 SDK 未被改变。正式 `pnpm generate` 与 `pnpm contracts:check` 已使用完整 Node 来源。隔离生成仍用于独立调用检查，不会覆盖正式输出。
+`pnpm contracts:baseline:check` 比较完整保留 HTTP 语义与不可变 M0 基准。`pnpm generate` 与 `pnpm contracts:check` 使用正式 Node 来源；类型检查覆盖生成 SDK 的真实消费者。隔离输出仍受正式目录与别名保护。
 
-`check:m1` 运行服务、Web、保留工具、边界、包体和文档检查。当前 CI 以 Web 为主，不构建或运行 Electron。Linux CI 同时运行完整 Node HTTP/SSE 合同；Lab 已直接接入，运维命令已可用；保留浏览器验收与最终 Migration Gate 证据单独记录。本命令不宣称 Migration Gate 已通过。
+`pnpm check` 先执行静态/生成/边界、完整前端与工具检查，再执行服务、完整 HTTP/SSE 合同、构建和确定性预算/文档检查。Linux CI 增加真实 desktop web 与构建生产旅程；Windows 验证 Node 服务。此命令不代替最终集成与 Migration Gate 判定。
 
 ## 重放持久化试验
 

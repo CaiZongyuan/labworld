@@ -3,7 +3,7 @@ import { coreMessages } from './core-messages';
 
 // Release check for Core's own catalog: every key exists in both locales
 // and no entry is empty (docs/ui/design.md §6 Q1 — 中英文消息完整).
-// Example catalogs get the same guarantee from assembleApp validation.
+// Lab supplies its bilingual catalog to the shared application interface.
 
 describe('coreMessages', () => {
   test('zh and en declare exactly the same keys', () => {

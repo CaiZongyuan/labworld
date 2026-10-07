@@ -6,7 +6,7 @@ import { basename, join } from 'node:path';
 import { evaluateBundle } from './lib/perf-budget.mjs';
 import { root } from './lib/process.mjs';
 
-// The frontend half of `just perf-ci`: build the web entry, gzip every JS
+// The frontend budget in `pnpm check`: build the web entry, gzip every JS
 // chunk, and hold the result against the committed budgets in
 // scripts/perf/baselines.json. Violations fail the command and land in a
 // report under .scratch/perf/ — the gate is deterministic (file sizes, no

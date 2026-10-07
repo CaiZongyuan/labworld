@@ -14,15 +14,14 @@ The Draco ABI receives the decoded-attribute, point and face limits before decod
 
 Meshopt uses the explicit `meshoptimizer` 1.1.1 decoder dependency. Its MIT license ships in the npm package. [third-party.json](validation/third-party.json) lists the embedded Rust dependencies, checksums and licenses. Their original notices are retained in [licenses](validation/licenses). The draco-core archive omits its root license; the included license comes from upstream commit `c6244f35ec1a3c22a69948b04907244e9b215981`.
 
-For a maintainer rebuild on Linux, install Rust 1.96.0 and its `wasm32-unknown-unknown` standard library. From the repository root, run:
+The validation source and compiler tooling are preserved at the immutable
+[`legacy-rust-final` tag](https://github.com/CaiZongyuan/labworld/tree/legacy-rust-final/packages/server/codecs/validation),
+commit `2fef28c35afea44ae2018f0e4b6a3a18a96a2bf7`. Current install,
+startup and build use the checked-in validation WASM. The third-party
+manifest and original licenses remain with the artifact.
+
+Verify retained codec content refusal, availability failures and recovery:
 
 ```bash
-node --experimental-strip-types scripts/build-validation-codec.ts
 node --test --experimental-strip-types tests/server/lab-codec.test.ts
 ```
-
-The builder uses Cargo.lock, an isolated temporary target directory and remapped source paths. It records the creator and compiler, stops admitted compiler work before cleanup, then publishes the complete WASM artifact. The local receipt records its size, SHA-256, exports and comparison with the previous artifact. Business identity, Asset/World state, authorization and transactions remain in TypeScript.
-
-After an abrupt builder exit, run `node --experimental-strip-types scripts/recover-validation-codec.ts <owned-resources.json>`. Recovery verifies the stopped creator, directory marker and compiler incarnations. It stops only compiler consumers with the same run marker. An active creator or unknown consumer prevents cleanup.
-
-Publication uses a unique run-owned staging file recorded in the ledger. Setup runs within signal admission and cleanup. Cleanup reconciles marked descendants after the compiler leader exits before removing the target directory.

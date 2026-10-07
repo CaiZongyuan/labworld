@@ -45,7 +45,7 @@ The server uses shipped WASM, Basis and Meshopt codecs. Installation and startup
 
 ```bash
 node --test --experimental-strip-types tests/server/lab-assets.test.ts tests/server/lab-assets-recovery.test.ts tests/server/lab-asset-gc.test.ts
-pnpm contracts:m1:check
+pnpm contracts:baseline:check
 ```
 
 Checks use real Node HTTP, the embedded database and owned temporary directories. They verify refusal, retry, exact bytes and cleanup without opening your development data. Recursive API checks generate isolated contracts from [Zod routes](../../packages/server/src/lab/assets/routes.ts) and confirm that the official SDK stays unchanged. Continue with [Node World and layout](server-world.en.md).

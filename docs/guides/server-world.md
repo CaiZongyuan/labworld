@@ -51,7 +51,7 @@ node examples/lab/edit-layout.mjs
 
 ```bash
 node --test --experimental-strip-types tests/server/lab-world.test.ts tests/server/lab-capacity.test.ts tests/server/lab-budgets.test.ts
-pnpm contracts:m1:check
+pnpm contracts:baseline:check
 ```
 
 Linux 的独立 desktop browser 补证入口：
@@ -61,4 +61,4 @@ pnpm exec playwright install chromium
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-该入口使用真实 Node 服务、Vite、现有 Web/SDK 与 WebGL，检查资产深链接、场景可见像素、选择和两个浏览器的冲突草稿。它登记并清理所属进程和临时数据，证据保存在输出给出的目录；不启动旧服务。正式 SDK 来源与默认应用组合切换仍由后续迁移负责；设备、同步与历史合同已在 Node 实现。HTTP 类型与错误来自[生成 API](site:reference/api.md)，Lab 归属记录在 [module.json](../../crates/app/src/modules/lab/module.json) 的 `vnext` 项。
+该入口使用真实 Node 服务、Vite、现有 Web/SDK 与 WebGL，检查资产深链接、场景可见像素、选择和两个浏览器的冲突草稿。它登记并清理所属进程和临时数据，证据保存在输出给出的目录；不启动旧服务。正式 SDK 和默认应用已使用 Node；设备、同步与历史合同保持保留语义。HTTP 类型与错误来自[生成 API](site:reference/api.md)，Lab 归属记录在 [module.json](../../packages/server/src/lab/ownership.json)。

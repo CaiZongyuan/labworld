@@ -23,10 +23,10 @@ PR #17 / `fece778` 只维护 Core 缓存测试，并非 Foundation 业务切片�
 
 使用完整 `git diff e080eb3...c6c3063` 库存及 #11 的 tracked/new 文件。未以最后一票的 diff 替代整体调查。
 
-- 资产生产、验证和文件生命周期：[assets.rs](../../crates/app/src/modules/lab/assets.rs)、[glb.rs](../../crates/app/src/modules/lab/glb.rs)、`glb/payloads.rs`、`files/mod.rs`；消费端是资产目录、发布弹窗、模型 loader 和 Worker 文件清理。
-- 世界、布局、关系及生命周期：[world.rs](../../crates/app/src/modules/lab/world.rs)、`layout.rs`、`relationships.rs`、`lifecycle.rs`，以及迁移 `0018–0028`。消费者包括 WorldView、WorldViewport、Inspector、布局编辑器和生命周期面板。
-- 程序、命令、观测、Task/Result：[devices.rs](../../crates/app/src/modules/lab/devices.rs)、[runtime.rs](../../crates/app/src/modules/lab/runtime.rs)、`runtime/centrifuge.rs`、`tasks.rs`、历史和 retention。API 启动显式组装 runtime/maintenance，浏览器使用状态和记录，不拥有运行时钟。
-- 同步完整路径：[sync.rs](../../crates/app/src/modules/lab/sync.rs) → OpenAPI/生成 SDK → [lab-world.ts](../../packages/sdk/src/lab-world.ts) → [world-subscription.ts](../../packages/views/src/lab/world-subscription.ts) → WorldView/Inspector/3D。持久版本与 runtime availability 分开。
+- 资产生产、验证和文件生命周期：[assets.rs](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/lab/assets.rs)、[glb.rs](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/lab/glb.rs)、`glb/payloads.rs`、`files/mod.rs`；消费端是资产目录、发布弹窗、模型 loader 和 Worker 文件清理。
+- 世界、布局、关系及生命周期：[world.rs](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/lab/world.rs)、`layout.rs`、`relationships.rs`、`lifecycle.rs`，以及迁移 `0018–0028`。消费者包括 WorldView、WorldViewport、Inspector、布局编辑器和生命周期面板。
+- 程序、命令、观测、Task/Result：[devices.rs](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/lab/devices.rs)、[runtime.rs](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/lab/runtime.rs)、`runtime/centrifuge.rs`、`tasks.rs`、历史和 retention。API 启动显式组装 runtime/maintenance，浏览器使用状态和记录，不拥有运行时钟。
+- 同步完整路径：[sync.rs](https://github.com/CaiZongyuan/labworld/blob/legacy-rust-final/crates/app/src/modules/lab/sync.rs) → OpenAPI/生成 SDK → [lab-world.ts](../../packages/sdk/src/lab-world.ts) → [world-subscription.ts](../../packages/views/src/lab/world-subscription.ts) → WorldView/Inspector/3D。持久版本与 runtime availability 分开。
 - 生成合同、SDK facade、所有权、配置和门禁：Lab `module.json`、Core API-key 认证改动、`apps/api/src/{lib,main}.rs`、`config-reference.rs`、`scripts/{generate-contracts,check-boundaries,e2e}.mjs`、`.env.example`、锁文件、package 接入、`justfile` 和性能基线。
 - 当前回归消费者：全部 Lab HTTP 测试、组件/MSW、SDK 测试、真实 E2E、GLB fixtures、Core 缓存维护差异，以及 10 章双语教程、9 份请求示例、公开文档入口/导航和站点浏览器测试。声明、动态显式组装和生成消费者均纳入检查。
 

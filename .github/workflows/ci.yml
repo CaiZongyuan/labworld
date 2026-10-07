@@ -25,11 +25,19 @@ jobs:
         with:
           version: 11.17.0
       - run: pnpm install --frozen-lockfile
-      - name: Migrated Node contracts and retained frontend/tooling/docs gate (no containers)
-        run: pnpm check:m1
+      - name: Complete Node, Web, tooling, budget and docs gate (no containers)
+        run: pnpm check
+      - name: Install Chromium for actual Web/WebGL journeys
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Owned retained desktop Web journeys
+        run: pnpm test:e2e
+      - name: Built production same-origin application journeys
+        env:
+          E2E_WEB_MODE: production
+        run: pnpm test:e2e tests/e2e/lab-node-assets-world.spec.ts tests/e2e/spa-deep-links.spec.ts
       - name: Synthetic HTTP/SSE spike smoke (formal 30-minute evidence is separate)
         run: pnpm spike:server --duration-seconds 5
-      - name: Migrated and pending stage coverage
+      - name: Final migration source coverage
         run: node scripts/migration-stage.mjs
       - name: Keep foundation evidence and cleanup receipts
         if: always()
@@ -77,7 +85,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Actual startup, migration, HTTP, persistence and owned process proof
         run: pnpm test:server
-      - run: pnpm contracts:m1:check
+      - run: pnpm contracts:check
       - run: pnpm spike:server --duration-seconds 5
       - name: Keep platform evidence and cleanup receipts
         if: always()
