@@ -6,7 +6,7 @@ Goal: observe one backend device from two browsers and an Agent, keep the last o
 
 ## Starting Version and Changes
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [editing layouts and registering locations](edit-layout.en.md) first. You need a persistent world, device programs and layout drafts. Run commands from the repository root. Browser operations write development data.
+Use the current checkout containing this chapter's Node implementation. Complete [Node device programs](../guides/server-devices.en.md) first. You need a persistent world and device programs. Run commands from the repository root. Browser operations write development data.
 
 Implementation: [transactional world versions](../../packages/server/migrations/0000_foundation.sql), [public SSE API](../../packages/server/src/lab/world/subscriptions.ts), [SDK subscriptions and version application](../../packages/sdk/src/lab-world.ts), [page subscriptions](../../packages/views/src/lab/world-subscription.ts), and [Lab ownership](../../crates/app/src/modules/lab/module.json). Node uses the shared retained schema.
 
@@ -61,4 +61,4 @@ pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.tes
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-Real Router tests with isolated PostgreSQL cover handoff, versions, revocation and bounded queues. Page tests replace only HTTP through MSW. The critical journey uses two real browsers, an Agent, backend programs and WebGL. [The next chapter](continuous-temperature.en.md) uses these property contracts for continuous temperatures and expiry. The [complete journey](complete-foundation.en.md) combines drafts and network recovery.
+HTTP contracts use the real Hono Router and an isolated embedded PGlite database to check versions, revocation and reconnect. Controlled runtime supplements check handoff and bounded Body queues. Page tests replace only HTTP with MSW. The listed Node browser entrypoint checks Asset, World, layout conflicts and WebGL; the complete device journey with two browsers and an Agent will be validated during the later client migration. [The next chapter](continuous-temperature.en.md) reads continuous temperatures and expiry. The [historical Foundation journey](complete-foundation.en.md) preserves its old revision, drafts and network recovery reference; it does not select this chapter's starting revision.

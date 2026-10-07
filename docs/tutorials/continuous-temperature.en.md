@@ -6,7 +6,7 @@ Goal: read two backend temperature sources. Stop one source and observe expiry w
 
 ## Starting Version
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [reliable synchronization and recovery](reliable-sync.en.md) first. You need the persistent world and SSE subscription.
+Use the current checkout containing this chapter's Node implementation. Complete [reliable synchronization and recovery](reliable-sync.en.md) first. You need the persistent world and SSE subscription.
 
 Run commands from the repository root. These operations write to the development database. Members need an active session. Agents need an active `lab:full` API key.
 
@@ -26,7 +26,7 @@ Source: [backend programs and observation ingress](../../packages/server/src/lab
    pnpm dev
    ```
 
-   The API starts built-in device programs. The Worker continues to process existing background tasks.
+   The Node server initializes the device runtime. Start each Entity's program explicitly. Separate service schedulers maintain files and history.
 
 3. Open <http://127.0.0.1:5173/lab>.
 
@@ -123,7 +123,7 @@ A heartbeat only updates Run report order. It does not change measurement recept
 
 The API persists expiry and advances `world.version`. Query time cannot change freshness within the same version. SSE delivers the new version. Layout versions and layout drafts remain independent.
 
-`ObservationSink` is trusted ingress for backend device programs. Members and Agents have no equivalent HTTP write route. The built-in sensor always reports source time. Public ingress and page tests verify unknown source times.
+`DeviceRuntime.report` is trusted ingress for backend device programs. Members and Agents have no equivalent HTTP write route. The built-in sensor always reports source time. Controlled runtime supplements and page tests check unknown source times.
 
 ## Check Rejection And Recovery
 
@@ -135,4 +135,4 @@ pnpm test:frontend apps/web/src/lab-sensors.test.tsx
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-These checks cover the real Router, isolated database, controlled clock, page operations and real WebGL. Continue with [centrifuge tasks and restart recovery](centrifuge-tasks.en.md). That chapter provides fixed task parameters, cancellation after deceleration and explicit recovery after restart.
+HTTP contracts check sensor behavior through the real Hono Router and an isolated embedded PGlite database. Page tests check operations and display; controlled runtime supplements check exact time rules. The listed Node browser entrypoint checks Asset, World, layout and WebGL. The complete sensor client journey will be validated during the later client migration. The [historical Foundation journey](complete-foundation.en.md) preserves its old revision and load reference; it does not select this chapter's starting revision. Continue with [centrifuge tasks and restart recovery](centrifuge-tasks.en.md) for fixed Task parameters, cancellation after deceleration and explicit restart recovery.

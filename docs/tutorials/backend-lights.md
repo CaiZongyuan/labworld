@@ -6,7 +6,7 @@
 
 ## 起始版本与本章变更
 
-使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[持久 Lab 与对象](persistent-world.md)，取得 Lab、Entity、独立节点、定义快照和 `lab:full` 凭据。命令在仓库根目录运行。浏览器和脚本会写入开发数据库。
+使用包含本章 Node 实现的当前 checkout。先完成[Node World](../guides/server-world.md)，取得 Lab、Entity、独立节点、定义快照和 `lab:full` 凭据。命令在仓库根目录运行。浏览器和脚本会写入开发数据库。
 
 实现入口是 [设备 HTTP](../../packages/server/src/lab/devices/use-cases.ts)、[公开设备运行与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[持久迁移](../../packages/server/migrations/0000_foundation.sql)、[来源排序迁移](../../packages/server/migrations/0000_foundation.sql)、[Inspector](../../packages/views/src/lab/device-panel.tsx)、[三维外观](../../packages/views/src/lab/world-viewport.tsx)及[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)包含新增表、合同、测试和教程。
 
@@ -67,4 +67,4 @@ pnpm test:frontend apps/web/src/lab-devices.test.tsx
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-HTTP 用真实 Router 与隔离 PostgreSQL；公开运行入口覆盖报告顺序和重启；组件仅用 MSW 替代 HTTP；浏览器使用真实应用、独立 Agent 和 WebGL。接下来按[编辑布局与登记位置](edit-layout.md)操作布局和人工关系；[Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) 添加连续传感器与过期判定。本章保持布局版本与运行观测分离。
+HTTP 合同使用真实 Hono Router 与隔离 PGlite 嵌入式数据库，覆盖设备命令和重启。组件仅用 MSW 替代 HTTP。上述 Node 浏览器入口验证 Asset、World、布局与 WebGL；独立 Agent 设备操作由本章脚本验证。完整 Node 客户端旅程将在后续客户端迁移中验证。[旧 Foundation 旅程](complete-foundation.md)保留历史版本与负载参考，不是本章的启动版本。继续[连续温度](continuous-temperature.md)。布局版本与运行观测保持分离。

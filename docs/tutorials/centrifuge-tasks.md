@@ -6,7 +6,7 @@
 
 ## 起始版本
 
-使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[连续温度](continuous-temperature.md)，取得后端 Run 和属性观测。
+使用包含本章 Node 实现的当前 checkout。先完成[连续温度](continuous-temperature.md)，取得后端 Run 和属性观测。[旧 Foundation 旅程](complete-foundation.md)仅作为历史版本与负载参考；完整 Node 客户端旅程将在后续客户端迁移中验证。
 
 在仓库根目录运行命令。这些操作写入持久开发数据。普通成员需要有效会话。Agent 需要有效的 `lab:full` API key。
 

@@ -6,7 +6,7 @@
 
 ## 起始版本
 
-使用[完整旅程](complete-foundation.md)指定的共同版本，使用 Node 共享 schema 与当前设备闭环。先完成[离心任务](centrifuge-tasks.md)，取得独立的 Command、Run、Task 和结果身份。
+使用包含本章 Node 实现的当前 checkout、共享 schema 与当前设备运行端。先完成[离心任务](centrifuge-tasks.md)，取得独立的 Command、Run、Task 和结果身份。
 
 在仓库根目录执行命令。用 `pnpm dev` 启动服务。Member 需要有效会话。Agent 需要有效的 `lab:full` 密钥。清理会删除所选 Lab 的持久历史。短保留期只能用于可丢弃的开发数据。
 
@@ -180,4 +180,4 @@ API 保留在途任务所需的 Start Command，直到任务结束。已结束 C
 
 ## 下一阶段
 
-继续[对象生命周期](entity-lifecycle.md)，归档已停止设备或独立替换外观。再按[完整旅程](complete-foundation.md)组合操作，并复现参考负载。
+继续[对象生命周期](entity-lifecycle.md)，归档已停止设备或独立替换外观。[旧 Foundation 旅程](complete-foundation.md)保留历史版本与负载参考，不是本章的启动版本。完整 Node 客户端旅程将在后续客户端迁移中验证。

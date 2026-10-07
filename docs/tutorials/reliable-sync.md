@@ -6,7 +6,7 @@
 
 ## 起始版本与本章变更
 
-使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[编辑布局与登记位置](edit-layout.md)，建立持久世界、设备程序和布局草稿。命令在仓库根目录运行。浏览器操作会写入开发数据库。
+使用包含本章 Node 实现的当前 checkout。先完成[Node 设备程序](../guides/server-devices.md)，建立持久世界和设备程序。命令在仓库根目录运行。浏览器操作会写入开发数据库。
 
 实现入口：[持久世界版本](../../packages/server/migrations/0000_foundation.sql)、[公开 SSE 接口](../../packages/server/src/lab/world/subscriptions.ts)、[SDK 订阅和版本应用](../../packages/sdk/src/lab-world.ts)、[页面订阅](../../packages/views/src/lab/world-subscription.ts)、[Lab ownership](../../crates/app/src/modules/lab/module.json)。Node 使用共享保留 schema。
 
@@ -61,4 +61,4 @@ pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.tes
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-真实 Router 和隔离 PostgreSQL 验证交接、版本、撤权及有界队列。页面只用 MSW 替代 HTTP。关键旅程使用真实两浏览器、Agent、后端程序及 WebGL。[下一章](continuous-temperature.md)使用相同属性合同读取连续温度与过期状态。[完整旅程](complete-foundation.md)组合布局草稿与网络恢复。
+HTTP 合同使用真实 Hono Router 与隔离 PGlite 嵌入式数据库，验证版本、撤权和重连。受控运行补充验证交接与有界 Body 队列。页面只用 MSW 替代 HTTP。上述 Node 浏览器入口验证 Asset、World、布局冲突与 WebGL；两浏览器和 Agent 的完整设备旅程将在后续客户端迁移中验证。[下一章](continuous-temperature.md)读取连续温度与过期状态。[旧 Foundation 旅程](complete-foundation.md)保留历史版本、布局草稿与网络恢复参考，不是本章的启动版本。

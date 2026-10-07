@@ -6,7 +6,7 @@ Goal: query a centrifuge task and its temperature reports. Change retention in a
 
 ## Starting Version
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). Use the Node shared schema and current device loop. Complete [centrifuge tasks](centrifuge-tasks.en.md) first. You need separate Command, Run, Task and result identities.
+Use the current checkout containing this chapter's Node implementation, shared schema and device loop. Complete [centrifuge tasks](centrifuge-tasks.en.md) first. You need separate Command, Run, Task and result identities.
 
 Run commands from the repository root. Start the services with `pnpm dev`. Members need an active session. Agents need an active `lab:full` key. Cleanup deletes persistent history in the selected Lab. Use disposable development data for short retention periods.
 
@@ -180,4 +180,4 @@ For a connection error, select **Retry history query**. An expired or revoked ke
 
 ## Next Stage
 
-Continue with [Entity lifecycle](entity-lifecycle.en.md) to archive a stopped device or replace its appearance independently. Then use the [complete journey](complete-foundation.en.md) to combine operations and reproduce the reference load.
+Continue with [Entity lifecycle](entity-lifecycle.en.md) to archive a stopped device or replace its appearance independently. The [historical Foundation journey](complete-foundation.en.md) preserves its old revision and load reference; it does not select this chapter's starting revision. The complete Node client journey will be validated during the later client migration.

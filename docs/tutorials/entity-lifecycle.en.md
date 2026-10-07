@@ -6,7 +6,7 @@ Goal: remove and restore a device's Scene Node. Replace its GLB appearance. Arch
 
 ## Starting Version
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). Use the Node shared schema. Complete [run history](run-history.en.md) first. You need queryable records and retention.
+Use the current checkout containing this chapter's Node implementation and shared schema. Complete [run history](run-history.en.md) first. You need queryable records and retention.
 
 Run commands from the repository root. Start services with `pnpm dev`. Use disposable Lab data. These operations change persistent data.
 
@@ -112,7 +112,7 @@ An archived Entity still protects its appearance asset.
 6. Remove any remaining node-only references.
 7. Delete the asset from the Asset library.
 
-   Deletion succeeds only after all real references are removed. The existing Worker then reclaims the file.
+   Deletion succeeds only after all real references are removed. The Node file scheduler then reclaims the file.
 
 ## Use The Same HTTP Contract
 
@@ -183,4 +183,4 @@ Same-key Command retries retain the earlier contract after definition changes or
 
 ## Next Stage
 
-Continue with the [complete digital laboratory journey](complete-foundation.en.md). Combine this series in one Lab and reproduce the 100 Entity, 20 device, two-browser reference load. Physical equipment integration remains future scope.
+The [historical Foundation journey](complete-foundation.en.md) preserves its old revision and reference load of 100 Entities, 20 devices and two browsers; it does not select this chapter's starting revision. The complete Node client journey will be validated during the later client migration. Physical equipment integration remains future scope.

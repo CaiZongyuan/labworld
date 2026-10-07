@@ -6,7 +6,7 @@ Goal: complete one centrifuge task and cancel another. Query their separate iden
 
 ## Starting Version
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [continuous temperature](continuous-temperature.en.md) first. You need backend Runs and property observations.
+Use the current checkout containing this chapter's Node implementation. Complete [continuous temperature](continuous-temperature.en.md) first. You need backend Runs and property observations. The [historical Foundation journey](complete-foundation.en.md) is an old revision and load reference. The complete Node client journey will be validated during the later client migration.
 
 Run commands from the repository root. The operations write persistent development data. Members need an active session. Agents need an active `lab:full` API key.
 

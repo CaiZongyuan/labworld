@@ -6,7 +6,7 @@
 
 ## 起始版本
 
-使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[可靠同步与恢复](reliable-sync.md)，取得持久世界和 SSE 订阅。
+使用包含本章 Node 实现的当前 checkout。先完成[可靠同步与恢复](reliable-sync.md)，取得持久世界和 SSE 订阅。
 
 在仓库根目录运行命令。操作会写入开发数据库。普通 Member 需要有效会话。Agent 需要有效的 `lab:full` API 密钥。
 
@@ -26,7 +26,7 @@
    pnpm dev
    ```
 
-   API 启动内置设备程序。Worker 继续处理原有后台任务。
+   Node 服务初始化设备运行端。每个 Entity 的程序仍需要显式启动。文件与历史清理由各自的服务调度器处理。
 
 3. 打开 <http://127.0.0.1:5173/lab>。
 
@@ -123,7 +123,7 @@
 
 API 把过期转换持久化，并推进 `world.version`。相同版本不会因查询时间不同而返回不同新鲜度。SSE 传播这个新版本。布局版本与布局草稿保持独立。
 
-`ObservationSink` 是后端设备程序的可信入口。Member 和 Agent 没有这个 HTTP 写入入口。内置温度程序始终提供来源时间；未知时间的行为由公开入口与页面测试验证。
+`DeviceRuntime.report` 是后端设备程序的可信入口。Member 和 Agent 没有对应的 HTTP 写入入口。内置温度程序始终提供来源时间；未知时间的行为由受控运行入口补充与页面测试验证。
 
 ## 验证拒绝与恢复
 
@@ -135,4 +135,4 @@ pnpm test:frontend apps/web/src/lab-sensors.test.tsx
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-这些检查覆盖真实 Router、隔离数据库、受控时钟、页面操作与真实 WebGL。下一章[离心任务与重启恢复](centrifuge-tasks.md)提供固定任务参数、减速取消和显式重启恢复。
+HTTP 合同验证真实 Hono Router 与隔离 PGlite 嵌入式数据库中的传感器行为，页面测试验证操作与显示。受控运行入口补充验证精确时间规则。上述 Node 浏览器入口验证 Asset、World、布局与 WebGL；完整传感器客户端旅程将在后续客户端迁移中验证。[旧 Foundation 旅程](complete-foundation.md)保留历史版本与负载参考，不是本章的启动版本。下一章[离心任务与重启恢复](centrifuge-tasks.md)提供固定任务参数、减速取消和显式重启恢复。
