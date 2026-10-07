@@ -13,6 +13,8 @@ pnpm server backup --output .scratch/archives/lab-backup
 
 Success reports `status: backed-up`. The archive is a directory with `manifest.json`, a database snapshot and verified object bytes. The command holds source-directory exclusion. It reads ready references in pages, then streams size and SHA256 checks. Database transactions do not wait for file reads. Backup fails while an active service owns the source.
 
+Output can be new or an existing empty directory. The safe `dataDir/backups` folder is allowed. Output and temporary archives cannot overlap the copied `pgdata` tree. Aliases resolve to real locations to prevent recursive copying. Publication removes only a confirmed empty output directory. It never recursively removes existing content.
+
 The archive positively includes the database and ready objects. It excludes the raw `secrets/file-signing-key`, upload staging, logs and environment files. Password, session and API-key hashes remain persisted identity data inside the database.
 
 ## Restore and Read Back
@@ -25,7 +27,7 @@ pnpm server restore --archive .scratch/archives/lab-backup
 pnpm dev
 ```
 
-Success reports `status: restored`. Restore checks format, paths and every file, then verifies actual database history and ready references in owned staging. It acquires destination exclusion and publishes only after validation. Nonempty destinations, wrong content and unsupported history fail. Correct the input or select a new directory, then retry.
+Success reports `status: restored`. Restore rejects linked directories at each archive path component. It checks format, paths and every file, then verifies the size and SHA256 of the actual staged copies. It checks database history and ready references in owned staging. It acquires destination exclusion and publishes only after validation. Nonempty destinations, wrong content and unsupported history fail. Correct the input or select a new directory, then retry.
 
 Log in with the original account. Open its Lab and download the asset. Identity and bytes remain the same. Retry an acknowledged Command with its original key and parameters to receive the original result. Startup interrupts old Runs. It does not replay Commands or resume long Tasks. A fresh signer issues new byte URLs.
 

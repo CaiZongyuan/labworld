@@ -7,11 +7,21 @@ import {
   mkdtemp,
   readdir,
   readFile,
+  realpath,
   rename,
+  rmdir,
   rm,
   writeFile,
 } from 'node:fs/promises';
-import { dirname, join, resolve } from 'node:path';
+import {
+  basename,
+  dirname,
+  isAbsolute,
+  join,
+  relative,
+  resolve,
+  sep,
+} from 'node:path';
 import { Database } from '../../../packages/server/src/platform/db/index.ts';
 import { DirectoryLease } from '../../../packages/server/src/platform/db/lease.ts';
 import { copyDatabaseSnapshot } from '../../../packages/server/src/platform/db/snapshot.ts';
@@ -30,6 +40,24 @@ type Manifest = {
   directories: string[];
   entries: Entry[];
 };
+async function archivePath(
+  root: string,
+  path: string,
+  kind: 'file' | 'directory',
+) {
+  let current = root;
+  const parts = path.split('/');
+  for (let index = -1; index < parts.length; index++) {
+    if (index >= 0) current = join(current, parts[index]);
+    const info = await lstat(current);
+    if (info.isSymbolicLink())
+      throw new Error('Archive links are not supported');
+    const directory = index < parts.length - 1 || kind === 'directory';
+    if (directory ? !info.isDirectory() : !info.isFile())
+      throw new Error('Archive entry has the wrong kind');
+  }
+  return current;
+}
 async function digest(path: string) {
   const info = await lstat(path);
   if (!info.isFile() || info.isSymbolicLink())
@@ -70,8 +98,48 @@ async function absentOrEmpty(path: string) {
       throw error;
   }
 }
+async function canonicalPath(path: string) {
+  let ancestor = resolve(path);
+  const suffix: string[] = [];
+  while (true) {
+    try {
+      return resolve(await realpath(ancestor), ...suffix);
+    } catch (error) {
+      if (!(
+        error instanceof Error &&
+        'code' in error &&
+        error.code === 'ENOENT'
+      ))
+        throw error;
+      suffix.unshift(basename(ancestor));
+      ancestor = dirname(ancestor);
+    }
+  }
+}
+function within(root: string, path: string) {
+  if (process.platform === 'win32') {
+    root = root.toLowerCase();
+    path = path.toLowerCase();
+  }
+  const child = relative(root, path);
+  return (
+    child === '' ||
+    (!isAbsolute(child) && child !== '..' && !child.startsWith('..' + sep))
+  );
+}
 export async function backup(directory: string, output: string) {
   output = resolve(output);
+  const databaseTree = await canonicalPath(join(directory, 'pgdata')),
+    publication = await canonicalPath(output),
+    stagingParent = await canonicalPath(dirname(output));
+  if (
+    within(databaseTree, publication) ||
+    within(publication, databaseTree) ||
+    within(databaseTree, stagingParent)
+  )
+    throw new Error(
+      'Backup output or staging would overlap the database snapshot tree',
+    );
   await absentOrEmpty(output);
   const lease = await DirectoryLease.acquire(directory),
     db = new Database(lease);
@@ -131,7 +199,7 @@ export async function backup(directory: string, output: string) {
     );
     await absentOrEmpty(output);
     try {
-      await rm(output);
+      await rmdir(output);
     } catch (error) {
       if (!(
         error instanceof Error &&
@@ -163,7 +231,7 @@ export async function backup(directory: string, output: string) {
 export async function restore(directory: string, archive: string) {
   archive = resolve(archive);
   const manifest = JSON.parse(
-    await readFile(join(archive, 'manifest.json'), 'utf8'),
+    await readFile(await archivePath(archive, 'manifest.json', 'file'), 'utf8'),
   ) as Manifest;
   if (
     manifest.format !== 'lab-word-node-directory-v1' ||
@@ -172,12 +240,14 @@ export async function restore(directory: string, archive: string) {
     !Array.isArray(manifest.readyFiles)
   )
     throw new Error('Unsupported archive format');
-  for (const path of manifest.directories)
+  for (const path of manifest.directories) {
     if (
       !/^pgdata(?:\/[A-Za-z0-9_./-]+)?$/.test(path) ||
       path.split('/').some((part) => part === '..' || part === '.' || !part)
     )
       throw new Error('Invalid database directory');
+    await archivePath(archive, path, 'directory');
+  }
   const seen = new Set<string>();
   for (const entry of manifest.entries) {
     if (
@@ -191,7 +261,7 @@ export async function restore(directory: string, archive: string) {
     )
       throw new Error('Invalid archive entry');
     seen.add(entry.path);
-    const actual = await digest(join(archive, entry.path));
+    const actual = await digest(await archivePath(archive, entry.path, 'file'));
     if (actual.size !== entry.size || actual.sha256 !== entry.sha256)
       throw new Error('Archive content does not match manifest');
   }
@@ -210,6 +280,9 @@ export async function restore(directory: string, archive: string) {
       const target = join(staging, entry.path);
       await mkdir(dirname(target), { recursive: true, mode: 0o700 });
       await copyFile(join(archive, entry.path), target);
+      const copied = await digest(target);
+      if (copied.size !== entry.size || copied.sha256 !== entry.sha256)
+        throw new Error('Staged archive content does not match manifest');
     }
     stageLease = await DirectoryLease.acquire(staging);
     db = new Database(stageLease);

@@ -13,6 +13,8 @@ pnpm server backup --output .scratch/archives/lab-backup
 
 成功输出 `status: backed-up`。归档是一个目录，包含 `manifest.json`、数据库快照和已验证对象字节。命令独占源目录，逐页读取 ready 文件引用，再流式核对大小和 SHA256。数据库事务不等待文件读取。活动服务仍持有源目录时，备份失败。
 
+输出可用新目录或现有空目录。安全的 `dataDir/backups` 可用；输出和临时归档不能落入被复制的 `pgdata` 树。路径别名按真实目录检查，避免快照递归复制自身。发布只移除确认为空的输出目录，不递归删除已有内容。
+
 归档正向包含数据库和 ready 对象。它不包含原始 `secrets/file-signing-key`、上传暂存、日志或环境文件。数据库里的密码、会话和 API key 哈希仍是身份数据，不会被删除。
 
 ## 恢复并读回
@@ -25,7 +27,7 @@ pnpm server restore --archive .scratch/archives/lab-backup
 pnpm dev
 ```
 
-成功输出 `status: restored`。恢复先核对格式、路径和每个文件，再在所属 staging 检查实际数据库历史和 ready 引用。完成校验后才取得目标目录锁并发布数据。非空目标、错误内容和不支持的历史会失败；修正输入或选择新目录后重试。
+成功输出 `status: restored`。恢复逐级拒绝归档中的链接目录，先核对格式、路径和每个文件，再核对实际复制到 staging 的大小与 SHA256。随后在所属 staging 检查实际数据库历史和 ready 引用。完成校验后才取得目标目录锁并发布数据。非空目标、错误内容和不支持的历史会失败；修正输入或选择新目录后重试。
 
 登录原账户，打开原 Lab 并下载资产。身份和文件字节保持相同。用原键与原参数重试已成功 Command，得到原结果。旧运行在启动时显示 interrupted；不会自动重放命令或恢复长任务。新签名器生成新的字节 URL。
 
