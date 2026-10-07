@@ -17,6 +17,7 @@ type Ledger = {
   destination: string;
   stage: string;
   emptyMode?: number;
+  identity?: { dev: string; ino: string; birthtimeNs: string };
 };
 const stageName = /^\.lab-word-(?:backup|restore)-[0-9a-f-]{36}$/;
 async function existing(path: string) {
@@ -51,7 +52,31 @@ async function restoreEmpty(ledger: Ledger) {
   if (ledger.emptyMode !== undefined && !(await existing(ledger.destination)))
     await mkdir(ledger.destination, { mode: ledger.emptyMode });
 }
-async function recover(destination: string) {
+async function createdIdentity(path: string) {
+  const info = await lstat(path, { bigint: true });
+  if (!info.isDirectory() || info.isSymbolicLink())
+    throw new Error('Owned archive staging changed kind; operation refused');
+  if (info.ino === 0n || info.birthtimeNs === 0n)
+    throw new Error('Archive staging creation identity is unavailable');
+  return {
+    dev: info.dev.toString(),
+    ino: info.ino.toString(),
+    birthtimeNs: info.birthtimeNs.toString(),
+  };
+}
+async function verifyIdentity(ledger: Ledger) {
+  const actual = await createdIdentity(ledger.stage);
+  if (
+    !ledger.identity ||
+    actual.dev !== ledger.identity.dev ||
+    actual.ino !== ledger.identity.ino ||
+    actual.birthtimeNs !== ledger.identity.birthtimeNs
+  )
+    throw new Error(
+      'Owned archive staging identity changed or is missing; operation refused',
+    );
+}
+async function recover(destination: string, assertOwned: () => void) {
   const parent = dirname(destination);
   for (const name of await readdir(parent)) {
     if (!name.endsWith('.json') || !stageName.test(name.slice(0, -5))) continue;
@@ -72,13 +97,25 @@ async function recover(destination: string) {
         (!Number.isInteger(ledger.emptyMode) || ledger.emptyMode < 0))
     )
       continue;
-    const stage = await existing(ledger.stage);
-    if (stage && (!stage.isDirectory() || stage.isSymbolicLink()))
-      throw new Error('Owned archive staging changed kind; recovery refused');
     // Destination exclusion alone cannot prove a stage consumer has stopped.
     const lease = await DirectoryLease.reserve(ledger.stage);
+    let lost = false;
+    lease.onLost(() => {
+      lost = true;
+    });
+    const check = () => {
+      assertOwned();
+      if (lost)
+        throw new Error('Archive staging ownership was lost; recovery refused');
+    };
     try {
-      if (stage) await rm(ledger.stage, { recursive: true });
+      const stage = await existing(ledger.stage);
+      if (stage) {
+        await verifyIdentity(ledger);
+        check();
+        await rm(ledger.stage, { recursive: true });
+      }
+      check();
       await restoreEmpty(ledger);
       await rm(marker + '.next', { force: true });
       await rm(marker);
@@ -121,16 +158,27 @@ export class ArchiveWorkspace {
     let stage: DirectoryLease | undefined,
       marker: string | undefined,
       path: string | undefined,
-      created = false;
+      created = false,
+      lost = false,
+      ledger: Ledger | undefined;
+    const check = () => {
+      if (lost) throw new Error('Archive directory ownership was lost');
+    };
+    target.onLost(() => {
+      lost = true;
+    });
     try {
-      await recover(target.directory);
+      await recover(target.directory, check);
       await emptyDestination(target.directory);
       path = join(
         dirname(target.directory),
         '.lab-word-' + kind + '-' + randomUUID(),
       );
       stage = await DirectoryLease.reserve(path);
-      const ledger: Ledger = {
+      stage.onLost(() => {
+        lost = true;
+      });
+      ledger = {
         owner: 'lab-word-node-archive-v1',
         destination: target.directory,
         stage: path,
@@ -139,12 +187,22 @@ export class ArchiveWorkspace {
       // abrupt process exit cannot leave an unrecorded copied-data stage.
       await record(path + '.json', ledger);
       marker = path + '.json';
+      check();
       await mkdir(path, { mode: 0o700 });
       created = true;
+      ledger.identity = await createdIdentity(path);
+      await record(marker + '.next', ledger);
+      await rename(marker + '.next', marker);
+      check();
       return new ArchiveWorkspace(target, stage, ledger);
     } catch (error) {
       try {
-        if (created) await rm(path!, { recursive: true, force: true });
+        if (created) {
+          await verifyIdentity(ledger!);
+          check();
+          await rm(path!, { recursive: true });
+        }
+        if (marker) await rm(marker + '.next', { force: true });
         if (marker) await rm(marker, { force: true });
       } finally {
         try {
@@ -169,6 +227,7 @@ export class ArchiveWorkspace {
     signal?.throwIfAborted();
     if (empty) await rmdir(this.ledger.destination);
     signal?.throwIfAborted();
+    await verifyIdentity(this.ledger);
     if (this.lost) throw new Error('Archive directory ownership was lost');
     await rename(this.path, this.ledger.destination);
   }
@@ -176,12 +235,23 @@ export class ArchiveWorkspace {
     if (this.closing) return this.closing;
     this.closing = (async () => {
       try {
-        const stage = await existing(this.path);
-        if (stage && (!stage.isDirectory() || stage.isSymbolicLink()))
+        if (this.lost)
           throw new Error(
-            'Owned archive staging changed kind; cleanup refused',
+            'Archive ownership was lost; cleanup preserved staging',
           );
-        await rm(this.path, { recursive: true, force: true });
+        const stage = await existing(this.path);
+        if (stage) {
+          await verifyIdentity(this.ledger);
+          if (this.lost)
+            throw new Error(
+              'Archive ownership was lost; cleanup preserved staging',
+            );
+          await rm(this.path, { recursive: true });
+        }
+        if (this.lost)
+          throw new Error(
+            'Archive ownership was lost; cleanup preserved staging',
+          );
         await restoreEmpty(this.ledger);
         await rm(this.marker + '.next', { force: true });
         await rm(this.marker, { force: true });
