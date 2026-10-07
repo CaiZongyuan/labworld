@@ -4,11 +4,13 @@ import {
   lstat,
   mkdir,
   readFile,
+  readdir,
   rename,
   symlink,
   unlink,
 } from 'node:fs/promises';
 import { join } from 'node:path';
+import { createHash } from 'node:crypto';
 import type {
   CreatedApiKey,
   DeviceCommand,
@@ -20,6 +22,26 @@ import type {
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
+
+async function treeState(root: string): Promise<unknown[]> {
+  const state: unknown[] = [];
+  for (const name of (await readdir(root)).sort()) {
+    const path = join(root, name),
+      info = await lstat(path);
+    state.push(
+      info.isDirectory()
+        ? [name, info.mode, await treeState(path)]
+        : [
+            name,
+            info.mode,
+            createHash('sha256')
+              .update(await readFile(path))
+              .digest('hex'),
+          ],
+    );
+  }
+  return state;
+}
 
 async function cli(
   directory: string,
@@ -368,12 +390,23 @@ test(
         session.user.id,
       );
       await source.stop();
-      const refusal = await cli(
-        source.directory,
-        ['backup', '--output', invalid],
-        1,
+      const before = await treeState(database);
+      for (const output of [invalid, join(alias, 'new-backups', 'archive')]) {
+        const refusal = await cli(
+          source.directory,
+          ['backup', '--output', output],
+          1,
+        );
+        assert.match(
+          (refusal.error as { message: string }).message,
+          /overlap/i,
+        );
+      }
+      assert.deepEqual(
+        await treeState(database),
+        before,
+        'both inactive refusals preserve the full database tree and bytes',
       );
-      assert.match((refusal.error as { message: string }).message, /overlap/i);
       await assert.rejects(lstat(join(database, 'new-backups')), {
         code: 'ENOENT',
       });
