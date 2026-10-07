@@ -49,6 +49,6 @@ test('a browser waits after a real authentication limit and then signs in', asyn
   await expect(submit).toBeEnabled({ timeout: (windowSeconds + 3) * 1000 });
   await expect(page).toHaveURL(/\/login$/);
   await submit.click();
-  // A successful sign-in lands on the documents entry.
+  // A successful sign-in lands on Lab.
   await expect(page.getByRole('heading', { name: '我的文档' })).toBeVisible();
 });

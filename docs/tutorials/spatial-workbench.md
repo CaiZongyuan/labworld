@@ -10,7 +10,7 @@
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 打开 <http://127.0.0.1:5173/lab>，登录已登记对象的 Member。页面先显示三维空间、真实 Lab 名称和连接状态。
@@ -61,7 +61,7 @@ just dev
 ```bash
 pnpm typecheck
 pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.test.tsx apps/web/src/lab-sync.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-workbench.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views 测试只用 MSW 替代 HTTP。浏览器使用真实身份、API、数据库、订阅、HDR 和 WebGL。它核对画布外部可见面积、相机像素、深链、面板、焦点和窄屏命令。继续[后端照明控制](backend-lights.md)，在同一对象详情中区分命令与实际观测。
+Views 测试只用 MSW 替代 HTTP。浏览器使用真实身份、API、数据库、订阅、HDR 和 WebGL。迁移验证使用 desktop web，核对画布外部可见面积、相机像素、深链、面板与焦点。已有产品窄屏与触屏职责保留到 Migration Gate 后继续验证。继续[后端照明控制](backend-lights.md)，在同一对象详情中区分命令与实际观测。

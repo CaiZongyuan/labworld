@@ -8,10 +8,10 @@
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
-打开 <http://127.0.0.1:5173/lab>，登录开发账号或从 `/register` 注册。登录和注册后默认进入 Lab。`just dev` 启动平台服务并执行迁移，沿用本地开发数据；它不是隔离测试环境。
+打开 <http://127.0.0.1:5173/lab>，登录开发账号或从 `/register` 注册。登录和注册后默认进入 Lab。`pnpm dev` 启动 Node 与 Web，初始化嵌入数据库并保留本地开发数据。浏览器测试使用独立的所属目录。
 
 1. Lab 主入口创建和打开持久实验室，使用对象目录、场景与 Inspector。完整登记步骤见[持久 Lab 与对象教程](../tutorials/persistent-world.md)。
 2. 从资产库选择预置工业显微镜并在 Lab 中打开，进入 `/lab/asset` 单模型预览。旋转、缩放、平移；聚焦保持当前方向，重置恢复初始方向。点击模型选择，点击空白清除选择。
@@ -19,7 +19,7 @@ just dev
 4. 在资产库导入时填写名称、来源、许可和版本，发布后搜索名称或文件名，打开模型到 Lab，或确认删除未引用资产。
 5. 导入损坏文件应显示失败反馈并保留前一个可用模型，随后仍能成功导入有效文件。
 
-资产库与 GLB 字节持久保存在服务器。刷新或换浏览器后可以重新打开。内置定义提供规格、能力与状态结构。后端照明、温度传感器与离心任务已实现。[运行历史](../tutorials/run-history.md)提供时间筛选、分页、缺口与保留策略。[资产教程](../tutorials/persistent-assets.md)提供导入和恢复操作。旧知识库路由保留原有含义。视口显示实时渲染计数与可用 JS heap。它不采样 GPU 时间，也不测量显存字节数。
+资产库与 GLB 字节持久保存在服务器。刷新或换浏览器后可以重新打开。内置定义提供规格、能力与状态结构。后端照明、温度传感器与离心任务已实现。[运行历史](../tutorials/run-history.md)提供时间筛选、分页、缺口与保留策略。[资产教程](../tutorials/persistent-assets.md)提供导入和恢复操作。已移除的知识库路由显示不可用页面，并提供返回入口。视口显示实时渲染计数与可用 JS heap。它不采样 GPU 时间，也不测量显存字节数。
 
 源码见[业务组装](../../apps/web/src/app.ts)、[Lab 贡献](../../packages/views/src/lab/app.tsx)和[查看页](../../packages/views/src/lab/lab-view.tsx)。[素材记录](../../assets/README.md)保留原件、运行文件和许可。
 
@@ -68,4 +68,4 @@ pnpm --dir ../lab-word-preview/.scratch/lab-viewer/v1 dev
 
 此前 Chromium/SwiftShader 已验证实际渲染、导入、选择、相机和错误恢复。软件渲染的 FPS 不是实际 GPU 性能验收；预览包体也不是生产预算结果。[体验记录](../ui/lab-viewer-experience.md)保留具体范围与证据。
 
-历史预览使用模拟身份与导航。已接受的设计为当前应用提供输入。正式路由、持久导入、布局编辑、设备任务、历史和[对象生命周期](../tutorials/entity-lifecycle.md)已实现。用户可以归档已停止设备，独立替换外观。[完整旅程](../tutorials/complete-foundation.md)组合这些操作，并提供独立参考负载入口。真实设备接入仍属后续范围。见[产品架构](../architecture/lab-word.md)。
+历史预览使用模拟身份与导航。已接受的设计为当前应用提供输入。正式路由、持久导入、布局编辑、设备任务、历史和[对象生命周期](../tutorials/entity-lifecycle.md)已实现。用户可以归档已停止设备，独立替换外观。[完整 Foundation 课程](../tutorials/complete-foundation.md)保留历史实现旅程与原栈命令。当前 Node 启动、同源浏览器操作与运维见[快速开始](../getting-started/quickstart.md)、[Web 托管](server-web.md)和[服务运维](server-operations.md)。保留浏览器旅程继续验证相同 Lab 行为。真实设备接入仍属后续范围。见[产品架构](../architecture/lab-word.md)。

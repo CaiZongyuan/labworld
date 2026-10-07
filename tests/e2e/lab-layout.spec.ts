@@ -1,5 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 
 async function registerObject(page: Page, definition: string, name: string) {
@@ -329,7 +331,8 @@ test('real pointer transforms edit Placement while manual location stays unchang
   });
   await page.getByRole('button', { name: 'English', exact: true }).click();
   await page.getByRole('button', { name: 'Dark', exact: true }).click();
-  await page.setViewportSize({ width: 320, height: 844 });
+  if (!desktopMigration)
+    await page.setViewportSize({ width: 320, height: 844 });
   await expect(
     page.getByRole('tab', { name: 'Edit layout', exact: true }),
   ).toBeVisible();
@@ -342,7 +345,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
     transforms = (await page.locator('.world-transform-tools').boundingBox())!;
   expect(tools.x + tools.width).toBeLessThan(transforms.x);
   await page.screenshot({
-    path: 'test-results/lab-foundation/t04-layout-mobile-dark-en.png',
+    path: `test-results/lab-foundation/t04-layout-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
     fullPage: true,
   });
   expect((await redHandle(page)).count).toBeGreaterThan(10);
@@ -359,7 +362,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
     mobileInspector.getByText('Manual registration · Unsaved', { exact: true }),
   ).toBeVisible();
   await page.screenshot({
-    path: 'test-results/lab-foundation/t04-layout-mobile-relationships-en.png',
+    path: `test-results/lab-foundation/t04-layout-${desktopMigration ? 'desktop' : 'mobile'}-relationships-en.png`,
     fullPage: true,
   });
   await mobileInspector.getByLabel('X (m)', { exact: true }).fill('8');
@@ -369,7 +372,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
   ).toBeVisible();
   await expect(mobileInspector.getByLabel('Sx', { exact: true })).toBeVisible();
   await page.screenshot({
-    path: 'test-results/lab-foundation/t04-layout-mobile-placement-en.png',
+    path: `test-results/lab-foundation/t04-layout-${desktopMigration ? 'desktop' : 'mobile'}-placement-en.png`,
     fullPage: true,
   });
   await page.getByRole('button', { name: 'Save layout', exact: true }).click();

@@ -6,6 +6,8 @@ import {
   type LabWorld,
 } from '../../packages/sdk/src/index';
 
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 test('two browsers and an Agent recover the same world and revoked Agent access ends', async ({
   page,
@@ -181,14 +183,15 @@ test('two browsers and an Agent recover the same world and revoked Agent access 
     ).toBe(204);
     await expect.poll(() => accessEnded).toBe(true);
     await agent;
-    await observer.setViewportSize({ width: 320, height: 900 });
+    if (!desktopMigration)
+      await observer.setViewportSize({ width: 320, height: 900 });
     await observer
       .getByRole('button', { name: 'English', exact: true })
       .click();
     await observer.getByRole('button', { name: 'Dark', exact: true }).click();
     await expect(observer.getByText('Live', { exact: true })).toBeVisible();
     await observer.screenshot({
-      path: 'test-results/lab-foundation/t07-sync-mobile-dark-en.png',
+      path: `test-results/lab-foundation/t07-sync-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
       fullPage: true,
     });
     expect(

@@ -6,6 +6,8 @@ import {
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 test.skip(
   process.env.LAB_OBSERVATION_RETENTION_SECS !== '2' ||
@@ -195,7 +197,8 @@ test('members and Agents query real history, recover a failed page and clean exp
     });
     expect(active.status()).toBe(202);
     const activeCommand = await active.json();
-    await page.setViewportSize({ width: 320, height: 850 });
+    if (!desktopMigration)
+      await page.setViewportSize({ width: 320, height: 850 });
     await page.getByRole('button', { name: 'English', exact: true }).click();
     await page.getByRole('button', { name: 'Dark', exact: true }).click();
     const narrow = page.getByRole('region', { name: 'Run history' });
@@ -216,10 +219,10 @@ test('members and Agents query real history, recover a failed page and clean exp
     ).toBe(true);
     await canvasPixels(
       page,
-      'test-results/lab-foundation/t08-history-mobile-canvas.png',
+      `test-results/lab-foundation/t08-history-${desktopMigration ? 'desktop' : 'mobile'}-canvas.png`,
     );
     await page.screenshot({
-      path: 'test-results/lab-foundation/t08-history-mobile-dark-en.png',
+      path: `test-results/lab-foundation/t08-history-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
       fullPage: true,
     });
     await expect

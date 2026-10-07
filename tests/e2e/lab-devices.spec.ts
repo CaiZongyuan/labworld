@@ -5,6 +5,8 @@ import {
   type Page,
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 async function pixelChange(page: Page, before: Buffer, after: Buffer) {
   return page.evaluate(
@@ -267,7 +269,8 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       { on: true, brightness: 35 },
       { on: true, brightness: 20 },
     ]);
-    await reopened.setViewportSize({ width: 390, height: 844 });
+    if (!desktopMigration)
+      await reopened.setViewportSize({ width: 390, height: 844 });
     await reopened.evaluate(() => {
       localStorage.setItem('labos-threejs.locale', 'en');
       localStorage.setItem('labos-threejs.theme', 'dark');
@@ -281,14 +284,14 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       .click();
     await reopened.locator('canvas').scrollIntoViewIfNeeded();
     await reopened.screenshot({
-      path: 'test-results/lab-foundation/t03-lights-mobile-dark-en.png',
+      path: `test-results/lab-foundation/t03-lights-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
       fullPage: true,
     });
     await reopened
       .getByRole('complementary', { name: 'Object info' })
       .scrollIntoViewIfNeeded();
     await reopened.screenshot({
-      path: 'test-results/lab-foundation/t03-inspector-mobile-dark-en.png',
+      path: `test-results/lab-foundation/t03-inspector-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
       fullPage: true,
     });
     expect(

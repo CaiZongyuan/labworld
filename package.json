@@ -15,7 +15,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test:frontend": "vitest run",
-    "test:e2e": "node --experimental-strip-types scripts/e2e-server.mjs",
+    "test:e2e": "node scripts/e2e-suite.mjs",
     "generate": "node scripts/generate-contracts.mjs",
     "contracts:check": "node scripts/generate-contracts.mjs --check",
     "docs:dev": "node scripts/project-docs.mjs && node scripts/generate-docs-palette.mjs && pnpm --filter @labos-threejs/docs dev",

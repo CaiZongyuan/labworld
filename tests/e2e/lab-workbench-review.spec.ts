@@ -2,6 +2,8 @@ import { expect, test, type Page, type Locator } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 const evidence =
   process.env.LAB_WORKBENCH_EVIDENCE ?? '.scratch/workbench/review';
@@ -346,6 +348,10 @@ test('real World structural updates preserve an orbited camera until explicit Fi
 test('narrow history keeps filters, real command records and pagination reachable and returns to its Entity', async ({
   page,
 }) => {
+  test.skip(
+    desktopMigration,
+    'Product narrow-screen coverage resumes after Migration Gate',
+  );
   test.setTimeout(180000);
   const headers = await member(page),
     worldLab = await lab(page, headers, 'History review Lab');

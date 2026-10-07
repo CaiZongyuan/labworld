@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { cpus, totalmem, release, arch } from 'node:os';
 import { type LabWorld } from '../../packages/sdk/src/index';
 import {
@@ -21,7 +22,7 @@ test('one hundred Entities and twenty 1 Hz devices remain bounded in two real br
 }) => {
   test.skip(
     process.env.E2E_LAB_REFERENCE_LOAD !== '1',
-    'Run just perf-lab-reference in its own isolated stack',
+    'Run E2E_LAB_REFERENCE_LOAD=1 with the owned Node reference profile',
   );
   test.setTimeout(240000);
   const errors: string[] = [];
@@ -305,21 +306,30 @@ test('one hundred Entities and twenty 1 Hz devices remain bounded in two real br
         bytes: body.length,
       });
     }
-    const storage = execFileSync(
-      'docker',
-      [
-        'exec',
-        process.env.TEST_PG_CONTAINER!,
-        'psql',
-        '-U',
-        'postgres',
-        '-d',
-        'labos_threejs_test',
-        '-Atc',
-        "SELECT json_build_object('database_bytes',pg_database_size(current_database()),'lab_table_bytes',(SELECT sum(pg_total_relation_size(c.oid)) FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='lab' AND c.relkind='r'),'observation_rows',(SELECT count(*) FROM lab.observation_history),'entity_rows',(SELECT count(*) FROM lab.entities),'node_rows',(SELECT count(*) FROM lab.scene_nodes));",
-      ],
-      { encoding: 'utf8' },
+    // Necessary platform-report supplement, after the measured HTTP/sample work.
+    const control = process.env.E2E_SERVICE_CONTROL!,
+      reply = process.env.E2E_SERVICE_CONTROL_REPLY!;
+    if (!control || !reply)
+      throw new Error('Run the owned Node reference profile');
+    await writeFile(
+      control + '.next',
+      JSON.stringify({ revision: 1, action: 'inspect-store' }),
     );
+    await rename(control + '.next', control);
+    await expect
+      .poll(async () => {
+        try {
+          return JSON.parse(await readFile(reply, 'utf8')).revision;
+        } catch {
+          return 0;
+        }
+      })
+      .toBe(1);
+    const storage = (
+      JSON.parse(await readFile(reply, 'utf8')) as {
+        facts: Record<string, unknown>;
+      }
+    ).facts;
     const canvas = await page.evaluate(() => {
       const canvas = document.querySelector('canvas')!;
       const gl = canvas.getContext('webgl2')!;
@@ -394,7 +404,7 @@ test('one hundred Entities and twenty 1 Hz devices remain bounded in two real br
             types: [...new Set(frames.map((frame) => frame.type))],
           },
           history: records,
-          storage: JSON.parse(storage),
+          storage,
           pixels,
           errors,
           limits:

@@ -11,15 +11,22 @@ import {
   retainFailure,
 } from './lab-foundation-support';
 
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 test.afterEach(retainFailure);
 
 test('the 320px Lab keeps its complete 3D viewport and Inspector above history without a clipped workspace', async ({
   page,
 }) => {
+  test.skip(
+    desktopMigration,
+    'Product narrow-screen coverage resumes after Migration Gate',
+  );
   const { agent } = await member(page);
   try {
-    await page.setViewportSize({ width: 320, height: 900 });
+    if (!desktopMigration)
+      await page.setViewportSize({ width: 320, height: 900 });
     await page.getByRole('button', { name: '创建 Lab', exact: true }).click();
     await page
       .getByRole('dialog')
@@ -373,12 +380,16 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     await expect(observer.getByLabel('世界版本')).toHaveText(
       `W${final.version}`,
     );
-    await observer.setViewportSize({ width: 320, height: 900 });
+    if (!desktopMigration)
+      await observer.setViewportSize({ width: 320, height: 900 });
     await observer
       .getByRole('button', { name: 'English', exact: true })
       .click();
     await observer.getByRole('button', { name: 'Dark', exact: true }).click();
-    await capture(observer, 'complete-mobile-en-dark');
+    await capture(
+      observer,
+      `complete-${desktopMigration ? 'desktop' : 'mobile'}-en-dark`,
+    );
     expect(
       await observer.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

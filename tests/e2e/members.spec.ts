@@ -20,11 +20,9 @@ test('an Owner manages a member and disabling invalidates the original browser s
       .getByLabel('密码', { exact: true })
       .fill('browser-test-password');
     await colleague.getByRole('button', { name: '创建账号' }).click();
-    // Registration lands on the documents entry; the member badge and
+    // Registration lands on Lab; the member badge and
     // sign-out control this journey asserts on live on the home view.
-    await expect(
-      colleague.getByRole('heading', { name: '我的文档' }),
-    ).toBeVisible();
+    await expect(colleague).toHaveURL(/\/lab(?:\?|$)/);
     await colleague.getByRole('link', { name: '首页' }).click();
     await expect(
       colleague.getByRole('button', { name: '退出登录' }),

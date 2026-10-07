@@ -14,7 +14,7 @@
 | 文档浏览器旅程    | `just e2e-docs`                           | 语言、主题、搜索、约定视口与自定义 base；需 Chromium |
 | 应用关键旅程      | `pnpm test:e2e`                           | 所属 Node/Web 与真实 Chromium/WebGL                  |
 
-首次浏览器验证执行 `pnpm exec playwright install chromium`。`just check` 包含主要格式、静态、行为、性能预算与构建检查；它不含浏览器 E2E。`just check-full` 额外运行应用 E2E。
+首次浏览器验证执行 `pnpm exec playwright install chromium`。`pnpm check:m1` 包含当前 Node、格式、静态、行为、性能预算与构建检查，不含浏览器 E2E。`pnpm test:e2e` 运行所属真实应用浏览器旅程。
 
 命令能力不扩大任务范围。默认验证 desktop web；移动适配、窄屏、触屏或真机只按明确批准的范围加入。heavy browser 前先核对 discovery 与前提；已有关键旅程复用，CSS/布局变更选择受影响的 focused case。
 

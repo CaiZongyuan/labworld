@@ -20,15 +20,11 @@ test('two browsers register, refresh, log out and sign in with isolated sessions
         .getByLabel('密码', { exact: true })
         .fill('browser-test-password');
       await page.getByRole('button', { name: '创建账号' }).click();
-      // Registration lands directly on the documents entry, and the session
+      // Registration lands directly on Lab, and the session
       // must survive a reload there.
-      await expect(
-        page.getByRole('heading', { name: '我的文档' }),
-      ).toBeVisible();
+      await expect(page).toHaveURL(/\/lab(?:\?|$)/);
       await page.reload();
-      await expect(
-        page.getByRole('heading', { name: '我的文档' }),
-      ).toBeVisible();
+      await expect(page).toHaveURL(/\/lab(?:\?|$)/);
       const cookie = (await context.cookies()).find(
         (cookie) => cookie.name === 'labos_threejs_session',
       );
@@ -55,9 +51,7 @@ test('two browsers register, refresh, log out and sign in with isolated sessions
         .getByLabel('密码', { exact: true })
         .fill('browser-test-password');
       await page.getByRole('button', { name: '登录', exact: true }).click();
-      await expect(
-        page.getByRole('heading', { name: '我的文档' }),
-      ).toBeVisible();
+      await expect(page).toHaveURL(/\/lab(?:\?|$)/);
       expect(
         await page.evaluate(() =>
           JSON.stringify({

@@ -14,7 +14,7 @@ Goal: select public checks that observe your Lab Word change. Run from the repos
 | Documentation browser journeys | `just e2e-docs`                           | Language, theme, search, agreed viewports, custom base; requires Chromium     |
 | Critical application journeys  | `pnpm test:e2e`                           | Owned Node/Web and real Chromium/WebGL                                        |
 
-Install browser prerequisites with `pnpm exec playwright install chromium`. `just check` runs main formatting, static, behavior, budget and build checks without browser E2E. `just check-full` adds application E2E.
+Install browser prerequisites with `pnpm exec playwright install chromium`. `pnpm check:m1` runs current Node, formatting, static, behavior, budget and build checks without browser E2E. `pnpm test:e2e` adds the owned real-application browser journey.
 
 Command capabilities do not expand task scope. Validate desktop web by default; include mobile adaptation, narrow screens, touch or real devices only within explicitly approved scope. Check discovery and prerequisites before heavy browser runs. Reuse existing critical journeys; use focused cases for affected CSS or layout states.
 

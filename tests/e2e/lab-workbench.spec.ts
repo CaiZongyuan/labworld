@@ -8,6 +8,8 @@ import {
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 const evidence =
   process.env.LAB_WORKBENCH_EVIDENCE ?? '.scratch/workbench/application';
@@ -327,6 +329,10 @@ test('the real spatial workbench gives the canvas most of the business area and 
 test('the real workbench keeps its scene, contextual panels, focus and touch commands usable on narrow screens', async ({
   page,
 }) => {
+  test.skip(
+    desktopMigration,
+    'Product narrow-screen/touch coverage resumes after Migration Gate',
+  );
   test.setTimeout(120000);
   const { labId, entityId } = await seed(page);
   const rectangles: unknown[] = [];

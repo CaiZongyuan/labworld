@@ -10,7 +10,7 @@ This chapter moves the World query, single subscription, selection, layout draft
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 Open <http://127.0.0.1:5173/lab>. Sign in as the Member who registered the objects. The page opens the 3D space with its real Lab name and connection state.
@@ -61,7 +61,7 @@ The complete workbench entry and context composition:
 ```bash
 pnpm typecheck
 pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.test.tsx apps/web/src/lab-sync.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-workbench.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. They check external canvas area, camera pixels, deep links, panels, focus, and narrow-screen commands. Continue with [Backend lighting control](backend-lights.md). The same object details distinguish commands from actual observations.
+Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. Migration validation uses desktop Web and checks external canvas area, camera pixels, deep links, panels and focus. Existing product narrow-screen and touch responsibilities remain for validation after Migration Gate. Continue with [Backend lighting control](backend-lights.md). The same object details distinguish commands from actual observations.

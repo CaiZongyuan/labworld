@@ -104,10 +104,10 @@ test('a normal member sees a clear permission message and no administration entr
 
 const event = {
   id: 'audit-one',
-  action: 'lab.lab.create',
+  action: 'lab.create',
   actor_type: 'user',
   actor_id: 'owner',
-  resource_type: 'lab.lab',
+  resource_type: 'lab.world',
   resource_id: 'doc-one',
   request_id: 'request-one',
   correlation_id: 'request-one',
@@ -135,7 +135,7 @@ test('an administrator filters actual fields, pages history and loses visible ro
       const url = new URL(request.url);
       if (url.searchParams.has('resource_id')) {
         expect(url.searchParams.get('resource_id')).toBe('doc-one');
-        expect(url.searchParams.get('action')).toBe('lab.lab.create');
+        expect(url.searchParams.get('action')).toBe('lab.create');
         return HttpResponse.json({
           data: [event],
           next_cursor: null,
@@ -168,16 +168,16 @@ test('an administrator filters actual fields, pages history and loses visible ro
   await user.click(screen.getByRole('button', { name: '加载更多审计' }));
   expect(await screen.findByText('identity.register')).toBeVisible();
   await user.type(screen.getByLabelText('资源 ID'), 'doc-one');
-  await user.type(screen.getByLabelText('动作'), 'lab.lab.create');
+  await user.type(screen.getByLabelText('动作'), 'lab.create');
   await user.click(screen.getByRole('button', { name: '筛选记录' }));
-  expect(await screen.findByText('lab.lab.create')).toBeVisible();
+  expect(await screen.findByText('lab.create')).toBeVisible();
   expect(screen.queryByText('identity.register')).not.toBeInTheDocument();
   expect(screen.getByText('doc-one')).toBeVisible();
   expect(screen.getAllByText('request-one').length).toBeGreaterThan(0);
   forbidden = true;
   await user.click(screen.getByRole('button', { name: '刷新审计' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('当前权限已失效');
-  expect(screen.queryByText('lab.lab.create')).not.toBeInTheDocument();
+  expect(screen.queryByText('lab.create')).not.toBeInTheDocument();
 });
 
 test('the audit filter survives a language switch and speaks English afterwards', async () => {
@@ -200,7 +200,7 @@ test('the audit filter survives a language switch and speaks English afterwards'
   const user = open();
   await user.type(await screen.findByLabelText('资源 ID'), 'doc-one');
   await user.click(screen.getByRole('button', { name: '筛选记录' }));
-  expect(await screen.findByText('lab.lab.create')).toBeVisible();
+  expect(await screen.findByText('lab.create')).toBeVisible();
   await user.click(await screen.findByRole('navigation', { name: '主菜单' }));
   await user.click(screen.getByRole('link', { name: '设置' }));
   const settingsDirectory = screen.getByRole('navigation', {
@@ -225,7 +225,7 @@ test('the audit filter survives a language switch and speaks English afterwards'
   ).toBeVisible();
   // The applied condition returns from the URL; the draft follows it.
   expect(screen.getByLabelText('Resource ID')).toHaveValue('doc-one');
-  expect(await screen.findByText('lab.lab.create')).toBeVisible();
+  expect(await screen.findByText('lab.create')).toBeVisible();
   expect(screen.queryByText('user-one')).not.toBeInTheDocument();
 });
 
@@ -265,7 +265,7 @@ test('the workspace renders the audit trail in English around raw protocol value
   expect(screen.getByLabelText('Job ID')).toBeVisible();
   expect(screen.getByRole('button', { name: 'Filter records' })).toBeVisible();
   expect(screen.getByRole('button', { name: 'Refresh audit' })).toBeVisible();
-  expect(await screen.findByText('lab.lab.create')).toBeVisible();
+  expect(await screen.findByText('lab.create')).toBeVisible();
   // Entry context labels live in the result list; the filter form keeps
   // its own field labels above.
   const list = screen.getByRole('list');
