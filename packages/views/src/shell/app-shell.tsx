@@ -21,7 +21,7 @@ import { Button } from '@labos-threejs/ui/components/button';
 import { ModuleIcon } from '@labos-threejs/ui/components/module-icon';
 import { EntityGraphic } from './entity-graphic';
 import { useGraphicPreference } from './graphic-preferences';
-import type { AssembledApp } from './app-contract';
+import type { AppDefinition } from './app-contract';
 import { coreModuleIcons } from './module-registry';
 import { roleMessageKeys, useAppMessage } from './messages';
 import {
@@ -76,9 +76,9 @@ export function AppShellLayout({
   extra,
   children,
 }: {
-  navigation?: AssembledApp['navigation'];
+  navigation?: AppDefinition['navigation'];
   /** Assembled module colors for the business links above. */
-  moduleIcons?: AssembledApp['moduleIcons'];
+  moduleIcons?: AppDefinition['moduleIcons'];
   role?: ShellRole;
   user?: { id: string; display_name?: string | null; email: string };
   currentPath?: string;
@@ -130,7 +130,6 @@ export function AppShellLayout({
     setMenuOpen(false);
     if (menuOpen) menuTrigger.current?.focus();
   }, [menuOpen]);
-  const signedIn = role !== undefined;
   const canAdmin = role === 'owner' || role === 'admin';
   const [avatar] = useGraphicPreference(user?.id, 'user', 'user');
 
@@ -152,9 +151,7 @@ export function AppShellLayout({
   const icons = { ...coreModuleIcons, ...moduleIcons };
   const coreTitles: Record<string, string> = {
     '/': 'shell.nav.home',
-    '/notifications': 'shell.nav.notifications',
     '/members': 'shell.nav.members',
-    '/jobs': 'shell.nav.jobs',
     '/audit': 'shell.nav.audit',
     '/settings': 'shell.nav.settings',
     '/api-keys': 'shell.nav.apiKeys',
@@ -278,9 +275,6 @@ export function AppShellLayout({
         >
           <div className="flex flex-col gap-1">
             {link('/', message('shell.nav.home'))}
-            {signedIn
-              ? link('/notifications', message('shell.nav.notifications'))
-              : null}
           </div>
           {navigation && navigation.length > 0 ? (
             <BusinessNavigation
@@ -299,7 +293,6 @@ export function AppShellLayout({
                 {message('shell.nav.management')}
               </h3>
               {link('/members', message('shell.nav.members'))}
-              {link('/jobs', message('shell.nav.jobs'))}
               {link('/audit', message('shell.nav.audit'))}
             </div>
           ) : null}

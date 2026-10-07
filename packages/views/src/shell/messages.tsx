@@ -6,7 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import type { MemberRole } from '@labos-threejs/sdk';
-import type { AssembledApp } from './app-contract';
+import type { AppDefinition } from './app-contract';
 import { usePreferences, type AppLocale } from './preferences';
 
 // The message catalog assembles Core texts plus every example's namespace.
@@ -52,7 +52,7 @@ export function AppMessagesProvider({
   app,
   children,
 }: {
-  app: Pick<AssembledApp, 'messages'>;
+  app: Pick<AppDefinition, 'messages'>;
   children: ReactNode;
 }) {
   const { locale } = usePreferences();

@@ -1,6 +1,6 @@
 /** 壳层图标合同：无裸字符开关，导航图标按注册表渲染。 */
 import { render, screen } from '@testing-library/react';
-import { BookOpenIcon } from 'lucide-react';
+import { BoxIcon } from 'lucide-react';
 import { expect, test } from 'vitest';
 import userEvent from '@testing-library/user-event';
 import { AppMessagesProvider } from './messages';
@@ -14,11 +14,11 @@ const app = {
   messages: {
     zh: {
       ...coreMessages.zh,
-      'knowledge.nav.documents': '我的文档',
+      'lab.nav.viewer': '实验室',
     },
     en: {
       ...coreMessages.en,
-      'knowledge.nav.documents': 'My documents',
+      'lab.nav.viewer': 'Lab',
     },
   },
 };
@@ -84,23 +84,23 @@ test('business links take their icon from the assembled module registry', () => 
       role="member"
       navigation={[
         {
-          id: 'knowledge:main',
-          labelKey: 'knowledge.nav.documents',
+          id: 'lab:main',
+          labelKey: 'lab.nav.viewer',
           items: [
             {
-              id: 'knowledge:documents',
-              labelKey: 'knowledge.nav.documents',
-              path: '/documents',
+              id: 'lab:viewer',
+              labelKey: 'lab.nav.viewer',
+              path: '/lab',
             },
           ],
         },
       ]}
       moduleIcons={{
-        '/documents': { icon: BookOpenIcon, variant: 'teal' },
+        '/lab': { icon: BoxIcon, variant: 'teal' },
       }}
     />,
   );
-  const link = screen.getByRole('link', { name: 'My documents' });
+  const link = screen.getByRole('link', { name: 'Lab' });
   expect(
     link
       .querySelector('[data-slot="module-icon"]')

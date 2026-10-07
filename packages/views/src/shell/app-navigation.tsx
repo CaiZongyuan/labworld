@@ -1,5 +1,5 @@
 import { ModuleIcon } from '@labos-threejs/ui/components/module-icon';
-import type { AssembledApp } from './app-contract';
+import type { AppDefinition } from './app-contract';
 import { useAppMessage } from './messages';
 
 // One sidebar link shape everywhere (shell and assembled groups alike).
@@ -30,8 +30,8 @@ export function BusinessNavigation({
   onOpen,
   currentPath,
 }: {
-  navigation: AssembledApp['navigation'];
-  moduleIcons?: AssembledApp['moduleIcons'];
+  navigation: AppDefinition['navigation'];
+  moduleIcons?: AppDefinition['moduleIcons'];
   onOpen: (path: string) => void;
   currentPath?: string;
 }) {

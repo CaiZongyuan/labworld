@@ -5,9 +5,7 @@
   "name": "@labos-threejs/views",
   "exports": {
     ".": "./src/index.ts",
-    "./knowledge": "./src/knowledge/index.ts",
-    "./notes": "./src/notes/example.tsx",
-    "./lab": "./src/lab/app-example.tsx",
+    "./lab": "./src/lab/app.tsx",
     "./design-system": "./src/design-system/design-system-view.tsx"
   },
   "dependencies": {

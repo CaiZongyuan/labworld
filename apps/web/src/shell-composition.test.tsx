@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { server } from '../../../tests/frontend/server';
-import { assembledApp } from './app-examples';
+import { app } from './app';
 import { createAppRouter } from './router';
 
 // Shell composition (UI-R4, docs/ui/design.md §4): the shell mounts once
@@ -55,7 +55,7 @@ function open(path = '/', session: 'anonymous' | CurrentSession = 'anonymous') {
 // Derived, not named: the example-removal CI builds copies with examples
 // stripped, so the business-group assertions follow whatever this copy
 // assembles instead of naming the knowledge example's entry.
-const businessPaths = assembledApp.navigation.flatMap((group) =>
+const businessPaths = app.navigation.flatMap((group) =>
   group.items.map((item) => item.path),
 );
 
@@ -94,12 +94,30 @@ test('signed out, no assembled business groups render on any shell route', async
   for (const path of businessPaths) expect(hrefs).not.toContain(path);
 });
 
-test('the notifications page renders inside the shell', async () => {
-  open('/notifications', signedIn);
+test('removed modules leave no navigation entry for a signed-in owner', async () => {
+  open('/settings', { ...signedIn, user: { ...signedIn.user, role: 'owner' } });
+  await screen.findByRole('heading', { name: '设置' });
+  const navigation = screen.getByRole('navigation', { name: '主菜单' });
+  await within(navigation).findByRole('link', { name: '企业成员' });
+  const paths = within(navigation)
+    .getAllByRole('link')
+    .map((link) => link.getAttribute('href'));
+  for (const path of [
+    '/notifications',
+    '/jobs',
+    '/documents',
+    '/knowledge-bases',
+  ])
+    expect(paths).not.toContain(path);
+});
+
+test('a removed module bookmark displays the unavailable page and permits recovery', async () => {
+  const { user } = open('/notifications', signedIn);
   expect(
-    await screen.findByRole('navigation', { name: '主菜单' }),
+    await screen.findByRole('heading', { name: '相关功能当前不可用' }),
   ).toBeVisible();
-  expect(screen.getByRole('main')).toBeVisible();
+  await user.click(screen.getByRole('button', { name: '返回首页' }));
+  expect(await screen.findByText('你好，组合用户')).toBeVisible();
 });
 
 test('auth pages stay outside the shell', async () => {
@@ -107,4 +125,5 @@ test('auth pages stay outside the shell', async () => {
   expect(await screen.findByRole('button', { name: '登录' })).toBeVisible();
   expect(screen.queryByRole('navigation', { name: '主菜单' })).toBeNull();
   expect(document.getElementById('app-sidebar')).toBeNull();
+  expect(screen.queryByRole('link', { name: '忘记密码？' })).toBeNull();
 });

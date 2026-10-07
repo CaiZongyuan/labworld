@@ -27,6 +27,7 @@ import { subscriptionRoutes } from '../../../packages/server/src/lab/world/subsc
 import { HistoryService } from '../../../packages/server/src/lab/history/use-cases.ts';
 import { historyRoutes } from '../../../packages/server/src/lab/history/routes.ts';
 import { historyScheduler } from '../../../packages/server/src/lab/history/scheduler.ts';
+import { hostWeb } from './web.ts';
 import { RecordsService } from '../../../packages/server/src/lab/records/use-cases.ts';
 import { recordsRoutes } from '../../../packages/server/src/lab/records/routes.ts';
 import { trendRoutes } from '../../../packages/server/src/lab/history/trend-routes.ts';
@@ -201,6 +202,7 @@ export async function run(
       ownStop(() => scheduler.stop());
       devices.start();
       subscriptions.start();
+      if (config.webDirectory) await hostWeb(app, config.webDirectory);
       return {
         app,
       };

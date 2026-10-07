@@ -6,7 +6,7 @@
 
 先完成[持久 Lab 与对象](persistent-world.md)。使用本章配套源码，保留已创建的 Lab 和两个独立对象。命令在仓库根目录运行。以下查看、选择和收放操作不写入持久世界。
 
-本章将世界查询、唯一订阅、选择、布局草稿和命令尝试交给 [Lab 工作台上下文](../../packages/views/src/lab/workbench-context.tsx)。[空间页面](../../packages/views/src/lab/world-view.tsx)消费这个上下文。[Lab 组装](../../packages/views/src/lab/app-example.tsx)保留身份入口和按需加载；[路由适配层](../../apps/web/src/router.tsx)只传递通用查询参数。通用壳提供紧凑导航，不解释 Lab 身份。
+本章将世界查询、唯一订阅、选择、布局草稿和命令尝试交给 [Lab 工作台上下文](../../packages/views/src/lab/workbench-context.tsx)。[空间页面](../../packages/views/src/lab/world-view.tsx)消费这个上下文。[Lab 组装](../../packages/views/src/lab/app.tsx)保留身份入口和按需加载；[路由适配层](../../apps/web/src/router.tsx)只传递通用查询参数。通用壳提供紧凑导航，不解释 Lab 身份。
 
 ```bash
 pnpm install --frozen-lockfile

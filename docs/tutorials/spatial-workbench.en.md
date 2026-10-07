@@ -6,7 +6,7 @@ Goal: open a persistent Lab, select the same Entity through its directory or sce
 
 Complete [Persistent Labs and objects](persistent-world.md) first. Use the source version paired with this chapter. Keep the existing Lab and two independent objects. Run commands from the repository root. Viewing, selection, and panel changes do not write the persistent world.
 
-This chapter moves the World query, single subscription, selection, layout drafts, and command attempts into the [Lab workbench context](../../packages/views/src/lab/workbench-context.tsx). The [space page](../../packages/views/src/lab/world-view.tsx) consumes that context. [Lab composition](../../packages/views/src/lab/app-example.tsx) preserves authentication and deferred loading. The [router adapter](../../apps/web/src/router.tsx) passes generic search parameters. The universal shell provides compact navigation without interpreting Lab identities.
+This chapter moves the World query, single subscription, selection, layout drafts, and command attempts into the [Lab workbench context](../../packages/views/src/lab/workbench-context.tsx). The [space page](../../packages/views/src/lab/world-view.tsx) consumes that context. [Lab composition](../../packages/views/src/lab/app.tsx) preserves authentication and deferred loading. The [router adapter](../../apps/web/src/router.tsx) passes generic search parameters. The universal shell provides compact navigation without interpreting Lab identities.
 
 ```bash
 pnpm install --frozen-lockfile

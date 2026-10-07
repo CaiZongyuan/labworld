@@ -1,10 +1,8 @@
 import {
   ActivityIcon,
-  BellIcon,
   HouseIcon,
   HistoryIcon,
   KeyRoundIcon,
-  RefreshCwIcon,
   SettingsIcon,
   ShapesIcon,
   UsersIcon,
@@ -21,9 +19,7 @@ import type { ModuleIconEntry } from './app-contract';
 
 export const coreModuleIcons: Record<string, ModuleIconEntry> = {
   '/': { icon: HouseIcon, variant: 'blue' },
-  '/notifications': { icon: BellIcon, variant: 'amber' },
   '/members': { icon: UsersIcon, variant: 'violet' },
-  '/jobs': { icon: RefreshCwIcon, variant: 'cyan' },
   '/audit': { icon: HistoryIcon, variant: 'purple' },
   '/api-keys': { icon: KeyRoundIcon, variant: 'green' },
   '/design-system': { icon: ShapesIcon, variant: 'pink' },

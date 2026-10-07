@@ -20,14 +20,14 @@ import {
 } from '@labos-threejs/ui/components/empty';
 import { choiceRowClass } from '../shell/rows';
 import { useAppMessage } from '../shell/messages';
-import type { AssembledApp } from '../shell/app-contract';
+import type { AppDefinition } from '../shell/app-contract';
 
 // The scenes tab (docs/ui/design.md §6 Q9): generic form/list/empty scenes
 // run on isolated fixtures and local state — they never query or write the
 // signed-in user's business data. Scenes registered by examples render from
 // the assembled result, so they appear and disappear with the example.
 
-export function ScenesSection({ scenes }: { scenes: AssembledApp['scenes'] }) {
+export function ScenesSection({ scenes }: { scenes: AppDefinition['scenes'] }) {
   const message = useAppMessage();
   const [formName, setFormName] = useState('');
   const [saved, setSaved] = useState(false);
@@ -146,27 +146,27 @@ export function ScenesSection({ scenes }: { scenes: AssembledApp['scenes'] }) {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>{message('design.scenes.example')}</CardTitle>
+          <CardTitle>{message('design.scenes.business')}</CardTitle>
           <CardDescription>
-            {message('design.scenes.exampleHint')}
+            {message('design.scenes.businessHint')}
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
           {scenes.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              {message('design.scenes.exampleEmpty')}
+              {message('design.scenes.businessEmpty')}
             </p>
           ) : (
             scenes.map((scene) => (
               <div
-                key={`${scene.exampleId}:${scene.id}`}
+                key={`${scene.moduleId}:${scene.id}`}
                 className="rounded-lg border border-border p-4"
               >
                 <div className="flex items-center gap-2">
                   <h3 className="text-sm font-semibold">
                     {message(scene.titleKey)}
                   </h3>
-                  <Badge variant="outline">{scene.exampleId}</Badge>
+                  <Badge variant="outline">{scene.moduleId}</Badge>
                 </div>
                 {scene.descriptionKey ? (
                   <p className="mt-1 text-sm text-muted-foreground">
@@ -175,7 +175,7 @@ export function ScenesSection({ scenes }: { scenes: AssembledApp['scenes'] }) {
                 ) : null}
                 <p className="mt-2 text-xs text-muted-foreground">
                   {message('design.scenes.fromExample', {
-                    example: scene.exampleId,
+                    module: scene.moduleId,
                   })}
                 </p>
                 {scene.render ? (

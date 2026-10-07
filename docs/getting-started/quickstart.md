@@ -1,34 +1,29 @@
 # 快速开始
 
-目标：从源码启动 Lab Word 现有应用，并用 HTTP 和 Web 页面确认开发环境可用。已验证的 Viewer 体验目前来自[独立预览](../guides/lab-viewer.md)，正式 Lab 集成验收另行记录。
-
-## 1. 安装并启动
-
-安装 Docker 和 Compose。使用以下工具版本：
-
-| 工具 | 版本    | 来源                                |
-| ---- | ------- | ----------------------------------- |
-| Rust | 1.96.0  | [工具链](../../rust-toolchain.toml) |
-| Node | 24.18.0 | [Node 版本](../../.node-version)    |
-| pnpm | 11.17.0 | [包配置](../../package.json)        |
-| just | 1.58.0  | [工具版本](../../.tool-versions)    |
-
-执行以下命令克隆仓库并启动开发环境：
+启动 Node 服务与 Web，创建账户并打开持久 Lab。使用 Linux 或 Windows，以及仓库锁定的 [Node 24.18.0](../../.node-version) 和 [pnpm 11.17.0](../../package.json)。
 
 ```bash
 git clone https://github.com/CaiZongyuan/labworld.git
 cd labworld
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
-项目命令在仓库根目录执行。首次启动下载依赖并编译 Rust。开发脚本启动 PostgreSQL、Redis、RustFS 和 Mailpit。随后执行迁移并初始化存储，再运行 API、Worker 和 Web。脚本会在本地开发卷写入数据。
+命令从仓库根目录执行。服务先初始化嵌入数据库并恢复状态，再接入 HTTP。服务地址为 `http://127.0.0.1:3000`，Web 为 `http://127.0.0.1:5173`。重启后保留 `data/` 数据。启动输出提供开发进程所有权记录路径。
 
-默认设置来自 [.env.example](../../.env.example)；需要调整时建立未跟踪的 `.env`。API 配置见[生成参考](site:reference/config.md)。
+## 打开应用
 
-## 2. 观察结果
+1. 打开 <http://127.0.0.1:5173/register>，使用 12–128 字符的密码注册。首个账户为 Owner，后续为 Member。
+2. 登录与注册后进入 Lab。新建 Lab，再打开其空间。
+3. 打开资产库，上传 GLB 并填写来源、许可与版本，等待校验。导入被拒绝后，前一个有效模型仍可使用。
+4. 注册 Entity，在 Lab 放置 Scene Node，保存布局后刷新。可以通过地址重新打开同一 Lab 与所选 Entity。
+5. 继续阅读 [Lab 指南](../guides/lab-viewer.md)、[World](../guides/server-world.md) 和 [Devices](../guides/server-devices.md)。用户与 Agent 共用保留的 API 和后端设备程序。
 
-保持开发入口运行，在另一个终端执行：
+共享首页保留在 `/`，设置与 API key 地址为 `/settings` 和 `/api-keys`。移除模块的旧书签显示不可用页面，并提供返回入口。
+
+## 验证与停服
+
+保持开发运行，在另一个终端执行：
 
 ```bash
 curl -i http://127.0.0.1:3000/health/live
@@ -36,73 +31,17 @@ curl -i http://127.0.0.1:3000/health/ready
 curl -i http://127.0.0.1:3000/api/v1/system/status
 ```
 
-预期每个响应均为 HTTP 200，并含 `x-request-id`。
+就绪后返回 HTTP 200 和 `x-request-id`，系统状态报告实际 schema。开发终端按 Ctrl+C，等待两个进程排空并关闭。持久数据保留。监督进程异常退出后，先用输出记录执行 `pnpm dev:recover <ledger>`，再重启。保留活跃服务与未知数据。
 
-| 接口                    | 预期信息           |
-| ----------------------- | ------------------ |
-| `/health/live`          | API 进程正在运行。 |
-| `/health/ready`         | 依赖与迁移已就绪。 |
-| `/api/v1/system/status` | 当前系统状态。     |
+需要修改 Node 和 Web 设置时，将 [.env.example](../../.env.example)复制为未跟踪的 `.env`。Node 入口命令加载此文件，Vite 从仓库根目录读取。参见[生成配置](site:reference/config.md)和[独立目录与端口](../guides/server-foundation.md)。
 
-密码长度须为 12–128 字符。
-
-1. 打开 <http://127.0.0.1:5173/register>。
-2. 创建开发账号。
-
-首个账号为 Owner，后续账号为 Member。开发邮件在 <http://127.0.0.1:8025> 查看。
-
-已有平台可以验证登录与业务操作。Lab 体验以相应版本的集成验收为准。
-
-## 3. 检查依赖失败与恢复
-
-只在自己的开发环境执行本节失败检查。
-
-1. 停止 PostgreSQL：
+停服备份、恢复到新目录或空目录，以及密码恢复，见[服务运维](../guides/server-operations.md)。忘记密码时使用运维 CLI。
 
 ```bash
-just db-down
+pnpm typecheck
+pnpm test:server
+pnpm test:frontend
+pnpm contracts:check
 ```
 
-2. 检查就绪状态：
-
-```bash
-curl -i http://127.0.0.1:3000/health/ready
-```
-
-`/health/ready` 应返回 503，`/health/live` 仍返回 200。
-
-3. 启动 PostgreSQL：
-
-```bash
-docker compose up -d --wait postgres
-```
-
-4. 再次检查就绪状态：
-
-```bash
-curl -i http://127.0.0.1:3000/health/ready
-```
-
-`/health/ready` 应恢复 200。
-
-迁移不匹配时，先核对源码版本，再执行 `just migrate`。API 启动不自动迁移。
-
-新增 SQL 迁移后：
-
-1. 执行 `just migrate`。
-2. 重启开发入口。
-
-重启会更新二进制中的迁移集合。
-
-## 停止与下一步
-
-按 `Ctrl+C` 停止 API、Worker 和 Web。执行 `just services-down` 停止容器；此命令保留开发卷。
-
-API 端口变更时，调整 `APP_BIND`，并将 `VITE_API_PROXY` 指向该 API 的可访问地址。Web 地址变更时，将 `APP_ORIGIN` 设为浏览器访问 Web 时的来源地址，包含协议、主机和端口。数据库端口变更时，同时调整 `POSTGRES_PORT` 和 `DATABASE_URL`。
-
-接下来[运行 Lab Viewer 预览](../guides/lab-viewer.md)，或阅读[项目结构](../architecture/project-structure.md)。
-
-查看在线文档：
-
-1. 在仓库根目录执行 `just docs`。
-2. 打开 <http://127.0.0.1:5174/labworld/docs/>。
+浏览器检查与完整验证职责见[开发与验证](../testing/t01-feedback-loop.md)。

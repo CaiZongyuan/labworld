@@ -5,7 +5,7 @@ import {
   TabsList,
   TabsTrigger,
 } from '@labos-threejs/ui/components/tabs';
-import type { AssembledApp } from '../shell/app-contract';
+import type { AppDefinition } from '../shell/app-contract';
 import { docsChapterUrl } from '../shell/docs-links';
 import { useAppMessage } from '../shell/messages';
 import { usePreferences } from '../shell/preferences';
@@ -32,7 +32,7 @@ export default function DesignSystemView({
 }: {
   docsUrl: string;
   /** Scenes registered by assembled examples; empty in Core-only apps. */
-  scenes: AssembledApp['scenes'];
+  scenes: AppDefinition['scenes'];
   /** Port for copying token values and icon names. */
   copyText: (text: string) => Promise<void>;
   /** Inside settings: render the tabs only — the host page owns the

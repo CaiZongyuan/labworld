@@ -58,9 +58,9 @@ pnpm check:m1
 
 服务测试启动真实子进程。它们验证健康、错误、持久化、重开、微秒时间、事务回滚、SQL 计量与目录独占。错误测试请求不存在的资源：响应为 404，包含 `code`、`details`、`message`、`request_id`，并与 `x-request-id` 响应头对应。响应使用 `cache-control: no-store`。
 
-`contracts:m1:check` 从 Zod 路由生成 OpenAPI，并通过现有 SDK 生成器写入 `.scratch/vnext-m1/generated/`。它比较全部保留路径与递归引用 schema，包含五个文件 DTO，编译生成的调用，并检查正式合同与 SDK 未被改变。隔离生成不会切换正式客户端来源。
+`contracts:m1:check` 从 Zod 路由生成 OpenAPI，并通过现有 SDK 生成器写入 `.scratch/vnext-m1/generated/`。它比较全部保留路径与递归引用 schema，包含五个文件 DTO，编译生成的调用，并检查正式合同与 SDK 未被改变。正式 `pnpm generate` 与 `pnpm contracts:check` 已使用完整 Node 来源。隔离生成仍用于独立调用检查，不会覆盖正式输出。
 
-`check:m1` 运行服务、Web、保留工具、边界、包体和文档检查。当前 CI 以 Web 为主，不构建或运行 Electron。Linux CI 同时运行完整 Node HTTP/SSE 合同；正式应用组合、运维命令与保留浏览器集成由后续迁移完成。本命令不宣称 Migration Gate 已通过。
+`check:m1` 运行服务、Web、保留工具、边界、包体和文档检查。当前 CI 以 Web 为主，不构建或运行 Electron。Linux CI 同时运行完整 Node HTTP/SSE 合同；Lab 已直接接入，运维命令已可用；保留浏览器验收与最终 Migration Gate 证据单独记录。本命令不宣称 Migration Gate 已通过。
 
 ## 重放持久化试验
 

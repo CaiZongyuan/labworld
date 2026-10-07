@@ -452,7 +452,19 @@
       "titleEn": "Node offline backup and restore",
       "group": "开发",
       "type": "guide",
-      "previous": "server-traceability"
+      "previous": "server-traceability",
+      "next": "server-web"
+    },
+    {
+      "id": "server-web",
+      "source": "docs/guides/server-web.md",
+      "sourceEn": "docs/guides/server-web.en.md",
+      "route": "guides/server-web.md",
+      "title": "Web 与同源托管",
+      "titleEn": "Web and same-origin hosting",
+      "group": "开发",
+      "type": "guide",
+      "previous": "server-operations"
     }
   ],
   "references": [

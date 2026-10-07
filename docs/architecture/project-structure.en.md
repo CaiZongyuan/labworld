@@ -1,47 +1,34 @@
-# Project Structure
+# Project structure
 
-Before changing Lab Word, distinguish the application, shared capabilities and isolated preview. Lab Viewer and the session-local Asset Library are integrated. Foundation V1's persistent world and server-owned devices continue through the published implementation tickets.
-
-## Source Map
+Lab Word runs one TypeScript service and a Web application. Persistent Labs, assets, layouts, device programs, observations, records and trends use the shared Member/Agent HTTP contract.
 
 ```text
 apps/
-  web/src/app-examples.tsx  Explicit business composition
-  web/src/router.tsx        Web routing adapter
-  api/src/lib.rs            HTTP Router and OpenAPI composition
-  worker/src/main.rs        Background handlers and maintenance
-  desktop/src/              Electron host and IPC
-  docs/.vitepress/           Bilingual documentation site
-crates/
-  app/src/modules/          Identity, membership, jobs, files, knowledge
-  platform/src/             Database, storage, mail, cache, telemetry
+  server/src/              Node service, CLI and lifecycle composition
+  web/src/app.ts           Direct Lab application configuration
+  web/src/router.tsx       Web routing adapter
+  desktop/src/             Shared Electron shell source
+  docs/.vitepress/         Bilingual documentation site
 packages/
-  views/src/lab/             Viewer, session-local catalog and Lab contribution
-  views/src/shell/           Universal shell and composition contracts
-  views/src/knowledge/       Knowledge views
-  ui/src/                   Shared components and styles
-  contracts/                Rust-generated API contracts
-  sdk/                      Generated client
-migrations/                 Explicit SQL migrations
-scripts/                    Development, checks, builds, operations
-docs/                       Content, ADRs and plans
+  server/src/platform/     Embedded DB, local bytes and HTTP adapters
+  server/src/core/         Identity, members, keys, files, audit and limits
+  server/src/lab/          Assets, World, Devices, History and Records
+  views/src/lab/           Workbench, assets and 3D views
+  views/src/shell/         Shared navigation, preferences and messages
+  ui/src/                  Shared components and styles
+  contracts/               Node-generated OpenAPI and TypeScript DTOs
+  sdk/                     Generated HTTP client and Lab SSE transport
+scripts/                   Development, checks, builds and operations
+docs/                      Guides, domain vocabulary and decisions
 ```
 
-See the [viewer guide](../guides/lab-viewer.md) for the current application. The accepted Foundation v1 preview is preserved on the separate `preview/lab-foundation-v1` branch; the [developer handoff](../handoffs/digital-twin-foundation-v1.md) explains how to obtain and run it. It is outside the production build.
+The [application entry](../../apps/web/src/app.ts) imports the [Lab application](../../packages/views/src/lab/app.tsx) directly. Its [router](../../apps/web/src/router.tsx) supplies navigation and API-client ports. The [shell interface](../../packages/views/src/shell/app-contract.ts) describes pages, navigation and bilingual messages. Lab opens after login; `/` remains the shared home. Heavy views and 3D code load on demand.
 
-## Lab Integration Points
-
-The [assembly point](../../apps/web/src/app-examples.tsx)consumes business contributions; the [routing adapter](../../apps/web/src/router.tsx)connects them to the host. [app-contract.ts](../../packages/views/src/shell/app-contract.ts)declares contributions and [app-contract.ts](../../packages/views/src/shell/app-contract.ts)validates composition.
-
-Model import, the 3D viewport and asset information belong to Lab. The universal shell does not know equipment. Lab contributes `/lab` and `/assets`, and composition selects Lab after authentication; direct access to `/` keeps the universal home. Existing pages and 3D code are lazy-loaded. Foundation work must preserve these responsibilities.
-
-## Check Boundaries
+The [runtime](../../apps/server/src/runtime.ts) owns service initialization and shutdown. Database drivers and migrations stay in [platform/db](../../packages/server/src/platform/db/index.ts). Platform Core does not import Lab. Web uses the generated SDK; server database code never enters the Web bundle. Frozen Rust and infrastructure sources remain temporarily until the migration cleanup ticket; they are outside ordinary startup and official contract generation.
 
 ```bash
 pnpm boundaries:check
 pnpm typecheck
 ```
 
-Run from the repository root. Boundary checks inspect package dependencies, Rust table ownership and infrastructure imports in pure Domain code. They do not provide complete example addition/removal tooling. See [development and validation](../testing/t01-feedback-loop.md)for source, behavior and permission checks.
-
-Next, read [module boundaries](module-boundaries.md), then implement the accepted Lab experience.
+Run from the repository root. Boundary checks cover package dependencies and the TypeScript service, while the frozen Rust ownership check remains until cleanup. See [development and validation](../testing/t01-feedback-loop.md), [module boundaries](module-boundaries.md) and the [Lab guide](../guides/lab-viewer.md).

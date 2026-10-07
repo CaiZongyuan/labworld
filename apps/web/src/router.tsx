@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   createRootRouteWithContext,
@@ -10,33 +9,25 @@ import {
   useLocation,
   type RouterHistory,
 } from '@tanstack/react-router';
-import type { ApiClient, StatusFilter } from '@labos-threejs/sdk';
+import type { ApiClient } from '@labos-threejs/sdk';
 import {
   AppMessagesProvider,
   AppShellLayout,
   PreferencesProvider,
   sessionQuery,
-  useFlowLocaleSetter,
   useAppMessage,
   usePageTitle,
   SettingsView,
-  ForgotPasswordView,
-  ResetPasswordView,
   AuditView,
   auditFilterFields,
-  NotificationsView,
   LoginView,
   RegisterView,
   HomeView,
   MembersView,
-  JobsView,
-  JobView,
-  filterableStatuses,
-  type AppLocale,
-  type AssembledApp,
+  type AppDefinition,
   type NavigateTarget,
 } from '@labos-threejs/views';
-import { assembledApp, exampleEntries } from './app-examples';
+import { app } from './app';
 import { DesktopPreferencesMirror } from './desktop-preferences';
 
 // The design-system page and its icon catalog load on demand
@@ -62,7 +53,7 @@ function RootLayout() {
       {/* Desktop-only adapter: mirrors the appearance enums to the shell
           for its local error page; absent in plain browsers. */}
       <DesktopPreferencesMirror />
-      <AppMessagesProvider app={assembledApp}>
+      <AppMessagesProvider app={app}>
         <Outlet />
       </AppMessagesProvider>
     </PreferencesProvider>
@@ -116,13 +107,12 @@ function navigatePort(
   };
 }
 
-// Shell navigation keeps the URL's query conditions (job status, audit
-// filters) alive across detours such as the settings page — switching the
+// Shell navigation keeps the URL's query conditions (audit filters) alive across detours such as the settings page — switching the
 // language or theme must not clear a legitimate query. Retention applies
 // only to the routes that own search-param state and the preferences page
 // hosting that detour; every other destination drops the keys, and the
 // owning routes re-validate on arrival and strip foreign keys.
-const queryRetainingPaths = new Set(['/jobs', '/audit', '/settings']);
+const queryRetainingPaths = new Set(['/audit', '/settings']);
 function shellPathPort(
   navigate: ReturnType<typeof useNavigate>,
 ): (path: string) => void {
@@ -172,8 +162,8 @@ const shellRoute = createRoute({
     });
     return (
       <AppShellLayout
-        navigation={signedIn ? assembledApp.navigation : undefined}
-        moduleIcons={signedIn ? assembledApp.moduleIcons : undefined}
+        navigation={signedIn ? app.navigation : undefined}
+        moduleIcons={signedIn ? app.moduleIcons : undefined}
         role={session.data?.user.role}
         user={session.data?.user}
         currentPath={currentPath}
@@ -211,7 +201,7 @@ const loginRoute = createRoute({
       <LoginView
         apiClient={apiClient}
         onLoggedIn={() => {
-          void navigate({ to: assembledApp.defaultEntry });
+          void navigate({ to: app.defaultEntry });
         }}
       />
     );
@@ -228,7 +218,7 @@ const registrationRoute = createRoute({
       <RegisterView
         apiClient={apiClient}
         onRegistered={() => {
-          void navigate({ to: assembledApp.defaultEntry });
+          void navigate({ to: app.defaultEntry });
         }}
       />
     );
@@ -285,7 +275,7 @@ function AppSettingsPage({ section }: { section?: string }) {
         });
       }}
       showroom={{
-        scenes: assembledApp.scenes,
+        scenes: app.scenes,
         copyText: (text) => navigator.clipboard.writeText(text),
       }}
     />
@@ -317,155 +307,6 @@ const membersRoute = createRoute({
   },
 });
 
-// The status filter is a URL search param: a language/theme switch or a
-// settings detour cannot clear a legitimate query, and filtered views
-// stay shareable. The accepted values are the view's own filterable
-// statuses — one source of truth for the validator and the select.
-// Absent param defaults to `failed` (the administrator's working set);
-// `all` lists every status.
-const DEFAULT_JOB_STATUS = 'failed' as const;
-type JobsSearch = { status?: StatusFilter | 'all' };
-function validateJobsSearch(search: Record<string, unknown>): JobsSearch {
-  const status = search.status;
-  if (status === 'all') return { status: 'all' };
-  if (
-    typeof status === 'string' &&
-    filterableStatuses.includes(status as StatusFilter)
-  )
-    return { status: status as StatusFilter };
-  return {};
-}
-const jobsRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: '/jobs',
-  validateSearch: validateJobsSearch,
-  component: function JobsPage() {
-    const { apiClient } = rootRoute.useRouteContext();
-    const navigate = useNavigate();
-    const { status } = jobsRoute.useSearch();
-    return (
-      <JobsView
-        apiClient={apiClient}
-        onOpenJob={(jobId) => {
-          void navigate({ to: '/jobs/$jobId', params: { jobId } });
-        }}
-        status={status ?? DEFAULT_JOB_STATUS}
-        onStatusChange={(next) => {
-          void navigate({
-            to: '/jobs',
-            search: next === DEFAULT_JOB_STATUS ? {} : { status: next },
-          });
-        }}
-      />
-    );
-  },
-});
-
-const jobRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: '/jobs/$jobId',
-  component: function JobPage() {
-    const { apiClient } = rootRoute.useRouteContext();
-    const { jobId } = jobRoute.useParams();
-    const navigate = useNavigate();
-    return (
-      <JobView
-        apiClient={apiClient}
-        jobId={jobId}
-        onOpen={shellPathPort(navigate)}
-      />
-    );
-  },
-});
-
-const forgotPasswordRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/forgot-password',
-  component: function ForgotPasswordPage() {
-    const { apiClient } = rootRoute.useRouteContext();
-    const navigate = useNavigate();
-    return (
-      <ForgotPasswordView
-        apiClient={apiClient}
-        onLogin={() => {
-          void navigate({ to: '/login' });
-        }}
-      />
-    );
-  },
-});
-
-// The reset link's fragment carries the secret token plus a non-sensitive
-// language hint; both are read once and the fragment is cleared. The hint
-// steers only this reset flow's language (docs/ui/design.md §6 Q8).
-function resetLink(hash: string): {
-  token: string | undefined;
-  hint: AppLocale | undefined;
-} {
-  if (hash.length > 256) return { token: undefined, hint: undefined };
-  const params = new URLSearchParams(hash.replace(/^#/, ''));
-  const token = params.get('token');
-  const lang = params.get('lang');
-  return {
-    token: token && /^[0-9a-f]{64}$/i.test(token) ? token : undefined,
-    hint: lang === 'zh' || lang === 'en' ? lang : undefined,
-  };
-}
-
-const resetPasswordRoute = createRoute({
-  getParentRoute: () => rootRoute,
-  path: '/reset-password',
-  component: function ResetPasswordPage() {
-    const { apiClient } = rootRoute.useRouteContext();
-    const navigate = useNavigate();
-    const hash = useLocation({ select: (location) => location.hash });
-    const [link, setLink] = useState(() => ({
-      observedHash: hash,
-      ...resetLink(hash),
-      revision: 0,
-    }));
-    // A new email link may navigate within this mounted route. Capture it before
-    // replacing the fragment; a fresh View drops prior form/success/request state.
-    if (hash !== link.observedHash) {
-      const parsed = resetLink(hash);
-      setLink({
-        observedHash: hash,
-        token: hash ? parsed.token : link.token,
-        hint: hash ? parsed.hint : link.hint,
-        revision: hash ? link.revision + 1 : link.revision,
-      });
-    }
-    useEffect(() => {
-      if (hash)
-        void navigate({ to: '/reset-password', hash: '', replace: true });
-    }, [hash, navigate]);
-    // The mail's language renders this flow (and only it) in that
-    // language; each fresh link re-applies its hint, and leaving the
-    // route hands the document back to the saved preference.
-    const setFlowLocale = useFlowLocaleSetter();
-    useEffect(() => {
-      setFlowLocale(link.hint);
-      return () => setFlowLocale(undefined);
-    }, [link.revision, link.hint, setFlowLocale]);
-    return (
-      <ResetPasswordView
-        apiClient={apiClient}
-        key={link.revision}
-        token={link.token}
-        onConsumed={() =>
-          setLink((current) => ({ ...current, token: undefined }))
-        }
-        onLogin={() => {
-          void navigate({ to: '/login' });
-        }}
-        onRequest={() => {
-          void navigate({ to: '/forgot-password' });
-        }}
-      />
-    );
-  },
-});
-
 const apiKeysRoute = createRoute({
   getParentRoute: () => shellRoute,
   path: '/api-keys',
@@ -474,9 +315,7 @@ const apiKeysRoute = createRoute({
   },
 });
 
-// Audit filter conditions are URL search params for the same reason as
-// the job status filter: they survive language/theme switches, back
-// navigation and bookmarks.
+// Audit filters survive language/theme switches, back navigation and bookmarks.
 type AuditSearch = {
   action?: string;
   resource_id?: string;
@@ -516,43 +355,8 @@ const auditRoute = createRoute({
   },
 });
 
-const notificationsRoute = createRoute({
-  getParentRoute: () => shellRoute,
-  path: '/notifications',
-  component: function NotificationsPage() {
-    const { apiClient } = rootRoute.useRouteContext();
-    const navigate = useNavigate();
-    return (
-      <NotificationsView
-        apiClient={apiClient}
-        resolveTarget={
-          assembledApp.resolveNotificationTarget
-            ? (target) =>
-                assembledApp.resolveNotificationTarget?.(target, {
-                  navigate: navigatePort(navigate),
-                })
-            : undefined
-        }
-        describeNotification={assembledApp.describeNotification}
-        onBack={() => {
-          void navigate({ to: '/' });
-        }}
-      />
-    );
-  },
-});
-
-// Example pages: one adapter turns assembled descriptors into real routes;
-// `provide` lets an example wrap its own pages with example-owned ports.
-const provideByExample = new Map(
-  exampleEntries.map((entry) => [entry.id, entry.provide]),
-);
-
-// Example pages render under the same shell layout route (docs/ui/design.md
-// §4.1): the adapter — not the example — owns the router ports, and the
-// example's `provide` wrapper wraps page content only. Example views never
-// mount the shell themselves.
-function adapterRoute(route: AssembledApp['routes'][number]) {
+// Lab supplies its pages directly; the Web adapter owns router ports.
+function adapterRoute(route: AppDefinition['routes'][number]) {
   return createRoute({
     getParentRoute: () => shellRoute,
     path: route.path,
@@ -567,27 +371,22 @@ function adapterRoute(route: AssembledApp['routes'][number]) {
         apiClient,
         navigate: navigatePort(navigate),
       });
-      return provideByExample.get(route.exampleId)?.(page) ?? page;
+      return page;
     },
   });
 }
 
 const routeTree = rootRoute.addChildren([
   shellRoute.addChildren([
-    ...assembledApp.routes.map(adapterRoute),
+    ...app.routes.map(adapterRoute),
     apiKeysRoute,
     auditRoute,
-    notificationsRoute,
     membersRoute,
-    jobsRoute,
-    jobRoute,
     settingsRoute,
     designSystemRoute,
     homeRoute,
     statusRoute,
   ]),
-  forgotPasswordRoute,
-  resetPasswordRoute,
   loginRoute,
   registrationRoute,
 ]);

@@ -21,7 +21,7 @@ Open <http://127.0.0.1:5173/lab>. Sign in or register at `/register`; both login
 
 The catalog and GLB bytes persist on the server. Reloads and other browsers can reopen them. Built-in definitions expose specifications, capabilities and state structures. Backend lighting, temperature sensors and centrifuge tasks are implemented. [Run history](../tutorials/run-history.en.md) provides time filters, pagination, gaps and retention. The [asset tutorial](../tutorials/persistent-assets.en.md) covers imports and recovery. Legacy knowledge routes retain their meaning. The viewport reports live rendering counts and available JS heap. It does not sample GPU time or measure GPU memory bytes.
 
-Start at the [assembly](../../apps/web/src/app-examples.tsx), [Lab contribution](../../packages/views/src/lab/app-example.tsx) and [viewer](../../packages/views/src/lab/lab-view.tsx). The [asset record](../../assets/README.md) retains originals, runtime files and licenses.
+Start at the [assembly](../../apps/web/src/app.ts), [Lab contribution](../../packages/views/src/lab/app.tsx) and [viewer](../../packages/views/src/lab/lab-view.tsx). The [asset record](../../assets/README.md) retains originals, runtime files and licenses.
 
 ```bash
 pnpm exec vitest run apps/web/src/lab.test.tsx

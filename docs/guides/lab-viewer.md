@@ -21,7 +21,7 @@ just dev
 
 资产库与 GLB 字节持久保存在服务器。刷新或换浏览器后可以重新打开。内置定义提供规格、能力与状态结构。后端照明、温度传感器与离心任务已实现。[运行历史](../tutorials/run-history.md)提供时间筛选、分页、缺口与保留策略。[资产教程](../tutorials/persistent-assets.md)提供导入和恢复操作。旧知识库路由保留原有含义。视口显示实时渲染计数与可用 JS heap。它不采样 GPU 时间，也不测量显存字节数。
 
-源码见[业务组装](../../apps/web/src/app-examples.tsx)、[Lab 贡献](../../packages/views/src/lab/app-example.tsx)和[查看页](../../packages/views/src/lab/lab-view.tsx)。[素材记录](../../assets/README.md)保留原件、运行文件和许可。
+源码见[业务组装](../../apps/web/src/app.ts)、[Lab 贡献](../../packages/views/src/lab/app.tsx)和[查看页](../../packages/views/src/lab/lab-view.tsx)。[素材记录](../../assets/README.md)保留原件、运行文件和许可。
 
 ```bash
 pnpm exec vitest run apps/web/src/lab.test.tsx

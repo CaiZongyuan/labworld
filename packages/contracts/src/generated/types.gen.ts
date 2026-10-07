@@ -4,6 +4,50 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+export type UploadInput = {
+    file_name: string;
+    content_type: string;
+    size: number;
+    sha256: string;
+};
+
+export type FileInfo = {
+    id: string;
+    file_name: string;
+    content_type: string;
+    size: number;
+    sha256: string;
+    created_at: string;
+    previewable: boolean;
+};
+
+export type ObjectCapability = {
+    url: string;
+    method: string;
+    headers: {
+        [key: string]: string;
+    };
+    expires_at: string;
+};
+
+export type UploadCapability = {
+    upload_id: string;
+    state: string;
+    upload?: ObjectCapability | null;
+};
+
+export type DownloadCapability = ObjectCapability & {
+    file: FileInfo;
+};
+
+export type HealthResponse = {
+    status: string;
+};
+
+export type ApiErrorResponse = {
+    error: ApiError;
+};
+
 export type ApiError = {
     code: string;
     details: {
@@ -13,151 +57,105 @@ export type ApiError = {
     request_id: string;
 };
 
-export type ApiErrorResponse = {
-    error: ApiError;
-};
-
-export type ApiKeyPage = {
-    data: Array<KeyInfo>;
-    has_more: boolean;
-    next_cursor?: string | null;
-};
-
-export type AssetDefinition = {
-    capabilities: Array<DefinitionCapability>;
-    category: string;
-    id: string;
-    interfaces: Array<DefinitionInterface>;
-    name: string;
-    name_en: string;
-    specifications: unknown;
-    state: unknown;
+export type SystemStatus = {
+    database: string;
+    schema_version: number;
+    service: string;
+    status: string;
     version: string;
 };
 
-export type AssetPage = {
-    data: Array<LabAsset>;
-    has_more: boolean;
-    max_decoded_resource_bytes: number;
-    max_upload_bytes: number;
-    next_cursor?: string | null;
+export type CurrentSession = {
+    user: CurrentUser;
+    csrf_token: string;
 };
 
-export type AssetRepresentation = {
-    content_type: string;
-    file_id: string;
-    file_name: string;
+export type CurrentUser = {
     id: string;
-    sha256: string;
-    size: number;
+    email: string;
+    display_name?: string | null;
+    role: MemberRole;
 };
 
-export type AttachmentPage = {
-    can_delete: boolean;
-    can_upload: boolean;
-    data: Array<FileInfo>;
-    has_more: boolean;
-    max_upload_bytes: number;
+export type MemberRole = 'owner' | 'admin' | 'member';
+
+export type Login = {
+    email: string;
+    password: string;
+};
+
+export type Registration = {
+    email: string;
+    password: string;
+    display_name?: string | null;
+};
+
+export type Member = {
+    user_id: string;
+    email: string;
+    display_name?: string | null;
+    role: MemberRole;
+    active: boolean;
+    version: number;
+    can_edit: boolean;
+};
+
+export type UpdateMember = {
+    role: MemberRole;
+    active: boolean;
+    version: number;
+};
+
+export type MemberPage = {
+    data: Array<Member>;
     next_cursor?: string | null;
-};
-
-export type AuditEvent = {
-    action: string;
-    actor_id?: string | null;
-    actor_type: string;
-    correlation_id: string;
-    created_at: string;
-    id: string;
-    job_id?: string | null;
-    metadata: Metadata;
-    request_id?: string | null;
-    resource_id: string;
-    resource_type: string;
-    trace_id?: string | null;
+    has_more: boolean;
+    assignable_roles: Array<MemberRole>;
 };
 
 export type AuditPage = {
     data: Array<AuditEvent>;
-    has_more: boolean;
     next_cursor?: string | null;
+    has_more: boolean;
 };
 
-export type CacheMetrics = {
+export type AuditEvent = {
+    id: string;
+    actor_id?: string | null;
+    actor_type: string;
+    action: string;
+    resource_type: string;
+    resource_id: string;
+    request_id?: string | null;
+    trace_id?: string | null;
+    correlation_id: string;
+    job_id?: string | null;
+    metadata: Metadata;
+    created_at: string;
+};
+
+export type Metadata = {
+    subject_user_id?: string | null;
+};
+
+export type RateLimitMetrics = {
     enabled: boolean;
+    redis_configured: boolean;
+    window_secs: number;
+    local_entries: number;
+    local_capacity: number;
+    policies: Array<PolicyMetrics>;
+};
+
+export type PolicyMetrics = {
+    policy: string;
+    limit: number;
+    fallback_limit: number;
+    redis_allowed: number;
+    redis_denied: number;
+    local_allowed: number;
+    local_denied: number;
     fallbacks: number;
-    hits: number;
-    invalidation_failures: number;
-    invalidations: number;
-    misses: number;
-    write_failures: number;
-    writes: number;
-};
-
-export type ChangeEntityAppearance = {
-    /**
-     * Null selects the built-in appearance. Applies to the Entity and all its current Scene Nodes.
-     */
-    representation_id?: string | null;
-};
-
-export type ChangeEntityDefinition = {
-    configuration: {
-        [key: string]: unknown;
-    };
-    definition_id: string;
-    definition_version: string;
-};
-
-export type CompleteReset = {
-    password: string;
-    token: string;
-};
-
-export type ConfigureEntity = {
-    configuration: {
-        [key: string]: unknown;
-    };
-    name: string;
-};
-
-export type CopyLabEntity = {
-    expected_version: number;
-    name: string;
-    placement: Placement;
-};
-
-export type CreateApiKey = {
-    expires_in_days: number;
-    name: string;
-    scopes: Array<string>;
-};
-
-export type CreateAssetUpload = {
-    file: UploadInput;
-    license: string;
-    name: string;
-    source: string;
-    version: string;
-};
-
-export type CreateDocument = {
-    knowledge_base_id?: string | null;
-    markdown: string;
-    title: string;
-};
-
-export type CreateKnowledgeBase = {
-    name: string;
-};
-
-export type CreateLab = {
-    name: string;
-};
-
-export type CreateSceneNode = {
-    entity_id: string;
-    placement: Placement;
-    representation_id?: string | null;
 };
 
 export type CreatedApiKey = {
@@ -165,331 +163,32 @@ export type CreatedApiKey = {
     secret: string;
 };
 
-export type CurrentSession = {
-    csrf_token: string;
-    user: CurrentUser;
-};
-
-export type CurrentUser = {
-    display_name?: string | null;
-    email: string;
-    id: string;
-    role: MemberRole;
-};
-
-export type DefinitionCapability = {
-    id: string;
-    implemented: boolean;
-    parameters: unknown;
-    result?: unknown;
-    version?: string;
-};
-
-export type DefinitionInterface = {
-    id: string;
-    implemented: boolean;
-};
-
-export type DefinitionPage = {
-    data: Array<AssetDefinition>;
-};
-
-export type DeviceCommand = {
-    actor_id: string;
-    actor_source: string;
-    capability: string;
-    created_at: string;
-    entity_id: string;
-    id: string;
-    parameters: unknown;
-    request_key: string;
-    result?: unknown;
-    run_id: string;
-    status: string;
-    task_id?: string | null;
-    updated_at: string;
-};
-
-export type DeviceObservation = {
-    entity_id: string;
-    freshness: string;
-    observed_at?: string | null;
-    properties: {
-        [key: string]: ObservationProperty;
-    };
-    quality: string;
-    received_at: string;
-    run_id: string;
-    sequence: number;
-    source: string;
-    updated_at: string;
-    values: unknown;
-};
-
-export type DeviceProgramRun = {
-    binding_id: string;
-    configuration: unknown;
-    definition: AssetDefinition;
-    definition_id: string;
-    definition_version: string;
-    ended_at?: string | null;
-    entity_id: string;
-    id: string;
-    program_id: string;
-    source: string;
-    started_at: string;
-    started_by: string;
-    status: string;
-};
-
-export type DeviceTask = {
-    command_id: string;
-    created_at: string;
-    elapsed_seconds: number;
-    ended_at?: string | null;
-    entity_id: string;
-    id: string;
-    parameters: unknown;
-    result_id: string;
-    run_id: string;
-    status: string;
-    timer_started_at?: string | null;
-};
-
-export type DeviceTaskResult = {
-    ended_at?: string | null;
-    id: string;
-    reason?: string | null;
-    status: string;
-    task_id: string;
-};
-
-export type Document = {
-    can_edit: boolean;
-    created_at: string;
-    created_by: string;
-    id: string;
-    knowledge_base_id: string;
-    markdown: string;
-    title: string;
-    updated_at: string;
-    updated_by: string;
-    version: number;
-};
-
-export type DocumentExport = {
-    can_download: boolean;
-    created_at: string;
-    document_id: string;
-    document_version: number;
-    expires_at: string;
-    id: string;
-    last_error?: string | null;
-    status: string;
-};
-
-export type DocumentPage = {
-    can_create: boolean;
-    data: Array<DocumentSummary>;
-    has_more: boolean;
-    next_cursor?: string | null;
-};
-
-export type DocumentSummary = {
-    created_at: string;
-    id: string;
-    knowledge_base_id: string;
-    title: string;
-    updated_at: string;
-    version: number;
-};
-
-export type DownloadCapability = ObjectCapability & {
-    file: FileInfo;
-};
-
-export type EntityAction = {
-    capability: string;
-    parameters: unknown;
-};
-
-export type EntityCapability = {
-    binding_implemented: boolean;
-    definition_supported: boolean;
-    executable: boolean;
-    id: string;
-    parameters: unknown;
-    reason: string;
-    result: unknown;
-    version: string;
-};
-
-export type EntityReality = 'simulated' | 'physical';
-
-export type EntityRelationship = {
-    id: string;
-    kind: string;
-    lab_id: string;
-    registered_at: string;
-    registered_by: string;
-    source: string;
-    source_id: string;
-    target_id: string;
-};
-
-export type EntityTrend = {
-    available_since: string;
-    captured_since: string;
-    first_report_at?: string | null;
-    from: string;
-    gaps: Array<TrendGap>;
-    last_report_at?: string | null;
-    max_points: number;
-    max_range_seconds: number;
-    max_response_bytes: number;
-    observation_retention_seconds: number;
-    plot_item_count: number;
-    property: string;
-    raw_sample_count: number;
-    retained_since: string;
-    returned_sample_count: number;
-    sampling_strategy: string;
-    segments: Array<TrendSegment>;
-    to: string;
-};
-
-export type ExportPage = {
-    data: Array<DocumentExport>;
-    has_more: boolean;
-    next_cursor?: string | null;
-};
-
-export type FileInfo = {
-    content_type: string;
-    created_at: string;
-    file_name: string;
-    id: string;
-    previewable: boolean;
-    sha256: string;
-    size: number;
-};
-
-export type GrantAccess = 'reader' | 'editor';
-
-export type GrantAssignment = {
-    access: GrantAccess;
-    user_id: string;
-};
-
-export type GrantPage = {
-    data: Array<KnowledgeBaseGrant>;
-    has_more: boolean;
-    next_cursor?: string | null;
-};
-
-export type HealthResponse = {
-    status: string;
-};
-
-export type HistoryCleanup = {
-    commands: number;
-    events: number;
-    more: boolean;
-    observation_cutoff: string;
-    observations: number;
-    record_cutoff: string;
-    tasks: number;
-};
-
-export type HistoryPage = {
-    available_since: string;
-    from: string;
-    gap: boolean;
-    items: Array<HistoryRecord>;
-    max_range_seconds: number;
-    max_response_bytes: number;
-    next_cursor?: string | null;
-    record_type: HistoryRecordType;
-    retention: RetentionPolicy;
-    to: string;
-};
-
-export type HistoryRecord = {
-    data: unknown;
-    entity_id: string;
-    id: string;
-    observed_at?: string | null;
-    received_at: string;
-    recorded_at: string;
-    run_id: string;
-};
-
-export type HistoryRecordType = 'observation' | 'command' | 'task' | 'event';
-
-export type JobAttempt = {
-    batch: number;
-    ended_at?: string | null;
-    last_error?: string | null;
-    lease_expires_at: string;
-    number: number;
-    started_at: string;
-    status: string;
-    worker_id: string;
-};
-
-export type JobBatch = {
-    attempts: number;
-    created_at: string;
-    ended_at?: string | null;
-    last_error?: string | null;
-    legacy_attempts: number;
-    max_attempts: number;
-    number: number;
-    requested_by?: string | null;
-    status: string;
-};
-
-export type JobDetails = {
-    attempts: Array<JobAttempt>;
-    batches: Array<JobBatch>;
-    job: JobInfo;
-    next_before_batch?: number | null;
-};
-
-export type JobInfo = {
-    attempts: number;
-    batch: number;
-    can_retry: boolean;
-    causation_id?: string | null;
-    correlation_id: string;
-    created_at: string;
-    id: string;
-    kind: string;
-    last_error?: string | null;
-    lease_expires_at?: string | null;
-    max_attempts: number;
-    scheduled_at: string;
-    schema_version: number;
-    status: string;
-    updated_at: string;
-};
-
-export type JobPage = {
-    data: Array<JobInfo>;
-    has_more: boolean;
-    next_cursor?: string | null;
-};
-
 export type KeyInfo = {
-    created_at: string;
-    expires_at: string;
     id: string;
-    last_used_at?: string | null;
+    user_id: string;
     name: string;
     prefix: string;
-    revoked_at?: string | null;
     scopes: Array<string>;
-    user_id: string;
+    created_at: string;
+    expires_at: string;
+    revoked_at?: string | null;
+    last_used_at?: string | null;
+};
+
+export type CreateApiKey = {
+    name: string;
+    scopes: Array<string>;
+    expires_in_days: number;
+};
+
+export type ApiKeyPage = {
+    data: Array<KeyInfo>;
+    next_cursor?: string | null;
+    has_more: boolean;
+};
+
+export type KeyScopeList = {
+    data: Array<KeyScope>;
 };
 
 export type KeyScope = {
@@ -497,69 +196,46 @@ export type KeyScope = {
     label: string;
 };
 
-export type KeyScopeList = {
-    data: Array<KeyScope>;
-};
-
-export type KnowledgeBase = {
-    can_edit: boolean;
-    can_manage: boolean;
-    id: string;
-    name: string;
-    personal: boolean;
-};
-
-export type KnowledgeBaseGrant = {
-    access: GrantAccess;
-    display_name?: string | null;
-    email: string;
-    user_id: string;
-};
-
-export type KnowledgeBasePage = {
-    can_create: boolean;
-    data: Array<KnowledgeBase>;
-    has_more: boolean;
+export type AssetPage = {
+    data: Array<LabAsset>;
     next_cursor?: string | null;
+    has_more: boolean;
+    max_upload_bytes: number;
+    max_decoded_resource_bytes: number;
 };
 
 export type LabAsset = {
-    created_at: string;
-    created_by: string;
     id: string;
-    license: string;
     name: string;
-    representation: AssetRepresentation;
     source: string;
-    updated_at: string;
-    updated_by: string;
+    license: string;
     version: string;
+    created_by: string;
+    updated_by: string;
+    created_at: string;
+    updated_at: string;
+    representation: AssetRepresentation;
 };
 
-export type LabEntity = {
-    archived_at?: string | null;
-    binding?: null | RuntimeBinding;
-    capabilities: Array<EntityCapability>;
-    configuration: {
-        [key: string]: unknown;
-    };
-    created_at: string;
-    created_by: string;
-    definition: AssetDefinition;
-    definition_id: string;
-    definition_version: string;
+export type AssetRepresentation = {
     id: string;
-    kind: string;
-    lab_id: string;
+    file_id: string;
+    file_name: string;
+    size: number;
+    sha256: string;
+    content_type: string;
+};
+
+export type RenameAsset = {
     name: string;
-    observation?: null | DeviceObservation;
-    program_run?: null | DeviceProgramRun;
-    reality: string;
-    representation_id?: string | null;
-    task?: null | DeviceTask;
-    task_result?: null | DeviceTaskResult;
-    updated_at: string;
-    updated_by: string;
+};
+
+export type CreateAssetUpload = {
+    name: string;
+    source: string;
+    license: string;
+    version: string;
+    file: UploadInput;
 };
 
 export type LabLayout = {
@@ -568,186 +244,12 @@ export type LabLayout = {
     relationships: Array<EntityRelationship>;
 };
 
-export type LabPage = {
-    data: Array<PersistentLab>;
-    has_more: boolean;
-    next_cursor?: string | null;
-};
-
-export type LabRecord = {
-    actor_id?: string | null;
-    actor_role: string;
-    actor_source: string;
-    archived_at?: string | null;
-    binding_id: string;
-    command_id?: string | null;
-    data: unknown;
-    ended_at?: string | null;
-    entity_id: string;
-    entity_name: string;
+export type SceneNode = {
     id: string;
-    reality: string;
-    record_type: string;
-    recorded_at: string;
-    result_id?: string | null;
-    run_id: string;
-    source: string;
-    state: string;
-    summary: string;
-    task_id?: string | null;
-};
-
-export type LabRecordCoverage = {
-    available_since?: string | null;
-    captured_since?: string | null;
-    cleaned_before?: string | null;
-    fully_captured_since?: string | null;
-    gaps: Array<LabRecordGap>;
-    newest_record_at?: string | null;
-    oldest_record_at?: string | null;
-    preserves_unfinished: boolean;
-    record_type: string;
-    retention_seconds?: number | null;
-};
-
-export type LabRecordGap = {
-    from: string;
-    reason: string;
-    to: string;
-};
-
-export type LabRecordType = 'command' | 'task' | 'event' | 'run';
-
-export type LabRecordsPage = {
-    coverage: Array<LabRecordCoverage>;
-    entity_id?: string | null;
-    from: string;
-    items: Array<LabRecord>;
-    max_page_items: number;
-    max_range_seconds: number;
-    max_response_bytes: number;
-    next_cursor?: string | null;
-    queried_at: string;
-    query_upper_bound: string;
-    record_type?: null | LabRecordType;
-    retention: RetentionPolicy;
-    to: string;
-};
-
-export type LabWorld = {
-    assets: Array<LabAsset>;
-    entities: Array<LabEntity>;
-    lab: PersistentLab;
-    nodes: Array<SceneNode>;
-    relationships: Array<EntityRelationship>;
-    /**
-     * Deployment-wide committed world revision, compared only within the same Lab/query.
-     */
-    version: string;
-};
-
-export type LayoutNode = {
+    lab_id: string;
     entity_id: string;
-    id: string;
-    placement: Placement;
     representation_id?: string | null;
-};
-
-export type LayoutRelationship = {
-    id: string;
-    kind: RelationshipKind;
-    source_id: string;
-    target_id: string;
-};
-
-export type Login = {
-    email: string;
-    password: string;
-};
-
-export type Member = {
-    active: boolean;
-    can_edit: boolean;
-    display_name?: string | null;
-    email: string;
-    role: MemberRole;
-    user_id: string;
-    version: number;
-};
-
-export type MemberPage = {
-    assignable_roles: Array<MemberRole>;
-    data: Array<Member>;
-    has_more: boolean;
-    next_cursor?: string | null;
-};
-
-export type MemberRole = 'owner' | 'admin' | 'member';
-
-export type Metadata = {
-    subject_user_id?: string | null;
-};
-
-export type Notification = {
-    created_at: string;
-    id: string;
-    outcome: Outcome;
-    read_at?: string | null;
-    subject: string;
-    target: NotificationTarget;
-};
-
-export type NotificationPage = {
-    data: Array<Notification>;
-    has_more: boolean;
-    next_cursor?: string | null;
-    unread_count: number;
-};
-
-/**
- * A navigation hint, never an authorization capability or a signed URL.
- * The application shell resolves known kinds; the destination checks current access.
- */
-export type NotificationTarget = {
-    context: {
-        [key: string]: string;
-    };
-    kind: string;
-    resource_id: string;
-};
-
-export type ObjectCapability = {
-    expires_at: string;
-    headers: {
-        [key: string]: string;
-    };
-    method: string;
-    url: string;
-};
-
-export type ObservationProperty = {
-    binding_id: string;
-    expires_at: string;
-    freshness: string;
-    observed_at?: string | null;
-    quality: string;
-    received_at: string;
-    run_id: string;
-    sequence: number;
-    source: string;
-    unit?: string | null;
-    updated_at: string;
-    value: unknown;
-};
-
-export type Outcome = 'succeeded' | 'failed';
-
-export type PersistentLab = {
-    created_at: string;
-    created_by: string;
-    id: string;
-    layout_version: number;
-    name: string;
+    placement: Placement;
 };
 
 export type Placement = {
@@ -756,80 +258,15 @@ export type Placement = {
     scale: Array<number>;
 };
 
-export type PolicyMetrics = {
-    fallback_limit: number;
-    fallbacks: number;
-    limit: number;
-    local_allowed: number;
-    local_denied: number;
-    policy: string;
-    redis_allowed: number;
-    redis_denied: number;
-};
-
-export type RateLimitMetrics = {
-    enabled: boolean;
-    local_capacity: number;
-    local_entries: number;
-    policies: Array<PolicyMetrics>;
-    redis_configured: boolean;
-    window_secs: number;
-};
-
-export type RegisterEntity = {
-    configuration: {
-        [key: string]: unknown;
-    };
-    definition_id: string;
-    definition_version: string;
-    name: string;
-    reality: EntityReality;
-    representation_id?: string | null;
-};
-
-export type Registration = {
-    display_name?: string | null;
-    email: string;
-    password: string;
-};
-
-export type RelationshipKind = 'located_in' | 'contains' | 'simulates';
-
-export type RenameAsset = {
-    name: string;
-};
-
-export type RenameKnowledgeBase = {
-    name: string;
-};
-
-export type ResetAccepted = {
-    status: string;
-};
-
-export type ResetRequest = {
-    email: string;
-    /**
-     * Reset email language: `zh` or `en`. Omitted keeps the default
-     * Chinese delivery for existing clients. Other values are rejected
-     * with `auth.invalid_input`.
-     */
-    locale?: string | null;
-};
-
-export type RetentionPolicy = {
-    observation_seconds: number;
-    record_seconds: number;
-};
-
-export type RuntimeBinding = {
-    definition: AssetDefinition;
-    definition_id: string;
-    definition_version: string;
-    entity_id: string;
+export type EntityRelationship = {
     id: string;
-    program_id: string;
+    lab_id: string;
+    source_id: string;
+    target_id: string;
+    kind: string;
     source: string;
+    registered_by: string;
+    registered_at: string;
 };
 
 export type SaveLabLayout = {
@@ -841,77 +278,285 @@ export type SaveLabLayout = {
     relationships?: Array<LayoutRelationship> | null;
 };
 
-export type SceneNode = {
+export type LayoutNode = {
+    id: string;
     entity_id: string;
+    representation_id?: string | null;
+    placement: Placement;
+};
+
+export type LayoutRelationship = {
+    id: string;
+    source_id: string;
+    target_id: string;
+    kind: RelationshipKind;
+};
+
+export type RelationshipKind = 'located_in' | 'contains' | 'simulates';
+
+export type CreateSceneNode = {
+    entity_id: string;
+    representation_id?: string | null;
+    placement: Placement;
+};
+
+export type LabEntity = {
     id: string;
     lab_id: string;
+    name: string;
+    kind: string;
+    reality: string;
+    definition_id: string;
+    definition_version: string;
+    definition: AssetDefinition;
+    configuration: {
+        [key: string]: unknown;
+    };
+    representation_id?: string | null;
+    created_by: string;
+    updated_by: string;
+    created_at: string;
+    updated_at: string;
+    archived_at?: string | null;
+    binding?: RuntimeBinding | null;
+    program_run?: DeviceProgramRun | null;
+    observation?: DeviceObservation | null;
+    task?: DeviceTask | null;
+    task_result?: DeviceTaskResult | null;
+    capabilities: Array<EntityCapability>;
+};
+
+export type AssetDefinition = {
+    id: string;
+    version: string;
+    name: string;
+    name_en: string;
+    category: string;
+    specifications: unknown;
+    capabilities: Array<DefinitionCapability>;
+    state: unknown;
+    interfaces: Array<DefinitionInterface>;
+};
+
+export type DefinitionCapability = {
+    id: string;
+    version?: string;
+    parameters: unknown;
+    result?: unknown;
+    implemented: boolean;
+};
+
+export type DefinitionInterface = {
+    id: string;
+    implemented: boolean;
+};
+
+export type RuntimeBinding = {
+    id: string;
+    entity_id: string;
+    program_id: string;
+    source: string;
+    definition_id: string;
+    definition_version: string;
+    definition: AssetDefinition;
+};
+
+export type DeviceProgramRun = {
+    id: string;
+    entity_id: string;
+    binding_id: string;
+    program_id: string;
+    source: string;
+    definition_id: string;
+    definition_version: string;
+    definition: AssetDefinition;
+    configuration: unknown;
+    status: string;
+    started_by: string;
+    started_at: string;
+    ended_at?: string | null;
+};
+
+export type DeviceObservation = {
+    entity_id: string;
+    run_id: string;
+    sequence: number;
+    source: string;
+    values: unknown;
+    observed_at?: string | null;
+    received_at: string;
+    updated_at: string;
+    quality: string;
+    freshness: string;
+    properties: {
+        [key: string]: ObservationProperty;
+    };
+};
+
+export type ObservationProperty = {
+    value: unknown;
+    unit?: string | null;
+    binding_id: string;
+    run_id: string;
+    sequence: number;
+    source: string;
+    observed_at?: string | null;
+    received_at: string;
+    updated_at: string;
+    expires_at: string;
+    quality: string;
+    freshness: string;
+};
+
+export type DeviceTask = {
+    id: string;
+    entity_id: string;
+    run_id: string;
+    command_id: string;
+    result_id: string;
+    parameters: unknown;
+    status: string;
+    elapsed_seconds: number;
+    timer_started_at?: string | null;
+    created_at: string;
+    ended_at?: string | null;
+};
+
+export type DeviceTaskResult = {
+    id: string;
+    task_id: string;
+    status: string;
+    reason?: string | null;
+    ended_at?: string | null;
+};
+
+export type EntityCapability = {
+    id: string;
+    version: string;
+    definition_supported: boolean;
+    binding_implemented: boolean;
+    executable: boolean;
+    reason: string;
+    parameters: unknown;
+    result: unknown;
+};
+
+export type CopyLabEntity = {
+    expected_version: number;
+    name: string;
     placement: Placement;
+};
+
+export type DefinitionPage = {
+    data: Array<AssetDefinition>;
+};
+
+export type RegisterEntity = {
+    name: string;
+    definition_id: string;
+    definition_version: string;
+    reality: EntityReality;
+    configuration: {
+        [key: string]: unknown;
+    };
     representation_id?: string | null;
 };
 
-export type SetGrant = {
-    access: GrantAccess;
+export type EntityReality = 'simulated' | 'physical';
+
+export type ConfigureEntity = {
+    name: string;
+    configuration: {
+        [key: string]: unknown;
+    };
 };
 
-export type StatusFilter = 'queued' | 'running' | 'retry_wait' | 'succeeded' | 'failed';
-
-export type SystemStatus = {
-    database: string;
-    schema_version: number;
-    service: string;
-    status: string;
-    version: string;
+export type LabPage = {
+    data: Array<PersistentLab>;
+    next_cursor?: string | null;
+    has_more: boolean;
 };
 
-export type TrendGap = {
-    from: string;
-    reasons: Array<string>;
-    to: string;
-};
-
-export type TrendSample = {
-    expires_at: string;
+export type PersistentLab = {
     id: string;
-    observed_at?: string | null;
-    received_at: string;
-    sequence: number;
-    value: number;
+    name: string;
+    layout_version: number;
+    created_by: string;
+    created_at: string;
 };
 
-export type TrendSegment = {
-    binding_id: string;
-    quality: string;
-    resolution_seconds: number;
+export type CreateLab = {
+    name: string;
+};
+
+export type LabWorld = {
+    /**
+     * Deployment-wide committed world revision, compared only within the same Lab/query.
+     */
+    version: string;
+    lab: PersistentLab;
+    entities: Array<LabEntity>;
+    nodes: Array<SceneNode>;
+    assets: Array<LabAsset>;
+    relationships: Array<EntityRelationship>;
+};
+
+export type ChangeEntityDefinition = {
+    definition_id: string;
+    definition_version: string;
+    configuration: {
+        [key: string]: unknown;
+    };
+};
+
+export type ChangeEntityAppearance = {
+    /**
+     * Null selects the built-in appearance. Applies to the Entity and all its current Scene Nodes.
+     */
+    representation_id?: string | null;
+};
+
+export type DeviceCommand = {
+    id: string;
+    entity_id: string;
     run_id: string;
-    samples: Array<TrendSample>;
-    source: string;
-    source_time_known: boolean;
-    unit?: string | null;
+    actor_id: string;
+    actor_source: string;
+    request_key: string;
+    capability: string;
+    parameters: unknown;
+    status: string;
+    result?: unknown;
+    task_id?: string | null;
+    created_at: string;
+    updated_at: string;
 };
 
-export type UpdateDocument = {
-    markdown: string;
-    title: string;
-    version: number;
+export type EntityAction = {
+    capability: string;
+    parameters: unknown;
 };
 
-export type UpdateMember = {
-    active: boolean;
-    role: MemberRole;
-    version: number;
-};
-
-export type UploadCapability = {
-    state: string;
-    upload?: null | ObjectCapability;
-    upload_id: string;
-};
-
-export type UploadInput = {
-    content_type: string;
-    file_name: string;
-    sha256: string;
-    size: number;
+export type WorldEvent = {
+    type: 'snapshot';
+    world: LabWorld;
+} | {
+    type: 'update';
+    version: string;
+    base_version: string;
+    lab?: PersistentLab | null;
+    changes: Array<WorldChange>;
+} | {
+    type: 'heartbeat';
+    version: string;
+} | {
+    type: 'resync';
+    reason: string;
+} | {
+    type: 'access_ended';
+} | {
+    type: 'runtime_status';
+    available: boolean;
 };
 
 export type WorldChange = {
@@ -925,27 +570,521 @@ export type WorldChange = {
 
 export type WorldCollection = 'entities' | 'nodes' | 'assets' | 'relationships';
 
-export type WorldEvent = {
-    type: 'snapshot';
-    world: LabWorld;
-} | {
-    base_version: string;
-    changes: Array<WorldChange>;
-    lab?: null | PersistentLab;
-    type: 'update';
-    version: string;
-} | {
-    type: 'heartbeat';
-    version: string;
-} | {
-    reason: string;
-    type: 'resync';
-} | {
-    type: 'access_ended';
-} | {
-    available: boolean;
-    type: 'runtime_status';
+export type RetentionPolicy = {
+    observation_seconds: number;
+    record_seconds: number;
 };
+
+export type HistoryCleanup = {
+    observations: number;
+    commands: number;
+    tasks: number;
+    events: number;
+    more: boolean;
+    observation_cutoff: string;
+    record_cutoff: string;
+};
+
+export type HistoryPage = {
+    record_type: HistoryRecordType;
+    from: string;
+    to: string;
+    available_since: string;
+    gap: boolean;
+    retention: RetentionPolicy;
+    max_range_seconds: number;
+    max_response_bytes: number;
+    items: Array<HistoryRecord>;
+    next_cursor?: string | null;
+};
+
+export type HistoryRecordType = 'observation' | 'command' | 'task' | 'event';
+
+export type HistoryRecord = {
+    id: string;
+    entity_id: string;
+    run_id: string;
+    recorded_at: string;
+    observed_at?: string | null;
+    received_at: string;
+    data: unknown;
+};
+
+export type LabRecordsPage = {
+    from: string;
+    to: string;
+    queried_at: string;
+    query_upper_bound: string;
+    entity_id?: string | null;
+    record_type?: LabRecordType | null;
+    retention: RetentionPolicy;
+    coverage: Array<LabRecordCoverage>;
+    max_page_items: number;
+    max_range_seconds: number;
+    max_response_bytes: number;
+    items: Array<LabRecord>;
+    next_cursor?: string | null;
+};
+
+export type LabRecordType = 'command' | 'task' | 'event' | 'run';
+
+export type LabRecordCoverage = {
+    record_type: string;
+    retention_seconds?: number | null;
+    preserves_unfinished: boolean;
+    captured_since?: string | null;
+    fully_captured_since?: string | null;
+    cleaned_before?: string | null;
+    available_since?: string | null;
+    oldest_record_at?: string | null;
+    newest_record_at?: string | null;
+    gaps: Array<LabRecordGap>;
+};
+
+export type LabRecordGap = {
+    from: string;
+    to: string;
+    reason: string;
+};
+
+export type LabRecord = {
+    id: string;
+    record_type: string;
+    entity_id: string;
+    entity_name: string;
+    reality: string;
+    archived_at?: string | null;
+    run_id: string;
+    binding_id: string;
+    command_id?: string | null;
+    task_id?: string | null;
+    result_id?: string | null;
+    recorded_at: string;
+    ended_at?: string | null;
+    state: string;
+    summary: string;
+    source: string;
+    actor_id?: string | null;
+    actor_source: string;
+    actor_role: string;
+    data: unknown;
+};
+
+export type EntityTrend = {
+    property: string;
+    from: string;
+    to: string;
+    max_points: number;
+    raw_sample_count: number;
+    returned_sample_count: number;
+    plot_item_count: number;
+    sampling_strategy: string;
+    segments: Array<TrendSegment>;
+    gaps: Array<TrendGap>;
+    first_report_at?: string | null;
+    last_report_at?: string | null;
+    retained_since: string;
+    captured_since: string;
+    available_since: string;
+    observation_retention_seconds: number;
+    max_response_bytes: number;
+    max_range_seconds: number;
+};
+
+export type TrendSegment = {
+    binding_id: string;
+    run_id: string;
+    source: string;
+    quality: string;
+    unit?: string | null;
+    source_time_known: boolean;
+    resolution_seconds: number;
+    samples: Array<TrendSample>;
+};
+
+export type TrendSample = {
+    id: string;
+    value: number;
+    sequence: number;
+    observed_at?: string | null;
+    received_at: string;
+    expires_at: string;
+};
+
+export type TrendGap = {
+    from: string;
+    to: string;
+    reasons: Array<string>;
+};
+
+export type GetLivenessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health/live';
+};
+
+export type GetLivenessResponses = {
+    /**
+     * Process is alive
+     */
+    200: HealthResponse;
+};
+
+export type GetLivenessResponse = GetLivenessResponses[keyof GetLivenessResponses];
+
+export type GetReadinessData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/health/ready';
+};
+
+export type GetReadinessErrors = {
+    /**
+     * Database is not ready
+     */
+    503: ApiErrorResponse;
+};
+
+export type GetReadinessError = GetReadinessErrors[keyof GetReadinessErrors];
+
+export type GetReadinessResponses = {
+    /**
+     * Database migrations are available
+     */
+    200: HealthResponse;
+};
+
+export type GetReadinessResponse = GetReadinessResponses[keyof GetReadinessResponses];
+
+export type GetSystemStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/system/status';
+};
+
+export type GetSystemStatusErrors = {
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    /**
+     * Database or migration metadata is unavailable
+     */
+    503: ApiErrorResponse;
+};
+
+export type GetSystemStatusError = GetSystemStatusErrors[keyof GetSystemStatusErrors];
+
+export type GetSystemStatusResponses = {
+    /**
+     * Status from the live PostgreSQL connection
+     */
+    200: SystemStatus;
+};
+
+export type GetSystemStatusResponse = GetSystemStatusResponses[keyof GetSystemStatusResponses];
+
+export type LogoutUserData = {
+    body?: never;
+    headers: {
+        /**
+         * CSRF token from the current session
+         */
+        'x-csrf-token': string;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/logout';
+};
+
+export type LogoutUserErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type LogoutUserError = LogoutUserErrors[keyof LogoutUserErrors];
+
+export type LogoutUserResponses = {
+    204: void;
+};
+
+export type LogoutUserResponse = LogoutUserResponses[keyof LogoutUserResponses];
+
+export type LoginUserData = {
+    body: Login;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/login';
+};
+
+export type LoginUserErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    408: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type LoginUserError = LoginUserErrors[keyof LoginUserErrors];
+
+export type LoginUserResponses = {
+    200: CurrentSession;
+};
+
+export type LoginUserResponse = LoginUserResponses[keyof LoginUserResponses];
+
+export type RegisterUserData = {
+    body: Registration;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/register';
+};
+
+export type RegisterUserErrors = {
+    400: ApiErrorResponse;
+    403: ApiErrorResponse;
+    408: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RegisterUserError = RegisterUserErrors[keyof RegisterUserErrors];
+
+export type RegisterUserResponses = {
+    201: CurrentSession;
+};
+
+export type RegisterUserResponse = RegisterUserResponses[keyof RegisterUserResponses];
+
+export type GetCurrentSessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/auth/session';
+};
+
+export type GetCurrentSessionErrors = {
+    401: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetCurrentSessionError = GetCurrentSessionErrors[keyof GetCurrentSessionErrors];
+
+export type GetCurrentSessionResponses = {
+    200: CurrentSession;
+};
+
+export type GetCurrentSessionResponse = GetCurrentSessionResponses[keyof GetCurrentSessionResponses];
+
+export type UpdateMemberData = {
+    body: UpdateMember;
+    headers: {
+        'x-csrf-token': string;
+    };
+    path: {
+        user_id: string;
+    };
+    query?: never;
+    url: '/api/v1/organization/members/{user_id}';
+};
+
+export type UpdateMemberErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    408: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type UpdateMemberError = UpdateMemberErrors[keyof UpdateMemberErrors];
+
+export type UpdateMemberResponses = {
+    200: Member;
+};
+
+export type UpdateMemberResponse = UpdateMemberResponses[keyof UpdateMemberResponses];
+
+export type ListMembersData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/api/v1/organization/members';
+};
+
+export type ListMembersErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
+
+export type ListMembersResponses = {
+    200: MemberPage;
+};
+
+export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
+
+export type ListAuditEventsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        resource_id?: string;
+        action?: string;
+        request_id?: string;
+        resource_type?: string;
+        actor_id?: string;
+        correlation_id?: string;
+        job_id?: string;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/api/v1/audit-events';
+};
+
+export type ListAuditEventsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListAuditEventsError = ListAuditEventsErrors[keyof ListAuditEventsErrors];
+
+export type ListAuditEventsResponses = {
+    200: AuditPage;
+};
+
+export type ListAuditEventsResponse = ListAuditEventsResponses[keyof ListAuditEventsResponses];
+
+export type GetRateLimitStatusData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/system/rate-limits';
+};
+
+export type GetRateLimitStatusErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetRateLimitStatusError = GetRateLimitStatusErrors[keyof GetRateLimitStatusErrors];
+
+export type GetRateLimitStatusResponses = {
+    200: RateLimitMetrics;
+};
+
+export type GetRateLimitStatusResponse = GetRateLimitStatusResponses[keyof GetRateLimitStatusResponses];
+
+export type GetProfileData = {
+    body?: never;
+    headers?: {
+        /**
+         * Bearer API key with profile:read, or use a browser Session
+         */
+        authorization?: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/api/v1/profile';
+};
+
+export type GetProfileErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetProfileError = GetProfileErrors[keyof GetProfileErrors];
+
+export type GetProfileResponses = {
+    200: CurrentUser;
+};
+
+export type GetProfileResponse = GetProfileResponses[keyof GetProfileResponses];
+
+export type RevokeApiKeyData = {
+    body?: never;
+    headers: {
+        'x-csrf-token': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/api-keys/{id}';
+};
+
+export type RevokeApiKeyErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RevokeApiKeyError = RevokeApiKeyErrors[keyof RevokeApiKeyErrors];
+
+export type RevokeApiKeyResponses = {
+    204: void;
+};
+
+export type RevokeApiKeyResponse = RevokeApiKeyResponses[keyof RevokeApiKeyResponses];
 
 export type ListApiKeysData = {
     body?: never;
@@ -1027,1190 +1166,6 @@ export type ListApiKeyScopesResponses = {
 };
 
 export type ListApiKeyScopesResponse = ListApiKeyScopesResponses[keyof ListApiKeyScopesResponses];
-
-export type RevokeApiKeyData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/api-keys/{id}';
-};
-
-export type RevokeApiKeyErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type RevokeApiKeyError = RevokeApiKeyErrors[keyof RevokeApiKeyErrors];
-
-export type RevokeApiKeyResponses = {
-    204: void;
-};
-
-export type RevokeApiKeyResponse = RevokeApiKeyResponses[keyof RevokeApiKeyResponses];
-
-export type ListAuditEventsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        resource_id?: string;
-        action?: string;
-        request_id?: string;
-        resource_type?: string;
-        actor_id?: string;
-        correlation_id?: string;
-        job_id?: string;
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/audit-events';
-};
-
-export type ListAuditEventsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListAuditEventsError = ListAuditEventsErrors[keyof ListAuditEventsErrors];
-
-export type ListAuditEventsResponses = {
-    200: AuditPage;
-};
-
-export type ListAuditEventsResponse = ListAuditEventsResponses[keyof ListAuditEventsResponses];
-
-export type LoginUserData = {
-    body: Login;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/login';
-};
-
-export type LoginUserErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    408: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type LoginUserError = LoginUserErrors[keyof LoginUserErrors];
-
-export type LoginUserResponses = {
-    200: CurrentSession;
-};
-
-export type LoginUserResponse = LoginUserResponses[keyof LoginUserResponses];
-
-export type LogoutUserData = {
-    body?: never;
-    headers: {
-        /**
-         * CSRF token from the current session
-         */
-        'x-csrf-token': string;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/logout';
-};
-
-export type LogoutUserErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type LogoutUserError = LogoutUserErrors[keyof LogoutUserErrors];
-
-export type LogoutUserResponses = {
-    204: void;
-};
-
-export type LogoutUserResponse = LogoutUserResponses[keyof LogoutUserResponses];
-
-export type RequestPasswordResetData = {
-    body: ResetRequest;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/password-reset';
-};
-
-export type RequestPasswordResetErrors = {
-    400: ApiErrorResponse;
-    403: ApiErrorResponse;
-    408: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type RequestPasswordResetError = RequestPasswordResetErrors[keyof RequestPasswordResetErrors];
-
-export type RequestPasswordResetResponses = {
-    202: ResetAccepted;
-};
-
-export type RequestPasswordResetResponse = RequestPasswordResetResponses[keyof RequestPasswordResetResponses];
-
-export type CompletePasswordResetData = {
-    body: CompleteReset;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/password-reset/complete';
-};
-
-export type CompletePasswordResetErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    408: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type CompletePasswordResetError = CompletePasswordResetErrors[keyof CompletePasswordResetErrors];
-
-export type CompletePasswordResetResponses = {
-    204: void;
-};
-
-export type CompletePasswordResetResponse = CompletePasswordResetResponses[keyof CompletePasswordResetResponses];
-
-export type RegisterUserData = {
-    body: Registration;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/register';
-};
-
-export type RegisterUserErrors = {
-    400: ApiErrorResponse;
-    403: ApiErrorResponse;
-    408: ApiErrorResponse;
-    409: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type RegisterUserError = RegisterUserErrors[keyof RegisterUserErrors];
-
-export type RegisterUserResponses = {
-    201: CurrentSession;
-};
-
-export type RegisterUserResponse = RegisterUserResponses[keyof RegisterUserResponses];
-
-export type GetCurrentSessionData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/auth/session';
-};
-
-export type GetCurrentSessionErrors = {
-    401: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetCurrentSessionError = GetCurrentSessionErrors[keyof GetCurrentSessionErrors];
-
-export type GetCurrentSessionResponses = {
-    200: CurrentSession;
-};
-
-export type GetCurrentSessionResponse = GetCurrentSessionResponses[keyof GetCurrentSessionResponses];
-
-export type ListJobsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        status?: StatusFilter;
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/jobs';
-};
-
-export type ListJobsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListJobsError = ListJobsErrors[keyof ListJobsErrors];
-
-export type ListJobsResponses = {
-    200: JobPage;
-};
-
-export type ListJobsResponse = ListJobsResponses[keyof ListJobsResponses];
-
-export type GetJobData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: {
-        before_batch?: number;
-    };
-    url: '/api/v1/jobs/{id}';
-};
-
-export type GetJobErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetJobError = GetJobErrors[keyof GetJobErrors];
-
-export type GetJobResponses = {
-    200: JobDetails;
-};
-
-export type GetJobResponse = GetJobResponses[keyof GetJobResponses];
-
-export type RetryJobData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-        'idempotency-key': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/jobs/{id}/retry';
-};
-
-export type RetryJobErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type RetryJobError = RetryJobErrors[keyof RetryJobErrors];
-
-export type RetryJobResponses = {
-    202: JobInfo;
-};
-
-export type RetryJobResponse = RetryJobResponses[keyof RetryJobResponses];
-
-export type ListKnowledgeBasesData = {
-    body?: never;
-    path?: never;
-    query?: {
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/knowledge/bases';
-};
-
-export type ListKnowledgeBasesErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListKnowledgeBasesError = ListKnowledgeBasesErrors[keyof ListKnowledgeBasesErrors];
-
-export type ListKnowledgeBasesResponses = {
-    200: KnowledgeBasePage;
-};
-
-export type ListKnowledgeBasesResponse = ListKnowledgeBasesResponses[keyof ListKnowledgeBasesResponses];
-
-export type CreateKnowledgeBaseData = {
-    body: CreateKnowledgeBase;
-    headers: {
-        'x-csrf-token': string;
-        'idempotency-key': string;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v1/knowledge/bases';
-};
-
-export type CreateKnowledgeBaseErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    408: ApiErrorResponse;
-    409: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type CreateKnowledgeBaseError = CreateKnowledgeBaseErrors[keyof CreateKnowledgeBaseErrors];
-
-export type CreateKnowledgeBaseResponses = {
-    201: KnowledgeBase;
-};
-
-export type CreateKnowledgeBaseResponse = CreateKnowledgeBaseResponses[keyof CreateKnowledgeBaseResponses];
-
-export type DeleteKnowledgeBaseData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/bases/{id}';
-};
-
-export type DeleteKnowledgeBaseErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type DeleteKnowledgeBaseError = DeleteKnowledgeBaseErrors[keyof DeleteKnowledgeBaseErrors];
-
-export type DeleteKnowledgeBaseResponses = {
-    204: void;
-};
-
-export type DeleteKnowledgeBaseResponse = DeleteKnowledgeBaseResponses[keyof DeleteKnowledgeBaseResponses];
-
-export type GetKnowledgeBaseData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/bases/{id}';
-};
-
-export type GetKnowledgeBaseErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetKnowledgeBaseError = GetKnowledgeBaseErrors[keyof GetKnowledgeBaseErrors];
-
-export type GetKnowledgeBaseResponses = {
-    200: KnowledgeBase;
-};
-
-export type GetKnowledgeBaseResponse = GetKnowledgeBaseResponses[keyof GetKnowledgeBaseResponses];
-
-export type RenameKnowledgeBaseData = {
-    body: RenameKnowledgeBase;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/bases/{id}';
-};
-
-export type RenameKnowledgeBaseErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    408: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type RenameKnowledgeBaseError = RenameKnowledgeBaseErrors[keyof RenameKnowledgeBaseErrors];
-
-export type RenameKnowledgeBaseResponses = {
-    200: KnowledgeBase;
-};
-
-export type RenameKnowledgeBaseResponse = RenameKnowledgeBaseResponses[keyof RenameKnowledgeBaseResponses];
-
-export type ListKnowledgeBaseGrantsData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: {
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/knowledge/bases/{id}/grants';
-};
-
-export type ListKnowledgeBaseGrantsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListKnowledgeBaseGrantsError = ListKnowledgeBaseGrantsErrors[keyof ListKnowledgeBaseGrantsErrors];
-
-export type ListKnowledgeBaseGrantsResponses = {
-    200: GrantPage;
-};
-
-export type ListKnowledgeBaseGrantsResponse = ListKnowledgeBaseGrantsResponses[keyof ListKnowledgeBaseGrantsResponses];
-
-export type RevokeKnowledgeBaseGrantData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-        user_id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/bases/{id}/grants/{user_id}';
-};
-
-export type RevokeKnowledgeBaseGrantErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type RevokeKnowledgeBaseGrantError = RevokeKnowledgeBaseGrantErrors[keyof RevokeKnowledgeBaseGrantErrors];
-
-export type RevokeKnowledgeBaseGrantResponses = {
-    204: void;
-};
-
-export type RevokeKnowledgeBaseGrantResponse = RevokeKnowledgeBaseGrantResponses[keyof RevokeKnowledgeBaseGrantResponses];
-
-export type SetKnowledgeBaseGrantData = {
-    body: SetGrant;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-        user_id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/bases/{id}/grants/{user_id}';
-};
-
-export type SetKnowledgeBaseGrantErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    408: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type SetKnowledgeBaseGrantError = SetKnowledgeBaseGrantErrors[keyof SetKnowledgeBaseGrantErrors];
-
-export type SetKnowledgeBaseGrantResponses = {
-    200: GrantAssignment;
-};
-
-export type SetKnowledgeBaseGrantResponse = SetKnowledgeBaseGrantResponses[keyof SetKnowledgeBaseGrantResponses];
-
-export type ListPersonalDocumentsData = {
-    body?: never;
-    headers?: {
-        /**
-         * Bearer key with knowledge:read or browser Session
-         */
-        authorization?: string | null;
-    };
-    path?: never;
-    query?: {
-        /**
-         * Omit for the personal library; specify an accessible library to browse it.
-         */
-        knowledge_base_id?: string;
-        /**
-         * Literal, case-insensitive title keyword; surrounding whitespace is ignored.
-         */
-        q?: string;
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/knowledge/documents';
-};
-
-export type ListPersonalDocumentsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListPersonalDocumentsError = ListPersonalDocumentsErrors[keyof ListPersonalDocumentsErrors];
-
-export type ListPersonalDocumentsResponses = {
-    200: DocumentPage;
-};
-
-export type ListPersonalDocumentsResponse = ListPersonalDocumentsResponses[keyof ListPersonalDocumentsResponses];
-
-export type CreateDocumentData = {
-    body: CreateDocument;
-    headers: {
-        'x-csrf-token': string;
-        'idempotency-key': string;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v1/knowledge/documents';
-};
-
-export type CreateDocumentErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    408: ApiErrorResponse;
-    409: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type CreateDocumentError = CreateDocumentErrors[keyof CreateDocumentErrors];
-
-export type CreateDocumentResponses = {
-    201: Document;
-};
-
-export type CreateDocumentResponse = CreateDocumentResponses[keyof CreateDocumentResponses];
-
-export type DeleteDocumentData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}';
-};
-
-export type DeleteDocumentErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type DeleteDocumentError = DeleteDocumentErrors[keyof DeleteDocumentErrors];
-
-export type DeleteDocumentResponses = {
-    204: void;
-};
-
-export type DeleteDocumentResponse = DeleteDocumentResponses[keyof DeleteDocumentResponses];
-
-export type GetDocumentData = {
-    body?: never;
-    headers?: {
-        /**
-         * Bearer key with knowledge:read or browser Session
-         */
-        authorization?: string | null;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}';
-};
-
-export type GetDocumentErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetDocumentError = GetDocumentErrors[keyof GetDocumentErrors];
-
-export type GetDocumentResponses = {
-    200: Document;
-};
-
-export type GetDocumentResponse = GetDocumentResponses[keyof GetDocumentResponses];
-
-export type UpdateDocumentData = {
-    body: UpdateDocument;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}';
-};
-
-export type UpdateDocumentErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    408: ApiErrorResponse;
-    409: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type UpdateDocumentError = UpdateDocumentErrors[keyof UpdateDocumentErrors];
-
-export type UpdateDocumentResponses = {
-    200: Document;
-};
-
-export type UpdateDocumentResponse = UpdateDocumentResponses[keyof UpdateDocumentResponses];
-
-export type ListAttachmentsData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: {
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/knowledge/documents/{id}/attachments';
-};
-
-export type ListAttachmentsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListAttachmentsError = ListAttachmentsErrors[keyof ListAttachmentsErrors];
-
-export type ListAttachmentsResponses = {
-    200: AttachmentPage;
-};
-
-export type ListAttachmentsResponse = ListAttachmentsResponses[keyof ListAttachmentsResponses];
-
-export type DeleteAttachmentData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-        file_id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}/attachments/{file_id}';
-};
-
-export type DeleteAttachmentErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type DeleteAttachmentError = DeleteAttachmentErrors[keyof DeleteAttachmentErrors];
-
-export type DeleteAttachmentResponses = {
-    204: void;
-};
-
-export type DeleteAttachmentResponse = DeleteAttachmentResponses[keyof DeleteAttachmentResponses];
-
-export type GetAttachmentDownloadData = {
-    body?: never;
-    path: {
-        id: string;
-        file_id: string;
-    };
-    query?: {
-        inline?: boolean;
-    };
-    url: '/api/v1/knowledge/documents/{id}/attachments/{file_id}/download';
-};
-
-export type GetAttachmentDownloadErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetAttachmentDownloadError = GetAttachmentDownloadErrors[keyof GetAttachmentDownloadErrors];
-
-export type GetAttachmentDownloadResponses = {
-    200: DownloadCapability;
-};
-
-export type GetAttachmentDownloadResponse = GetAttachmentDownloadResponses[keyof GetAttachmentDownloadResponses];
-
-export type ListDocumentExportsData = {
-    body?: never;
-    path: {
-        id: string;
-    };
-    query?: {
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/knowledge/documents/{id}/exports';
-};
-
-export type ListDocumentExportsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListDocumentExportsError = ListDocumentExportsErrors[keyof ListDocumentExportsErrors];
-
-export type ListDocumentExportsResponses = {
-    200: ExportPage;
-};
-
-export type ListDocumentExportsResponse = ListDocumentExportsResponses[keyof ListDocumentExportsResponses];
-
-export type RequestDocumentExportData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-        'idempotency-key': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}/exports';
-};
-
-export type RequestDocumentExportErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    413: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type RequestDocumentExportError = RequestDocumentExportErrors[keyof RequestDocumentExportErrors];
-
-export type RequestDocumentExportResponses = {
-    202: DocumentExport;
-};
-
-export type RequestDocumentExportResponse = RequestDocumentExportResponses[keyof RequestDocumentExportResponses];
-
-export type GetDocumentExportData = {
-    body?: never;
-    path: {
-        id: string;
-        export_id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}/exports/{export_id}';
-};
-
-export type GetDocumentExportErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetDocumentExportError = GetDocumentExportErrors[keyof GetDocumentExportErrors];
-
-export type GetDocumentExportResponses = {
-    200: DocumentExport;
-};
-
-export type GetDocumentExportResponse = GetDocumentExportResponses[keyof GetDocumentExportResponses];
-
-export type DownloadDocumentExportData = {
-    body?: never;
-    path: {
-        id: string;
-        export_id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}/exports/{export_id}/download';
-};
-
-export type DownloadDocumentExportErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    410: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type DownloadDocumentExportError = DownloadDocumentExportErrors[keyof DownloadDocumentExportErrors];
-
-export type DownloadDocumentExportResponses = {
-    200: DownloadCapability;
-};
-
-export type DownloadDocumentExportResponse = DownloadDocumentExportResponses[keyof DownloadDocumentExportResponses];
-
-export type StartAttachmentUploadData = {
-    body: UploadInput;
-    headers: {
-        'x-csrf-token': string;
-        'idempotency-key': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}/uploads';
-};
-
-export type StartAttachmentUploadErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    410: ApiErrorResponse;
-    413: ApiErrorResponse;
-    422: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type StartAttachmentUploadError = StartAttachmentUploadErrors[keyof StartAttachmentUploadErrors];
-
-export type StartAttachmentUploadResponses = {
-    201: UploadCapability;
-};
-
-export type StartAttachmentUploadResponse = StartAttachmentUploadResponses[keyof StartAttachmentUploadResponses];
-
-export type CompleteAttachmentUploadData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-        upload_id: string;
-    };
-    query?: never;
-    url: '/api/v1/knowledge/documents/{id}/uploads/{upload_id}/complete';
-};
-
-export type CompleteAttachmentUploadErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    410: ApiErrorResponse;
-    413: ApiErrorResponse;
-    422: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type CompleteAttachmentUploadError = CompleteAttachmentUploadErrors[keyof CompleteAttachmentUploadErrors];
-
-export type CompleteAttachmentUploadResponses = {
-    200: FileInfo;
-};
-
-export type CompleteAttachmentUploadResponse = CompleteAttachmentUploadResponses[keyof CompleteAttachmentUploadResponses];
-
-export type ListAssetDefinitionsData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/lab/asset-definitions';
-};
-
-export type ListAssetDefinitionsErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListAssetDefinitionsError = ListAssetDefinitionsErrors[keyof ListAssetDefinitionsErrors];
-
-export type ListAssetDefinitionsResponses = {
-    200: DefinitionPage;
-};
-
-export type ListAssetDefinitionsResponse = ListAssetDefinitionsResponses[keyof ListAssetDefinitionsResponses];
-
-export type GetAssetDefinitionData = {
-    body?: never;
-    path: {
-        id: string;
-        version: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/asset-definitions/{id}/{version}';
-};
-
-export type GetAssetDefinitionErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetAssetDefinitionError = GetAssetDefinitionErrors[keyof GetAssetDefinitionErrors];
-
-export type GetAssetDefinitionResponses = {
-    200: AssetDefinition;
-};
-
-export type GetAssetDefinitionResponse = GetAssetDefinitionResponses[keyof GetAssetDefinitionResponses];
-
-export type StartAssetUploadData = {
-    body: CreateAssetUpload;
-    headers: {
-        'x-csrf-token': string;
-        'idempotency-key': string;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v1/lab/asset-uploads';
-};
-
-export type StartAssetUploadErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    410: ApiErrorResponse;
-    413: ApiErrorResponse;
-    422: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type StartAssetUploadError = StartAssetUploadErrors[keyof StartAssetUploadErrors];
-
-export type StartAssetUploadResponses = {
-    201: UploadCapability;
-};
-
-export type StartAssetUploadResponse = StartAssetUploadResponses[keyof StartAssetUploadResponses];
-
-export type CompleteAssetUploadData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/asset-uploads/{id}/complete';
-};
-
-export type CompleteAssetUploadErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    410: ApiErrorResponse;
-    413: ApiErrorResponse;
-    422: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type CompleteAssetUploadError = CompleteAssetUploadErrors[keyof CompleteAssetUploadErrors];
-
-export type CompleteAssetUploadResponses = {
-    200: LabAsset;
-};
-
-export type CompleteAssetUploadResponse = CompleteAssetUploadResponses[keyof CompleteAssetUploadResponses];
 
 export type ListLabAssetsData = {
     body?: never;
@@ -2333,6 +1288,42 @@ export type RenameLabAssetResponses = {
 
 export type RenameLabAssetResponse = RenameLabAssetResponses[keyof RenameLabAssetResponses];
 
+export type CompleteAssetUploadData = {
+    body?: never;
+    headers: {
+        'x-csrf-token': string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-uploads/{id}/complete';
+};
+
+export type CompleteAssetUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    410: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CompleteAssetUploadError = CompleteAssetUploadErrors[keyof CompleteAssetUploadErrors];
+
+export type CompleteAssetUploadResponses = {
+    200: LabAsset;
+};
+
+export type CompleteAssetUploadResponse = CompleteAssetUploadResponses[keyof CompleteAssetUploadResponses];
+
 export type GetLabAssetDownloadData = {
     body?: never;
     path: {
@@ -2361,44 +1352,139 @@ export type GetLabAssetDownloadResponses = {
 
 export type GetLabAssetDownloadResponse = GetLabAssetDownloadResponses[keyof GetLabAssetDownloadResponses];
 
-export type ListLabsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        limit?: number;
-        cursor?: string;
+export type StartAssetUploadData = {
+    body: CreateAssetUpload;
+    headers: {
+        'x-csrf-token': string;
+        'idempotency-key': string;
     };
-    url: '/api/v1/lab/labs';
-};
-
-export type ListLabsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListLabsError = ListLabsErrors[keyof ListLabsErrors];
-
-export type ListLabsResponses = {
-    200: LabPage;
-};
-
-export type ListLabsResponse = ListLabsResponses[keyof ListLabsResponses];
-
-export type CreateLabData = {
-    body: CreateLab;
     path?: never;
     query?: never;
-    url: '/api/v1/lab/labs';
+    url: '/api/v1/lab/asset-uploads';
 };
 
-export type CreateLabErrors = {
+export type StartAssetUploadErrors = {
     400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    410: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StartAssetUploadError = StartAssetUploadErrors[keyof StartAssetUploadErrors];
+
+export type StartAssetUploadResponses = {
+    201: UploadCapability;
+};
+
+export type StartAssetUploadResponse = StartAssetUploadResponses[keyof StartAssetUploadResponses];
+
+export type SaveLabLayoutData = {
+    body: SaveLabLayout;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/layout';
+};
+
+export type SaveLabLayoutErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type SaveLabLayoutError = SaveLabLayoutErrors[keyof SaveLabLayoutErrors];
+
+export type SaveLabLayoutResponses = {
+    200: LabLayout;
+};
+
+export type SaveLabLayoutResponse = SaveLabLayoutResponses[keyof SaveLabLayoutResponses];
+
+export type CreateLabSceneNodeData = {
+    body: CreateSceneNode;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/nodes';
+};
+
+export type CreateLabSceneNodeErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabSceneNodeError = CreateLabSceneNodeErrors[keyof CreateLabSceneNodeErrors];
+
+export type CreateLabSceneNodeResponses = {
+    201: SceneNode;
+};
+
+export type CreateLabSceneNodeResponse = CreateLabSceneNodeResponses[keyof CreateLabSceneNodeResponses];
+
+export type CopyLabEntityData = {
+    body: CopyLabEntity;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies';
+};
+
+export type CopyLabEntityErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CopyLabEntityError = CopyLabEntityErrors[keyof CopyLabEntityErrors];
+
+export type CopyLabEntityResponses = {
+    201: LabEntity;
+};
+
+export type CopyLabEntityResponse = CopyLabEntityResponses[keyof CopyLabEntityResponses];
+
+export type ListAssetDefinitionsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/asset-definitions';
+};
+
+export type ListAssetDefinitionsErrors = {
     401: ApiErrorResponse;
     403: ApiErrorResponse;
     /**
@@ -2408,13 +1494,42 @@ export type CreateLabErrors = {
     503: ApiErrorResponse;
 };
 
-export type CreateLabError = CreateLabErrors[keyof CreateLabErrors];
+export type ListAssetDefinitionsError = ListAssetDefinitionsErrors[keyof ListAssetDefinitionsErrors];
 
-export type CreateLabResponses = {
-    201: PersistentLab;
+export type ListAssetDefinitionsResponses = {
+    200: DefinitionPage;
 };
 
-export type CreateLabResponse = CreateLabResponses[keyof CreateLabResponses];
+export type ListAssetDefinitionsResponse = ListAssetDefinitionsResponses[keyof ListAssetDefinitionsResponses];
+
+export type GetAssetDefinitionData = {
+    body?: never;
+    path: {
+        id: string;
+        version: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-definitions/{id}/{version}';
+};
+
+export type GetAssetDefinitionErrors = {
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetAssetDefinitionError = GetAssetDefinitionErrors[keyof GetAssetDefinitionErrors];
+
+export type GetAssetDefinitionResponses = {
+    200: AssetDefinition;
+};
+
+export type GetAssetDefinitionResponse = GetAssetDefinitionResponses[keyof GetAssetDefinitionResponses];
 
 export type RegisterLabEntityData = {
     body: RegisterEntity;
@@ -2505,30 +1620,20 @@ export type ConfigureLabEntityResponses = {
 
 export type ConfigureLabEntityResponse = ConfigureLabEntityResponses[keyof ConfigureLabEntityResponses];
 
-export type InvokeLabEntityActionData = {
-    body: EntityAction;
-    headers?: {
-        /**
-         * Required for implemented actions: reuse the same key and parameters after an uncertain response. An expired original Command returns 410 without re-execution. Changed parameters still return 409.
-         */
-        'Idempotency-Key'?: string | null;
+export type ListLabsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        limit?: number;
+        cursor?: string;
     };
-    path: {
-        lab_id: string;
-        entity_id: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions';
+    url: '/api/v1/lab/labs';
 };
 
-export type InvokeLabEntityActionErrors = {
+export type ListLabsErrors = {
     400: ApiErrorResponse;
     401: ApiErrorResponse;
     403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    410: ApiErrorResponse;
-    422: ApiErrorResponse;
     /**
      * Request budget exceeded; retry after the specified seconds
      */
@@ -2536,25 +1641,54 @@ export type InvokeLabEntityActionErrors = {
     503: ApiErrorResponse;
 };
 
-export type InvokeLabEntityActionError = InvokeLabEntityActionErrors[keyof InvokeLabEntityActionErrors];
+export type ListLabsError = ListLabsErrors[keyof ListLabsErrors];
 
-export type InvokeLabEntityActionResponses = {
-    202: DeviceCommand;
+export type ListLabsResponses = {
+    200: LabPage;
 };
 
-export type InvokeLabEntityActionResponse = InvokeLabEntityActionResponses[keyof InvokeLabEntityActionResponses];
+export type ListLabsResponse = ListLabsResponses[keyof ListLabsResponses];
 
-export type ChangeLabEntityAppearanceData = {
-    body: ChangeEntityAppearance;
+export type CreateLabData = {
+    body: CreateLab;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/labs';
+};
+
+export type CreateLabErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabError = CreateLabErrors[keyof CreateLabErrors];
+
+export type CreateLabResponses = {
+    201: PersistentLab;
+};
+
+export type CreateLabResponse = CreateLabResponses[keyof CreateLabResponses];
+
+export type GetLabWorldData = {
+    body?: never;
     path: {
         lab_id: string;
-        entity_id: string;
     };
-    query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/appearance';
+    query?: {
+        kind?: string;
+        capability?: string;
+        state?: string;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/world';
 };
 
-export type ChangeLabEntityAppearanceErrors = {
+export type GetLabWorldErrors = {
     400: ApiErrorResponse;
     401: ApiErrorResponse;
     403: ApiErrorResponse;
@@ -2566,13 +1700,13 @@ export type ChangeLabEntityAppearanceErrors = {
     503: ApiErrorResponse;
 };
 
-export type ChangeLabEntityAppearanceError = ChangeLabEntityAppearanceErrors[keyof ChangeLabEntityAppearanceErrors];
+export type GetLabWorldError = GetLabWorldErrors[keyof GetLabWorldErrors];
 
-export type ChangeLabEntityAppearanceResponses = {
-    200: LabEntity;
+export type GetLabWorldResponses = {
+    200: LabWorld;
 };
 
-export type ChangeLabEntityAppearanceResponse = ChangeLabEntityAppearanceResponses[keyof ChangeLabEntityAppearanceResponses];
+export type GetLabWorldResponse = GetLabWorldResponses[keyof GetLabWorldResponses];
 
 export type ArchiveLabEntityData = {
     body?: never;
@@ -2605,68 +1739,6 @@ export type ArchiveLabEntityResponses = {
 
 export type ArchiveLabEntityResponse = ArchiveLabEntityResponses[keyof ArchiveLabEntityResponses];
 
-export type GetLabDeviceCommandData = {
-    body?: never;
-    path: {
-        lab_id: string;
-        entity_id: string;
-        command_id: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/commands/{command_id}';
-};
-
-export type GetLabDeviceCommandErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetLabDeviceCommandError = GetLabDeviceCommandErrors[keyof GetLabDeviceCommandErrors];
-
-export type GetLabDeviceCommandResponses = {
-    200: DeviceCommand;
-};
-
-export type GetLabDeviceCommandResponse = GetLabDeviceCommandResponses[keyof GetLabDeviceCommandResponses];
-
-export type CopyLabEntityData = {
-    body: CopyLabEntity;
-    path: {
-        lab_id: string;
-        entity_id: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies';
-};
-
-export type CopyLabEntityErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type CopyLabEntityError = CopyLabEntityErrors[keyof CopyLabEntityErrors];
-
-export type CopyLabEntityResponses = {
-    201: LabEntity;
-};
-
-export type CopyLabEntityResponse = CopyLabEntityResponses[keyof CopyLabEntityResponses];
-
 export type ChangeLabEntityDefinitionData = {
     body: ChangeEntityDefinition;
     path: {
@@ -2698,23 +1770,17 @@ export type ChangeLabEntityDefinitionResponses = {
 
 export type ChangeLabEntityDefinitionResponse = ChangeLabEntityDefinitionResponses[keyof ChangeLabEntityDefinitionResponses];
 
-export type ListLabDeviceHistoryData = {
-    body?: never;
+export type ChangeLabEntityAppearanceData = {
+    body: ChangeEntityAppearance;
     path: {
         lab_id: string;
         entity_id: string;
     };
-    query: {
-        record_type: HistoryRecordType;
-        from: string;
-        to: string;
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/history';
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/appearance';
 };
 
-export type ListLabDeviceHistoryErrors = {
+export type ChangeLabEntityAppearanceErrors = {
     400: ApiErrorResponse;
     401: ApiErrorResponse;
     403: ApiErrorResponse;
@@ -2726,13 +1792,13 @@ export type ListLabDeviceHistoryErrors = {
     503: ApiErrorResponse;
 };
 
-export type ListLabDeviceHistoryError = ListLabDeviceHistoryErrors[keyof ListLabDeviceHistoryErrors];
+export type ChangeLabEntityAppearanceError = ChangeLabEntityAppearanceErrors[keyof ChangeLabEntityAppearanceErrors];
 
-export type ListLabDeviceHistoryResponses = {
-    200: HistoryPage;
+export type ChangeLabEntityAppearanceResponses = {
+    200: LabEntity;
 };
 
-export type ListLabDeviceHistoryResponse = ListLabDeviceHistoryResponses[keyof ListLabDeviceHistoryResponses];
+export type ChangeLabEntityAppearanceResponse = ChangeLabEntityAppearanceResponses[keyof ChangeLabEntityAppearanceResponses];
 
 export type StartLabDeviceProgramData = {
     body?: never;
@@ -2799,18 +1865,57 @@ export type StopLabDeviceProgramResponses = {
 
 export type StopLabDeviceProgramResponse = StopLabDeviceProgramResponses[keyof StopLabDeviceProgramResponses];
 
-export type GetLabDeviceTaskResultData = {
+export type InvokeLabEntityActionData = {
+    body: EntityAction;
+    headers?: {
+        /**
+         * Required for implemented actions: reuse the same key and parameters after an uncertain response. An expired original Command returns 410 without re-execution. Changed parameters still return 409.
+         */
+        'Idempotency-Key'?: string | null;
+    };
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions';
+};
+
+export type InvokeLabEntityActionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    410: ApiErrorResponse;
+    422: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type InvokeLabEntityActionError = InvokeLabEntityActionErrors[keyof InvokeLabEntityActionErrors];
+
+export type InvokeLabEntityActionResponses = {
+    202: DeviceCommand;
+};
+
+export type InvokeLabEntityActionResponse = InvokeLabEntityActionResponses[keyof InvokeLabEntityActionResponses];
+
+export type GetLabDeviceCommandData = {
     body?: never;
     path: {
         lab_id: string;
         entity_id: string;
-        result_id: string;
+        command_id: string;
     };
     query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/results/{result_id}';
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/commands/{command_id}';
 };
 
-export type GetLabDeviceTaskResultErrors = {
+export type GetLabDeviceCommandErrors = {
     400: ApiErrorResponse;
     401: ApiErrorResponse;
     403: ApiErrorResponse;
@@ -2822,13 +1927,13 @@ export type GetLabDeviceTaskResultErrors = {
     503: ApiErrorResponse;
 };
 
-export type GetLabDeviceTaskResultError = GetLabDeviceTaskResultErrors[keyof GetLabDeviceTaskResultErrors];
+export type GetLabDeviceCommandError = GetLabDeviceCommandErrors[keyof GetLabDeviceCommandErrors];
 
-export type GetLabDeviceTaskResultResponses = {
-    200: DeviceTaskResult;
+export type GetLabDeviceCommandResponses = {
+    200: DeviceCommand;
 };
 
-export type GetLabDeviceTaskResultResponse = GetLabDeviceTaskResultResponses[keyof GetLabDeviceTaskResultResponses];
+export type GetLabDeviceCommandResponse = GetLabDeviceCommandResponses[keyof GetLabDeviceCommandResponses];
 
 export type GetLabDeviceProgramRunData = {
     body?: never;
@@ -2892,22 +1997,47 @@ export type GetLabDeviceTaskResponses = {
 
 export type GetLabDeviceTaskResponse = GetLabDeviceTaskResponses[keyof GetLabDeviceTaskResponses];
 
-export type GetLabEntityTrendData = {
+export type GetLabDeviceTaskResultData = {
     body?: never;
     path: {
         lab_id: string;
         entity_id: string;
+        result_id: string;
     };
-    query: {
-        property: string;
-        from: string;
-        to: string;
-        max_points?: number;
-    };
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/trend';
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/results/{result_id}';
 };
 
-export type GetLabEntityTrendErrors = {
+export type GetLabDeviceTaskResultErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabDeviceTaskResultError = GetLabDeviceTaskResultErrors[keyof GetLabDeviceTaskResultErrors];
+
+export type GetLabDeviceTaskResultResponses = {
+    200: DeviceTaskResult;
+};
+
+export type GetLabDeviceTaskResultResponse = GetLabDeviceTaskResultResponses[keyof GetLabDeviceTaskResultResponses];
+
+export type StreamLabWorldData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/world/subscribe';
+};
+
+export type StreamLabWorldErrors = {
     400: ApiErrorResponse;
     401: ApiErrorResponse;
     403: ApiErrorResponse;
@@ -2920,42 +2050,16 @@ export type GetLabEntityTrendErrors = {
     503: ApiErrorResponse;
 };
 
-export type GetLabEntityTrendError = GetLabEntityTrendErrors[keyof GetLabEntityTrendErrors];
+export type StreamLabWorldError = StreamLabWorldErrors[keyof StreamLabWorldErrors];
 
-export type GetLabEntityTrendResponses = {
-    200: EntityTrend;
-};
-
-export type GetLabEntityTrendResponse = GetLabEntityTrendResponses[keyof GetLabEntityTrendResponses];
-
-export type CleanupLabHistoryData = {
-    body?: never;
-    path: {
-        lab_id: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/history/cleanup';
-};
-
-export type CleanupLabHistoryErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
+export type StreamLabWorldResponses = {
     /**
-     * Request budget exceeded; retry after the specified seconds
+     * SSE snapshot then versioned property updates. 1 MiB/event, 8 queued events; resync discards the queue and closes. Credentials are checked on each 250ms polling cycle and before queued frame delivery; source/check timeouts close the stream.
      */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
+    200: WorldEvent;
 };
 
-export type CleanupLabHistoryError = CleanupLabHistoryErrors[keyof CleanupLabHistoryErrors];
-
-export type CleanupLabHistoryResponses = {
-    200: HistoryCleanup;
-};
-
-export type CleanupLabHistoryResponse = CleanupLabHistoryResponses[keyof CleanupLabHistoryResponses];
+export type StreamLabWorldResponse = StreamLabWorldResponses[keyof StreamLabWorldResponses];
 
 export type GetLabHistoryRetentionData = {
     body?: never;
@@ -2986,46 +2090,16 @@ export type GetLabHistoryRetentionResponses = {
 
 export type GetLabHistoryRetentionResponse = GetLabHistoryRetentionResponses[keyof GetLabHistoryRetentionResponses];
 
-export type SaveLabLayoutData = {
-    body: SaveLabLayout;
+export type CleanupLabHistoryData = {
+    body?: never;
     path: {
         lab_id: string;
     };
     query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/layout';
+    url: '/api/v1/lab/labs/{lab_id}/history/cleanup';
 };
 
-export type SaveLabLayoutErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    409: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type SaveLabLayoutError = SaveLabLayoutErrors[keyof SaveLabLayoutErrors];
-
-export type SaveLabLayoutResponses = {
-    200: LabLayout;
-};
-
-export type SaveLabLayoutResponse = SaveLabLayoutResponses[keyof SaveLabLayoutResponses];
-
-export type CreateLabSceneNodeData = {
-    body: CreateSceneNode;
-    path: {
-        lab_id: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/nodes';
-};
-
-export type CreateLabSceneNodeErrors = {
+export type CleanupLabHistoryErrors = {
     400: ApiErrorResponse;
     401: ApiErrorResponse;
     403: ApiErrorResponse;
@@ -3037,13 +2111,49 @@ export type CreateLabSceneNodeErrors = {
     503: ApiErrorResponse;
 };
 
-export type CreateLabSceneNodeError = CreateLabSceneNodeErrors[keyof CreateLabSceneNodeErrors];
+export type CleanupLabHistoryError = CleanupLabHistoryErrors[keyof CleanupLabHistoryErrors];
 
-export type CreateLabSceneNodeResponses = {
-    201: SceneNode;
+export type CleanupLabHistoryResponses = {
+    200: HistoryCleanup;
 };
 
-export type CreateLabSceneNodeResponse = CreateLabSceneNodeResponses[keyof CreateLabSceneNodeResponses];
+export type CleanupLabHistoryResponse = CleanupLabHistoryResponses[keyof CleanupLabHistoryResponses];
+
+export type ListLabDeviceHistoryData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        entity_id: string;
+    };
+    query: {
+        record_type: HistoryRecordType;
+        from: string;
+        to: string;
+        limit?: number;
+        cursor?: string;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/history';
+};
+
+export type ListLabDeviceHistoryErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabDeviceHistoryError = ListLabDeviceHistoryErrors[keyof ListLabDeviceHistoryErrors];
+
+export type ListLabDeviceHistoryResponses = {
+    200: HistoryPage;
+};
+
+export type ListLabDeviceHistoryResponse = ListLabDeviceHistoryResponses[keyof ListLabDeviceHistoryResponses];
 
 export type ListLabRecordsData = {
     body?: never;
@@ -3082,49 +2192,22 @@ export type ListLabRecordsResponses = {
 
 export type ListLabRecordsResponse = ListLabRecordsResponses[keyof ListLabRecordsResponses];
 
-export type GetLabWorldData = {
+export type GetLabEntityTrendData = {
     body?: never;
     path: {
         lab_id: string;
+        entity_id: string;
     };
-    query?: {
-        kind?: string;
-        capability?: string;
-        state?: string;
+    query: {
+        property: string;
+        from: string;
+        to: string;
+        max_points?: number;
     };
-    url: '/api/v1/lab/labs/{lab_id}/world';
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/trend';
 };
 
-export type GetLabWorldErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetLabWorldError = GetLabWorldErrors[keyof GetLabWorldErrors];
-
-export type GetLabWorldResponses = {
-    200: LabWorld;
-};
-
-export type GetLabWorldResponse = GetLabWorldResponses[keyof GetLabWorldResponses];
-
-export type StreamLabWorldData = {
-    body?: never;
-    path: {
-        lab_id: string;
-    };
-    query?: never;
-    url: '/api/v1/lab/labs/{lab_id}/world/subscribe';
-};
-
-export type StreamLabWorldErrors = {
+export type GetLabEntityTrendErrors = {
     400: ApiErrorResponse;
     401: ApiErrorResponse;
     403: ApiErrorResponse;
@@ -3137,289 +2220,10 @@ export type StreamLabWorldErrors = {
     503: ApiErrorResponse;
 };
 
-export type StreamLabWorldError = StreamLabWorldErrors[keyof StreamLabWorldErrors];
+export type GetLabEntityTrendError = GetLabEntityTrendErrors[keyof GetLabEntityTrendErrors];
 
-export type StreamLabWorldResponses = {
-    /**
-     * SSE snapshot then versioned property updates. 1 MiB/event, 8 queued events; resync discards the queue and closes. Credentials are checked on each 250ms polling cycle and before queued frame delivery; source/check timeouts close the stream.
-     */
-    200: WorldEvent;
+export type GetLabEntityTrendResponses = {
+    200: EntityTrend;
 };
 
-export type StreamLabWorldResponse = StreamLabWorldResponses[keyof StreamLabWorldResponses];
-
-export type ListNotificationsData = {
-    body?: never;
-    path?: never;
-    query?: {
-        limit?: number;
-        cursor?: string;
-        unread_only?: boolean;
-    };
-    url: '/api/v1/notifications';
-};
-
-export type ListNotificationsErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListNotificationsError = ListNotificationsErrors[keyof ListNotificationsErrors];
-
-export type ListNotificationsResponses = {
-    200: NotificationPage;
-};
-
-export type ListNotificationsResponse = ListNotificationsResponses[keyof ListNotificationsResponses];
-
-export type ReadNotificationData = {
-    body?: never;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        id: string;
-    };
-    query?: never;
-    url: '/api/v1/notifications/{id}/read';
-};
-
-export type ReadNotificationErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ReadNotificationError = ReadNotificationErrors[keyof ReadNotificationErrors];
-
-export type ReadNotificationResponses = {
-    200: Notification;
-};
-
-export type ReadNotificationResponse = ReadNotificationResponses[keyof ReadNotificationResponses];
-
-export type ListMembersData = {
-    body?: never;
-    path?: never;
-    query?: {
-        limit?: number;
-        cursor?: string;
-    };
-    url: '/api/v1/organization/members';
-};
-
-export type ListMembersErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type ListMembersError = ListMembersErrors[keyof ListMembersErrors];
-
-export type ListMembersResponses = {
-    200: MemberPage;
-};
-
-export type ListMembersResponse = ListMembersResponses[keyof ListMembersResponses];
-
-export type UpdateMemberData = {
-    body: UpdateMember;
-    headers: {
-        'x-csrf-token': string;
-    };
-    path: {
-        user_id: string;
-    };
-    query?: never;
-    url: '/api/v1/organization/members/{user_id}';
-};
-
-export type UpdateMemberErrors = {
-    400: ApiErrorResponse;
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    404: ApiErrorResponse;
-    408: ApiErrorResponse;
-    409: ApiErrorResponse;
-    413: ApiErrorResponse;
-    422: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type UpdateMemberError = UpdateMemberErrors[keyof UpdateMemberErrors];
-
-export type UpdateMemberResponses = {
-    200: Member;
-};
-
-export type UpdateMemberResponse = UpdateMemberResponses[keyof UpdateMemberResponses];
-
-export type GetProfileData = {
-    body?: never;
-    headers?: {
-        /**
-         * Bearer API key with profile:read, or use a browser Session
-         */
-        authorization?: string | null;
-    };
-    path?: never;
-    query?: never;
-    url: '/api/v1/profile';
-};
-
-export type GetProfileErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetProfileError = GetProfileErrors[keyof GetProfileErrors];
-
-export type GetProfileResponses = {
-    200: CurrentUser;
-};
-
-export type GetProfileResponse = GetProfileResponses[keyof GetProfileResponses];
-
-export type GetCacheStatusData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/system/cache';
-};
-
-export type GetCacheStatusErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetCacheStatusError = GetCacheStatusErrors[keyof GetCacheStatusErrors];
-
-export type GetCacheStatusResponses = {
-    200: CacheMetrics;
-};
-
-export type GetCacheStatusResponse = GetCacheStatusResponses[keyof GetCacheStatusResponses];
-
-export type GetRateLimitStatusData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/system/rate-limits';
-};
-
-export type GetRateLimitStatusErrors = {
-    401: ApiErrorResponse;
-    403: ApiErrorResponse;
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    503: ApiErrorResponse;
-};
-
-export type GetRateLimitStatusError = GetRateLimitStatusErrors[keyof GetRateLimitStatusErrors];
-
-export type GetRateLimitStatusResponses = {
-    200: RateLimitMetrics;
-};
-
-export type GetRateLimitStatusResponse = GetRateLimitStatusResponses[keyof GetRateLimitStatusResponses];
-
-export type GetSystemStatusData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/api/v1/system/status';
-};
-
-export type GetSystemStatusErrors = {
-    /**
-     * Request budget exceeded; retry after the specified seconds
-     */
-    429: ApiErrorResponse;
-    /**
-     * Database or migration metadata is unavailable
-     */
-    503: ApiErrorResponse;
-};
-
-export type GetSystemStatusError = GetSystemStatusErrors[keyof GetSystemStatusErrors];
-
-export type GetSystemStatusResponses = {
-    /**
-     * Status from the live PostgreSQL connection
-     */
-    200: SystemStatus;
-};
-
-export type GetSystemStatusResponse = GetSystemStatusResponses[keyof GetSystemStatusResponses];
-
-export type GetLivenessData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/health/live';
-};
-
-export type GetLivenessResponses = {
-    /**
-     * Process is alive
-     */
-    200: HealthResponse;
-};
-
-export type GetLivenessResponse = GetLivenessResponses[keyof GetLivenessResponses];
-
-export type GetReadinessData = {
-    body?: never;
-    path?: never;
-    query?: never;
-    url: '/health/ready';
-};
-
-export type GetReadinessErrors = {
-    /**
-     * Database is not ready
-     */
-    503: ApiErrorResponse;
-};
-
-export type GetReadinessError = GetReadinessErrors[keyof GetReadinessErrors];
-
-export type GetReadinessResponses = {
-    /**
-     * Database migrations are available
-     */
-    200: HealthResponse;
-};
-
-export type GetReadinessResponse = GetReadinessResponses[keyof GetReadinessResponses];
+export type GetLabEntityTrendResponse = GetLabEntityTrendResponses[keyof GetLabEntityTrendResponses];

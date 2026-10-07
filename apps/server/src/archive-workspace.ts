@@ -48,8 +48,10 @@ async function record(path: string, ledger: Ledger) {
     await file.close();
   }
 }
-async function restoreEmpty(ledger: Ledger) {
-  if (ledger.emptyMode !== undefined && !(await existing(ledger.destination)))
+async function restoreEmpty(ledger: Ledger, assertDestination: () => void) {
+  const current = await existing(ledger.destination);
+  assertDestination();
+  if (ledger.emptyMode !== undefined && !current)
     await mkdir(ledger.destination, { mode: ledger.emptyMode });
 }
 async function createdIdentity(path: string) {
@@ -120,9 +122,11 @@ async function recover(destination: string, assertOwned: () => void) {
         // A refused stage is preserved; its recorded empty target can still
         // be restored while destination exclusion remains valid.
         assertOwned();
-        await restoreEmpty(ledger);
+        await restoreEmpty(ledger, assertOwned);
       }
+      check();
       await rm(marker + '.next', { force: true });
+      check();
       await rm(marker);
     } finally {
       await lease.release();
@@ -210,7 +214,9 @@ export class ArchiveWorkspace {
           check();
           await rm(path!, { recursive: true });
         }
+        check();
         if (marker) await rm(marker + '.next', { force: true });
+        check();
         if (marker) await rm(marker, { force: true });
       } finally {
         try {
@@ -237,8 +243,10 @@ export class ArchiveWorkspace {
     this.assertOwned();
     signal?.throwIfAborted();
     const empty = await emptyDestination(this.ledger.destination);
+    this.assertOwned();
     this.ledger.emptyMode = empty?.mode;
     await record(this.marker + '.next', this.ledger);
+    this.assertOwned();
     await rename(this.marker + '.next', this.marker);
     signal?.throwIfAborted();
     await verifyIdentity(this.ledger);
@@ -263,9 +271,11 @@ export class ArchiveWorkspace {
           }
         } finally {
           this.assertDestination();
-          await restoreEmpty(this.ledger);
+          await restoreEmpty(this.ledger, () => this.assertDestination());
         }
+        this.assertOwned();
         await rm(this.marker + '.next', { force: true });
+        this.assertOwned();
         await rm(this.marker, { force: true });
       } finally {
         try {
