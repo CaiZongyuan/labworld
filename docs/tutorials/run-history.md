@@ -1,14 +1,16 @@
 # 查询运行历史并清理过期记录
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：查询一次离心任务及其温度报告。修改隔离开发部署的保留期。检查清理后的记录。
 
 ## 起始版本
 
-使用[完整旅程](complete-foundation.md)指定的共同版本，其中包含历史迁移 `0026` 和命令 receipt 迁移 `0027`。先完成[离心任务](centrifuge-tasks.md)，取得独立的 Command、Run、Task 和结果身份。
+使用包含本章 Node 实现的当前 checkout、共享 schema 与当前设备运行端。先完成[离心任务](centrifuge-tasks.md)，取得独立的 Command、Run、Task 和结果身份。
 
-在仓库根目录执行命令。用 `just dev` 启动服务。Member 需要有效会话。Agent 需要有效的 `lab:full` 密钥。清理会删除所选 Lab 的持久历史。短保留期只能用于可丢弃的开发数据。
+在仓库根目录执行命令。用 `pnpm dev` 启动服务。Member 需要有效会话。Agent 需要有效的 `lab:full` 密钥。清理会删除所选 Lab 的持久历史。短保留期只能用于可丢弃的开发数据。
 
-源码：[历史 HTTP](../../crates/app/src/modules/lab/history.rs)、[保留策略](../../crates/app/src/modules/lab/history/retention.rs)、[迁移](../../migrations/0026_lab_history.sql)、[历史面板](../../packages/views/src/lab/history-panel.tsx)。
+源码：[历史 HTTP](../../packages/server/src/lab/history/use-cases.ts)、[保留策略](../../packages/server/src/lab/history/use-cases.ts)、[迁移](../../packages/server/migrations/0000_foundation.sql)、[历史面板](../../packages/views/src/lab/history-panel.tsx)。
 
 ## 查询任务与温度
 
@@ -114,9 +116,7 @@
 
 1. 停止开发栈。
 
-   ```bash
-   just dev-stop
-   ```
+在运行 `pnpm dev` 的终端按 Ctrl+C。
 
 2. 设置观测保留期。
 
@@ -133,7 +133,7 @@
 4. 启动开发栈。
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 5. 完成一次短任务。
@@ -180,4 +180,4 @@ API 保留在途任务所需的 Start Command，直到任务结束。已结束 C
 
 ## 下一阶段
 
-继续[对象生命周期](entity-lifecycle.md)，归档已停止设备或独立替换外观。再按[完整旅程](complete-foundation.md)组合操作，并复现参考负载。
+继续[对象生命周期](entity-lifecycle.md)，归档已停止设备或独立替换外观。[旧 Foundation 旅程](complete-foundation.md)保留历史版本与负载参考，不是本章的启动版本。完整 Node 客户端旅程将在后续客户端迁移中验证。

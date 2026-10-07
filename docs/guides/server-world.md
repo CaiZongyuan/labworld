@@ -8,7 +8,7 @@
 
 选择目录中的 Robot，或在画布中点击其外观，Inspector 应显示该对象。刷新后使用 **打开 Lab** 重新读取持久世界。登记弹窗也可选择前章上传的 GLB；两个 Entity 可共用一个表示，同一 Entity 可有多个独立摆放的 Scene Node。
 
-静态 bench、model 与 Robot 没有 Binding、Run 或 Observation。Robot 能力是声明，当前不可执行。模拟照明、传感器和离心机保存原绑定元数据，但 Node 设备运行尚未迁移；World 响应头为 `X-Lab-Runtime: unavailable`。这里的 Placement 和实例配置不能代替设备观测。
+静态 bench、model 与 Robot 没有 Binding、Run 或 Observation。Robot 能力是声明，当前不可执行。模拟照明、传感器和离心机保存原绑定元数据，Node 已运行设备程序；就绪 World 响应头为 `X-Lab-Runtime: ready`，订阅同时报告 runtime_status。继续阅读[Node 设备](server-devices.md)。这里的 Placement 和实例配置不能代替设备观测。
 
 用 Agent 运行同一登记业务：
 
@@ -61,4 +61,4 @@ pnpm exec playwright install chromium
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-该入口使用真实 Node 服务、Vite、现有 Web/SDK 与 WebGL，检查资产深链接、场景可见像素、选择和两个浏览器的冲突草稿。它登记并清理所属进程和临时数据，证据保存在输出给出的目录；不启动旧服务。正式 SDK 来源切换和设备/SSE/历史旅程仍由后续迁移负责。HTTP 类型与错误来自[生成 API](site:reference/api.md)，Lab 归属记录在 [module.json](../../crates/app/src/modules/lab/module.json) 的 `vnext` 项。
+该入口使用真实 Node 服务、Vite、现有 Web/SDK 与 WebGL，检查资产深链接、场景可见像素、选择和两个浏览器的冲突草稿。它登记并清理所属进程和临时数据，证据保存在输出给出的目录；不启动旧服务。正式 SDK 来源与默认应用组合切换仍由后续迁移负责；设备、同步与历史合同已在 Node 实现。HTTP 类型与错误来自[生成 API](site:reference/api.md)，Lab 归属记录在 [module.json](../../crates/app/src/modules/lab/module.json) 的 `vnext` 项。

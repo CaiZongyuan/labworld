@@ -84,8 +84,12 @@ const rows = matrix.rows.map((row) => {
 });
 const result = {
   baseline: matrix.baseline,
-  target: 'rust',
-  next: 'not-implemented',
+  target: manifest.target ?? null,
+  targetSource:
+    manifest.target === undefined
+      ? 'legacy-metadata-incomplete'
+      : 'suite-manifest',
+  descriptor: manifest.descriptor ?? null,
   observedAt: new Date().toISOString(),
   totalUniquePassed: passed.size,
   totalExecutedPassed: batches.reduce((sum, batch) => sum + batch.passed, 0),

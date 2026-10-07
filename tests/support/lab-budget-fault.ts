@@ -11,6 +11,13 @@ import { registerAssetFileOwnership } from '../../packages/server/src/lab/assets
 import { worldRoutes } from '../../packages/server/src/lab/world/routes.ts';
 import { WorldService } from '../../packages/server/src/lab/world/use-cases.ts';
 import { sql } from '../../packages/server/src/platform/db/index.ts';
+import { DeviceRuntime } from '../../packages/server/src/lab/devices/runtime.ts';
+import { DeviceService } from '../../packages/server/src/lab/devices/use-cases.ts';
+import { deviceRoutes } from '../../packages/server/src/lab/devices/routes.ts';
+import { HistoryService } from '../../packages/server/src/lab/history/use-cases.ts';
+import { RecordsService } from '../../packages/server/src/lab/records/use-cases.ts';
+import { recordsRoutes } from '../../packages/server/src/lab/records/routes.ts';
+import { trendRoutes } from '../../packages/server/src/lab/history/trend-routes.ts';
 const config = configuration();
 await run(async (context) => {
   const files = new FileService(
@@ -22,7 +29,7 @@ await run(async (context) => {
   );
   await files.initialize();
   const app = coreApp(context, version, config.auth, undefined, config.rate);
-  app.use('/api/v1/lab/labs/:lab_id/world', async (c, next) => {
+  app.use('/api/v1/lab/labs/*', async (c, next) => {
     await next();
     if (c.req.header('x-owned-extra-sql') !== '1') return;
     await context.db.read(
@@ -36,7 +43,20 @@ await run(async (context) => {
   fileRoutes(app, files);
   registerAssetFileOwnership(files);
   assetRoutes(app, files);
-  worldRoutes(app, new WorldService(context, config.auth));
+  const runtime = new DeviceRuntime(context);
+  await runtime.initialize();
+  worldRoutes(app, new WorldService(context, config.auth), () => runtime.ready);
+  deviceRoutes(app, new DeviceService(context, config.auth, runtime));
+  const history = new HistoryService(context, config.auth, config.retention);
+  recordsRoutes(app, new RecordsService(history));
+  trendRoutes(app, history);
+  runtime.start();
   const scheduler = fileScheduler(context, files, () => {});
-  return { app, stop: () => scheduler.stop() };
+  return {
+    app,
+    stop: async () => {
+      await runtime.stop();
+      await scheduler.stop();
+    },
+  };
 });

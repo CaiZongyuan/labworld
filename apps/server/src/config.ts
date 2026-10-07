@@ -1,3 +1,4 @@
+import { defaultRetention } from '../../../packages/server/src/lab/history/domain.ts';
 import { relative, resolve } from 'node:path';
 import { defaultRateOptions } from '../../../packages/server/src/core/rate-limit/domain.ts';
 import { defaultFilePolicy } from '../../../packages/server/src/core/files/domain.ts';
@@ -93,7 +94,18 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     throw new Error(
       'FILE_PUBLIC_ORIGIN must be an HTTPS origin or loopback HTTP origin',
     );
+  const retention = { ...defaultRetention };
+  for (const [name, key] of [
+    ['LAB_OBSERVATION_RETENTION_SECS', 'observation_seconds'],
+    ['LAB_RECORD_RETENTION_SECS', 'record_seconds'],
+  ] as const) {
+    const value = Number(env[name] ?? retention[key]);
+    if (!Number.isSafeInteger(value) || value < 1 || value > 31536000)
+      throw new Error(name + ' is invalid');
+    retention[key] = value;
+  }
   return {
+    retention,
     hostname,
     port,
     rate,
@@ -184,6 +196,23 @@ export function configurationFields() {
       value.fileOrigin,
       'Byte URL origin; defaults to trusted Web origin. HTTPS or loopback HTTP.',
       '字节 URL 的 origin；默认使用可信 Web origin，HTTPS 或回环 HTTP。',
+    ),
+    ...(
+      [
+        ['LAB_OBSERVATION_RETENTION_SECS', 'observation_seconds'],
+        ['LAB_RECORD_RETENTION_SECS', 'record_seconds'],
+      ] as const
+    ).map(([name, key]) =>
+      field(
+        name,
+        value.retention[key],
+        key === 'observation_seconds'
+          ? 'Raw observation retention seconds (1–31536000). Current properties remain.'
+          : 'Ended record retention seconds (1–31536000). Active Tasks remain.',
+        key === 'observation_seconds'
+          ? '原始观测保留秒数（1–31536000）；保留当前属性。'
+          : '结束记录保留秒数（1–31536000）；保留在途 Task。',
+      ),
     ),
     field(
       'LAB_WORD_DATA_DIR',

@@ -25,7 +25,7 @@ jobs:
         with:
           version: 11.17.0
       - run: pnpm install --frozen-lockfile
-      - name: M1 foundation and retained frontend/tooling/docs gate (no containers)
+      - name: Migrated Node contracts and retained frontend/tooling/docs gate (no containers)
         run: pnpm check:m1
       - name: Synthetic HTTP/SSE spike smoke (formal 30-minute evidence is separate)
         run: pnpm spike:server --duration-seconds 5
@@ -36,7 +36,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: m1-linux-evidence
-          path: .scratch/vnext-m1/
+          path: |
+            .scratch/vnext-m1/
+            .scratch/vnext-m0/
           if-no-files-found: ignore
           retention-days: 7
       - name: Keep verified documentation
@@ -66,7 +68,9 @@ jobs:
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: m1-windows-evidence
-          path: .scratch/vnext-m1/
+          path: |
+            .scratch/vnext-m1/
+            .scratch/vnext-m0/
           if-no-files-found: ignore
           retention-days: 7
   publish-docs:

@@ -8,7 +8,7 @@ Open <http://127.0.0.1:5173/lab>, select **Create Lab**, and enter `Identity lab
 
 Select a Robot in the directory or click its appearance in the canvas. The Inspector should show that object. After a reload, use **Open Lab** to read the persistent world. The registration dialog can use the uploaded GLB. Two Entities may share one representation. One Entity may have several Scene Nodes with independent Placements.
 
-Static bench, model and Robot objects have no Binding, Run or Observation. Robot capabilities are declarations and cannot execute. Simulated lights, sensors and centrifuges retain their binding metadata, but Node device execution remains in migration. World returns `X-Lab-Runtime: unavailable`. Placement and instance configuration cannot stand in for device observations.
+Static bench, model and Robot objects have no Binding, Run or Observation. Robot capabilities are declarations and cannot execute. Simulated lights, sensors and centrifuges retain their binding metadata, Node now runs these device programs. A ready World response has `X-Lab-Runtime: ready`; subscriptions also report runtime_status. Continue with [Node devices](server-devices.en.md). Placement and instance configuration cannot stand in for device observations.
 
 Run the same registration business with an Agent:
 
@@ -61,4 +61,4 @@ pnpm exec playwright install chromium
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-It uses the real Node server, Vite, existing Web/SDK and WebGL. It checks asset deep links, visible scene pixels, selection and conflict drafts in two browsers. It records and cleans owned processes and temporary data; the printed directory retains evidence. It does not start the old service. The official SDK source switch and device/SSE/history journeys remain later migration work. HTTP types and errors come from the [generated API](site:reference/api.md). Lab ownership is recorded in the `vnext` field of [module.json](../../crates/app/src/modules/lab/module.json).
+It uses the real Node server, Vite, existing Web/SDK and WebGL. It checks asset deep links, visible scene pixels, selection and conflict drafts in two browsers. It records and cleans owned processes and temporary data; the printed directory retains evidence. It does not start the old service. The official SDK source and default application composition switch remain later migration work. Node now implements device, synchronization and history contracts. HTTP types and errors come from the [generated API](site:reference/api.md). Lab ownership is recorded in the `vnext` field of [module.json](../../crates/app/src/modules/lab/module.json).

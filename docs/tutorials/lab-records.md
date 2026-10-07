@@ -1,14 +1,16 @@
 # 查询整个 Lab 的运行记录
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：用生成 SDK 读取同一 Lab 的 Command、Task、Event 和设备程序 Run。按设备、类别和时间筛选，并稳定读取下一页。
 
 ## 起始状态
 
-使用包含 [records.rs](../../crates/app/src/modules/lab/records.rs) 的源码版本。先完成[离心任务](centrifuge-tasks.md)或[后端照明控制](backend-lights.md)。Lab 中需要真实的 Run、Command 和事件；离心动作还会建立 Task。
+使用包含 [records.rs](../../packages/server/src/lab/records/use-cases.ts) 的源码版本。先完成[离心任务](centrifuge-tasks.md)或[后端照明控制](backend-lights.md)。Lab 中需要真实的 Run、Command 和事件；离心动作还会建立 Task。
 
-在仓库根目录执行命令。运行 `pnpm install --frozen-lockfile`，然后运行 `just dev`。普通 Member 使用有效会话。Agent 使用有效的 `lab:full` API key。下列查询不写入 World，不清理记录。
+在仓库根目录执行命令。运行 `pnpm install --frozen-lockfile`，然后运行 `pnpm dev`。普通 Member 使用有效会话。Agent 使用有效的 `lab:full` API key。下列查询不写入 World，不清理记录。
 
-源码：[混合记录投影](../../crates/app/src/modules/lab/records/list.sql)、[分类覆盖范围](../../crates/app/src/modules/lab/records/coverage.sql)、[部署保留策略](../../crates/app/src/modules/lab/history/retention.rs)。生成合同来自 Rust OpenAPI。
+源码：[混合记录投影](../../packages/server/src/lab/records/list.sql)、[分类覆盖范围](../../packages/server/src/lab/records/coverage.sql)、[部署保留策略](../../packages/server/src/lab/history/use-cases.ts)。Node Zod/OpenAPI 提供迁移合同，正式 SDK 来源切换由后续迁移负责。
 
 ## 取得前两页
 

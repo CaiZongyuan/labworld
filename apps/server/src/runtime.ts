@@ -19,6 +19,18 @@ import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 import { registerAssetFileOwnership } from '../../../packages/server/src/lab/assets/composition.ts';
 import { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
 import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
+import { DeviceRuntime } from '../../../packages/server/src/lab/devices/runtime.ts';
+import { DeviceService } from '../../../packages/server/src/lab/devices/use-cases.ts';
+import { deviceRoutes } from '../../../packages/server/src/lab/devices/routes.ts';
+import { WorldSubscriptions } from '../../../packages/server/src/lab/world/subscriptions.ts';
+import { subscriptionRoutes } from '../../../packages/server/src/lab/world/subscription-routes.ts';
+import { HistoryService } from '../../../packages/server/src/lab/history/use-cases.ts';
+import { historyRoutes } from '../../../packages/server/src/lab/history/routes.ts';
+import { historyScheduler } from '../../../packages/server/src/lab/history/scheduler.ts';
+import { RecordsService } from '../../../packages/server/src/lab/records/use-cases.ts';
+import { recordsRoutes } from '../../../packages/server/src/lab/records/routes.ts';
+import { trendRoutes } from '../../../packages/server/src/lab/history/trend-routes.ts';
+import { lifecycleRoutes } from '../../../packages/server/src/lab/world/lifecycle-routes.ts';
 export const version = (
   JSON.parse(
     readFileSync(new URL('../package.json', import.meta.url), 'utf8'),
@@ -118,9 +130,35 @@ export async function run(
       fileRoutes(app, files);
       registerAssetFileOwnership(files);
       assetRoutes(app, files);
-      worldRoutes(app, new WorldService(context, config.auth));
+      const devices = new DeviceRuntime(context, log);
+      await devices.initialize();
+      const world = new WorldService(context, config.auth);
+      worldRoutes(app, world, () => devices.ready);
+      lifecycleRoutes(app, world);
+      const subscriptions = new WorldSubscriptions(world, () => devices.ready);
+      subscriptionRoutes(app, subscriptions);
+      deviceRoutes(app, new DeviceService(context, config.auth, devices));
+      devices.start();
+      subscriptions.start();
+      const history = new HistoryService(
+        context,
+        config.auth,
+        config.retention,
+      );
+      historyRoutes(app, history);
+      recordsRoutes(app, new RecordsService(history));
+      trendRoutes(app, history);
+      const maintenance = historyScheduler(history, log);
       const scheduler = fileScheduler(context, files, log);
-      return { app, stop: () => scheduler.stop() };
+      return {
+        app,
+        stop: async () => {
+          await maintenance.stop();
+          await subscriptions.stop();
+          await devices.stop();
+          await scheduler.stop();
+        },
+      };
     };
     preparing = Promise.resolve().then(() =>
       closing

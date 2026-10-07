@@ -1,18 +1,20 @@
 # 控制后端照明程序
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：启动两台独立照明，从普通 Member 与 Agent 发出同一命令，比较命令结果与来源明确的实际观测。
 
 ## 起始版本与本章变更
 
-使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[持久 Lab 与对象](persistent-world.md)，取得 Lab、Entity、独立节点、定义快照和 `lab:full` 凭据。命令在仓库根目录运行。浏览器和脚本会写入开发数据库。
+使用包含本章 Node 实现的当前 checkout。先完成[Node World](../guides/server-world.md)，取得 Lab、Entity、独立节点、定义快照和 `lab:full` 凭据。命令在仓库根目录运行。浏览器和脚本会写入开发数据库。
 
-实现入口是 [设备 HTTP](../../crates/app/src/modules/lab/devices.rs)、[公开设备运行与观测入口](../../crates/app/src/modules/lab/runtime.rs)、[持久迁移](../../migrations/0020_lab_devices.sql)、[来源排序迁移](../../migrations/0021_lab_observation_order.sql)、[Inspector](../../packages/views/src/lab/device-panel.tsx)、[三维外观](../../packages/views/src/lab/world-viewport.tsx)及[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)包含新增表、合同、测试和教程。
+实现入口是 [设备 HTTP](../../packages/server/src/lab/devices/use-cases.ts)、[公开设备运行与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[持久迁移](../../packages/server/migrations/0000_foundation.sql)、[来源排序迁移](../../packages/server/migrations/0000_foundation.sql)、[Inspector](../../packages/views/src/lab/device-panel.tsx)、[三维外观](../../packages/views/src/lab/world-viewport.tsx)及[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)包含新增表、合同、测试和教程。
 
 ## 从浏览器得到第一条观测
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 打开 <http://127.0.0.1:5173/lab>，登录普通 Member，创建 `Lighting lab`。以 `智能照明 · 1.0`、内置外观、模拟对象分别登记 `Light A` 和 `Light B`。
@@ -47,22 +49,22 @@ node examples/lab/control-lights.mjs
 
 `GET .../commands/{command_id}` 查询 `accepted`、`executing`、`succeeded`、`failed` 或 `unknown`、操作者、参数和结果。同一操作者、Entity、键与等价 JSON 参数返回同一命令；不同参数返回 409。记录由用户与 Agent 共用。同一个账号的会话和 Agent 使用相同键空间。
 
-`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时，`observed_at=null`、新鲜度为 `source_time_unknown`。接收时间不会替代来源时间。照明变化时才报告。`current` 表示报告来自仍运行的来源。已实现的连续采样与过期判定见[连续温度](continuous-temperature.md)。页面通过[可靠订阅](reliable-sync.md)接收快照和属性变化。命令读取有 30 秒上限。操作须同时满足持久能力许可与 `X-Lab-Runtime` / `runtime_status` 表达的即时服务就绪条件。
+`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时，`observed_at=null`、新鲜度为 `source_time_unknown`。接收时间不会替代来源时间。照明变化时才报告。`current` 表示报告来自仍运行的来源。已实现的连续采样与过期判定见[连续温度](continuous-temperature.md)。页面通过[可靠订阅](reliable-sync.md)接收快照和属性变化。操作须同时满足持久能力许可与 `X-Lab-Runtime` / `runtime_status` 表达的即时服务就绪条件。
 
 ## 失败与恢复
 
 脚本实际验证 `brightness=101` 返回 `422 lab.invalid_parameters`、停止后新动作返回 `422 lab.program_not_running`；两者不会改变观测。Robot 等未实现动作返回 `422 lab.capability_not_implemented`，Member 与 Agent 的拒绝一致。会话写入需要 CSRF；坏、过期或撤销的 Agent 凭据不能写入。
 
-响应丢失后，页面显示 **提交结果不确定**，保留原参数和键，选择其他对象后再回来仍保留反馈。点击 **重试同一命令** 使用原键；已有命令时可 **刷新命令**。不要生成新键来自动重复未知执行。后台重启把原运行标为 `interrupted`，未结束命令标为 `unknown`，保留最后观测并要求显式启动新 Run；旧 Run 与旧运行端报告均被拒绝。开发时 Rust 热重载也遵循这项重启规则。
+响应丢失后，页面显示 **提交结果不确定**，保留原参数和键，选择其他对象后再回来仍保留反馈。点击 **重试同一命令** 使用原键；已有命令时可 **刷新命令**。不要生成新键来自动重复未知执行。后台重启把原运行标为 `interrupted`，未结束命令标为 `unknown`，保留最后观测并要求显式启动新 Run；旧 Run 与旧运行端报告均被拒绝。修改服务代码后，停止并重新运行 `pnpm dev`，同样采用此恢复规则。
 
-数据库尚未迁移时，readiness 返回 503，API 不自动执行迁移。运行器尚未初始化时，已认证的程序启动和动作返回 `503 lab.runtime_unavailable`，不会接受无执行者的新命令。后台只对尚未建立的运行器重试初始化；成功后处理队列不会反复中断 Run。依赖恢复后可显式重试原键。
+Node 先取得目录租约、迁移数据库并完成恢复，再接收 HTTP。启动失败时不接收新动作。恢复后用原键查询或重试不确定请求。
 
 ## 验证与下一阶段
 
 ```bash
-node scripts/test-backend.mjs --test lab_devices --test lab_world
+pnpm test:contract:server
 pnpm test:frontend apps/web/src/lab-devices.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-devices.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-HTTP 用真实 Router 与隔离 PostgreSQL；公开运行入口覆盖报告顺序和重启；组件仅用 MSW 替代 HTTP；浏览器使用真实应用、独立 Agent 和 WebGL。接下来按[编辑布局与登记位置](edit-layout.md)操作布局和人工关系；[Issue #6](https://github.com/CaiZongyuan/labworld/issues/6) 添加连续传感器与过期判定。本章保持布局版本与运行观测分离。
+HTTP 合同使用真实 Hono Router 与隔离 PGlite 嵌入式数据库，覆盖设备命令和重启。组件仅用 MSW 替代 HTTP。上述 Node 浏览器入口验证 Asset、World、布局与 WebGL；独立 Agent 设备操作由本章脚本验证。完整 Node 客户端旅程将在后续客户端迁移中验证。[旧 Foundation 旅程](complete-foundation.md)保留历史版本与负载参考，不是本章的启动版本。继续[连续温度](continuous-temperature.md)。布局版本与运行观测保持分离。

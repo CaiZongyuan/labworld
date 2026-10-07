@@ -1,14 +1,16 @@
 # 执行离心任务并在重启后恢复
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：完成一次离心并取消另一次。查询各自的身份。在关闭浏览器或重启后端后保留结果。
 
 ## 起始版本
 
-使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[连续温度](continuous-temperature.md)，取得后端 Run 和属性观测。
+使用包含本章 Node 实现的当前 checkout。先完成[连续温度](continuous-temperature.md)，取得后端 Run 和属性观测。[旧 Foundation 旅程](complete-foundation.md)仅作为历史版本与负载参考；完整 Node 客户端旅程将在后续客户端迁移中验证。
 
 在仓库根目录运行命令。这些操作写入持久开发数据。普通成员需要有效会话。Agent 需要有效的 `lab:full` API key。
 
-源码：[任务 HTTP 合同](../../crates/app/src/modules/lab/tasks.rs)、[后端程序](../../crates/app/src/modules/lab/runtime/centrifuge.rs)、[迁移](../../migrations/0025_lab_device_tasks.sql)和[任务面板](../../packages/views/src/lab/centrifuge-panel.tsx)。
+源码：[任务 HTTP 合同](../../packages/server/src/lab/devices/routes.ts)、[后端程序](../../packages/server/src/lab/devices/domain.ts)、[迁移](../../packages/server/migrations/0000_foundation.sql)和[任务面板](../../packages/views/src/lab/centrifuge-panel.tsx)。
 
 ## 完成一次任务
 
@@ -21,7 +23,7 @@
 2. 启动开发环境。
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 3. 打开 <http://127.0.0.1:5173/lab>。
@@ -125,14 +127,12 @@ Start Command 的 succeeded 表示程序开始了任务，不表示任务已完�
 6. 记录该任务的 Entity、Command、Run、Task 和结果身份。
 7. 在任务执行期间停止开发环境。
 
-   ```bash
-   just dev-stop
-   ```
+在运行 `pnpm dev` 的终端按 Ctrl+C。
 
 8. 再次启动开发环境。
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 9. 原页面显示**连接中断**时，选择**重新连接**。

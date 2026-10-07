@@ -1,18 +1,20 @@
 # Synchronize the World and Recover Connections
 
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+
 Goal: observe one backend device from two browsers and an Agent, keep the last observation while disconnected, and verify that revoking a credential ends its existing subscription.
 
 ## Starting Version and Changes
 
-Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [editing layouts and registering locations](edit-layout.en.md) first. You need a persistent world, device programs and layout drafts. Run commands from the repository root. Browser operations write development data.
+Use the current checkout containing this chapter's Node implementation. Complete [Node device programs](../guides/server-devices.en.md) first. You need a persistent world and device programs. Run commands from the repository root. Browser operations write development data.
 
-Implementation: [transactional world versions](../../migrations/0023_lab_world_version.sql), [public SSE API](../../crates/app/src/modules/lab/sync.rs), [SDK subscriptions and version application](../../packages/sdk/src/lab-world.ts), [page subscriptions](../../packages/views/src/lab/world-subscription.ts), and [Lab ownership](../../crates/app/src/modules/lab/module.json). Existing migration checksums remain intact.
+Implementation: [transactional world versions](../../packages/server/migrations/0000_foundation.sql), [public SSE API](../../packages/server/src/lab/world/subscriptions.ts), [SDK subscriptions and version application](../../packages/sdk/src/lab-world.ts), [page subscriptions](../../packages/views/src/lab/world-subscription.ts), and [Lab ownership](../../crates/app/src/modules/lab/module.json). Node uses the shared retained schema.
 
 ## Two Browsers Observe One Device
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 Open <http://127.0.0.1:5173/lab> as an ordinary Member. Reuse the Lab and `Light A` from [backend lighting control](backend-lights.md), start its program, and turn it on. In a second browser, sign in to the same organization and open the same Lab and Entity. Both show **Live**. The Inspector and lampshade use the same device observation. The footer's `W` number is the world version; the title's `v` number remains the independent layout version.
@@ -54,9 +56,9 @@ Event JSON is limited to 1 MiB and the server queues at most eight events. The c
 ## Verification and Next Stage
 
 ```bash
-node scripts/test-backend.mjs --test lab_sync --test lab_assets
+pnpm test:contract:server
 pnpm test:frontend apps/web/src/lab-sync.test.tsx packages/sdk/src/lab-world.test.ts
-node scripts/e2e.mjs tests/e2e/lab-sync.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-Real Router tests with isolated PostgreSQL cover handoff, versions, revocation and bounded queues. Page tests replace only HTTP through MSW. The critical journey uses two real browsers, an Agent, backend programs and WebGL. [The next chapter](continuous-temperature.en.md) uses these property contracts for continuous temperatures and expiry. The [complete journey](complete-foundation.en.md) combines drafts and network recovery.
+HTTP contracts use the real Hono Router and an isolated embedded PGlite database to check versions, revocation and reconnect. Controlled runtime supplements check handoff and bounded Body queues. Page tests replace only HTTP with MSW. The listed Node browser entrypoint checks Asset, World, layout conflicts and WebGL; the complete device journey with two browsers and an Agent will be validated during the later client migration. [The next chapter](continuous-temperature.en.md) reads continuous temperatures and expiry. The [historical Foundation journey](complete-foundation.en.md) preserves its old revision, drafts and network recovery reference; it does not select this chapter's starting revision.

@@ -1,8 +1,28 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { root } from './lib/process.mjs';
+import { parseArgs } from 'node:util';
+const { values } = parseArgs({
+  options: {
+    target: { type: 'string', default: 'rust' },
+    descriptor: { type: 'string' },
+  },
+});
+if (values.target !== 'rust' && !values.descriptor)
+  throw new Error('Candidate suite requires its owned executable descriptor');
+const provenance = {
+  target: values.target,
+  descriptor: values.descriptor
+    ? {
+        path: resolve(root, values.descriptor),
+        sha256: createHash('sha256')
+          .update(readFileSync(resolve(root, values.descriptor)))
+          .digest('hex'),
+      }
+    : null,
+};
 const batches = [
   {
     profile: 'baseline',
@@ -35,6 +55,7 @@ function save() {
     JSON.stringify(
       {
         suiteId,
+        ...provenance,
         state: cancelled ? 'cancelled' : 'running',
         profiles: results,
       },
@@ -56,6 +77,9 @@ try {
     save();
     const args = [
       'scripts/contract.mjs',
+      '--target',
+      values.target,
+      ...(values.descriptor ? ['--descriptor', values.descriptor] : []),
       '--run-id',
       runId,
       '--profile',
@@ -82,8 +106,11 @@ try {
   }
   writeFileSync(
     manifest,
-    JSON.stringify({ suiteId, state: 'passed', profiles: results }, null, 2) +
-      '\n',
+    JSON.stringify(
+      { suiteId, ...provenance, state: 'passed', profiles: results },
+      null,
+      2,
+    ) + '\n',
   );
   const coverage = spawn(
     process.execPath,

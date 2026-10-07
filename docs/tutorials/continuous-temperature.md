@@ -1,14 +1,16 @@
 # 查看连续温度与来源新鲜度
 
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+
 目标：查看两个后端温度来源。停止一个来源，保留最后值并观察过期。恢复来源后，核对新的运行身份与时间。
 
 ## 起始版本
 
-使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[可靠同步与恢复](reliable-sync.md)，取得持久世界和 SSE 订阅。
+使用包含本章 Node 实现的当前 checkout。先完成[可靠同步与恢复](reliable-sync.md)，取得持久世界和 SSE 订阅。
 
 在仓库根目录运行命令。操作会写入开发数据库。普通 Member 需要有效会话。Agent 需要有效的 `lab:full` API 密钥。
 
-实现入口：[后端程序与观测入口](../../crates/app/src/modules/lab/runtime.rs)、[属性观测合同](../../crates/app/src/modules/lab/devices.rs)、[新增迁移](../../migrations/0024_lab_observation_properties.sql)、[观测面板](../../packages/views/src/lab/observation-reading.tsx)。旧迁移保持原校验和。
+实现入口：[后端程序与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[属性观测合同](../../packages/server/src/lab/devices/use-cases.ts)、[新增迁移](../../packages/server/migrations/0000_foundation.sql)、[观测面板](../../packages/views/src/lab/observation-reading.tsx)。Node 使用共享保留 schema。
 
 ## 查看两个来源
 
@@ -21,10 +23,10 @@
 2. 启动开发栈。
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
-   API 启动内置设备程序。Worker 继续处理原有后台任务。
+   Node 服务初始化设备运行端。每个 Entity 的程序仍需要显式启动。文件与历史清理由各自的服务调度器处理。
 
 3. 打开 <http://127.0.0.1:5173/lab>。
 
@@ -121,16 +123,16 @@
 
 API 把过期转换持久化，并推进 `world.version`。相同版本不会因查询时间不同而返回不同新鲜度。SSE 传播这个新版本。布局版本与布局草稿保持独立。
 
-`ObservationSink` 是后端设备程序的可信入口。Member 和 Agent 没有这个 HTTP 写入入口。内置温度程序始终提供来源时间；未知时间的行为由公开入口与页面测试验证。
+`DeviceRuntime.report` 是后端设备程序的可信入口。Member 和 Agent 没有对应的 HTTP 写入入口。内置温度程序始终提供来源时间；未知时间的行为由受控运行入口补充与页面测试验证。
 
 ## 验证拒绝与恢复
 
 示例向 Entity PATCH 请求加入 `observation`，并要求 HTTP 400。API 拒绝直接覆写测量，最后值保持不变。普通 Member 得到相同约束。删除这个字段后，使用程序启动/停止操作继续工作。
 
 ```bash
-node scripts/test-backend.mjs --test lab_sensors --test lab_devices --test lab_sync
+pnpm test:contract:server
 pnpm test:frontend apps/web/src/lab-sensors.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-sensors.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 
-这些检查覆盖真实 Router、隔离数据库、受控时钟、页面操作与真实 WebGL。下一章[离心任务与重启恢复](centrifuge-tasks.md)提供固定任务参数、减速取消和显式重启恢复。
+HTTP 合同验证真实 Hono Router 与隔离 PGlite 嵌入式数据库中的传感器行为，页面测试验证操作与显示。受控运行入口补充验证精确时间规则。上述 Node 浏览器入口验证 Asset、World、布局与 WebGL；完整传感器客户端旅程将在后续客户端迁移中验证。[旧 Foundation 旅程](complete-foundation.md)保留历史版本与负载参考，不是本章的启动版本。下一章[离心任务与重启恢复](centrifuge-tasks.md)提供固定任务参数、减速取消和显式重启恢复。

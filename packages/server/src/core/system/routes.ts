@@ -151,9 +151,18 @@ export function createApp(
       error instanceof PublicFailure ? error.status : 500,
     ),
   );
-  app.doc('/api/openapi.json', {
-    openapi: '3.1.0',
-    info: { title: 'Lab Word Server', version },
+  app.get('/api/openapi.json', (c) => {
+    const document = app.getOpenAPI31Document({
+      openapi: '3.1.0',
+      info: {
+        title: 'Lab Word API',
+        description: '',
+        license: { name: '' },
+        version,
+      },
+    });
+    delete document.webhooks;
+    return c.json(document);
   });
   return app;
 }
