@@ -47,7 +47,7 @@ pnpm install --frozen-lockfile
 
 | 已有能力                  | 入口与接手注意事项                                                                                                                                                                              |
 | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 正式 Lab 页面与会话资产库 | [Lab 组装](../../packages/views/src/lab/app-example.tsx)已注册 `/lab`、`/assets`；[catalog](../../packages/views/src/lab/catalog.ts)仍是按用户划分的浏览器内存，没有资产后端                    |
+| 正式 Lab 页面与会话资产库 | [Lab 组装](../../packages/views/src/lab/app.tsx)已注册 `/lab`、`/assets`；[catalog](../../packages/views/src/lab/catalog.ts)仍是按用户划分的浏览器内存，没有资产后端                            |
 | 正式三维加载              | [model-loader](../../packages/views/src/lab/model-loader.ts)支持 Draco/KTX2/Meshopt、取消与资源释放；多节点扩展需明确共享几何/纹理和实例可变材质的所有权                                        |
 | 文件基础设施              | [FileService](../../crates/app/src/modules/files/mod.rs)与[附件先例](../../crates/app/src/modules/knowledge/attachments.rs)可复用生命周期；Lab 自己拥有资源关联，沿用 Core 接口而非借用文档端点 |
 | 身份                      | [API key 认证](../../crates/app/src/modules/api_keys/authentication.rs)当前只有读取入口；会话写入需 CSRF，Agent 写入须显式接入有效 key 校验，再调用同一 Lab 业务操作                            |

@@ -8,10 +8,10 @@ From the repository root:
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
-Open <http://127.0.0.1:5173/lab>. Sign in or register at `/register`; both login and registration land on Lab. `just dev` starts services and runs migrations against existing development data, not an isolated test environment.
+Open <http://127.0.0.1:5173/lab>. Sign in or register at `/register`; both login and registration land on Lab. `pnpm dev` starts Node and Web, initializes the embedded database and preserves local development data. Browser tests use separate owned directories.
 
 1. The Lab entry creates and opens persistent laboratories with an object directory, scene and Inspector. Follow the [persistent Lab and objects tutorial](../tutorials/persistent-world.md) for registration.
 2. Open the bundled industrial microscope from the asset library to preview it at `/lab/asset`. Orbit, zoom and pan. Fit preserves the viewing direction and reset restores the original direction. Click the model to select it, or empty space to clear selection.
@@ -19,9 +19,9 @@ Open <http://127.0.0.1:5173/lab>. Sign in or register at `/register`; both login
 4. In Asset library, provide name, source, license and version when importing. Publish, search by name or filename, open in Lab, or confirm deletion of an unreferenced asset.
 5. Invalid imports show feedback and preserve the previous usable model; a valid retry recovers.
 
-The catalog and GLB bytes persist on the server. Reloads and other browsers can reopen them. Built-in definitions expose specifications, capabilities and state structures. Backend lighting, temperature sensors and centrifuge tasks are implemented. [Run history](../tutorials/run-history.en.md) provides time filters, pagination, gaps and retention. The [asset tutorial](../tutorials/persistent-assets.en.md) covers imports and recovery. Legacy knowledge routes retain their meaning. The viewport reports live rendering counts and available JS heap. It does not sample GPU time or measure GPU memory bytes.
+The catalog and GLB bytes persist on the server. Reloads and other browsers can reopen them. Built-in definitions expose specifications, capabilities and state structures. Backend lighting, temperature sensors and centrifuge tasks are implemented. [Run history](../tutorials/run-history.en.md) provides time filters, pagination, gaps and retention. The [asset tutorial](../tutorials/persistent-assets.en.md) covers imports and recovery. Retired Knowledge routes show the unavailable page with a way home. The viewport reports live rendering counts and available JS heap. It does not sample GPU time or measure GPU memory bytes.
 
-Start at the [assembly](../../apps/web/src/app-examples.tsx), [Lab contribution](../../packages/views/src/lab/app-example.tsx) and [viewer](../../packages/views/src/lab/lab-view.tsx). The [asset record](../../assets/README.md) retains originals, runtime files and licenses.
+Start at the [assembly](../../apps/web/src/app.ts), [Lab contribution](../../packages/views/src/lab/app.tsx) and [viewer](../../packages/views/src/lab/lab-view.tsx). The [asset record](../../assets/README.md) retains originals, runtime files and licenses.
 
 ```bash
 pnpm exec vitest run apps/web/src/lab.test.tsx
@@ -68,4 +68,4 @@ The preset is Poly Haven's [Industrial Microscope](https://polyhaven.com/a/indus
 
 Prior Chromium/SwiftShader checks cover rendering, imports, selection, camera and recovery. Software-rendering FPS is not GPU acceptance, and preview bundle size is not production budget evidence. The [experience record](../ui/lab-viewer-experience.md)documents scope and evidence.
 
-The historical preview simulates identity and navigation. Its accepted design informed the current application. Production routing, persistent imports, layouts, device tasks, history and [Entity lifecycle](../tutorials/entity-lifecycle.en.md) are implemented. Users can archive stopped devices and replace appearances independently. The [complete journey](../tutorials/complete-foundation.en.md) combines these operations and provides a separate reference-load entry. Physical equipment integration remains future scope. See [product architecture](../architecture/lab-word.en.md).
+The historical preview simulates identity and navigation. Its accepted design informed the current application. Production routing, persistent imports, layouts, device tasks, history and [Entity lifecycle](../tutorials/entity-lifecycle.en.md) are implemented. Users can archive stopped devices and replace appearances independently. The [complete Foundation course](../tutorials/complete-foundation.en.md) preserves the historical implementation journey and its original stack commands. For current Node startup, same-origin browser use and operations, follow [quick start](../getting-started/quickstart.md), [Web hosting](server-web.md) and [operations](server-operations.md). The retained browser journeys continue to verify the same Lab behavior. Physical equipment integration remains future scope. See [product architecture](../architecture/lab-word.en.md).

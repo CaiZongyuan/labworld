@@ -4,25 +4,25 @@ Goal: select public checks that observe your Lab Word change. Run from the repos
 
 ## Choose An Entry
 
-| Change                         | Command                                             | Evidence and prerequisites                                                      |
-| ------------------------------ | --------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Web behavior                   | `pnpm test:frontend`                                | Real component interaction; HTTP uses MSW                                       |
-| TypeScript and boundaries      | `pnpm typecheck`, `pnpm boundaries:check`           | Types, package dependencies, Rust table ownership                               |
-| Backend behavior               | `node scripts/test-backend.mjs --test registration` | Real Router and isolated services; requires Docker                              |
-| Contracts                      | `pnpm generate`, `pnpm contracts:check`             | Rust/OpenAPI, generated types and SDK agree; includes Rust generation           |
-| Documentation                  | `pnpm docs:check`, `pnpm docs:build`                | Sources, locale pairing, generated references and built links; may compile Rust |
-| Documentation browser journeys | `just e2e-docs`                                     | Language, theme, search, agreed viewports, custom base; requires Chromium       |
-| Critical application journeys  | `just e2e`                                          | Real Web/API/Worker/database/storage; requires Docker and Chromium              |
+| Change                         | Command                                   | Evidence and prerequisites                                                    |
+| ------------------------------ | ----------------------------------------- | ----------------------------------------------------------------------------- |
+| Web behavior                   | `pnpm test:frontend`                      | Real component interaction; HTTP uses MSW                                     |
+| TypeScript and boundaries      | `pnpm typecheck`, `pnpm boundaries:check` | Types, package dependencies, Node module boundaries and frozen Rust ownership |
+| Backend behavior               | `pnpm test:server`                        | Real Node HTTP/CLI and isolated embedded data                                 |
+| Contracts                      | `pnpm generate`, `pnpm contracts:check`   | Node OpenAPI, official generated types and SDK agree                          |
+| Documentation                  | `pnpm docs:check`, `pnpm docs:build`      | Sources, locale pairing, Node references and built links                      |
+| Documentation browser journeys | `just e2e-docs`                           | Language, theme, search, agreed viewports, custom base; requires Chromium     |
+| Critical application journeys  | `pnpm test:e2e`                           | Owned Node/Web and real Chromium/WebGL                                        |
 
-Install browser prerequisites with `pnpm exec playwright install chromium`. `just check` runs main formatting, static, behavior, budget and build checks without browser E2E. `just check-full` adds application E2E.
+Install browser prerequisites with `pnpm exec playwright install chromium`. `pnpm check:m1` runs current Node, formatting, static, behavior, budget and build checks without browser E2E. `pnpm test:e2e` adds the owned real-application browser journey.
 
 Command capabilities do not expand task scope. Validate desktop web by default; include mobile adaptation, narrow screens, touch or real devices only within explicitly approved scope. Check discovery and prerequisites before heavy browser runs. Reuse existing critical journeys; use focused cases for affected CSS or layout states.
 
-`docs:check` and `docs:build` invoke `cargo run --quiet --locked -p labos-threejs-api --bin config-reference`. These commands can compile Rust without Docker. Coordinate generation, documentation and full gates by their runtime dependencies. Use the agreed Cargo jobs and run supervisor; command names do not establish that a check is lightweight.
+`docs:check` and `docs:build` read the official Node OpenAPI and current configuration parser. `pnpm test:e2e` uses the owned Linux Node/Web browser supervisor. The current CI uses `pnpm check:m1`; final cleanup will update frozen `just check` aliases. Keep actual browser prerequisites and task scope explicit.
 
 ## Lab Viewer Boundaries
 
-The accepted Viewer experience has rendering and lifecycle evidence in the [separate preview](../guides/lab-viewer.md). Application checks in this documentation baseline do not cover production Lab; product integration needs its own validation.
+The production Viewer and persistent World use the accepted [Lab experience](../guides/lab-viewer.md). Retained browser journeys verify real GLB/HDR/WebGL, selection, drafts, devices and recovery.
 
 Production component checks will observe import controls, selection, loading/error and recovery. Browser checks will observe real GLB/HDR, canvas pixels, camera and resource disposal. DOM success does not prove visible 3D rendering; one memory sample does not establish a leak.
 

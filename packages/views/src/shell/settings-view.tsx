@@ -18,7 +18,7 @@ import {
 } from './preferences';
 import { usePageTitle } from './page-title';
 import { sessionQuery } from '../identity/session';
-import type { AssembledApp } from './app-contract';
+import type { AppDefinition } from './app-contract';
 import { SettingsLayout } from './settings-layout';
 import { ApiKeysView } from '../api-keys/api-keys-view';
 import { StatusView } from '../system/status-view';
@@ -89,7 +89,7 @@ export function SettingsView({
   onSectionChange?: (section: string) => void;
   /** Ports for the embedded showroom; missing scenes or copy hide it. */
   showroom?: {
-    scenes?: AssembledApp['scenes'];
+    scenes?: AppDefinition['scenes'];
     copyText?: (text: string) => Promise<void>;
   };
 }) {

@@ -1,3 +1,4 @@
+import { showObjectDirectory } from './lab-desktop';
 import { test, expect } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import {
@@ -5,6 +6,8 @@ import {
   subscribeLabWorld,
   type LabWorld,
 } from '../../packages/sdk/src/index';
+
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
 test('two browsers and an Agent recover the same world and revoked Agent access ends', async ({
@@ -87,6 +90,7 @@ test('two browsers and an Agent recover the same world and revoked Agent access 
     await observer
       .getByRole('combobox', { name: '打开 Lab' })
       .selectOption(lab);
+    await showObjectDirectory(observer);
     await observer
       .getByRole('button', { name: '选择 Shared light', exact: true })
       .click();
@@ -119,6 +123,20 @@ test('two browsers and an Agent recover the same world and revoked Agent access 
     await second.setOffline(false);
     await expect(other).not.toBeChecked();
     await expect(observer.getByText('实时同步', { exact: true })).toBeVisible();
+    // The active 1 Hz source can advance between separate snapshot calls.
+    // Stop and observe the Run before requiring exact multi-client equality.
+    const entityId = agentWorld!.entities[0].id;
+    await inspector
+      .getByRole('button', { name: '停止程序', exact: true })
+      .click();
+    await expect
+      .poll(async () => {
+        const entity = await (
+          await page.request.get(`${path}/entities/${entityId}`)
+        ).json();
+        return entity.program_run?.status;
+      })
+      .toBe('stopped');
     const authoritative = await (
       await page.request.get(`${path}/world`)
     ).json();
@@ -181,14 +199,15 @@ test('two browsers and an Agent recover the same world and revoked Agent access 
     ).toBe(204);
     await expect.poll(() => accessEnded).toBe(true);
     await agent;
-    await observer.setViewportSize({ width: 320, height: 900 });
+    if (!desktopMigration)
+      await observer.setViewportSize({ width: 320, height: 900 });
     await observer
       .getByRole('button', { name: 'English', exact: true })
       .click();
     await observer.getByRole('button', { name: 'Dark', exact: true }).click();
     await expect(observer.getByText('Live', { exact: true })).toBeVisible();
     await observer.screenshot({
-      path: 'test-results/lab-foundation/t07-sync-mobile-dark-en.png',
+      path: `test-results/lab-foundation/t07-sync-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
       fullPage: true,
     });
     expect(

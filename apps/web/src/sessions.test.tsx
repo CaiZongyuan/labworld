@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { server } from '../../../tests/frontend/server';
 import { createAppRouter } from './router';
-import { assembledApp } from './app-examples';
+import { app } from './app';
 
 const signedIn = {
   user: {
@@ -92,7 +92,7 @@ test('failed login keeps input; successful retry clears prior identity caches an
   // §5), not the Core home; the assertion reads the assembly so every
   // source combination passes.
   await waitFor(() =>
-    expect(router.state.location.pathname).toBe(assembledApp.defaultEntry),
+    expect(router.state.location.pathname).toBe(app.defaultEntry),
   );
   expect(screen.queryByLabelText('密码')).toBeNull();
   expect(queryClient.getQueryData(['private-user-data'])).toBeUndefined();

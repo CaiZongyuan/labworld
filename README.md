@@ -1,57 +1,54 @@
 # Lab Word
 
-Laboratory digital twin, starting with a Three.js viewer for equipment models.
+Laboratory digital twin with a Three.js workbench and server-owned device programs.
 
 English | [简体中文](README.zh-CN.md)
 
-## Current Stage
+The application includes persistent Labs, assets, Entities, Scene Nodes, saved layouts, observations, Commands, Tasks, records and trends. Users and Agents share the retained HTTP/SSE contract. A single Node service owns the embedded database, local file bytes and runtime; the React Web application consumes its generated SDK.
 
-The application includes a preset equipment model, browser-local GLB import, camera controls, click selection and renderer metrics. Lab Viewer and the session-local Asset Library are integrated; follow the [Lab Viewer guide](docs/guides/lab-viewer.en.md) to use them.
+The migration is in progress under [#45](https://github.com/CaiZongyuan/labworld/issues/45). Frozen Rust and container sources remain until final cleanup; ordinary development and official contract generation use Node. See [product architecture](docs/architecture/lab-word.en.md) and [domain vocabulary](CONTEXT.md).
 
-The Rust/Axum API, React Web client, Electron shell, identity, membership, files, background jobs and knowledge base provide the foundation. Persistent worlds and server-owned virtual devices are the next stage: the Foundation v1 experience is accepted, and [spec #1](https://github.com/CaiZongyuan/labworld/issues/1) with implementation issues #2–#11 is published. Foundation business implementation has not started.
+## Run the application
 
-Start Foundation work with the [developer handoff](docs/handoffs/digital-twin-foundation-v1.md). See also [product architecture](docs/architecture/lab-word.en.md) and the [glossary](CONTEXT.md).
-
-## Run The Application
-
-Install Docker/Compose and the pinned versions in [rust-toolchain.toml](rust-toolchain.toml), [.node-version](.node-version), [package.json](package.json) and [.tool-versions](.tool-versions).
+Use Linux or Windows with the pinned [Node](.node-version) and [pnpm](package.json).
 
 ```bash
 git clone https://github.com/CaiZongyuan/labworld.git
 cd labworld
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
-Open <http://127.0.0.1:5173/register>. `just dev` starts PostgreSQL, Redis, RustFS and Mailpit, applies migrations, initializes storage, then starts API, Worker and Web. Verify readiness with `curl -i http://127.0.0.1:3000/health/ready`.
+Open <http://127.0.0.1:5173/register>. The first account becomes Owner; later accounts are Members. Login opens Lab. The Node service listens on `127.0.0.1:3000`; check `curl -i http://127.0.0.1:3000/health/ready`. Ctrl+C drains both development processes and preserves `data/`.
 
-The first registered account becomes Owner; later accounts are Members. After login, Lab is the default business entry. `just dev-stop` stops this worktree's API, Worker and Web processes; Docker data services are managed separately with `just services-down`. The handoff explains how to run the accepted Foundation preview in its own worktree.
+Copy [.env.example](.env.example) to an untracked `.env` to configure Node and Web. The startup output names its owned development ledger; after an abnormal supervisor exit, `pnpm dev:recover <ledger>` stops only recorded consumers and preserves persistent data.
 
-## Documentation
+## Documentation and checks
 
-Run `just docs` and open <http://127.0.0.1:5174/labworld/en/docs/>. The Chinese and English documentation explains the current source, runnable tasks and failure boundaries.
+```bash
+pnpm docs:dev
+pnpm typecheck
+pnpm test
+pnpm contracts:check
+```
 
-- [Quick start](docs/getting-started/quickstart.en.md)
-- [Project structure](docs/architecture/project-structure.en.md) and [module boundaries](docs/architecture/module-boundaries.en.md)
-- [Lab Viewer and Asset Library](docs/guides/lab-viewer.en.md)
-- [Existing platform capabilities](docs/guides/platform.en.md)
-- [Testing](docs/testing/t01-feedback-loop.en.md) and [documentation maintenance](docs/guides/maintain-docs.en.md)
+Open <http://127.0.0.1:5174/labworld/en/docs/> for bilingual guides.
 
-API and configuration references are generated from implementation. Docs publishing is configured for the `labworld` repository; see the [publishing guide](docs/getting-started/publish-docs.en.md). Publication is a separate step from local validation.
+- [Quick start](docs/getting-started/quickstart.en.md) and [Lab](docs/guides/lab-viewer.en.md)
+- [Node service foundation](docs/guides/server-foundation.en.md), [World](docs/guides/server-world.en.md) and [Devices](docs/guides/server-devices.en.md)
+- [Backup, restore and password recovery](docs/guides/server-operations.en.md)
+- [Web and same-origin hosting](docs/guides/server-web.en.md)
+- [Project structure](docs/architecture/project-structure.en.md) and [verification](docs/testing/t01-feedback-loop.en.md)
 
-## Repository Layout
+API and configuration references come from the official Node contract and running configuration parser. See the [publishing guide](docs/getting-started/publish-docs.en.md) for the separate docs publication workflow.
 
 ```text
-apps/          API, Worker, Web, Desktop and documentation
-crates/        Application modules and platform infrastructure
-packages/      Contracts, SDK, client core, UI and shared views
-migrations/    PostgreSQL schema history
+apps/          Node service, Web, shared Desktop source and documentation
+packages/      Server domains/platform, contracts, SDK, client core, UI and views
 scripts/       Development, validation and operations
-docs/          Product documentation, decisions and plans
+docs/          Guides, domain vocabulary, decisions and plans
 ```
 
-Lab Word builds on [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template). Internal package, database and storage identifiers retain `labos-threejs` for compatibility; the product name is **Lab Word** and the repository slug is `labworld`.
-
-## License
+Lab Word builds on [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template). Internal identifiers retain `labos-threejs` for compatibility; the product is **Lab Word** and the repository slug is `labworld`.
 
 [MIT](LICENSE). Original template attribution is retained.

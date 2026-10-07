@@ -7,6 +7,8 @@ import {
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 async function pixels(page: Page, filename: string) {
   const png = await page
@@ -394,10 +396,14 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       path: 'test-results/lab-foundation/t09-archive-desktop-zh.png',
       fullPage: true,
     });
-    await page.setViewportSize({ width: 320, height: 900 });
+    if (!desktopMigration)
+      await page.setViewportSize({ width: 320, height: 900 });
     await page.getByRole('button', { name: 'English', exact: true }).click();
     await page.getByRole('button', { name: 'Dark', exact: true }).click();
-    await pixels(page, 't09-archive-mobile-canvas.png');
+    await pixels(
+      page,
+      `t09-archive-${desktopMigration ? 'desktop' : 'mobile'}-canvas.png`,
+    );
     const mobileInspector = page.getByRole('complementary', {
       name: 'Object info',
     });
@@ -413,7 +419,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       ),
     ).toBe(true);
     await page.screenshot({
-      path: 'test-results/lab-foundation/t09-archive-mobile-dark-en.png',
+      path: `test-results/lab-foundation/t09-archive-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
       fullPage: true,
     });
     const exampleResponse = await agent.post(

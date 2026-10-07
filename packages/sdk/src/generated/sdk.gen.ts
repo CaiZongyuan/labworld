@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ArchiveLabEntityData, ArchiveLabEntityErrors, ArchiveLabEntityResponses, ChangeLabEntityAppearanceData, ChangeLabEntityAppearanceErrors, ChangeLabEntityAppearanceResponses, ChangeLabEntityDefinitionData, ChangeLabEntityDefinitionErrors, ChangeLabEntityDefinitionResponses, CleanupLabHistoryData, CleanupLabHistoryErrors, CleanupLabHistoryResponses, CompleteAssetUploadData, CompleteAssetUploadErrors, CompleteAssetUploadResponses, CompleteAttachmentUploadData, CompleteAttachmentUploadErrors, CompleteAttachmentUploadResponses, CompletePasswordResetData, CompletePasswordResetErrors, CompletePasswordResetResponses, ConfigureLabEntityData, ConfigureLabEntityErrors, ConfigureLabEntityResponses, CopyLabEntityData, CopyLabEntityErrors, CopyLabEntityResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateDocumentData, CreateDocumentErrors, CreateDocumentResponses, CreateKnowledgeBaseData, CreateKnowledgeBaseErrors, CreateKnowledgeBaseResponses, CreateLabData, CreateLabErrors, CreateLabResponses, CreateLabSceneNodeData, CreateLabSceneNodeErrors, CreateLabSceneNodeResponses, DeleteAttachmentData, DeleteAttachmentErrors, DeleteAttachmentResponses, DeleteDocumentData, DeleteDocumentErrors, DeleteDocumentResponses, DeleteKnowledgeBaseData, DeleteKnowledgeBaseErrors, DeleteKnowledgeBaseResponses, DeleteLabAssetData, DeleteLabAssetErrors, DeleteLabAssetResponses, DownloadDocumentExportData, DownloadDocumentExportErrors, DownloadDocumentExportResponses, GetAssetDefinitionData, GetAssetDefinitionErrors, GetAssetDefinitionResponses, GetAttachmentDownloadData, GetAttachmentDownloadErrors, GetAttachmentDownloadResponses, GetCacheStatusData, GetCacheStatusErrors, GetCacheStatusResponses, GetCurrentSessionData, GetCurrentSessionErrors, GetCurrentSessionResponses, GetDocumentData, GetDocumentErrors, GetDocumentExportData, GetDocumentExportErrors, GetDocumentExportResponses, GetDocumentResponses, GetJobData, GetJobErrors, GetJobResponses, GetKnowledgeBaseData, GetKnowledgeBaseErrors, GetKnowledgeBaseResponses, GetLabAssetData, GetLabAssetDownloadData, GetLabAssetDownloadErrors, GetLabAssetDownloadResponses, GetLabAssetErrors, GetLabAssetResponses, GetLabDeviceCommandData, GetLabDeviceCommandErrors, GetLabDeviceCommandResponses, GetLabDeviceProgramRunData, GetLabDeviceProgramRunErrors, GetLabDeviceProgramRunResponses, GetLabDeviceTaskData, GetLabDeviceTaskErrors, GetLabDeviceTaskResponses, GetLabDeviceTaskResultData, GetLabDeviceTaskResultErrors, GetLabDeviceTaskResultResponses, GetLabEntityData, GetLabEntityErrors, GetLabEntityResponses, GetLabEntityTrendData, GetLabEntityTrendErrors, GetLabEntityTrendResponses, GetLabHistoryRetentionData, GetLabHistoryRetentionErrors, GetLabHistoryRetentionResponses, GetLabWorldData, GetLabWorldErrors, GetLabWorldResponses, GetLivenessData, GetLivenessResponses, GetProfileData, GetProfileErrors, GetProfileResponses, GetRateLimitStatusData, GetRateLimitStatusErrors, GetRateLimitStatusResponses, GetReadinessData, GetReadinessErrors, GetReadinessResponses, GetSystemStatusData, GetSystemStatusErrors, GetSystemStatusResponses, InvokeLabEntityActionData, InvokeLabEntityActionErrors, InvokeLabEntityActionResponses, ListApiKeyScopesData, ListApiKeyScopesErrors, ListApiKeyScopesResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAssetDefinitionsData, ListAssetDefinitionsErrors, ListAssetDefinitionsResponses, ListAttachmentsData, ListAttachmentsErrors, ListAttachmentsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListDocumentExportsData, ListDocumentExportsErrors, ListDocumentExportsResponses, ListJobsData, ListJobsErrors, ListJobsResponses, ListKnowledgeBaseGrantsData, ListKnowledgeBaseGrantsErrors, ListKnowledgeBaseGrantsResponses, ListKnowledgeBasesData, ListKnowledgeBasesErrors, ListKnowledgeBasesResponses, ListLabAssetsData, ListLabAssetsErrors, ListLabAssetsResponses, ListLabDeviceHistoryData, ListLabDeviceHistoryErrors, ListLabDeviceHistoryResponses, ListLabRecordsData, ListLabRecordsErrors, ListLabRecordsResponses, ListLabsData, ListLabsErrors, ListLabsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, ListNotificationsData, ListNotificationsErrors, ListNotificationsResponses, ListPersonalDocumentsData, ListPersonalDocumentsErrors, ListPersonalDocumentsResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserErrors, LogoutUserResponses, ReadNotificationData, ReadNotificationErrors, ReadNotificationResponses, RegisterLabEntityData, RegisterLabEntityErrors, RegisterLabEntityResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RenameKnowledgeBaseData, RenameKnowledgeBaseErrors, RenameKnowledgeBaseResponses, RenameLabAssetData, RenameLabAssetErrors, RenameLabAssetResponses, RequestDocumentExportData, RequestDocumentExportErrors, RequestDocumentExportResponses, RequestPasswordResetData, RequestPasswordResetErrors, RequestPasswordResetResponses, RetryJobData, RetryJobErrors, RetryJobResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, RevokeKnowledgeBaseGrantData, RevokeKnowledgeBaseGrantErrors, RevokeKnowledgeBaseGrantResponses, SaveLabLayoutData, SaveLabLayoutErrors, SaveLabLayoutResponses, SetKnowledgeBaseGrantData, SetKnowledgeBaseGrantErrors, SetKnowledgeBaseGrantResponses, StartAssetUploadData, StartAssetUploadErrors, StartAssetUploadResponses, StartAttachmentUploadData, StartAttachmentUploadErrors, StartAttachmentUploadResponses, StartLabDeviceProgramData, StartLabDeviceProgramErrors, StartLabDeviceProgramResponses, StopLabDeviceProgramData, StopLabDeviceProgramErrors, StopLabDeviceProgramResponses, StreamLabWorldData, StreamLabWorldErrors, StreamLabWorldResponse, StreamLabWorldResponses, UpdateDocumentData, UpdateDocumentErrors, UpdateDocumentResponses, UpdateMemberData, UpdateMemberErrors, UpdateMemberResponses } from './types.gen';
+import type { ArchiveLabEntityData, ArchiveLabEntityErrors, ArchiveLabEntityResponses, ChangeLabEntityAppearanceData, ChangeLabEntityAppearanceErrors, ChangeLabEntityAppearanceResponses, ChangeLabEntityDefinitionData, ChangeLabEntityDefinitionErrors, ChangeLabEntityDefinitionResponses, CleanupLabHistoryData, CleanupLabHistoryErrors, CleanupLabHistoryResponses, CompleteAssetUploadData, CompleteAssetUploadErrors, CompleteAssetUploadResponses, ConfigureLabEntityData, ConfigureLabEntityErrors, ConfigureLabEntityResponses, CopyLabEntityData, CopyLabEntityErrors, CopyLabEntityResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateLabData, CreateLabErrors, CreateLabResponses, CreateLabSceneNodeData, CreateLabSceneNodeErrors, CreateLabSceneNodeResponses, DeleteLabAssetData, DeleteLabAssetErrors, DeleteLabAssetResponses, GetAssetDefinitionData, GetAssetDefinitionErrors, GetAssetDefinitionResponses, GetCurrentSessionData, GetCurrentSessionErrors, GetCurrentSessionResponses, GetLabAssetData, GetLabAssetDownloadData, GetLabAssetDownloadErrors, GetLabAssetDownloadResponses, GetLabAssetErrors, GetLabAssetResponses, GetLabDeviceCommandData, GetLabDeviceCommandErrors, GetLabDeviceCommandResponses, GetLabDeviceProgramRunData, GetLabDeviceProgramRunErrors, GetLabDeviceProgramRunResponses, GetLabDeviceTaskData, GetLabDeviceTaskErrors, GetLabDeviceTaskResponses, GetLabDeviceTaskResultData, GetLabDeviceTaskResultErrors, GetLabDeviceTaskResultResponses, GetLabEntityData, GetLabEntityErrors, GetLabEntityResponses, GetLabEntityTrendData, GetLabEntityTrendErrors, GetLabEntityTrendResponses, GetLabHistoryRetentionData, GetLabHistoryRetentionErrors, GetLabHistoryRetentionResponses, GetLabWorldData, GetLabWorldErrors, GetLabWorldResponses, GetLivenessData, GetLivenessResponses, GetProfileData, GetProfileErrors, GetProfileResponses, GetRateLimitStatusData, GetRateLimitStatusErrors, GetRateLimitStatusResponses, GetReadinessData, GetReadinessErrors, GetReadinessResponses, GetSystemStatusData, GetSystemStatusErrors, GetSystemStatusResponses, InvokeLabEntityActionData, InvokeLabEntityActionErrors, InvokeLabEntityActionResponses, ListApiKeyScopesData, ListApiKeyScopesErrors, ListApiKeyScopesResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAssetDefinitionsData, ListAssetDefinitionsErrors, ListAssetDefinitionsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListLabAssetsData, ListLabAssetsErrors, ListLabAssetsResponses, ListLabDeviceHistoryData, ListLabDeviceHistoryErrors, ListLabDeviceHistoryResponses, ListLabRecordsData, ListLabRecordsErrors, ListLabRecordsResponses, ListLabsData, ListLabsErrors, ListLabsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserErrors, LogoutUserResponses, RegisterLabEntityData, RegisterLabEntityErrors, RegisterLabEntityResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RenameLabAssetData, RenameLabAssetErrors, RenameLabAssetResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SaveLabLayoutData, SaveLabLayoutErrors, SaveLabLayoutResponses, StartAssetUploadData, StartAssetUploadErrors, StartAssetUploadResponses, StartLabDeviceProgramData, StartLabDeviceProgramErrors, StartLabDeviceProgramResponses, StopLabDeviceProgramData, StopLabDeviceProgramErrors, StopLabDeviceProgramResponses, StreamLabWorldData, StreamLabWorldErrors, StreamLabWorldResponse, StreamLabWorldResponses, UpdateMemberData, UpdateMemberErrors, UpdateMemberResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -18,45 +18,16 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
 
-export const listApiKeys = <ThrowOnError extends boolean = false>(options?: Options<ListApiKeysData, ThrowOnError>): RequestResult<ListApiKeysResponses, ListApiKeysErrors, ThrowOnError> => (options?.client ?? client).get<ListApiKeysResponses, ListApiKeysErrors, ThrowOnError>({ url: '/api/v1/api-keys', ...options });
+export const getLiveness = <ThrowOnError extends boolean = false>(options?: Options<GetLivenessData, ThrowOnError>): RequestResult<GetLivenessResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetLivenessResponses, unknown, ThrowOnError>({ url: '/health/live', ...options });
 
-export const createApiKey = <ThrowOnError extends boolean = false>(options: Options<CreateApiKeyData, ThrowOnError>): RequestResult<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError> => (options.client ?? client).post<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError>({
-    url: '/api/v1/api-keys',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const getReadiness = <ThrowOnError extends boolean = false>(options?: Options<GetReadinessData, ThrowOnError>): RequestResult<GetReadinessResponses, GetReadinessErrors, ThrowOnError> => (options?.client ?? client).get<GetReadinessResponses, GetReadinessErrors, ThrowOnError>({ url: '/health/ready', ...options });
 
-export const listApiKeyScopes = <ThrowOnError extends boolean = false>(options?: Options<ListApiKeyScopesData, ThrowOnError>): RequestResult<ListApiKeyScopesResponses, ListApiKeyScopesErrors, ThrowOnError> => (options?.client ?? client).get<ListApiKeyScopesResponses, ListApiKeyScopesErrors, ThrowOnError>({ url: '/api/v1/api-keys/scopes', ...options });
-
-export const revokeApiKey = <ThrowOnError extends boolean = false>(options: Options<RevokeApiKeyData, ThrowOnError>): RequestResult<RevokeApiKeyResponses, RevokeApiKeyErrors, ThrowOnError> => (options.client ?? client).delete<RevokeApiKeyResponses, RevokeApiKeyErrors, ThrowOnError>({ url: '/api/v1/api-keys/{id}', ...options });
-
-export const listAuditEvents = <ThrowOnError extends boolean = false>(options?: Options<ListAuditEventsData, ThrowOnError>): RequestResult<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError>({ url: '/api/v1/audit-events', ...options });
-
-export const loginUser = <ThrowOnError extends boolean = false>(options: Options<LoginUserData, ThrowOnError>): RequestResult<LoginUserResponses, LoginUserErrors, ThrowOnError> => (options.client ?? client).post<LoginUserResponses, LoginUserErrors, ThrowOnError>({
-    url: '/api/v1/auth/login',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const getSystemStatus = <ThrowOnError extends boolean = false>(options?: Options<GetSystemStatusData, ThrowOnError>): RequestResult<GetSystemStatusResponses, GetSystemStatusErrors, ThrowOnError> => (options?.client ?? client).get<GetSystemStatusResponses, GetSystemStatusErrors, ThrowOnError>({ url: '/api/v1/system/status', ...options });
 
 export const logoutUser = <ThrowOnError extends boolean = false>(options: Options<LogoutUserData, ThrowOnError>): RequestResult<LogoutUserResponses, LogoutUserErrors, ThrowOnError> => (options.client ?? client).post<LogoutUserResponses, LogoutUserErrors, ThrowOnError>({ url: '/api/v1/auth/logout', ...options });
 
-export const requestPasswordReset = <ThrowOnError extends boolean = false>(options: Options<RequestPasswordResetData, ThrowOnError>): RequestResult<RequestPasswordResetResponses, RequestPasswordResetErrors, ThrowOnError> => (options.client ?? client).post<RequestPasswordResetResponses, RequestPasswordResetErrors, ThrowOnError>({
-    url: '/api/v1/auth/password-reset',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const completePasswordReset = <ThrowOnError extends boolean = false>(options: Options<CompletePasswordResetData, ThrowOnError>): RequestResult<CompletePasswordResetResponses, CompletePasswordResetErrors, ThrowOnError> => (options.client ?? client).post<CompletePasswordResetResponses, CompletePasswordResetErrors, ThrowOnError>({
-    url: '/api/v1/auth/password-reset/complete',
+export const loginUser = <ThrowOnError extends boolean = false>(options: Options<LoginUserData, ThrowOnError>): RequestResult<LoginUserResponses, LoginUserErrors, ThrowOnError> => (options.client ?? client).post<LoginUserResponses, LoginUserErrors, ThrowOnError>({
+    url: '/api/v1/auth/login',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -75,16 +46,8 @@ export const registerUser = <ThrowOnError extends boolean = false>(options: Opti
 
 export const getCurrentSession = <ThrowOnError extends boolean = false>(options?: Options<GetCurrentSessionData, ThrowOnError>): RequestResult<GetCurrentSessionResponses, GetCurrentSessionErrors, ThrowOnError> => (options?.client ?? client).get<GetCurrentSessionResponses, GetCurrentSessionErrors, ThrowOnError>({ url: '/api/v1/auth/session', ...options });
 
-export const listJobs = <ThrowOnError extends boolean = false>(options?: Options<ListJobsData, ThrowOnError>): RequestResult<ListJobsResponses, ListJobsErrors, ThrowOnError> => (options?.client ?? client).get<ListJobsResponses, ListJobsErrors, ThrowOnError>({ url: '/api/v1/jobs', ...options });
-
-export const getJob = <ThrowOnError extends boolean = false>(options: Options<GetJobData, ThrowOnError>): RequestResult<GetJobResponses, GetJobErrors, ThrowOnError> => (options.client ?? client).get<GetJobResponses, GetJobErrors, ThrowOnError>({ url: '/api/v1/jobs/{id}', ...options });
-
-export const retryJob = <ThrowOnError extends boolean = false>(options: Options<RetryJobData, ThrowOnError>): RequestResult<RetryJobResponses, RetryJobErrors, ThrowOnError> => (options.client ?? client).post<RetryJobResponses, RetryJobErrors, ThrowOnError>({ url: '/api/v1/jobs/{id}/retry', ...options });
-
-export const listKnowledgeBases = <ThrowOnError extends boolean = false>(options?: Options<ListKnowledgeBasesData, ThrowOnError>): RequestResult<ListKnowledgeBasesResponses, ListKnowledgeBasesErrors, ThrowOnError> => (options?.client ?? client).get<ListKnowledgeBasesResponses, ListKnowledgeBasesErrors, ThrowOnError>({ url: '/api/v1/knowledge/bases', ...options });
-
-export const createKnowledgeBase = <ThrowOnError extends boolean = false>(options: Options<CreateKnowledgeBaseData, ThrowOnError>): RequestResult<CreateKnowledgeBaseResponses, CreateKnowledgeBaseErrors, ThrowOnError> => (options.client ?? client).post<CreateKnowledgeBaseResponses, CreateKnowledgeBaseErrors, ThrowOnError>({
-    url: '/api/v1/knowledge/bases',
+export const updateMember = <ThrowOnError extends boolean = false>(options: Options<UpdateMemberData, ThrowOnError>): RequestResult<UpdateMemberResponses, UpdateMemberErrors, ThrowOnError> => (options.client ?? client).put<UpdateMemberResponses, UpdateMemberErrors, ThrowOnError>({
+    url: '/api/v1/organization/members/{user_id}',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -92,12 +55,20 @@ export const createKnowledgeBase = <ThrowOnError extends boolean = false>(option
     }
 });
 
-export const deleteKnowledgeBase = <ThrowOnError extends boolean = false>(options: Options<DeleteKnowledgeBaseData, ThrowOnError>): RequestResult<DeleteKnowledgeBaseResponses, DeleteKnowledgeBaseErrors, ThrowOnError> => (options.client ?? client).delete<DeleteKnowledgeBaseResponses, DeleteKnowledgeBaseErrors, ThrowOnError>({ url: '/api/v1/knowledge/bases/{id}', ...options });
+export const listMembers = <ThrowOnError extends boolean = false>(options?: Options<ListMembersData, ThrowOnError>): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> => (options?.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({ url: '/api/v1/organization/members', ...options });
 
-export const getKnowledgeBase = <ThrowOnError extends boolean = false>(options: Options<GetKnowledgeBaseData, ThrowOnError>): RequestResult<GetKnowledgeBaseResponses, GetKnowledgeBaseErrors, ThrowOnError> => (options.client ?? client).get<GetKnowledgeBaseResponses, GetKnowledgeBaseErrors, ThrowOnError>({ url: '/api/v1/knowledge/bases/{id}', ...options });
+export const listAuditEvents = <ThrowOnError extends boolean = false>(options?: Options<ListAuditEventsData, ThrowOnError>): RequestResult<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError> => (options?.client ?? client).get<ListAuditEventsResponses, ListAuditEventsErrors, ThrowOnError>({ url: '/api/v1/audit-events', ...options });
 
-export const renameKnowledgeBase = <ThrowOnError extends boolean = false>(options: Options<RenameKnowledgeBaseData, ThrowOnError>): RequestResult<RenameKnowledgeBaseResponses, RenameKnowledgeBaseErrors, ThrowOnError> => (options.client ?? client).put<RenameKnowledgeBaseResponses, RenameKnowledgeBaseErrors, ThrowOnError>({
-    url: '/api/v1/knowledge/bases/{id}',
+export const getRateLimitStatus = <ThrowOnError extends boolean = false>(options?: Options<GetRateLimitStatusData, ThrowOnError>): RequestResult<GetRateLimitStatusResponses, GetRateLimitStatusErrors, ThrowOnError> => (options?.client ?? client).get<GetRateLimitStatusResponses, GetRateLimitStatusErrors, ThrowOnError>({ url: '/api/v1/system/rate-limits', ...options });
+
+export const getProfile = <ThrowOnError extends boolean = false>(options?: Options<GetProfileData, ThrowOnError>): RequestResult<GetProfileResponses, GetProfileErrors, ThrowOnError> => (options?.client ?? client).get<GetProfileResponses, GetProfileErrors, ThrowOnError>({ url: '/api/v1/profile', ...options });
+
+export const revokeApiKey = <ThrowOnError extends boolean = false>(options: Options<RevokeApiKeyData, ThrowOnError>): RequestResult<RevokeApiKeyResponses, RevokeApiKeyErrors, ThrowOnError> => (options.client ?? client).delete<RevokeApiKeyResponses, RevokeApiKeyErrors, ThrowOnError>({ url: '/api/v1/api-keys/{id}', ...options });
+
+export const listApiKeys = <ThrowOnError extends boolean = false>(options?: Options<ListApiKeysData, ThrowOnError>): RequestResult<ListApiKeysResponses, ListApiKeysErrors, ThrowOnError> => (options?.client ?? client).get<ListApiKeysResponses, ListApiKeysErrors, ThrowOnError>({ url: '/api/v1/api-keys', ...options });
+
+export const createApiKey = <ThrowOnError extends boolean = false>(options: Options<CreateApiKeyData, ThrowOnError>): RequestResult<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError> => (options.client ?? client).post<CreateApiKeyResponses, CreateApiKeyErrors, ThrowOnError>({
+    url: '/api/v1/api-keys',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -105,82 +76,7 @@ export const renameKnowledgeBase = <ThrowOnError extends boolean = false>(option
     }
 });
 
-export const listKnowledgeBaseGrants = <ThrowOnError extends boolean = false>(options: Options<ListKnowledgeBaseGrantsData, ThrowOnError>): RequestResult<ListKnowledgeBaseGrantsResponses, ListKnowledgeBaseGrantsErrors, ThrowOnError> => (options.client ?? client).get<ListKnowledgeBaseGrantsResponses, ListKnowledgeBaseGrantsErrors, ThrowOnError>({ url: '/api/v1/knowledge/bases/{id}/grants', ...options });
-
-export const revokeKnowledgeBaseGrant = <ThrowOnError extends boolean = false>(options: Options<RevokeKnowledgeBaseGrantData, ThrowOnError>): RequestResult<RevokeKnowledgeBaseGrantResponses, RevokeKnowledgeBaseGrantErrors, ThrowOnError> => (options.client ?? client).delete<RevokeKnowledgeBaseGrantResponses, RevokeKnowledgeBaseGrantErrors, ThrowOnError>({ url: '/api/v1/knowledge/bases/{id}/grants/{user_id}', ...options });
-
-export const setKnowledgeBaseGrant = <ThrowOnError extends boolean = false>(options: Options<SetKnowledgeBaseGrantData, ThrowOnError>): RequestResult<SetKnowledgeBaseGrantResponses, SetKnowledgeBaseGrantErrors, ThrowOnError> => (options.client ?? client).put<SetKnowledgeBaseGrantResponses, SetKnowledgeBaseGrantErrors, ThrowOnError>({
-    url: '/api/v1/knowledge/bases/{id}/grants/{user_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const listPersonalDocuments = <ThrowOnError extends boolean = false>(options?: Options<ListPersonalDocumentsData, ThrowOnError>): RequestResult<ListPersonalDocumentsResponses, ListPersonalDocumentsErrors, ThrowOnError> => (options?.client ?? client).get<ListPersonalDocumentsResponses, ListPersonalDocumentsErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents', ...options });
-
-export const createDocument = <ThrowOnError extends boolean = false>(options: Options<CreateDocumentData, ThrowOnError>): RequestResult<CreateDocumentResponses, CreateDocumentErrors, ThrowOnError> => (options.client ?? client).post<CreateDocumentResponses, CreateDocumentErrors, ThrowOnError>({
-    url: '/api/v1/knowledge/documents',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const deleteDocument = <ThrowOnError extends boolean = false>(options: Options<DeleteDocumentData, ThrowOnError>): RequestResult<DeleteDocumentResponses, DeleteDocumentErrors, ThrowOnError> => (options.client ?? client).delete<DeleteDocumentResponses, DeleteDocumentErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}', ...options });
-
-export const getDocument = <ThrowOnError extends boolean = false>(options: Options<GetDocumentData, ThrowOnError>): RequestResult<GetDocumentResponses, GetDocumentErrors, ThrowOnError> => (options.client ?? client).get<GetDocumentResponses, GetDocumentErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}', ...options });
-
-export const updateDocument = <ThrowOnError extends boolean = false>(options: Options<UpdateDocumentData, ThrowOnError>): RequestResult<UpdateDocumentResponses, UpdateDocumentErrors, ThrowOnError> => (options.client ?? client).put<UpdateDocumentResponses, UpdateDocumentErrors, ThrowOnError>({
-    url: '/api/v1/knowledge/documents/{id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const listAttachments = <ThrowOnError extends boolean = false>(options: Options<ListAttachmentsData, ThrowOnError>): RequestResult<ListAttachmentsResponses, ListAttachmentsErrors, ThrowOnError> => (options.client ?? client).get<ListAttachmentsResponses, ListAttachmentsErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/attachments', ...options });
-
-export const deleteAttachment = <ThrowOnError extends boolean = false>(options: Options<DeleteAttachmentData, ThrowOnError>): RequestResult<DeleteAttachmentResponses, DeleteAttachmentErrors, ThrowOnError> => (options.client ?? client).delete<DeleteAttachmentResponses, DeleteAttachmentErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/attachments/{file_id}', ...options });
-
-export const getAttachmentDownload = <ThrowOnError extends boolean = false>(options: Options<GetAttachmentDownloadData, ThrowOnError>): RequestResult<GetAttachmentDownloadResponses, GetAttachmentDownloadErrors, ThrowOnError> => (options.client ?? client).get<GetAttachmentDownloadResponses, GetAttachmentDownloadErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/attachments/{file_id}/download', ...options });
-
-export const listDocumentExports = <ThrowOnError extends boolean = false>(options: Options<ListDocumentExportsData, ThrowOnError>): RequestResult<ListDocumentExportsResponses, ListDocumentExportsErrors, ThrowOnError> => (options.client ?? client).get<ListDocumentExportsResponses, ListDocumentExportsErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/exports', ...options });
-
-export const requestDocumentExport = <ThrowOnError extends boolean = false>(options: Options<RequestDocumentExportData, ThrowOnError>): RequestResult<RequestDocumentExportResponses, RequestDocumentExportErrors, ThrowOnError> => (options.client ?? client).post<RequestDocumentExportResponses, RequestDocumentExportErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/exports', ...options });
-
-export const getDocumentExport = <ThrowOnError extends boolean = false>(options: Options<GetDocumentExportData, ThrowOnError>): RequestResult<GetDocumentExportResponses, GetDocumentExportErrors, ThrowOnError> => (options.client ?? client).get<GetDocumentExportResponses, GetDocumentExportErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/exports/{export_id}', ...options });
-
-export const downloadDocumentExport = <ThrowOnError extends boolean = false>(options: Options<DownloadDocumentExportData, ThrowOnError>): RequestResult<DownloadDocumentExportResponses, DownloadDocumentExportErrors, ThrowOnError> => (options.client ?? client).get<DownloadDocumentExportResponses, DownloadDocumentExportErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/exports/{export_id}/download', ...options });
-
-export const startAttachmentUpload = <ThrowOnError extends boolean = false>(options: Options<StartAttachmentUploadData, ThrowOnError>): RequestResult<StartAttachmentUploadResponses, StartAttachmentUploadErrors, ThrowOnError> => (options.client ?? client).post<StartAttachmentUploadResponses, StartAttachmentUploadErrors, ThrowOnError>({
-    url: '/api/v1/knowledge/documents/{id}/uploads',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const completeAttachmentUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteAttachmentUploadData, ThrowOnError>): RequestResult<CompleteAttachmentUploadResponses, CompleteAttachmentUploadErrors, ThrowOnError> => (options.client ?? client).post<CompleteAttachmentUploadResponses, CompleteAttachmentUploadErrors, ThrowOnError>({ url: '/api/v1/knowledge/documents/{id}/uploads/{upload_id}/complete', ...options });
-
-export const listAssetDefinitions = <ThrowOnError extends boolean = false>(options?: Options<ListAssetDefinitionsData, ThrowOnError>): RequestResult<ListAssetDefinitionsResponses, ListAssetDefinitionsErrors, ThrowOnError> => (options?.client ?? client).get<ListAssetDefinitionsResponses, ListAssetDefinitionsErrors, ThrowOnError>({ url: '/api/v1/lab/asset-definitions', ...options });
-
-export const getAssetDefinition = <ThrowOnError extends boolean = false>(options: Options<GetAssetDefinitionData, ThrowOnError>): RequestResult<GetAssetDefinitionResponses, GetAssetDefinitionErrors, ThrowOnError> => (options.client ?? client).get<GetAssetDefinitionResponses, GetAssetDefinitionErrors, ThrowOnError>({ url: '/api/v1/lab/asset-definitions/{id}/{version}', ...options });
-
-export const startAssetUpload = <ThrowOnError extends boolean = false>(options: Options<StartAssetUploadData, ThrowOnError>): RequestResult<StartAssetUploadResponses, StartAssetUploadErrors, ThrowOnError> => (options.client ?? client).post<StartAssetUploadResponses, StartAssetUploadErrors, ThrowOnError>({
-    url: '/api/v1/lab/asset-uploads',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const completeAssetUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteAssetUploadData, ThrowOnError>): RequestResult<CompleteAssetUploadResponses, CompleteAssetUploadErrors, ThrowOnError> => (options.client ?? client).post<CompleteAssetUploadResponses, CompleteAssetUploadErrors, ThrowOnError>({ url: '/api/v1/lab/asset-uploads/{id}/complete', ...options });
+export const listApiKeyScopes = <ThrowOnError extends boolean = false>(options?: Options<ListApiKeyScopesData, ThrowOnError>): RequestResult<ListApiKeyScopesResponses, ListApiKeyScopesErrors, ThrowOnError> => (options?.client ?? client).get<ListApiKeyScopesResponses, ListApiKeyScopesErrors, ThrowOnError>({ url: '/api/v1/api-keys/scopes', ...options });
 
 export const listLabAssets = <ThrowOnError extends boolean = false>(options?: Options<ListLabAssetsData, ThrowOnError>): RequestResult<ListLabAssetsResponses, ListLabAssetsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabAssetsResponses, ListLabAssetsErrors, ThrowOnError>({ url: '/api/v1/lab/assets', ...options });
 
@@ -197,18 +93,49 @@ export const renameLabAsset = <ThrowOnError extends boolean = false>(options: Op
     }
 });
 
+export const completeAssetUpload = <ThrowOnError extends boolean = false>(options: Options<CompleteAssetUploadData, ThrowOnError>): RequestResult<CompleteAssetUploadResponses, CompleteAssetUploadErrors, ThrowOnError> => (options.client ?? client).post<CompleteAssetUploadResponses, CompleteAssetUploadErrors, ThrowOnError>({ url: '/api/v1/lab/asset-uploads/{id}/complete', ...options });
+
 export const getLabAssetDownload = <ThrowOnError extends boolean = false>(options: Options<GetLabAssetDownloadData, ThrowOnError>): RequestResult<GetLabAssetDownloadResponses, GetLabAssetDownloadErrors, ThrowOnError> => (options.client ?? client).get<GetLabAssetDownloadResponses, GetLabAssetDownloadErrors, ThrowOnError>({ url: '/api/v1/lab/assets/{id}/download', ...options });
 
-export const listLabs = <ThrowOnError extends boolean = false>(options?: Options<ListLabsData, ThrowOnError>): RequestResult<ListLabsResponses, ListLabsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabsResponses, ListLabsErrors, ThrowOnError>({ url: '/api/v1/lab/labs', ...options });
-
-export const createLab = <ThrowOnError extends boolean = false>(options: Options<CreateLabData, ThrowOnError>): RequestResult<CreateLabResponses, CreateLabErrors, ThrowOnError> => (options.client ?? client).post<CreateLabResponses, CreateLabErrors, ThrowOnError>({
-    url: '/api/v1/lab/labs',
+export const startAssetUpload = <ThrowOnError extends boolean = false>(options: Options<StartAssetUploadData, ThrowOnError>): RequestResult<StartAssetUploadResponses, StartAssetUploadErrors, ThrowOnError> => (options.client ?? client).post<StartAssetUploadResponses, StartAssetUploadErrors, ThrowOnError>({
+    url: '/api/v1/lab/asset-uploads',
     ...options,
     headers: {
         'Content-Type': 'application/json',
         ...options.headers
     }
 });
+
+export const saveLabLayout = <ThrowOnError extends boolean = false>(options: Options<SaveLabLayoutData, ThrowOnError>): RequestResult<SaveLabLayoutResponses, SaveLabLayoutErrors, ThrowOnError> => (options.client ?? client).put<SaveLabLayoutResponses, SaveLabLayoutErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/layout',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const createLabSceneNode = <ThrowOnError extends boolean = false>(options: Options<CreateLabSceneNodeData, ThrowOnError>): RequestResult<CreateLabSceneNodeResponses, CreateLabSceneNodeErrors, ThrowOnError> => (options.client ?? client).post<CreateLabSceneNodeResponses, CreateLabSceneNodeErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/nodes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const copyLabEntity = <ThrowOnError extends boolean = false>(options: Options<CopyLabEntityData, ThrowOnError>): RequestResult<CopyLabEntityResponses, CopyLabEntityErrors, ThrowOnError> => (options.client ?? client).post<CopyLabEntityResponses, CopyLabEntityErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const listAssetDefinitions = <ThrowOnError extends boolean = false>(options?: Options<ListAssetDefinitionsData, ThrowOnError>): RequestResult<ListAssetDefinitionsResponses, ListAssetDefinitionsErrors, ThrowOnError> => (options?.client ?? client).get<ListAssetDefinitionsResponses, ListAssetDefinitionsErrors, ThrowOnError>({ url: '/api/v1/lab/asset-definitions', ...options });
+
+export const getAssetDefinition = <ThrowOnError extends boolean = false>(options: Options<GetAssetDefinitionData, ThrowOnError>): RequestResult<GetAssetDefinitionResponses, GetAssetDefinitionErrors, ThrowOnError> => (options.client ?? client).get<GetAssetDefinitionResponses, GetAssetDefinitionErrors, ThrowOnError>({ url: '/api/v1/lab/asset-definitions/{id}/{version}', ...options });
 
 export const registerLabEntity = <ThrowOnError extends boolean = false>(options: Options<RegisterLabEntityData, ThrowOnError>): RequestResult<RegisterLabEntityResponses, RegisterLabEntityErrors, ThrowOnError> => (options.client ?? client).post<RegisterLabEntityResponses, RegisterLabEntityErrors, ThrowOnError>({
     url: '/api/v1/lab/labs/{lab_id}/entities',
@@ -230,8 +157,23 @@ export const configureLabEntity = <ThrowOnError extends boolean = false>(options
     }
 });
 
-export const invokeLabEntityAction = <ThrowOnError extends boolean = false>(options: Options<InvokeLabEntityActionData, ThrowOnError>): RequestResult<InvokeLabEntityActionResponses, InvokeLabEntityActionErrors, ThrowOnError> => (options.client ?? client).post<InvokeLabEntityActionResponses, InvokeLabEntityActionErrors, ThrowOnError>({
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions',
+export const listLabs = <ThrowOnError extends boolean = false>(options?: Options<ListLabsData, ThrowOnError>): RequestResult<ListLabsResponses, ListLabsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabsResponses, ListLabsErrors, ThrowOnError>({ url: '/api/v1/lab/labs', ...options });
+
+export const createLab = <ThrowOnError extends boolean = false>(options: Options<CreateLabData, ThrowOnError>): RequestResult<CreateLabResponses, CreateLabErrors, ThrowOnError> => (options.client ?? client).post<CreateLabResponses, CreateLabErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getLabWorld = <ThrowOnError extends boolean = false>(options: Options<GetLabWorldData, ThrowOnError>): RequestResult<GetLabWorldResponses, GetLabWorldErrors, ThrowOnError> => (options.client ?? client).get<GetLabWorldResponses, GetLabWorldErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/world', ...options });
+
+export const archiveLabEntity = <ThrowOnError extends boolean = false>(options: Options<ArchiveLabEntityData, ThrowOnError>): RequestResult<ArchiveLabEntityResponses, ArchiveLabEntityErrors, ThrowOnError> => (options.client ?? client).post<ArchiveLabEntityResponses, ArchiveLabEntityErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/archive', ...options });
+
+export const changeLabEntityDefinition = <ThrowOnError extends boolean = false>(options: Options<ChangeLabEntityDefinitionData, ThrowOnError>): RequestResult<ChangeLabEntityDefinitionResponses, ChangeLabEntityDefinitionErrors, ThrowOnError> => (options.client ?? client).put<ChangeLabEntityDefinitionResponses, ChangeLabEntityDefinitionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/definition',
     ...options,
     headers: {
         'Content-Type': 'application/json',
@@ -248,93 +190,35 @@ export const changeLabEntityAppearance = <ThrowOnError extends boolean = false>(
     }
 });
 
-export const archiveLabEntity = <ThrowOnError extends boolean = false>(options: Options<ArchiveLabEntityData, ThrowOnError>): RequestResult<ArchiveLabEntityResponses, ArchiveLabEntityErrors, ThrowOnError> => (options.client ?? client).post<ArchiveLabEntityResponses, ArchiveLabEntityErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/archive', ...options });
-
-export const getLabDeviceCommand = <ThrowOnError extends boolean = false>(options: Options<GetLabDeviceCommandData, ThrowOnError>): RequestResult<GetLabDeviceCommandResponses, GetLabDeviceCommandErrors, ThrowOnError> => (options.client ?? client).get<GetLabDeviceCommandResponses, GetLabDeviceCommandErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/commands/{command_id}', ...options });
-
-export const copyLabEntity = <ThrowOnError extends boolean = false>(options: Options<CopyLabEntityData, ThrowOnError>): RequestResult<CopyLabEntityResponses, CopyLabEntityErrors, ThrowOnError> => (options.client ?? client).post<CopyLabEntityResponses, CopyLabEntityErrors, ThrowOnError>({
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/copies',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const changeLabEntityDefinition = <ThrowOnError extends boolean = false>(options: Options<ChangeLabEntityDefinitionData, ThrowOnError>): RequestResult<ChangeLabEntityDefinitionResponses, ChangeLabEntityDefinitionErrors, ThrowOnError> => (options.client ?? client).put<ChangeLabEntityDefinitionResponses, ChangeLabEntityDefinitionErrors, ThrowOnError>({
-    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/definition',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const listLabDeviceHistory = <ThrowOnError extends boolean = false>(options: Options<ListLabDeviceHistoryData, ThrowOnError>): RequestResult<ListLabDeviceHistoryResponses, ListLabDeviceHistoryErrors, ThrowOnError> => (options.client ?? client).get<ListLabDeviceHistoryResponses, ListLabDeviceHistoryErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/history', ...options });
-
 export const startLabDeviceProgram = <ThrowOnError extends boolean = false>(options: Options<StartLabDeviceProgramData, ThrowOnError>): RequestResult<StartLabDeviceProgramResponses, StartLabDeviceProgramErrors, ThrowOnError> => (options.client ?? client).post<StartLabDeviceProgramResponses, StartLabDeviceProgramErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/start', ...options });
 
 export const stopLabDeviceProgram = <ThrowOnError extends boolean = false>(options: Options<StopLabDeviceProgramData, ThrowOnError>): RequestResult<StopLabDeviceProgramResponses, StopLabDeviceProgramErrors, ThrowOnError> => (options.client ?? client).post<StopLabDeviceProgramResponses, StopLabDeviceProgramErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/program/stop', ...options });
 
-export const getLabDeviceTaskResult = <ThrowOnError extends boolean = false>(options: Options<GetLabDeviceTaskResultData, ThrowOnError>): RequestResult<GetLabDeviceTaskResultResponses, GetLabDeviceTaskResultErrors, ThrowOnError> => (options.client ?? client).get<GetLabDeviceTaskResultResponses, GetLabDeviceTaskResultErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/results/{result_id}', ...options });
+export const invokeLabEntityAction = <ThrowOnError extends boolean = false>(options: Options<InvokeLabEntityActionData, ThrowOnError>): RequestResult<InvokeLabEntityActionResponses, InvokeLabEntityActionErrors, ThrowOnError> => (options.client ?? client).post<InvokeLabEntityActionResponses, InvokeLabEntityActionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/actions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const getLabDeviceCommand = <ThrowOnError extends boolean = false>(options: Options<GetLabDeviceCommandData, ThrowOnError>): RequestResult<GetLabDeviceCommandResponses, GetLabDeviceCommandErrors, ThrowOnError> => (options.client ?? client).get<GetLabDeviceCommandResponses, GetLabDeviceCommandErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/commands/{command_id}', ...options });
 
 export const getLabDeviceProgramRun = <ThrowOnError extends boolean = false>(options: Options<GetLabDeviceProgramRunData, ThrowOnError>): RequestResult<GetLabDeviceProgramRunResponses, GetLabDeviceProgramRunErrors, ThrowOnError> => (options.client ?? client).get<GetLabDeviceProgramRunResponses, GetLabDeviceProgramRunErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/runs/{run_id}', ...options });
 
 export const getLabDeviceTask = <ThrowOnError extends boolean = false>(options: Options<GetLabDeviceTaskData, ThrowOnError>): RequestResult<GetLabDeviceTaskResponses, GetLabDeviceTaskErrors, ThrowOnError> => (options.client ?? client).get<GetLabDeviceTaskResponses, GetLabDeviceTaskErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/tasks/{task_id}', ...options });
 
-export const getLabEntityTrend = <ThrowOnError extends boolean = false>(options: Options<GetLabEntityTrendData, ThrowOnError>): RequestResult<GetLabEntityTrendResponses, GetLabEntityTrendErrors, ThrowOnError> => (options.client ?? client).get<GetLabEntityTrendResponses, GetLabEntityTrendErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/trend', ...options });
-
-export const cleanupLabHistory = <ThrowOnError extends boolean = false>(options: Options<CleanupLabHistoryData, ThrowOnError>): RequestResult<CleanupLabHistoryResponses, CleanupLabHistoryErrors, ThrowOnError> => (options.client ?? client).post<CleanupLabHistoryResponses, CleanupLabHistoryErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/history/cleanup', ...options });
-
-export const getLabHistoryRetention = <ThrowOnError extends boolean = false>(options: Options<GetLabHistoryRetentionData, ThrowOnError>): RequestResult<GetLabHistoryRetentionResponses, GetLabHistoryRetentionErrors, ThrowOnError> => (options.client ?? client).get<GetLabHistoryRetentionResponses, GetLabHistoryRetentionErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/history/retention', ...options });
-
-export const saveLabLayout = <ThrowOnError extends boolean = false>(options: Options<SaveLabLayoutData, ThrowOnError>): RequestResult<SaveLabLayoutResponses, SaveLabLayoutErrors, ThrowOnError> => (options.client ?? client).put<SaveLabLayoutResponses, SaveLabLayoutErrors, ThrowOnError>({
-    url: '/api/v1/lab/labs/{lab_id}/layout',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const createLabSceneNode = <ThrowOnError extends boolean = false>(options: Options<CreateLabSceneNodeData, ThrowOnError>): RequestResult<CreateLabSceneNodeResponses, CreateLabSceneNodeErrors, ThrowOnError> => (options.client ?? client).post<CreateLabSceneNodeResponses, CreateLabSceneNodeErrors, ThrowOnError>({
-    url: '/api/v1/lab/labs/{lab_id}/nodes',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
-
-export const listLabRecords = <ThrowOnError extends boolean = false>(options: Options<ListLabRecordsData, ThrowOnError>): RequestResult<ListLabRecordsResponses, ListLabRecordsErrors, ThrowOnError> => (options.client ?? client).get<ListLabRecordsResponses, ListLabRecordsErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/records', ...options });
-
-export const getLabWorld = <ThrowOnError extends boolean = false>(options: Options<GetLabWorldData, ThrowOnError>): RequestResult<GetLabWorldResponses, GetLabWorldErrors, ThrowOnError> => (options.client ?? client).get<GetLabWorldResponses, GetLabWorldErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/world', ...options });
+export const getLabDeviceTaskResult = <ThrowOnError extends boolean = false>(options: Options<GetLabDeviceTaskResultData, ThrowOnError>): RequestResult<GetLabDeviceTaskResultResponses, GetLabDeviceTaskResultErrors, ThrowOnError> => (options.client ?? client).get<GetLabDeviceTaskResultResponses, GetLabDeviceTaskResultErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/results/{result_id}', ...options });
 
 export const streamLabWorld = <ThrowOnError extends boolean = false>(options: Options<StreamLabWorldData, ThrowOnError, StreamLabWorldResponse>): Promise<ServerSentEventsResult<StreamLabWorldResponses>> => (options.client ?? client).sse.get<StreamLabWorldResponses, StreamLabWorldErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/world/subscribe', ...options });
 
-export const listNotifications = <ThrowOnError extends boolean = false>(options?: Options<ListNotificationsData, ThrowOnError>): RequestResult<ListNotificationsResponses, ListNotificationsErrors, ThrowOnError> => (options?.client ?? client).get<ListNotificationsResponses, ListNotificationsErrors, ThrowOnError>({ url: '/api/v1/notifications', ...options });
+export const getLabHistoryRetention = <ThrowOnError extends boolean = false>(options: Options<GetLabHistoryRetentionData, ThrowOnError>): RequestResult<GetLabHistoryRetentionResponses, GetLabHistoryRetentionErrors, ThrowOnError> => (options.client ?? client).get<GetLabHistoryRetentionResponses, GetLabHistoryRetentionErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/history/retention', ...options });
 
-export const readNotification = <ThrowOnError extends boolean = false>(options: Options<ReadNotificationData, ThrowOnError>): RequestResult<ReadNotificationResponses, ReadNotificationErrors, ThrowOnError> => (options.client ?? client).post<ReadNotificationResponses, ReadNotificationErrors, ThrowOnError>({ url: '/api/v1/notifications/{id}/read', ...options });
+export const cleanupLabHistory = <ThrowOnError extends boolean = false>(options: Options<CleanupLabHistoryData, ThrowOnError>): RequestResult<CleanupLabHistoryResponses, CleanupLabHistoryErrors, ThrowOnError> => (options.client ?? client).post<CleanupLabHistoryResponses, CleanupLabHistoryErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/history/cleanup', ...options });
 
-export const listMembers = <ThrowOnError extends boolean = false>(options?: Options<ListMembersData, ThrowOnError>): RequestResult<ListMembersResponses, ListMembersErrors, ThrowOnError> => (options?.client ?? client).get<ListMembersResponses, ListMembersErrors, ThrowOnError>({ url: '/api/v1/organization/members', ...options });
+export const listLabDeviceHistory = <ThrowOnError extends boolean = false>(options: Options<ListLabDeviceHistoryData, ThrowOnError>): RequestResult<ListLabDeviceHistoryResponses, ListLabDeviceHistoryErrors, ThrowOnError> => (options.client ?? client).get<ListLabDeviceHistoryResponses, ListLabDeviceHistoryErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/history', ...options });
 
-export const updateMember = <ThrowOnError extends boolean = false>(options: Options<UpdateMemberData, ThrowOnError>): RequestResult<UpdateMemberResponses, UpdateMemberErrors, ThrowOnError> => (options.client ?? client).put<UpdateMemberResponses, UpdateMemberErrors, ThrowOnError>({
-    url: '/api/v1/organization/members/{user_id}',
-    ...options,
-    headers: {
-        'Content-Type': 'application/json',
-        ...options.headers
-    }
-});
+export const listLabRecords = <ThrowOnError extends boolean = false>(options: Options<ListLabRecordsData, ThrowOnError>): RequestResult<ListLabRecordsResponses, ListLabRecordsErrors, ThrowOnError> => (options.client ?? client).get<ListLabRecordsResponses, ListLabRecordsErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/records', ...options });
 
-export const getProfile = <ThrowOnError extends boolean = false>(options?: Options<GetProfileData, ThrowOnError>): RequestResult<GetProfileResponses, GetProfileErrors, ThrowOnError> => (options?.client ?? client).get<GetProfileResponses, GetProfileErrors, ThrowOnError>({ url: '/api/v1/profile', ...options });
-
-export const getCacheStatus = <ThrowOnError extends boolean = false>(options?: Options<GetCacheStatusData, ThrowOnError>): RequestResult<GetCacheStatusResponses, GetCacheStatusErrors, ThrowOnError> => (options?.client ?? client).get<GetCacheStatusResponses, GetCacheStatusErrors, ThrowOnError>({ url: '/api/v1/system/cache', ...options });
-
-export const getRateLimitStatus = <ThrowOnError extends boolean = false>(options?: Options<GetRateLimitStatusData, ThrowOnError>): RequestResult<GetRateLimitStatusResponses, GetRateLimitStatusErrors, ThrowOnError> => (options?.client ?? client).get<GetRateLimitStatusResponses, GetRateLimitStatusErrors, ThrowOnError>({ url: '/api/v1/system/rate-limits', ...options });
-
-export const getSystemStatus = <ThrowOnError extends boolean = false>(options?: Options<GetSystemStatusData, ThrowOnError>): RequestResult<GetSystemStatusResponses, GetSystemStatusErrors, ThrowOnError> => (options?.client ?? client).get<GetSystemStatusResponses, GetSystemStatusErrors, ThrowOnError>({ url: '/api/v1/system/status', ...options });
-
-export const getLiveness = <ThrowOnError extends boolean = false>(options?: Options<GetLivenessData, ThrowOnError>): RequestResult<GetLivenessResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetLivenessResponses, unknown, ThrowOnError>({ url: '/health/live', ...options });
-
-export const getReadiness = <ThrowOnError extends boolean = false>(options?: Options<GetReadinessData, ThrowOnError>): RequestResult<GetReadinessResponses, GetReadinessErrors, ThrowOnError> => (options?.client ?? client).get<GetReadinessResponses, GetReadinessErrors, ThrowOnError>({ url: '/health/ready', ...options });
+export const getLabEntityTrend = <ThrowOnError extends boolean = false>(options: Options<GetLabEntityTrendData, ThrowOnError>): RequestResult<GetLabEntityTrendResponses, GetLabEntityTrendErrors, ThrowOnError> => (options.client ?? client).get<GetLabEntityTrendResponses, GetLabEntityTrendErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/entities/{entity_id}/trend', ...options });

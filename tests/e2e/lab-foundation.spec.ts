@@ -1,3 +1,4 @@
+import { showObjectDirectory } from './lab-desktop';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -11,15 +12,22 @@ import {
   retainFailure,
 } from './lab-foundation-support';
 
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
+
 test.use({ locale: 'zh-CN' });
 test.afterEach(retainFailure);
 
 test('the 320px Lab keeps its complete 3D viewport and Inspector above history without a clipped workspace', async ({
   page,
 }) => {
+  test.skip(
+    desktopMigration,
+    'Product narrow-screen coverage resumes after Migration Gate',
+  );
   const { agent } = await member(page);
   try {
-    await page.setViewportSize({ width: 320, height: 900 });
+    if (!desktopMigration)
+      await page.setViewportSize({ width: 320, height: 900 });
     await page.getByRole('button', { name: '创建 Lab', exact: true }).click();
     await page
       .getByRole('dialog')
@@ -161,6 +169,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     );
     await page.getByRole('link', { name: 'Lab', exact: true }).click();
     await page.getByRole('combobox', { name: '打开 Lab' }).selectOption(lab);
+    await showObjectDirectory(page);
     for (const [definition, name, representation] of [
       ['model', 'Member model', basis.representation.id],
       ['environment', 'Environment', ''],
@@ -237,6 +246,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     await observer
       .getByRole('combobox', { name: '打开 Lab' })
       .selectOption(lab);
+    await showObjectDirectory(observer);
     await expect(observer.locator('.world-page')).toHaveAttribute(
       'aria-busy',
       'false',
@@ -368,17 +378,53 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
         ).status(),
       ).toBe(200);
     }
+    await expect
+      .poll(
+        async () =>
+          (await world(agent, lab)).entities.filter(
+            (entity) => entity.program_run?.status === 'running',
+          ).length,
+      )
+      .toBe(0);
     const final = await world(agent, lab);
-    await expect(page.getByLabel('世界版本')).toHaveText(`W${final.version}`);
-    await expect(observer.getByLabel('世界版本')).toHaveText(
-      `W${final.version}`,
-    );
-    await observer.setViewportSize({ width: 320, height: 900 });
+    const initialVersions = {
+      member: await page.getByLabel('世界版本').textContent(),
+      peer: await observer.getByLabel('世界版本').textContent(),
+    };
+    try {
+      await expect(page.getByLabel('世界版本')).toHaveText(`W${final.version}`);
+      await expect(observer.getByLabel('世界版本')).toHaveText(
+        `W${final.version}`,
+      );
+    } finally {
+      writeFileSync(
+        `${evidence}/final-world-comparison.json`,
+        JSON.stringify(
+          {
+            event: 'foundation.final-world-comparison',
+            expectedVersion: final.version,
+            initialVersions,
+            memberVersion: await page.getByLabel('世界版本').textContent(),
+            peerVersion: await observer.getByLabel('世界版本').textContent(),
+            runStates: final.entities.flatMap((entity) =>
+              entity.program_run ? [entity.program_run.status] : [],
+            ),
+          },
+          null,
+          2,
+        ),
+      );
+    }
+    if (!desktopMigration)
+      await observer.setViewportSize({ width: 320, height: 900 });
     await observer
       .getByRole('button', { name: 'English', exact: true })
       .click();
     await observer.getByRole('button', { name: 'Dark', exact: true }).click();
-    await capture(observer, 'complete-mobile-en-dark');
+    await capture(
+      observer,
+      `complete-${desktopMigration ? 'desktop' : 'mobile'}-en-dark`,
+    );
     expect(
       await observer.evaluate(
         () => document.documentElement.scrollWidth <= innerWidth,

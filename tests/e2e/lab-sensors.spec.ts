@@ -1,3 +1,4 @@
+import { showObjectDirectory } from './lab-desktop';
 import {
   expect,
   test,
@@ -5,6 +6,8 @@ import {
   type Page,
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
 async function nonblankCanvas(page: Page) {
@@ -178,6 +181,7 @@ test('backend temperatures stay independent across browser closure, source expir
       await reopened
         .getByRole('combobox', { name: '打开 Lab' })
         .selectOption(lab);
+      await showObjectDirectory(reopened);
       await reopened
         .getByRole('button', { name: '选择 Sensor A', exact: true })
         .click();
@@ -266,7 +270,8 @@ test('backend temperatures stay independent across browser closure, source expir
       );
       expect(script.retained.freshness).toBe('stale');
       expect(script.recovered.freshness).toBe('current');
-      await reopened.setViewportSize({ width: 320, height: 900 });
+      if (!desktopMigration)
+        await reopened.setViewportSize({ width: 320, height: 900 });
       await reopened
         .getByRole('button', { name: 'English', exact: true })
         .click();
@@ -281,9 +286,11 @@ test('backend temperatures stay independent across browser closure, source expir
       await expect(activeReading).toHaveCount(1);
       const bounds = await activeReading.boundingBox();
       expect(bounds!.x).toBeGreaterThanOrEqual(0);
-      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(320);
+      expect(bounds!.x + bounds!.width).toBeLessThanOrEqual(
+        reopened.viewportSize()!.width,
+      );
       await reopened.screenshot({
-        path: 'test-results/lab-foundation/t05-temperature-mobile-dark-en.png',
+        path: `test-results/lab-foundation/t05-temperature-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
         fullPage: true,
       });
       await reopened
@@ -291,7 +298,7 @@ test('backend temperatures stay independent across browser closure, source expir
         .getByRole('region', { name: 'Reported temperature' })
         .scrollIntoViewIfNeeded();
       await reopened.screenshot({
-        path: 'test-results/lab-foundation/t05-temperature-mobile-inspector-dark-en.png',
+        path: `test-results/lab-foundation/t05-temperature-${desktopMigration ? 'desktop' : 'mobile'}-inspector-dark-en.png`,
         fullPage: true,
       });
       expect(

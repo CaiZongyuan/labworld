@@ -19,9 +19,7 @@ export const coreMessages: {
     'shell.nav.mainMenu': '主菜单',
     'shell.nav.management': '管理',
     'shell.nav.home': '首页',
-    'shell.nav.notifications': '通知',
     'shell.nav.members': '企业成员',
-    'shell.nav.jobs': '后台任务',
     'shell.nav.audit': '审计记录',
     'shell.nav.settings': '设置',
     'shell.nav.apiKeys': 'API Keys',
@@ -68,7 +66,6 @@ export const coreMessages: {
     'login.error.rateLimitedReady': '请求过于频繁，现在可以重新尝试。',
     'login.error.invalidCredentials': '邮箱或密码不正确，请重新输入。',
     'login.error.generic': '暂时无法登录，请稍后重试。',
-    'login.forgotPassword': '忘记密码？',
     'login.createAccount': '还没有账号？创建账号',
 
     'register.docTitle': '创建账号',
@@ -84,34 +81,6 @@ export const coreMessages: {
       '账号已创建，但暂时无法登录。请稍后登录，无需重新注册。',
     'register.error.invalidInput': '请检查邮箱、密码和显示名后重试。',
     'register.error.generic': '暂时无法完成注册，请稍后重试。',
-
-    'forgot.docTitle': '找回密码',
-    'forgot.title': '找回密码',
-    'forgot.description': '使用注册邮箱申请一次性重置链接。',
-    'forgot.sent': '如果该账号可用，你会收到重置邮件。请检查收件箱或垃圾邮件。',
-    'forgot.refill': '重新填写邮箱',
-    'forgot.submit': '发送重置邮件',
-    'forgot.pending': '正在申请…',
-    'forgot.backToLogin': '返回登录',
-
-    'reset.docTitle': '重置密码',
-    'reset.title': '设置新密码',
-    'reset.description': '成功后，原来的登录会话会失效。',
-    'reset.done': '密码已重置，请重新登录。',
-    'reset.linkIncompleteTitle': '重置链接不完整',
-    'reset.linkIncomplete': '请重新打开邮件中的链接，或重新申请。',
-    'reset.newPassword': '新密码',
-    'reset.confirmPassword': '确认新密码',
-    'reset.passwordHint': '使用 12–128 个字符。',
-    'reset.mismatch': '两次输入的密码不一致。',
-    'reset.submit': '设置新密码',
-    'reset.pending': '正在重置…',
-    'reset.requestNew': '重新申请链接',
-    'reset.error.title': '密码重置未完成',
-    'reset.error.invalidLink': '重置链接无效或已失效，请重新申请。',
-    'reset.error.invalidInput': '请检查邮箱或 12–128 个字符的新密码。',
-    'reset.error.generic':
-      '暂时无法确认结果，请稍后重试；也可以尝试用新密码登录。',
 
     'common.backHome': '返回首页',
 
@@ -205,7 +174,7 @@ export const coreMessages: {
 
     'design.title': '设计系统',
     'design.description':
-      '直接读取生产 tokens、组件与图标的展厅：搜索并复制令牌当前值，试用组件状态，查看由示例注册的演示场景。',
+      '直接读取生产 tokens、组件与图标的展厅：搜索并复制令牌当前值，试用组件状态，查看业务演示场景。',
     'design.tutorial': '查看「选用生产组件与注册演示场景」教程',
     'design.pageLoading': '正在加载设计系统…',
     'design.tab.foundation': '基础',
@@ -285,11 +254,11 @@ export const coreMessages: {
     'design.scenes.emptyDescription': '这是 Empty 组件的空态演示。',
     'design.scenes.fill': '填充示例数据',
     'design.scenes.clear': '清空为空态',
-    'design.scenes.example': '示例注册的场景',
-    'design.scenes.exampleHint':
+    'design.scenes.business': '业务演示场景',
+    'design.scenes.businessHint':
       '场景由示例在组装点注册，随示例移除而消失；Core-only 组合仍保留完整基础展厅。',
-    'design.scenes.exampleEmpty': '当前组合没有示例场景。',
-    'design.scenes.fromExample': '由示例 {example} 注册。',
+    'design.scenes.businessEmpty': '当前没有业务演示场景。',
+    'design.scenes.fromExample': '由示例 {module} 注册。',
     'design.icons.loading': '正在加载图标目录…',
     'design.icons.search': '按名称查找图标',
     'design.icons.count': '{count} 个图标',
@@ -357,50 +326,6 @@ export const coreMessages: {
       '服务连接、入门文档与完整教程已随 v1 交付；在线教程页脚的“源码版本”标注各页对应的提交。',
     'status.footer': '模块化单体 · 可运行教程 · 可替换业务',
 
-    'jobs.title': '后台任务',
-    'jobs.hint':
-      '查看执行状态、错误摘要和尝试历史，再决定是否重新执行失败任务。',
-    'jobs.back': '返回任务列表',
-    'jobs.adminOnly': '仅企业所有者或管理员可以管理后台任务。',
-    'jobs.form.status': '任务状态',
-    'jobs.form.allStatuses': '全部状态',
-    'jobs.status.queued': '等待处理',
-    'jobs.status.running': '执行中',
-    'jobs.status.retry_wait': '等待重试',
-    'jobs.status.succeeded': '已完成',
-    'jobs.status.failed': '已失败',
-    'jobs.status.lease_expired': '租约已过期',
-    'jobs.reload': '刷新任务列表',
-    'jobs.loading': '正在读取任务…',
-    'jobs.empty': '当前没有符合条件的任务。',
-    'jobs.loadMore': '加载更多任务',
-    'jobs.item.id': '任务编号：{id}',
-    'jobs.item.batch': '第 {batch} 批 · 已尝试 {attempts} / {max} 次',
-    'jobs.item.lastError': '错误摘要：{error}',
-    'jobs.item.open': '查看记录',
-    'jobs.item.openName': '查看任务 {id}',
-    'jobs.error.title': '任务操作未完成',
-    'jobs.error.notFailed':
-      '任务状态已改变，请重新读取；只有失败任务可以重试。',
-    'jobs.error.notFound': '任务不存在。',
-    'jobs.error.generic': '暂时无法完成，请重试。',
-    'jobs.detail.title': '任务详情',
-    'jobs.detail.reload': '刷新任务记录',
-    'jobs.detail.loading': '正在读取执行记录…',
-    'jobs.detail.retryHint':
-      '保持原任务和业务请求，开启最多 {max} 次尝试的新批次。仍会检查原请求者的权限和源资源。',
-    'jobs.detail.retry': '重试失败任务',
-    'jobs.detail.submitting': '正在提交…',
-    'jobs.detail.history': '执行历史',
-    'jobs.detail.batchTitle': '第 {number} 批',
-    'jobs.detail.batchLine': '{status} · {attempts} / {max} 次',
-    'jobs.detail.legacy': '升级前 {count} 次尝试仅保留汇总。',
-    'jobs.detail.attempt': '第 {number} 次 · {status}',
-    'jobs.detail.earlier': '读取更早批次',
-    'jobs.summary.batch': '当前第 {batch} 批 · 已尝试 {attempts} / {max} 次',
-    'jobs.summary.correlation': '关联请求：{id}',
-    'jobs.summary.lastError': '当前错误摘要：{error}',
-
     'audit.title': '审计记录',
     'audit.adminOnly': '仅企业所有者或管理员可以查看审计记录。',
     'audit.error.title': '无法读取审计记录',
@@ -426,28 +351,6 @@ export const coreMessages: {
     'audit.entry.trace': 'Trace ID',
     'audit.entry.subject': '受影响用户',
 
-    'notifications.title': '通知',
-    'notifications.signInFirst': '请先登录。',
-    'notifications.errorTitle': '通知操作未完成',
-    'notifications.errorHint': '暂时无法读取或更新通知，请刷新重试。',
-    'notifications.unreadCount': '{count} 条未读',
-    'notifications.refresh': '刷新通知',
-    'notifications.unreadOnly': '只看未读',
-    'notifications.loading': '正在读取通知…',
-    'notifications.empty': '暂无通知',
-    'notifications.emptyUnread': '暂无未读通知',
-    'notifications.read': '已读',
-    'notifications.unread': '未读',
-    // Fallback heading for notices no example claims: the server subject
-    // stays original and only the outcome word is UI text; the subject
-    // travels as a message param so each locale owns its own layout.
-    'notifications.outcomeSucceeded': '{subject}完成',
-    'notifications.outcomeFailed': '{subject}失败',
-    'notifications.openResult': '查看结果',
-    'notifications.targetUnavailable': '此通知的功能当前不可用。',
-    'notifications.markRead': '标记已读',
-    'notifications.loadMore': '加载更多通知',
-
     'unavailable.title': '相关功能当前不可用',
     'unavailable.description': '这个地址指向的功能可能已被移除，或从未存在。',
     'unavailable.backHome': '返回首页',
@@ -460,9 +363,7 @@ export const coreMessages: {
     'shell.nav.mainMenu': 'Main menu',
     'shell.nav.management': 'Administration',
     'shell.nav.home': 'Home',
-    'shell.nav.notifications': 'Notifications',
     'shell.nav.members': 'Members',
-    'shell.nav.jobs': 'Background jobs',
     'shell.nav.audit': 'Audit trail',
     'shell.nav.settings': 'Settings',
     'shell.nav.apiKeys': 'API Keys',
@@ -513,7 +414,6 @@ export const coreMessages: {
       'Email or password is incorrect; try again.',
     'login.error.generic':
       'Sign-in is temporarily unavailable; try again later.',
-    'login.forgotPassword': 'Forgot password?',
     'login.createAccount': 'No account yet? Create one',
 
     'register.docTitle': 'Create account',
@@ -533,39 +433,6 @@ export const coreMessages: {
       'Check the email, password and display name, then retry.',
     'register.error.generic':
       'Registration is temporarily unavailable; try again later.',
-
-    'forgot.docTitle': 'Reset password',
-    'forgot.title': 'Forgot password',
-    'forgot.description':
-      'Request a one-time reset link for your account email.',
-    'forgot.sent':
-      'If the account exists, a reset email is on its way. Check your inbox or spam folder.',
-    'forgot.refill': 'Edit the email address',
-    'forgot.submit': 'Send reset email',
-    'forgot.pending': 'Requesting…',
-    'forgot.backToLogin': 'Back to sign-in',
-
-    'reset.docTitle': 'Set a new password',
-    'reset.title': 'Set a new password',
-    'reset.description': 'When it succeeds, existing sessions stop working.',
-    'reset.done': 'Password reset — sign in with the new password.',
-    'reset.linkIncompleteTitle': 'The reset link is incomplete',
-    'reset.linkIncomplete':
-      'Reopen the link from the email, or request a new one.',
-    'reset.newPassword': 'New password',
-    'reset.confirmPassword': 'Confirm new password',
-    'reset.passwordHint': 'Use 12–128 characters.',
-    'reset.mismatch': 'The passwords do not match.',
-    'reset.submit': 'Set new password',
-    'reset.pending': 'Resetting…',
-    'reset.requestNew': 'Request a new link',
-    'reset.error.title': 'Password reset incomplete',
-    'reset.error.invalidLink':
-      'The reset link is invalid or expired; request a new one.',
-    'reset.error.invalidInput':
-      'Check the email or the 12–128 character new password.',
-    'reset.error.generic':
-      'The result could not be confirmed; try again later, or try signing in with the new password.',
 
     'common.backHome': 'Back to home',
 
@@ -668,7 +535,7 @@ export const coreMessages: {
 
     'design.title': 'Design system',
     'design.description':
-      'A showroom reading production tokens, components and icons directly: search and copy current token values, try component states, and view demo scenes registered by examples.',
+      'A showroom reading production tokens, components and icons directly: search and copy current token values, try component states, and view business demo scenes.',
     'design.tutorial': 'Read the design-system tutorial',
     'design.pageLoading': 'Loading the design system…',
     'design.tab.foundation': 'Foundation',
@@ -751,11 +618,11 @@ export const coreMessages: {
     'design.scenes.emptyDescription': 'A demo of the Empty component.',
     'design.scenes.fill': 'Fill with sample data',
     'design.scenes.clear': 'Clear to empty state',
-    'design.scenes.example': 'Scenes registered by examples',
-    'design.scenes.exampleHint':
+    'design.scenes.business': 'Business demo scenes',
+    'design.scenes.businessHint':
       'Examples register scenes at the assembly point; they disappear with the example, and Core-only apps keep the full base showroom.',
-    'design.scenes.exampleEmpty': 'No example scenes in this combination.',
-    'design.scenes.fromExample': 'Registered by example {example}.',
+    'design.scenes.businessEmpty': 'No example scenes in this combination.',
+    'design.scenes.fromExample': 'Registered by example {module}.',
     'design.icons.loading': 'Loading icon catalog…',
     'design.icons.search': 'Search icons by name',
     'design.icons.count': '{count} icons',
@@ -827,52 +694,6 @@ export const coreMessages: {
     'status.footer':
       'Modular monolith · runnable tutorials · replaceable business',
 
-    'jobs.title': 'Background jobs',
-    'jobs.hint':
-      'Check execution state, error summaries and attempt history, then decide whether to re-run failed jobs.',
-    'jobs.back': 'Back to the job list',
-    'jobs.adminOnly':
-      'Only the enterprise owner or admins can manage background jobs.',
-    'jobs.form.status': 'Job status',
-    'jobs.form.allStatuses': 'All statuses',
-    'jobs.status.queued': 'Queued',
-    'jobs.status.running': 'Running',
-    'jobs.status.retry_wait': 'Waiting to retry',
-    'jobs.status.succeeded': 'Succeeded',
-    'jobs.status.failed': 'Failed',
-    'jobs.status.lease_expired': 'Lease expired',
-    'jobs.reload': 'Refresh the job list',
-    'jobs.loading': 'Loading jobs…',
-    'jobs.empty': 'No jobs match this filter.',
-    'jobs.loadMore': 'Load more jobs',
-    'jobs.item.id': 'Job ID: {id}',
-    'jobs.item.batch': 'Batch {batch} · {attempts} / {max} attempts',
-    'jobs.item.lastError': 'Error summary: {error}',
-    'jobs.item.open': 'View record',
-    'jobs.item.openName': 'View job {id}',
-    'jobs.error.title': 'The job action was not completed',
-    'jobs.error.notFailed':
-      'The job state has changed — reload it; only failed jobs can be retried.',
-    'jobs.error.notFound': 'The job does not exist.',
-    'jobs.error.generic': 'The action could not be completed — try again.',
-    'jobs.detail.title': 'Job details',
-    'jobs.detail.reload': 'Refresh the job record',
-    'jobs.detail.loading': 'Loading the execution record…',
-    'jobs.detail.retryHint':
-      'Keep the original job and business request and open a new batch of up to {max} attempts. The original requester’s permissions and source resource are checked again.',
-    'jobs.detail.retry': 'Retry failed job',
-    'jobs.detail.submitting': 'Submitting…',
-    'jobs.detail.history': 'Execution history',
-    'jobs.detail.batchTitle': 'Batch {number}',
-    'jobs.detail.batchLine': '{status} · {attempts} / {max} attempts',
-    'jobs.detail.legacy':
-      '{count} pre-upgrade attempts are kept as a summary only.',
-    'jobs.detail.attempt': 'Attempt {number} · {status}',
-    'jobs.detail.earlier': 'Load earlier batches',
-    'jobs.summary.batch': 'Current batch {batch} · {attempts} / {max} attempts',
-    'jobs.summary.correlation': 'Correlated request: {id}',
-    'jobs.summary.lastError': 'Current error summary: {error}',
-
     'audit.title': 'Audit trail',
     'audit.adminOnly':
       'Only the enterprise owner or admins can read the audit trail.',
@@ -899,29 +720,6 @@ export const coreMessages: {
     'audit.entry.resource': 'Resource',
     'audit.entry.trace': 'Trace ID',
     'audit.entry.subject': 'Affected user',
-
-    'notifications.title': 'Notifications',
-    'notifications.signInFirst': 'Please sign in first.',
-    'notifications.errorTitle': 'Notification action not completed',
-    'notifications.errorHint':
-      'Notifications could not be read or updated right now. Refresh and try again.',
-    'notifications.unreadCount': '{count} unread',
-    'notifications.refresh': 'Refresh notifications',
-    'notifications.unreadOnly': 'Unread only',
-    'notifications.loading': 'Reading notifications…',
-    'notifications.empty': 'No notifications yet',
-    'notifications.emptyUnread': 'No unread notifications',
-    'notifications.read': 'Read',
-    'notifications.unread': 'Unread',
-    // Same fallback templates as the zh catalog; each locale owns the
-    // spacing between the original subject and the outcome word.
-    'notifications.outcomeSucceeded': '{subject} (completed)',
-    'notifications.outcomeFailed': '{subject} (failed)',
-    'notifications.openResult': 'View result',
-    'notifications.targetUnavailable':
-      'The feature behind this notification is currently unavailable.',
-    'notifications.markRead': 'Mark as read',
-    'notifications.loadMore': 'Load more notifications',
 
     'unavailable.title': 'This feature is currently unavailable',
     'unavailable.description':

@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { server } from '../../../tests/frontend/server';
 import { createAppRouter } from './router';
-import { assembledApp } from './app-examples';
+import { app } from './app';
 
 // Shell behavior that must hold in every source combination (zero, one or
 // two examples). The tests read the assembled app instead of naming a
@@ -35,17 +35,6 @@ function open(
         HttpResponse.json({ ...signedIn, user: { ...signedIn.user, role } }),
       ),
     );
-  server.use(
-    // A business entry page may list its resources; an empty page is valid.
-    http.get('http://api.test/api/v1/knowledge/documents', () =>
-      HttpResponse.json({
-        data: [],
-        next_cursor: null,
-        has_more: false,
-        can_create: true,
-      }),
-    ),
-  );
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false, gcTime: 0 } },
   });
@@ -88,22 +77,21 @@ test('the sidebar navigation mirrors the assembled groups and opens assembled ro
   await screen.findByRole('main');
   // Business groups arrive with the session; await the first entry rather
   // than racing the shell's signed-out first paint.
-  if (assembledApp.navigation.length === 0) return;
-  const first = assembledApp.navigation[0].items[0];
+  if (app.navigation.length === 0) return;
+  const first = app.navigation[0].items[0];
   const navigation = screen.getByRole('navigation', { name: '主菜单' });
   await within(navigation).findByRole('link', {
-    name: assembledApp.messages.zh[first.labelKey],
+    name: app.messages.zh[first.labelKey],
   });
   // A group label may legitimately repeat as one of its item labels, so
   // presence is asserted with getAllBy*.
-  for (const group of assembledApp.navigation)
+  for (const group of app.navigation)
     expect(
-      within(navigation).getAllByText(assembledApp.messages.zh[group.labelKey])
-        .length,
+      within(navigation).getAllByText(app.messages.zh[group.labelKey]).length,
     ).toBeGreaterThan(0);
   await user.click(
     within(navigation).getAllByRole('link', {
-      name: assembledApp.messages.zh[first.labelKey],
+      name: app.messages.zh[first.labelKey],
     })[0],
   );
   await waitFor(() => expect(router.state.location.pathname).toBe(first.path));
@@ -116,7 +104,7 @@ test('the sidebar holds the Core entries; a member sees no administration group'
   // describe the signed-in sidebar, not the pre-session first paint.
   expect(await screen.findByText('你好，壳用户')).toBeVisible();
   const navigation = screen.getByRole('navigation', { name: '主菜单' });
-  for (const label of ['首页', '通知'])
+  for (const label of ['首页'])
     expect(within(navigation).getByRole('link', { name: label })).toBeVisible();
   expect(screen.getByRole('link', { name: '设置' })).toBeVisible();
   for (const label of ['设置', 'API Keys', '设计系统', '系统状态'])
@@ -161,7 +149,7 @@ test('the administration group appears for owners', async () => {
   const membersLink = await screen.findByRole('link', { name: '企业成员' });
   const navigation = membersLink.closest('nav');
   expect(navigation).not.toBeNull();
-  for (const label of ['后台任务', '审计记录'])
+  for (const label of ['审计记录'])
     expect(
       within(navigation as HTMLElement).getByRole('link', { name: label }),
     ).toBeVisible();
@@ -190,10 +178,10 @@ test('the narrow-screen drawer toggles with announced state and Escape dismisses
 // (UI-R3); its URL shape is asserted in settings.test.tsx.
 
 test('the business default entry is directly reachable as a deep link', async () => {
-  if (assembledApp.defaultEntry === '/') return; // Core-only combo: home test covers '/'
-  const { router } = open(assembledApp.defaultEntry);
+  if (app.defaultEntry === '/') return; // Core-only combo: home test covers '/'
+  const { router } = open(app.defaultEntry);
   expect(await screen.findByRole('main')).toBeVisible();
-  expect(router.state.location.pathname).toBe(assembledApp.defaultEntry);
+  expect(router.state.location.pathname).toBe(app.defaultEntry);
 });
 
 test('compact navigation retains every assembled entry and one account entry', async () => {
@@ -205,13 +193,13 @@ test('compact navigation retains every assembled entry and one account entry', a
     'true',
   );
   const navigation = screen.getByRole('navigation', { name: '主菜单' });
-  for (const group of assembledApp.navigation)
+  for (const group of app.navigation)
     for (const item of group.items)
       expect(
         within(navigation).getByRole('link', {
-          name: assembledApp.messages.zh[item.labelKey],
+          name: app.messages.zh[item.labelKey],
         }),
-      ).toHaveAttribute('title', assembledApp.messages.zh[item.labelKey]);
+      ).toHaveAttribute('title', app.messages.zh[item.labelKey]);
   expect(screen.getAllByRole('link', { name: '设置' })).toHaveLength(1);
   await user.click(screen.getByRole('button', { name: '展开导航' }));
   expect(document.getElementById('app-sidebar')).not.toHaveAttribute(

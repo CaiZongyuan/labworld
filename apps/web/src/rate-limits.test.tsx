@@ -7,7 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { expect, test, vi } from 'vitest';
 import { server } from '../../../tests/frontend/server';
 import { createAppRouter } from './router';
-import { assembledApp } from './app-examples';
+import { app } from './app';
 const identity = {
   user: {
     id: 'rate-user',
@@ -87,7 +87,7 @@ test.each([
       // Success lands on the assembled app's business default entry; the
       // assertion reads the assembly so every source combination passes.
       await waitFor(() =>
-        expect(router.state.location.pathname).toBe(assembledApp.defaultEntry),
+        expect(router.state.location.pathname).toBe(app.defaultEntry),
       );
       expect(screen.queryByLabelText('密码')).toBeNull();
     } finally {
@@ -102,7 +102,7 @@ test('resource failures show the server wait hint without automatic retries', as
     http.get('http://api.test/api/v1/auth/session', () =>
       HttpResponse.json(identity),
     ),
-    http.get('http://api.test/api/v1/notifications', () => {
+    http.get('http://api.test/api/v1/lab/assets', () => {
       attempts++;
       return HttpResponse.json(
         {
@@ -117,7 +117,7 @@ test('resource failures show the server wait hint without automatic retries', as
       );
     }),
   );
-  open('/notifications');
+  open('/assets');
   expect(await screen.findByRole('alert')).toHaveTextContent(
     '请求过于频繁，请 3 秒后重试',
   );

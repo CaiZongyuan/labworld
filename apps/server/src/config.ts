@@ -105,6 +105,9 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     retention[key] = value;
   }
   return {
+    webDirectory: env.LAB_WORD_WEB_DIR
+      ? resolve(env.LAB_WORD_WEB_DIR)
+      : undefined,
     retention,
     hostname,
     port,
@@ -139,6 +142,12 @@ export function configurationFields() {
     descriptionZh,
   });
   return [
+    field(
+      'LAB_WORD_WEB_DIR',
+      value.webDirectory ?? '',
+      'Built Web directory for production same-origin hosting; empty disables static hosting.',
+      '生产同源托管的 Web 构建目录；空值关闭静态托管。',
+    ),
     field(
       'LAB_WORD_HOST',
       value.hostname,

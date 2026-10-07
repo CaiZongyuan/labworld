@@ -141,9 +141,6 @@ export function LoginView({
           </form>
         </CardContent>
         <CardFooter className="flex gap-4">
-          <a className="text-sm underline" href="/forgot-password">
-            {message('login.forgotPassword')}
-          </a>
           <a className="text-sm underline" href="/register">
             {message('login.createAccount')}
           </a>

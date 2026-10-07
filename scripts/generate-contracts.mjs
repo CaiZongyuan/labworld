@@ -17,21 +17,22 @@ const root = resolve(import.meta.dirname, '..');
 const checking = process.argv.includes('--check');
 const source = process.argv.includes('--source')
   ? process.argv[process.argv.indexOf('--source') + 1]
-  : 'rust';
+  : 'server';
 if (!['rust', 'server'].includes(source))
   throw new Error('Contract source must be rust or server');
-const isolated = source === 'server';
-if (isolated && !process.argv.includes('--output'))
-  throw new Error('Partial server generation requires --output isolation');
+const isolated = process.argv.includes('--output');
+if (source === 'rust' && !isolated)
+  throw new Error('Frozen Rust generation requires an isolated --output');
 const outputRoot = isolated
   ? resolve(process.argv[process.argv.indexOf('--output') + 1])
   : root;
 if (isolated && outputRoot === root)
-  throw new Error('Partial server output cannot overwrite the complete SDK');
+  throw new Error('Isolated output cannot overwrite the official SDK');
 function physicalPath(path) {
   const suffix = [];
   let ancestor = path;
   while (!existsSync(ancestor)) {
+    if (dirname(ancestor) === ancestor) return realpathSync(ancestor);
     suffix.unshift(relative(dirname(ancestor), ancestor));
     ancestor = dirname(ancestor);
   }
@@ -49,7 +50,7 @@ function assertIsolated(path) {
         physical === directory || physical.startsWith(directory + sep),
     )
   )
-    throw new Error('Partial output overlaps official consumers');
+    throw new Error('Isolated output overlaps official consumers');
 }
 const temporary = mkdtempSync(join(tmpdir(), 'labos-threejs-contracts-'));
 const files = new Map();
@@ -62,32 +63,33 @@ function collect(directory) {
 }
 
 try {
-  const contract = isolated
-    ? execFileSync(
-        process.execPath,
-        ['--experimental-strip-types', 'apps/server/src/openapi.ts'],
-        { cwd: root, encoding: 'utf8' },
-      )
-    : execFileSync(
-        'cargo',
-        [
-          'run',
-          '--quiet',
-          '--locked',
-          '-p',
-          'labos-threejs-api',
-          '--bin',
-          'openapi',
-        ],
-        {
-          cwd: root,
-          encoding: 'utf8',
-          env: {
-            ...process.env,
-            CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? '4',
+  const contract =
+    source === 'server'
+      ? execFileSync(
+          process.execPath,
+          ['--experimental-strip-types', 'apps/server/src/openapi.ts'],
+          { cwd: root, encoding: 'utf8' },
+        )
+      : execFileSync(
+          'cargo',
+          [
+            'run',
+            '--quiet',
+            '--locked',
+            '-p',
+            'labos-threejs-api',
+            '--bin',
+            'openapi',
+          ],
+          {
+            cwd: root,
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              CARGO_BUILD_JOBS: process.env.CARGO_BUILD_JOBS ?? '4',
+            },
           },
-        },
-      );
+        );
   JSON.parse(contract);
   const input = join(temporary, 'openapi.json');
   writeFileSync(input, contract);
@@ -108,7 +110,7 @@ try {
       files.set(
         'packages/sdk/src/generated/types.gen.ts',
         isolated
-          ? '// Isolated M1 contract bridge.\nexport type * from "../../../contracts/src/generated/types.gen";\n'
+          ? '// Isolated contract bridge.\nexport type * from "../../../contracts/src/generated/types.gen";\n'
           : '// Generated contract bridge. Run pnpm generate.\nexport type * from "@labos-threejs/contracts";\n',
       );
     } else {
@@ -153,7 +155,7 @@ try {
   if (drift.length)
     throw new Error(`Contract drift: ${drift.join(', ')}. Run pnpm generate.`);
   console.log(
-    `${checking ? 'Verified' : 'Generated'} OpenAPI, TypeScript contracts and SDK (${files.size} files; ${source} source${isolated ? '; isolated partial output' : ''}).`,
+    `${checking ? 'Verified' : 'Generated'} OpenAPI, TypeScript contracts and SDK (${files.size} files; ${source} source${isolated ? '; isolated output' : ''}).`,
   );
 } finally {
   rmSync(temporary, { recursive: true, force: true });

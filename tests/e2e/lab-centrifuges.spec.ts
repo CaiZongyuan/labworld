@@ -6,6 +6,9 @@ import {
 } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { showObjectDirectory } from './lab-desktop';
+
+const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
 async function canvasPixels(page: Page, path?: string) {
@@ -195,6 +198,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
       await reopened
         .getByRole('combobox', { name: '打开 Lab' })
         .selectOption(lab);
+      await showObjectDirectory(reopened);
       await reopened
         .getByRole('button', { name: '选择 Centrifuge A', exact: true })
         .click();
@@ -282,14 +286,15 @@ test('centrifuge results survive closed browsers and a real API process restart'
       expect((await get(`${paths[0]}/tasks/${first.task.id}`)).status).toBe(
         'completed',
       );
-      await reopened.setViewportSize({ width: 320, height: 850 });
+      if (!desktopMigration)
+        await reopened.setViewportSize({ width: 320, height: 850 });
       await reopened
         .getByRole('button', { name: 'English', exact: true })
         .click();
       await reopened.getByRole('button', { name: 'Dark', exact: true }).click();
       await canvasPixels(
         reopened,
-        'test-results/lab-foundation/t06-centrifuge-mobile-canvas.png',
+        `test-results/lab-foundation/t06-centrifuge-${desktopMigration ? 'desktop' : 'mobile'}-canvas.png`,
       );
       const controls = reopened
         .getByRole('complementary', { name: 'Object info' })
@@ -304,7 +309,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
         ),
       ).toBe(true);
       await reopened.screenshot({
-        path: 'test-results/lab-foundation/t06-centrifuge-mobile-dark-en.png',
+        path: `test-results/lab-foundation/t06-centrifuge-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
         fullPage: true,
       });
       execFileSync('node', ['examples/lab/run-centrifuges.mjs'], {

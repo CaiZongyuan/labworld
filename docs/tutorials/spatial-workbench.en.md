@@ -6,11 +6,11 @@ Goal: open a persistent Lab, select the same Entity through its directory or sce
 
 Complete [Persistent Labs and objects](persistent-world.md) first. Use the source version paired with this chapter. Keep the existing Lab and two independent objects. Run commands from the repository root. Viewing, selection, and panel changes do not write the persistent world.
 
-This chapter moves the World query, single subscription, selection, layout drafts, and command attempts into the [Lab workbench context](../../packages/views/src/lab/workbench-context.tsx). The [space page](../../packages/views/src/lab/world-view.tsx) consumes that context. [Lab composition](../../packages/views/src/lab/app-example.tsx) preserves authentication and deferred loading. The [router adapter](../../apps/web/src/router.tsx) passes generic search parameters. The universal shell provides compact navigation without interpreting Lab identities.
+This chapter moves the World query, single subscription, selection, layout drafts, and command attempts into the [Lab workbench context](../../packages/views/src/lab/workbench-context.tsx). The [space page](../../packages/views/src/lab/world-view.tsx) consumes that context. [Lab composition](../../packages/views/src/lab/app.tsx) preserves authentication and deferred loading. The [router adapter](../../apps/web/src/router.tsx) passes generic search parameters. The universal shell provides compact navigation without interpreting Lab identities.
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 Open <http://127.0.0.1:5173/lab>. Sign in as the Member who registered the objects. The page opens the 3D space with its real Lab name and connection state.
@@ -61,7 +61,7 @@ The complete workbench entry and context composition:
 ```bash
 pnpm typecheck
 pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.test.tsx apps/web/src/lab-sync.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-workbench.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. They check external canvas area, camera pixels, deep links, panels, focus, and narrow-screen commands. Continue with [Backend lighting control](backend-lights.md). The same object details distinguish commands from actual observations.
+Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. Migration validation uses desktop Web and checks external canvas area, camera pixels, deep links, panels and focus. Existing product narrow-screen and touch responsibilities remain for validation after Migration Gate. Continue with [Backend lighting control](backend-lights.md). The same object details distinguish commands from actual observations.
