@@ -33,4 +33,17 @@ Log in with the original account. Open its Lab and download the asset. Identity 
 
 The current format supports only this implementation's verified Node migration history and database format. Later baseline compression must provide verified compatibility or refuse old history before target mutation. Preserve earlier Node directories and archives. This command does not convert or delete old Rust/PostgreSQL data.
 
-Owners: [CLI composition](../../apps/server/src/operations.ts), [database history and opening](../../packages/server/src/platform/db/index.ts), [closed database snapshot](../../packages/server/src/platform/db/snapshot.ts), and [Files ready references](../../packages/server/src/core/files/archive.ts). The unified entrypoint currently provides backup and restore. Migration and password-reset composition continues in this operations implementation.
+## Migrate and Recover a Password
+
+The same entrypoint provides serve, migrate and reset-password. `pnpm server` starts the service by default. Stop the service, then run:
+
+```bash
+pnpm server migrate
+read -rs recovery_password
+printf '%s\n' "$recovery_password" | pnpm server reset-password --email member@example.test
+unset recovery_password
+```
+
+Migration reports the verified schema version. It does not start devices or maintenance loops. Password recovery reads standard input and excludes the password from output. It preserves user identity, revokes old sessions and records a system audit. Restart the service and log in with the new password. The original `pnpm reset-password --email ...` entrypoint remains available.
+
+Owners: [unified CLI](../../apps/server/src/cli.ts), [archive composition](../../apps/server/src/operations.ts), [shared password operation](../../apps/server/src/password-operation.ts), [database history and opening](../../packages/server/src/platform/db/index.ts), [closed database snapshot](../../packages/server/src/platform/db/snapshot.ts), and [Files ready references](../../packages/server/src/core/files/archive.ts).

@@ -33,4 +33,17 @@ pnpm dev
 
 当前格式只支持本实现验证过的 Node 迁移历史和数据库格式。后续压缩 baseline 时，必须提供已验证的兼容路径，或在修改目标前拒绝旧历史。保留早期 Node 目录与归档；本命令不转换或删除旧 Rust/PostgreSQL 数据。
 
-源码归属：[CLI 组合](../../apps/server/src/operations.ts)、[数据库历史与打开能力](../../packages/server/src/platform/db/index.ts)、[关闭后的数据库快照](../../packages/server/src/platform/db/snapshot.ts)和[Files ready 引用](../../packages/server/src/core/files/archive.ts)。当前统一入口提供 backup 与 restore；迁移和密码重置入口继续在本轮运维实现中组合。
+## 迁移与密码恢复
+
+统一入口也提供 serve、migrate 和 reset-password。`pnpm server` 默认启动服务。停服后运行：
+
+```bash
+pnpm server migrate
+read -rs recovery_password
+printf '%s\n' "$recovery_password" | pnpm server reset-password --email member@example.test
+unset recovery_password
+```
+
+迁移输出实际验证的 schema 版本，不启动设备或清理循环。密码操作通过标准输入读取新密码，不把密码写入输出。它保留用户身份，撤销旧会话并记录 system 审计。重新启动服务后，用新密码登录。原 `pnpm reset-password --email ...` 入口仍可用。
+
+源码归属：[统一 CLI](../../apps/server/src/cli.ts)、[归档组合](../../apps/server/src/operations.ts)、[共享密码操作](../../apps/server/src/password-operation.ts)、[数据库历史与打开能力](../../packages/server/src/platform/db/index.ts)、[关闭后的数据库快照](../../packages/server/src/platform/db/snapshot.ts)和[Files ready 引用](../../packages/server/src/core/files/archive.ts)。

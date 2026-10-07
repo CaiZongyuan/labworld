@@ -111,6 +111,7 @@ async function canonicalPath(path: string) {
         error.code === 'ENOENT'
       ))
         throw error;
+      if (dirname(ancestor) === ancestor) throw error;
       suffix.unshift(basename(ancestor));
       ancestor = dirname(ancestor);
     }

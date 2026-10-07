@@ -8,9 +8,14 @@ import {
   rename,
   symlink,
   unlink,
+  writeFile,
 } from 'node:fs/promises';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import fs from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
+import { dirname } from 'node:path';
+import { backup } from '../../apps/server/src/operations.ts';
 import type {
   CreatedApiKey,
   DeviceCommand,
@@ -22,6 +27,29 @@ import type {
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
+
+test('internal.archive-path: an unavailable filesystem root preserves its error and ends ancestor fallback', async (t) => {
+  const missing = Object.assign(new Error('Unavailable filesystem root'), {
+    code: 'ENOENT',
+  });
+  let roots = 0;
+  t.mock.method(fs, 'realpath', async (path: string) => {
+    if (dirname(path) === path && ++roots > 1)
+      throw new Error('Probe prevented repeated root fallback');
+    throw missing;
+  });
+  syncBuiltinESMExports();
+  try {
+    await assert.rejects(
+      backup('/missing-source', '/missing-output'),
+      (error) => error === missing,
+    );
+    assert.equal(roots, 1);
+  } finally {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  }
+});
 
 async function treeState(root: string): Promise<unknown[]> {
   const state: unknown[] = [];
@@ -48,12 +76,14 @@ async function cli(
   args: string[],
   expectedExit = 0,
   fault?: { input: string; alternate: string; report: string },
+  input?: string,
 ) {
   const actor = await new ServerProcess().create();
   actor.entry = fault
     ? 'tests/support/archive-copy-fault.ts'
     : 'apps/server/src/cli.ts';
   actor.args = args;
+  actor.input = input;
   actor.env = {
     LAB_WORD_DATA_DIR: directory,
     ...(fault
@@ -486,6 +516,246 @@ test(
         restored.cleanup(),
         artifacts.cleanup(),
       ]);
+    }
+  },
+);
+
+test(
+  'backup refuses an active source and missing, wrong-size or wrong-hash ready bytes, then a repaired source restores',
+  { timeout: 90000 },
+  async () => {
+    const source = await new ServerProcess().create(),
+      restored = await new ServerProcess().create(),
+      artifacts = await new ServerProcess().create();
+    source.env = {
+      APP_ORIGIN: source.url,
+      FILE_PUBLIC_ORIGIN: source.url,
+      RATE_LIMIT_ENABLED: 'false',
+    };
+    const archive = join(artifacts.directory, 'archive'),
+      destination = join(restored.directory, 'restored');
+    restored.env = {
+      APP_ORIGIN: restored.url,
+      FILE_PUBLIC_ORIGIN: restored.url,
+      RATE_LIMIT_ENABLED: 'false',
+      LAB_WORD_DATA_DIR: destination,
+    };
+    try {
+      await source.start();
+      const member = new CoreHttp(source.url);
+      await member.register('archive-bytes@example.test');
+      const bytes = await readFile('tests/fixtures/lab/cube.glb'),
+        asset = await publishAsset(member, bytes),
+        hash = createHash('sha256').update(bytes).digest('hex'),
+        object = join(
+          source.directory,
+          'blobs',
+          'objects',
+          hash.slice(0, 2),
+          hash,
+        );
+      const active = await cli(
+        source.directory,
+        ['backup', '--output', archive],
+        1,
+      );
+      assert.match(
+        (active.error as { message: string }).message,
+        /EADDRINUSE|busy|use/i,
+      );
+      await assert.rejects(lstat(archive), { code: 'ENOENT' });
+      const live = await member.json<DownloadCapability>(
+        'GET',
+        '/api/v1/lab/assets/' + asset.id + '/download',
+      );
+      assert.deepEqual(
+        Buffer.from(await (await fetch(live.url)).arrayBuffer()),
+        bytes,
+      );
+      await source.stop();
+      const saved = join(artifacts.directory, 'ready-original');
+      await rename(object, saved);
+      await cli(source.directory, ['backup', '--output', archive], 1);
+      await assert.rejects(lstat(archive), { code: 'ENOENT' });
+      await rename(saved, object);
+      const wrong = Buffer.from(bytes);
+      wrong[wrong.length - 1] ^= 1;
+      for (const content of [Buffer.concat([bytes, Buffer.from([0])]), wrong]) {
+        await writeFile(object, content);
+        await cli(source.directory, ['backup', '--output', archive], 1);
+        await assert.rejects(lstat(archive), { code: 'ENOENT' });
+      }
+      await writeFile(object, bytes);
+      await cli(source.directory, ['backup', '--output', archive]);
+      await cli(destination, ['restore', '--archive', archive]);
+      await restored.start();
+      const reader = new CoreHttp(restored.url);
+      await reader.login('archive-bytes@example.test');
+      const download = await reader.json<DownloadCapability>(
+        'GET',
+        '/api/v1/lab/assets/' + asset.id + '/download',
+      );
+      assert.deepEqual(
+        Buffer.from(await (await fetch(download.url)).arrayBuffer()),
+        bytes,
+      );
+    } finally {
+      await Promise.all([
+        source.cleanup(),
+        restored.cleanup(),
+        artifacts.cleanup(),
+      ]);
+    }
+  },
+);
+
+test(
+  'restore refuses malformed format, declared history, paths, missing or mismatched content and nonempty targets without mutation, then recovers',
+  { timeout: 90000 },
+  async () => {
+    const source = await new ServerProcess().create(),
+      restored = await new ServerProcess().create(),
+      artifacts = await new ServerProcess().create();
+    source.env = { APP_ORIGIN: source.url, RATE_LIMIT_ENABLED: 'false' };
+    const archive = join(artifacts.directory, 'archive'),
+      manifestPath = join(archive, 'manifest.json'),
+      destination = join(restored.directory, 'restored');
+    restored.env = {
+      APP_ORIGIN: restored.url,
+      RATE_LIMIT_ENABLED: 'false',
+      LAB_WORD_DATA_DIR: destination,
+    };
+    try {
+      await source.start();
+      const session = await new CoreHttp(source.url).register(
+        'archive-refusal@example.test',
+      );
+      await source.stop();
+      await cli(source.directory, ['backup', '--output', archive]);
+      const text = await readFile(manifestPath, 'utf8');
+      type FixtureManifest = {
+        format: string;
+        database: { schemaVersion: number; history: Array<{ hash: string }> };
+        directories: string[];
+        entries: Array<{ path: string; size: number; sha256: string }>;
+      };
+      const mutations: Array<(value: FixtureManifest) => void> = [
+        (value) => {
+          value.format = 'unsupported';
+        },
+        (value) => {
+          value.database.schemaVersion = 999;
+        },
+        (value) => {
+          value.database.history[0].hash = '0'.repeat(64);
+        },
+        (value) => {
+          value.entries[0].path = '../escape';
+        },
+        (value) => {
+          value.entries[0].path = '/absolute';
+        },
+        (value) => {
+          value.entries.push({ ...value.entries[0] });
+        },
+        (value) => {
+          value.entries[0].size += 1;
+        },
+        (value) => {
+          value.entries[0].sha256 = '0'.repeat(64);
+        },
+      ];
+      for (const change of mutations) {
+        const manifest = JSON.parse(text) as FixtureManifest;
+        change(manifest);
+        await writeFile(manifestPath, JSON.stringify(manifest));
+        await cli(destination, ['restore', '--archive', archive], 1);
+        await assert.rejects(lstat(destination), { code: 'ENOENT' });
+      }
+      await writeFile(manifestPath, '{');
+      await cli(destination, ['restore', '--archive', archive], 1);
+      await assert.rejects(lstat(destination), { code: 'ENOENT' });
+      await writeFile(manifestPath, text);
+      const entry = (JSON.parse(text) as FixtureManifest).entries[0],
+        path = join(archive, entry.path),
+        saved = join(artifacts.directory, 'missing-entry');
+      await rename(path, saved);
+      await cli(destination, ['restore', '--archive', archive], 1);
+      await assert.rejects(lstat(destination), { code: 'ENOENT' });
+      await rename(saved, path);
+      await mkdir(destination);
+      await writeFile(
+        join(destination, 'retained.txt'),
+        'Keep this destination',
+      );
+      const before = await treeState(destination);
+      await cli(destination, ['restore', '--archive', archive], 1);
+      assert.deepEqual(await treeState(destination), before);
+      await unlink(join(destination, 'retained.txt'));
+      await cli(destination, ['restore', '--archive', archive]);
+      await restored.start();
+      assert.equal(
+        (await new CoreHttp(restored.url).login('archive-refusal@example.test'))
+          .user.id,
+        session.user.id,
+      );
+    } finally {
+      await Promise.all([
+        source.cleanup(),
+        restored.cleanup(),
+        artifacts.cleanup(),
+      ]);
+    }
+  },
+);
+
+test(
+  'unified migrate and password-reset CLI preserve identity and revoke old sessions through the retained HTTP contract',
+  { timeout: 90000 },
+  async () => {
+    const source = await new ServerProcess().create();
+    source.entry = 'apps/server/src/cli.ts';
+    source.env = { APP_ORIGIN: source.url, RATE_LIMIT_ENABLED: 'false' };
+    try {
+      assert.equal(
+        (await cli(source.directory, ['migrate'])).status,
+        'migrated',
+      );
+      await source.start();
+      const member = new CoreHttp(source.url),
+        email = 'unified-command@example.test',
+        session = await member.register(email);
+      await source.stop();
+      const replacement = 'unified-replacement-password';
+      const result = await cli(
+        source.directory,
+        ['reset-password', '--email', email],
+        0,
+        undefined,
+        replacement + '\n',
+      );
+      assert.deepEqual(result, { status: 'reset', user_id: session.user.id });
+      await source.start();
+      await member.error(
+        'GET',
+        '/api/v1/auth/session',
+        undefined,
+        401,
+        'auth.unauthorized',
+      );
+      await member.error(
+        'POST',
+        '/api/v1/auth/login',
+        { email, password: 'contract-isolated-password' },
+        401,
+        'auth.invalid_credentials',
+      );
+      assert.equal(
+        (await member.login(email, replacement)).user.id,
+        session.user.id,
+      );
+    } finally {
+      await source.cleanup();
     }
   },
 );
