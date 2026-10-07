@@ -1,5 +1,5 @@
 {
-  "id": "2ff47b19-35af-452d-adba-3fb3f797db33",
+  "id": "acefae6b-907f-4c49-9fad-fb275c65299a",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -13,7 +13,7 @@
           "type": "uuid",
           "primaryKey": true,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "default": "uuidv7()"
         },
         "user_id": {
           "name": "user_id",
@@ -136,7 +136,7 @@
           "type": "uuid",
           "primaryKey": true,
           "notNull": true,
-          "default": "gen_random_uuid()"
+          "default": "uuidv7()"
         },
         "actor_id": {
           "name": "actor_id",
@@ -468,6 +468,60 @@
       },
       "isRLSEnabled": false
     },
+    "labos_threejs_core.file_references": {
+      "name": "file_references",
+      "schema": "labos_threejs_core",
+      "columns": {
+        "file_id": {
+          "name": "file_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_type": {
+          "name": "owner_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp(6) with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "file_references_file_id_files_id_fk": {
+          "name": "file_references_file_id_files_id_fk",
+          "tableFrom": "file_references",
+          "tableTo": "files",
+          "schemaTo": "labos_threejs_core",
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "file_references_file_id_owner_type_owner_id_pk": {
+          "name": "file_references_file_id_owner_type_owner_id_pk",
+          "columns": ["file_id", "owner_type", "owner_id"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "labos_threejs_core.files": {
       "name": "files",
       "schema": "labos_threejs_core",
@@ -642,11 +696,6 @@
           "name": "files_staging_key_unique",
           "nullsNotDistinct": false,
           "columns": ["staging_key"]
-        },
-        "files_ready_key_unique": {
-          "name": "files_ready_key_unique",
-          "nullsNotDistinct": false,
-          "columns": ["ready_key"]
         },
         "files_ready_candidate_id_unique": {
           "name": "files_ready_candidate_id_unique",

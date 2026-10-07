@@ -224,8 +224,29 @@ export class Database {
           this.active!.measurement.commands.push(command);
         };
         await this.client.waitReady;
-        if (migrationFolder)
+        if (migrationFolder) {
+          const existing = await this.client.query<{ name: string | null }>(
+            "select to_regclass('drizzle.__drizzle_migrations')::text as name",
+          );
+          if (existing.rows[0].name) {
+            const history = await this.client.query<{
+              hash: string;
+              created_at: string;
+            }>(
+              'select hash,created_at::text from drizzle.__drizzle_migrations order by created_at',
+            );
+            if (
+              history.rows.length > expectedMigrations.length ||
+              history.rows.some(
+                (entry, index) =>
+                  entry.hash !== expectedMigrations[index].hash ||
+                  Number(entry.created_at) !== expectedMigrations[index].when,
+              )
+            )
+              throw new Error('Unsupported Node migration history');
+          }
           await migrate(this.orm(), { migrationsFolder: migrationFolder });
+        }
       },
     );
     if (migrationFolder && !(await this.ready('database:startup-check')))
