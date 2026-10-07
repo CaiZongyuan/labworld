@@ -1,7 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, relative, sep } from 'node:path';
+import { createRequire } from 'node:module';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 import { beginAsset } from '../support/lab-assets-http.ts';
@@ -46,6 +47,28 @@ test(
       assert.equal(build.child!.exitCode, 0, build.logs);
       await build.stop();
       target.entry = join(build.directory, 'server/apps/server/src/main.js');
+      const artifact = join(build.directory, 'server');
+      const applicationPackage = createRequire(target.entry).resolve(
+        '@hono/node-server',
+      );
+      const databasePackage = createRequire(
+        join(artifact, 'packages/server/src/platform/db/index.js'),
+      ).resolve('@electric-sql/pglite');
+      assert.equal(applicationPackage.startsWith(artifact + sep), true);
+      assert.equal(databasePackage.startsWith(artifact + sep), true);
+      console.log(
+        JSON.stringify({
+          event: 'm6.compiled-dependency-resolution',
+          application: relative(artifact, applicationPackage),
+          database: relative(artifact, databasePackage),
+          runtimeDependencies: JSON.parse(
+            await readFile(
+              join(artifact, '.lab-word-server-build.json'),
+              'utf8',
+            ),
+          ).runtimeDependencies,
+        }),
+      );
       const index = await readFile(join(directory, 'index.html'), 'utf8');
       target.env = {
         APP_ORIGIN: target.url,

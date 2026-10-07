@@ -4,10 +4,12 @@ import {
   mkdir,
   readFile,
   readdir,
-  symlink,
+  realpath,
+  unlink,
   writeFile,
 } from 'node:fs/promises';
-import { join, resolve, sep } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
+import { createRequire } from 'node:module';
 import { parseArgs } from 'node:util';
 import { ServerProcess, until } from '../tests/support/server-process.ts';
 import { root } from './lib/process.mjs';
@@ -73,24 +75,82 @@ try {
     join(root, 'apps/server/package.json'),
     join(output, 'apps/server/package.json'),
   );
-  // Compiled modules use the pinned installed dependencies in their original package scopes.
+  // Materialize the installed runtime graph; no Windows junction is needed at runtime.
   for (const directory of ['apps/server', 'packages/server']) {
-    const link = join(output, directory, 'node_modules');
+    const oldLink = join(output, directory, 'node_modules');
     try {
-      if (!(await lstat(link)).isSymbolicLink())
+      if (!(await lstat(oldLink)).isSymbolicLink())
         throw new Error('Unexpected server dependency directory');
+      await unlink(oldLink);
     } catch (error) {
       if (error.code !== 'ENOENT') throw error;
-      await symlink(
-        join(root, directory, 'node_modules'),
-        link,
-        process.platform === 'win32' ? 'junction' : 'dir',
-      );
     }
+  }
+  const installed = new Map();
+  const runtimeDependencies = [];
+  async function copyDependency(name, sourceScope, parentDestination) {
+    const entry = createRequire(join(sourceScope, 'package.json')).resolve(
+      name,
+    );
+    let source = dirname(await realpath(entry));
+    let manifest;
+    for (;;) {
+      try {
+        const candidate = JSON.parse(
+          await readFile(join(source, 'package.json'), 'utf8'),
+        );
+        if (candidate.name === name) {
+          manifest = candidate;
+          break;
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT') throw error;
+      }
+      const parent = dirname(source);
+      if (parent === source)
+        throw new Error('Installed runtime package not found: ' + name);
+      source = parent;
+    }
+    let destination = join(output, 'node_modules', name);
+    if (installed.has(destination) && installed.get(destination) !== source)
+      destination = join(parentDestination, 'node_modules', name);
+    if (installed.get(destination) === source) return;
+    if (installed.has(destination))
+      throw new Error('Conflicting installed runtime package: ' + name);
+    installed.set(destination, source);
+    await mkdir(dirname(destination), { recursive: true });
+    await cp(source, destination, {
+      recursive: true,
+      dereference: true,
+      filter: (path) => path !== join(source, 'node_modules'),
+    });
+    runtimeDependencies.push({
+      name,
+      version: manifest.version,
+      path: relative(output, destination),
+    });
+    const dependencies = new Set([
+      ...Object.keys(manifest.dependencies ?? {}),
+      ...Object.keys(manifest.peerDependencies ?? {}).filter(
+        (peer) => !manifest.peerDependenciesMeta?.[peer]?.optional,
+      ),
+    ]);
+    for (const dependency of dependencies)
+      await copyDependency(dependency, source, destination);
+  }
+  for (const directory of ['apps/server', 'packages/server']) {
+    const sourceScope = join(root, directory);
+    const manifest = JSON.parse(
+      await readFile(join(sourceScope, 'package.json'), 'utf8'),
+    );
+    for (const [name, version] of Object.entries(manifest.dependencies ?? {}))
+      if (!version.startsWith('workspace:'))
+        await copyDependency(name, sourceScope, join(output, directory));
   }
   await writeFile(
     marker,
-    JSON.stringify({ source: root, complete: true }) + '\n',
+    JSON.stringify({ source: root, complete: true, runtimeDependencies }) +
+      '\n',
   );
   console.log(
     JSON.stringify({
