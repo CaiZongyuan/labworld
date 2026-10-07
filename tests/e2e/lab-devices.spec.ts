@@ -10,6 +10,7 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type {
   DeviceProgramRun,
+  LabEntity,
   LabWorld,
 } from '../../packages/contracts/src/generated/types.gen';
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
@@ -382,10 +383,29 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     await expect(
       reopenedInspector.getByRole('switch', { name: '电源' }),
     ).toBeDisabled();
-    const stopped = await (
+    const stopped = (await (
       await agent.get(`/api/v1/lab/labs/${lab}/entities/${ids[0]}`)
-    ).json();
-    expect(stopped.observation.freshness).toBe('stopped');
+    ).json()) as LabEntity;
+    const originalA = (world as LabWorld).entities.find(
+      (entity) => entity.id === ids[0],
+    )!;
+    expect(stopped.program_run!.id).toBe(originalA.program_run!.id);
+    expect(stopped.program_run!.status).toBe('stopped');
+    expect(stopped.observation!.run_id).toBe(originalA.observation!.run_id);
+    expect(stopped.observation!.values).toEqual(originalA.observation!.values);
+    for (const [name, property] of Object.entries(
+      originalA.observation!.properties,
+    )) {
+      const retained = stopped.observation!.properties[name];
+      expect({ ...retained, freshness: property.freshness }).toEqual(property);
+    }
+    expect(stopped.observation!.freshness).toBe(
+      Object.values(stopped.observation!.properties).some(
+        (property) => property.freshness === 'stale',
+      )
+        ? 'stale'
+        : 'stopped',
+    );
     const invalid = await agent.post(
       `/api/v1/lab/labs/${lab}/entities/${ids[0]}/actions`,
       {

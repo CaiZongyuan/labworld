@@ -80,6 +80,94 @@ test('internal.observation: heartbeat and another property do not refresh an old
     await f.close();
   }
 });
+test('a stopped light distinguishes fresh and expired readings while retaining its Run and property provenance', async () => {
+  const f = await deviceHttpFixture();
+  try {
+    for (const expiry of ['fresh', 'before', 'after']) {
+      f.setTime('2026-10-10T12:00:00.000Z');
+      const entity = await f.register('light'),
+        run = await f.start(entity.id),
+        command = await f.action(
+          entity.id,
+          'light.set_brightness',
+          { brightness: 35 },
+          `stop-expiry-${expiry}`,
+        );
+      await f.runtime.tick();
+      assert.equal(
+        (await f.command(entity.id, command.id)).status,
+        'succeeded',
+      );
+      const original = (await f.entity(entity.id)).observation!;
+      if (expiry === 'before') {
+        f.setTime('2026-10-10T12:00:05.000Z');
+        await f.runtime.tick();
+        assert.equal(
+          (await f.entity(entity.id)).observation!.freshness,
+          'stale',
+        );
+      }
+      const stopped = await f.client.json<DeviceProgramRun>(
+        'POST',
+        f.path(entity.id) + '/program/stop',
+      );
+      assert.equal(stopped.id, run.id);
+      assert.equal(stopped.status, 'stopped');
+      if (expiry === 'after') {
+        assert.equal(
+          (await f.entity(entity.id)).observation!.freshness,
+          'stopped',
+        );
+        f.setTime('2026-10-10T12:00:05.000Z');
+        await f.runtime.tick();
+      }
+      const last = await f.entity(entity.id);
+      console.log(
+        JSON.stringify({
+          event: 'm6.stop-expiry-public-state',
+          expiry,
+          entity: last.id,
+          run: { id: last.program_run!.id, status: last.program_run!.status },
+          observation: {
+            run: last.observation!.run_id,
+            freshness: last.observation!.freshness,
+            properties: last.observation!.properties,
+          },
+          ledger: f.target.evidence + '/owned-resources.json',
+        }),
+      );
+      assert.equal(last.program_run!.id, run.id);
+      assert.equal(last.program_run!.status, 'stopped');
+      assert.equal(
+        last.observation!.freshness,
+        expiry === 'fresh' ? 'stopped' : 'stale',
+      );
+      assert.deepEqual(last.observation!.values, original.values);
+      assert.deepEqual(
+        last.observation!.properties,
+        Object.fromEntries(
+          Object.entries(original.properties).map(([name, property]) => [
+            name,
+            {
+              ...property,
+              freshness: expiry === 'fresh' ? 'current' : 'stale',
+            },
+          ]),
+        ),
+      );
+      const snapshot = await f.client.json<LabWorld>(
+        'GET',
+        '/api/v1/lab/labs/' + f.lab.id + '/world',
+      );
+      assert.deepEqual(
+        snapshot.entities.find((entry) => entry.id === entity.id)!.observation,
+        last.observation,
+      );
+    }
+  } finally {
+    await f.close();
+  }
+});
 test('internal.observation: exact source watermark survives unknown time; expiry preserves fractional reception and rejected ingress leaves public World unchanged', async () => {
   const target = await new ServerProcess().create(),
     db = new Database();
