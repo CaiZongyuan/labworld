@@ -109,14 +109,19 @@ async function recover(destination: string, assertOwned: () => void) {
         throw new Error('Archive staging ownership was lost; recovery refused');
     };
     try {
-      const stage = await existing(ledger.stage);
-      if (stage) {
-        await verifyIdentity(ledger);
-        check();
-        await rm(ledger.stage, { recursive: true });
+      try {
+        const stage = await existing(ledger.stage);
+        if (stage) {
+          await verifyIdentity(ledger);
+          check();
+          await rm(ledger.stage, { recursive: true });
+        }
+      } finally {
+        // A refused stage is preserved; its recorded empty target can still
+        // be restored while destination exclusion remains valid.
+        assertOwned();
+        await restoreEmpty(ledger);
       }
-      check();
-      await restoreEmpty(ledger);
       await rm(marker + '.next', { force: true });
       await rm(marker);
     } finally {
@@ -133,7 +138,8 @@ export class ArchiveWorkspace {
   private ledger: Ledger;
   private marker: string;
   private closing?: Promise<void>;
-  private lost = false;
+  private destinationLost = false;
+  private stageLost = false;
   private lostHandler?: () => void;
   private constructor(
     destinationLease: DirectoryLease,
@@ -145,12 +151,14 @@ export class ArchiveWorkspace {
     this.ledger = ledger;
     this.path = ledger.stage;
     this.marker = ledger.stage + '.json';
-    const lost = () => {
-      this.lost = true;
+    destinationLease.onLost(() => {
+      this.destinationLost = true;
       this.lostHandler?.();
-    };
-    destinationLease.onLost(lost);
-    stageLease.onLost(lost);
+    });
+    stageLease.onLost(() => {
+      this.stageLost = true;
+      this.lostHandler?.();
+    });
   }
   static async create(kind: 'backup' | 'restore', destination: string) {
     await mkdir(dirname(resolve(destination)), { recursive: true });
@@ -217,42 +225,46 @@ export class ArchiveWorkspace {
   onLost(handler: () => void) {
     this.lostHandler = handler;
   }
+  private assertDestination() {
+    if (this.destinationLost)
+      throw new Error('Archive destination ownership was lost');
+  }
+  private assertOwned() {
+    this.assertDestination();
+    if (this.stageLost) throw new Error('Archive staging ownership was lost');
+  }
   async publish(signal?: AbortSignal) {
-    if (this.lost) throw new Error('Archive directory ownership was lost');
+    this.assertOwned();
     signal?.throwIfAborted();
     const empty = await emptyDestination(this.ledger.destination);
     this.ledger.emptyMode = empty?.mode;
     await record(this.marker + '.next', this.ledger);
     await rename(this.marker + '.next', this.marker);
     signal?.throwIfAborted();
+    await verifyIdentity(this.ledger);
+    this.assertOwned();
     if (empty) await rmdir(this.ledger.destination);
     signal?.throwIfAborted();
     await verifyIdentity(this.ledger);
-    if (this.lost) throw new Error('Archive directory ownership was lost');
+    this.assertOwned();
     await rename(this.path, this.ledger.destination);
   }
   async close() {
     if (this.closing) return this.closing;
     this.closing = (async () => {
       try {
-        if (this.lost)
-          throw new Error(
-            'Archive ownership was lost; cleanup preserved staging',
-          );
-        const stage = await existing(this.path);
-        if (stage) {
-          await verifyIdentity(this.ledger);
-          if (this.lost)
-            throw new Error(
-              'Archive ownership was lost; cleanup preserved staging',
-            );
-          await rm(this.path, { recursive: true });
+        try {
+          this.assertOwned();
+          const stage = await existing(this.path);
+          if (stage) {
+            await verifyIdentity(this.ledger);
+            this.assertOwned();
+            await rm(this.path, { recursive: true });
+          }
+        } finally {
+          this.assertDestination();
+          await restoreEmpty(this.ledger);
         }
-        if (this.lost)
-          throw new Error(
-            'Archive ownership was lost; cleanup preserved staging',
-          );
-        await restoreEmpty(this.ledger);
         await rm(this.marker + '.next', { force: true });
         await rm(this.marker, { force: true });
       } finally {

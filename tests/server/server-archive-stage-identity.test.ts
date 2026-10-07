@@ -47,6 +47,8 @@ test(
       actor.entry = 'apps/server/src/cli.ts';
       actor.env = { LAB_WORD_DATA_DIR: source.directory };
       await invoke(actor, ['backup', '--output', archive], 0);
+      await mkdir(destination, { mode: 0o700 });
+      const emptyBefore = await lstat(destination);
       actor.entry = 'tests/support/archive-interruption-fault.ts';
       actor.args = ['restore', '--archive', archive];
       actor.env = {
@@ -87,7 +89,8 @@ test(
         'Unrelated replacement must remain',
       );
       assert.deepEqual(await readdir(stage), ['retained.txt']);
-      await assert.rejects(lstat(destination), { code: 'ENOENT' });
+      assert.deepEqual(await readdir(destination), []);
+      assert.equal((await lstat(destination)).mode, emptyBefore.mode);
       // The fixture owns this replacement; the operation did not delete it.
       await rm(stage, { recursive: true });
       await rename(saved, stage);
@@ -116,6 +119,79 @@ test(
           replacement: 'preserved',
           original: 'reconciled-and-retried',
         }),
+      );
+    } finally {
+      await restored.cleanup();
+      await actor.cleanup();
+      await source.cleanup();
+      await artifacts.cleanup();
+    }
+  },
+);
+
+test(
+  'internal.archive-stage-identity: publication identity refusal preserves the original empty target and the replacement',
+  { timeout: 60000 },
+  async () => {
+    const source = await new ServerProcess().create(),
+      artifacts = await new ServerProcess().create(),
+      actor = await new ServerProcess().create(),
+      restored = await new ServerProcess().create(),
+      archive = join(artifacts.directory, 'archive'),
+      destination = join(artifacts.directory, 'empty'),
+      saved = join(artifacts.directory, 'original-owned-stage'),
+      report = join(artifacts.directory, 'publication.json');
+    try {
+      source.env = { APP_ORIGIN: source.url, RATE_LIMIT_ENABLED: 'false' };
+      await source.start();
+      const session = await new CoreHttp(source.url).register(
+        'archive-empty-stage@example.test',
+      );
+      await source.stop();
+      actor.entry = 'apps/server/src/cli.ts';
+      actor.env = { LAB_WORD_DATA_DIR: source.directory };
+      await invoke(actor, ['backup', '--output', archive], 0);
+      await mkdir(destination, { mode: 0o700 });
+      const before = await lstat(destination);
+      actor.entry = 'tests/support/archive-stage-publication-replacement.ts';
+      actor.env = {
+        LAB_WORD_DATA_DIR: destination,
+        ARCHIVE_FAULT_DESTINATION: destination,
+        ARCHIVE_FAULT_SAVED: saved,
+        ARCHIVE_FAULT_REPORT: report,
+      };
+      await invoke(actor, ['restore', '--archive', archive], 1);
+      assert.match(actor.logs, /identity|ownership|changed/i);
+      assert.deepEqual(await readdir(destination), []);
+      assert.equal((await lstat(destination)).mode, before.mode);
+      const fault = JSON.parse(await readFile(report, 'utf8')) as {
+        stage: string;
+        marker: string;
+        ledger: string;
+      };
+      assert.equal(await readFile(fault.marker, 'utf8'), fault.ledger);
+      assert.equal(
+        await readFile(join(fault.stage, 'retained.txt'), 'utf8'),
+        'Preserve publication replacement',
+      );
+      assert.deepEqual(await readdir(fault.stage), ['retained.txt']);
+      await rm(fault.stage, { recursive: true });
+      await rename(saved, fault.stage);
+      actor.entry = 'apps/server/src/cli.ts';
+      await invoke(actor, actor.args, 0);
+      restored.env = {
+        LAB_WORD_DATA_DIR: destination,
+        APP_ORIGIN: restored.url,
+        RATE_LIMIT_ENABLED: 'false',
+      };
+      await restored.start();
+      assert.equal(
+        (
+          await new CoreHttp(restored.url).login(
+            'archive-empty-stage@example.test',
+          )
+        ).user.id,
+        session.user.id,
       );
     } finally {
       await restored.cleanup();
