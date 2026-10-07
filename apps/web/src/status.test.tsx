@@ -192,7 +192,16 @@ test('a signed-in administrator keeps the administration group on the status pag
     name: '主菜单',
   });
   expect(
-    await within(navigation).findByRole('link', { name: '后台任务' }),
+    await within(navigation).findByRole('link', { name: '企业成员' }),
+  ).toBeVisible();
+  expect(
+    within(navigation).getByRole('link', { name: '审计记录' }),
+  ).toBeVisible();
+  expect(
+    within(screen.getByRole('navigation', { name: '设置目录' })).getByRole(
+      'link',
+      { name: 'API Keys' },
+    ),
   ).toBeVisible();
   expect(
     await screen.findByRole('heading', { name: '服务已就绪', level: 2 }),
