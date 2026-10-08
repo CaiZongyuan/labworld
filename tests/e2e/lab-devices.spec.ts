@@ -1,4 +1,5 @@
 import { showObjectDirectory } from './lab-desktop';
+import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
 import {
   expect,
   test,
@@ -67,6 +68,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
   test.setTimeout(120000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.name));
+  const browserFailure = observeBrowserFailure(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/register');
   await page
@@ -170,81 +172,93 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       if (enableFailed)
         await (async () => {
           const assertionEndedAtMs = performance.now() - readinessStarted;
-          const dom = await inspector
-            .evaluate(
-              (root) => {
-                const entity = Array.from(root.querySelectorAll('dt')).find(
-                  (entry) => entry.textContent === 'Entity',
-                )?.nextElementSibling?.textContent;
-                const world = document.querySelector(
-                  '[aria-label="世界版本"]',
-                )?.textContent;
-                const switches = Array.from(
-                  root.querySelectorAll('[role="switch"]'),
-                );
-                const programs = Array.from(
-                  root.querySelectorAll('button'),
-                ).filter((button) =>
-                  /^(启动程序|停止程序)$/.test(
-                    button.textContent?.trim() ?? '',
-                  ),
-                );
-                const known = [
-                  '运行端尚未就绪',
-                  '操作未完成',
-                  '实时同步',
-                  '正在连接',
-                  '连接中断',
-                  '访问已结束',
-                ];
-                const visible = Array.from(document.querySelectorAll('*'))
-                  .filter(
-                    (element) =>
-                      element.children.length === 0 &&
-                      known.includes(element.textContent ?? '') &&
-                      element.getClientRects().length > 0 &&
-                      getComputedStyle(element).visibility === 'visible',
-                  )
-                  .map((element) => element.textContent);
-                return {
-                  selectedEntityId: /^[0-9a-f-]{36}$/i.test(entity ?? '')
-                    ? entity
-                    : null,
-                  worldLabel: /^W\d+$/.test(world ?? '') ? world : null,
-                  switchCount: switches.length,
-                  switch:
-                    switches.length === 1
-                      ? {
-                          nativeEnabled: !(switches[0] as HTMLButtonElement)
-                            .disabled,
-                          ariaDisabled:
-                            switches[0].getAttribute('aria-disabled'),
-                          dataDisabled:
-                            switches[0].hasAttribute('data-disabled'),
-                        }
+          const [browserFacts, domFact] = await Promise.all([
+            browserFailure(),
+            boundedBrowserFact(() =>
+              inspector.evaluate(
+                (root) => {
+                  const entity = Array.from(root.querySelectorAll('dt')).find(
+                    (entry) => entry.textContent === 'Entity',
+                  )?.nextElementSibling?.textContent;
+                  const world = document.querySelector(
+                    '[aria-label="世界版本"]',
+                  )?.textContent;
+                  const switches = Array.from(
+                    root.querySelectorAll('[role="switch"]'),
+                  );
+                  const programs = Array.from(
+                    root.querySelectorAll('button'),
+                  ).filter((button) =>
+                    /^(启动程序|停止程序)$/.test(
+                      button.textContent?.trim() ?? '',
+                    ),
+                  );
+                  const known = [
+                    '运行端尚未就绪',
+                    '操作未完成',
+                    '实时同步',
+                    '正在连接',
+                    '连接中断',
+                    '访问已结束',
+                  ];
+                  const visible = Array.from(document.querySelectorAll('*'))
+                    .filter(
+                      (element) =>
+                        element.children.length === 0 &&
+                        known.includes(element.textContent ?? '') &&
+                        element.getClientRects().length > 0 &&
+                        getComputedStyle(element).visibility === 'visible',
+                    )
+                    .map((element) => element.textContent);
+                  return {
+                    selectedEntityId: /^[0-9a-f-]{36}$/i.test(entity ?? '')
+                      ? entity
                       : null,
-                  program: programs.map((button) => ({
-                    label: button.textContent?.trim(),
-                    enabled: !button.disabled,
-                  })),
-                  runtimeAlert: visible.includes('运行端尚未就绪'),
-                  errorVisible: visible.includes('操作未完成'),
-                  sync: visible.filter(
-                    (label) =>
-                      !['运行端尚未就绪', '操作未完成'].includes(label ?? ''),
-                  ),
-                };
-              },
-              undefined,
-              { timeout: 250 },
-            )
-            .catch(() => null);
+                    worldLabel: /^W\d+$/.test(world ?? '') ? world : null,
+                    switchCount: switches.length,
+                    switch:
+                      switches.length === 1
+                        ? {
+                            nativeEnabled: !(switches[0] as HTMLButtonElement)
+                              .disabled,
+                            ariaDisabled:
+                              switches[0].getAttribute('aria-disabled'),
+                            dataDisabled:
+                              switches[0].hasAttribute('data-disabled'),
+                          }
+                        : null,
+                    program: programs.map((button) => ({
+                      label: button.textContent?.trim(),
+                      enabled: !button.disabled,
+                    })),
+                    runtimeAlert: visible.includes('运行端尚未就绪'),
+                    errorVisible: visible.includes('操作未完成'),
+                    sync: visible.filter(
+                      (label) =>
+                        !['运行端尚未就绪', '操作未完成'].includes(label ?? ''),
+                    ),
+                  };
+                },
+                undefined,
+                { timeout: 250 },
+              ),
+            ),
+          ]);
+          const dom = domFact.status === 'ack' ? domFact.value : null;
           await writeFile(
             join(process.env.LAB_NODE_EVIDENCE!, 'light-start-facts.json'),
             JSON.stringify({
               assertionEndedAtMs,
               capturedAtMs: performance.now() - readinessStarted,
               requestedEntityId: ids.at(-1),
+              browserFacts,
+              domCapture: {
+                status: domFact.status,
+                elapsedMs: domFact.elapsedMs,
+                ...(domFact.status === 'error'
+                  ? { errorName: domFact.errorName }
+                  : {}),
+              },
               dom,
               responses: responseFacts,
             }) + '\n',

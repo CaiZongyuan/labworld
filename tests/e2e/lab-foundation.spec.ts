@@ -1,4 +1,5 @@
 import { showObjectDirectory } from './lab-desktop';
+import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -242,6 +243,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     });
     const observer = await second.newPage();
     observer.on('pageerror', (error) => errors.push(error.name));
+    const browserFailure = observeBrowserFailure(observer);
     const readinessStart = performance.now();
     const readinessResponses: Record<string, unknown>[] = [];
     observer.on('response', (response) => {
@@ -293,11 +295,10 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
       if (!observerReady)
         await (async () => {
           const assertionEndedAtMs = performance.now() - readinessStart;
-          let captureTimer: ReturnType<typeof setTimeout> | undefined;
-          const dom = await Promise.race([
-            observer
-              .locator('.world-page')
-              .evaluate(
+          const [browserFacts, domFact] = await Promise.all([
+            browserFailure(),
+            boundedBrowserFact(() =>
+              observer.locator('.world-page').evaluate(
                 (root) => {
                   const visible = (element: Element | null) =>
                     !!element &&
@@ -335,19 +336,24 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
                 },
                 undefined,
                 { timeout: 250 },
-              )
-              .catch(() => null),
-            new Promise<null>((resolve) => {
-              captureTimer = setTimeout(() => resolve(null), 250);
-            }),
+              ),
+            ),
           ]);
-          clearTimeout(captureTimer);
+          const dom = domFact.status === 'ack' ? domFact.value : null;
           writeFileSync(
             `${process.env.LAB_NODE_EVIDENCE}/observer-readiness.json`,
             JSON.stringify({
               expectedLab: lab,
               assertionEndedAtMs,
               capturedAtMs: performance.now() - readinessStart,
+              browserFacts,
+              domCapture: {
+                status: domFact.status,
+                elapsedMs: domFact.elapsedMs,
+                ...(domFact.status === 'error'
+                  ? { errorName: domFact.errorName }
+                  : {}),
+              },
               dom,
               responses: readinessResponses,
             }) + '\n',
