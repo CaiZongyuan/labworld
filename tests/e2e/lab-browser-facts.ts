@@ -115,7 +115,11 @@ export function observeBrowserFailure(page: Page) {
 }
 
 /** Failure-only facts at an owning action; caller keeps the original error. */
-export function observeBrowserSeam(page: Page, seam: string) {
+export function observeBrowserSeam(
+  page: Page,
+  seam: string,
+  runtimeFacts = false,
+) {
   const boundary = observeBrowserFailure(page);
   const responses: { path: string; status: number }[] = [];
   page.on('response', (response) => {
@@ -178,13 +182,82 @@ export function observeBrowserSeam(page: Page, seam: string) {
         }),
       ),
     ]);
+    const capturedAt = new Date().toISOString();
+    const runtime = runtimeFacts
+      ? await Promise.all([
+          boundedBrowserFact(async () => {
+            const browser = page.context().browser();
+            if (!browser) throw new Error('Browser control unavailable');
+            const session = await browser.newBrowserCDPSession();
+            try {
+              const { processInfo } = await session.send(
+                'SystemInfo.getProcessInfo',
+              );
+              return processInfo.map(({ id, type, cpuTime }) => ({
+                id,
+                type,
+                cpuTime,
+              }));
+            } finally {
+              void session.detach().catch(() => {});
+            }
+          }),
+          boundedBrowserFact(async () => {
+            const session = await page.context().newCDPSession(page);
+            try {
+              await session.send('Performance.enable');
+              const { metrics } = await session.send('Performance.getMetrics');
+              const names = new Set([
+                'TaskDuration',
+                'ScriptDuration',
+                'LayoutDuration',
+                'RecalcStyleDuration',
+                'JSHeapUsedSize',
+                'Nodes',
+                'Frames',
+              ]);
+              return metrics.filter(({ name }) => names.has(name));
+            } finally {
+              void session.detach().catch(() => {});
+            }
+          }),
+          boundedBrowserFact(async () => {
+            // This owning surface contains no credential form; other callers get no screenshot.
+            if (new URL(page.url()).pathname !== '/lab/asset')
+              return { status: 'not-captured' };
+            const file = `${seam}-failure.png`;
+            await page.screenshot({
+              path: join(process.env.LAB_NODE_EVIDENCE ?? 'test-results', file),
+              animations: 'disabled',
+              timeout: 250,
+            });
+            return { file };
+          }),
+        ])
+      : null;
     writeFileSync(
       join(
         process.env.LAB_NODE_EVIDENCE ?? 'test-results',
         `${seam}-failure.json`,
       ),
       JSON.stringify(
-        { seam, path: new URL(page.url()).pathname, browser, dom, responses },
+        {
+          seam,
+          capturedAt,
+          path: new URL(page.url()).pathname,
+          browser,
+          dom,
+          responses,
+          ...(runtime
+            ? {
+                processes: runtime[0],
+                taskMetrics: runtime[1],
+                screenshot: runtime[2],
+                metricsScope:
+                  'fresh single cumulative sample; timeout/error leaves cause unknown',
+              }
+            : {}),
+        },
         null,
         2,
       ),

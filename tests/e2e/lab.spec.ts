@@ -619,6 +619,7 @@ test('persistent Draco, Meshopt and Basis models render at their original scale 
   const initialFailure = observeBrowserSeam(
     page,
     'compressed-viewer-initial-ready',
+    true,
   );
   try {
     await page.goto('/lab/asset');
