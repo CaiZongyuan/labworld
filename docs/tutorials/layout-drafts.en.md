@@ -23,7 +23,7 @@ Open <http://127.0.0.1:5173/lab>. Select the original Lab and beaker, then enter
 4. Refresh and enter editing again. The page explains that it restored a private draft. Recovery does not save or change Registered Location.
 5. Choose **Save layout**. After **Saved** appears, refresh. The saved Placement returns, and the private draft is cleared.
 
-Position and rotation absolute values are at most 10000. Rotation uses rad. Scale ranges from 0.001 to 1000. Invalid text remains with a range hint. It neither updates valid Placement nor permits saving. Correct the input to continue. Dragging an axis displays its new valid value; unfinished text on other axes remains.
+Position and rotation absolute values are at most 10000. Rotation uses rad. Scale ranges from 0.001 to 1000. Invalid text remains with a range hint. It neither updates valid Placement nor permits saving. Correct the input to continue. ArrowUp/ArrowDown retain the 0.01 step and range limits for valid values. They do not replace unfinished text. Dragging an axis displays its new valid value; unfinished text on other axes remains.
 
 ## Compare Another Browser
 
