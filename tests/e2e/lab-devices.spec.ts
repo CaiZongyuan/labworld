@@ -1,5 +1,6 @@
 import { showObjectDirectory } from './lab-desktop';
 import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
+import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
 import {
   expect,
   test,
@@ -17,6 +18,7 @@ import type {
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
+test.afterEach(releaseFrameTraces);
 async function pixelChange(page: Page, before: Buffer, after: Buffer) {
   return page.evaluate(
     async (images) => {
@@ -94,6 +96,11 @@ test('two backend lights report independent pixels to a Member and an Agent afte
   const inspector = page.getByRole('complementary', { name: '对象信息' });
   const ids: string[] = [];
   let lab = '';
+  const frameTrace = await startFrameTrace(
+    page,
+    'light-start-frame-trace.json',
+    test.info(),
+  );
   const readinessStarted = performance.now();
   const responseFacts: Record<string, unknown>[] = [];
   page.on('response', (response) => {
@@ -128,6 +135,9 @@ test('two backend lights report independent pixels to a Member and an Agent afte
           fact.run = { id: run.id, status: run.status };
         }
         fact.parsedAtMs = performance.now() - readinessStarted;
+        frameTrace.mark(
+          path.endsWith('/world') ? 'world-parsed' : 'start-response',
+        );
       } catch {
         fact.bodyAvailable = false;
       }
@@ -169,6 +179,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       enableFailed = true;
       throw error;
     } finally {
+      frameTrace.mark('assertion-end');
       if (enableFailed)
         await (async () => {
           const assertionEndedAtMs = performance.now() - readinessStarted;
@@ -245,6 +256,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
             ),
           ]);
           const dom = domFact.status === 'ack' ? domFact.value : null;
+          frameTrace.mark('ack-capture-end');
           await writeFile(
             join(process.env.LAB_NODE_EVIDENCE!, 'light-start-facts.json'),
             JSON.stringify({
@@ -266,8 +278,10 @@ test('two backend lights report independent pixels to a Member and an Agent afte
         })().catch(() => {
           // Optional diagnostics must preserve the original assertion failure.
         });
+      if (enableFailed) await frameTrace.finish(true);
     }
   }
+  await frameTrace.finish(false);
   const session = await (await page.request.get('/api/v1/auth/session')).json();
   const credential = await page.request.post('/api/v1/api-keys', {
     headers: {

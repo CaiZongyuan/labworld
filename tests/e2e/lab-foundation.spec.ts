@@ -1,5 +1,6 @@
 import { showObjectDirectory } from './lab-desktop';
 import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
+import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -16,6 +17,7 @@ import {
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
+test.afterEach(releaseFrameTraces);
 test.afterEach(retainFailure);
 
 test('the 320px Lab keeps its complete 3D viewport and Inspector above history without a clipped workspace', async ({
@@ -244,6 +246,12 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     const observer = await second.newPage();
     observer.on('pageerror', (error) => errors.push(error.name));
     const browserFailure = observeBrowserFailure(observer);
+    const frameTrace = await startFrameTrace(
+      observer,
+      'observer-readiness-frame-trace.json',
+      test.info(),
+      [page],
+    );
     const readinessStart = performance.now();
     const readinessResponses: Record<string, unknown>[] = [];
     observer.on('response', (response) => {
@@ -262,6 +270,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
         status: response.status(),
       };
       readinessResponses.push(fact);
+      if (path.endsWith('.hdr')) frameTrace.mark('hdr-response');
       if (path.endsWith('/world') && response.ok())
         void response
           .json()
@@ -274,6 +283,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
               assets: value.assets.length,
             };
             fact.parsedAtMs = performance.now() - readinessStart;
+            frameTrace.mark('world-parsed');
           })
           .catch(() => {
             fact.bodyAvailable = false;
@@ -292,6 +302,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
       );
       observerReady = true;
     } finally {
+      frameTrace.mark('assertion-end');
       if (!observerReady)
         await (async () => {
           const assertionEndedAtMs = performance.now() - readinessStart;
@@ -340,6 +351,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
             ),
           ]);
           const dom = domFact.status === 'ack' ? domFact.value : null;
+          frameTrace.mark('ack-capture-end');
           writeFileSync(
             `${process.env.LAB_NODE_EVIDENCE}/observer-readiness.json`,
             JSON.stringify({
@@ -361,6 +373,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
         })().catch(() => {
           // Optional diagnostics preserve the original readiness failure.
         });
+      await frameTrace.finish(!observerReady);
     }
     await page.context().setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
