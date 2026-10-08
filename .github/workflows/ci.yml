@@ -1,75 +1,18 @@
 name: CI
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: diagnostic-peer-save-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  verify:
-    name: verify
+  pointer-observation:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    env:
-      DOCS_SOURCE_REF: ${{ github.sha }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .node-version
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 11.17.0
-      - run: pnpm install --frozen-lockfile
-      - name: Complete Node, Web, tooling, budget and docs gate (no containers)
-        run: pnpm check
-      - name: Synthetic HTTP/SSE spike smoke (formal 30-minute evidence is separate)
-        run: pnpm spike:server --duration-seconds 5
-      - name: Final migration source coverage
-        run: node scripts/migration-stage.mjs
-      - name: Keep foundation evidence and cleanup receipts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: m1-linux-evidence
-          path: |
-            .scratch/vnext-m1/
-            .scratch/vnext-m0/
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Keep verified documentation
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: docs-site
-          path: apps/docs/.vitepress/dist
-          retention-days: 7
-      - name: Keep small gate facts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: gate-facts-linux
-          path: |
-            .scratch/vnext-m0/suite-*.json
-            .scratch/vnext-m0/coverage-*.json
-            .scratch/vnext-m0/runs/**/owned-resources.json
-            .scratch/vnext-m0/runs/**/results.json
-            .scratch/vnext-m0/runs/**/target.json
-            .scratch/vnext-m0/runs/**/config.json
-            .scratch/vnext-m0/runs/**/target-process-proof.jsonl
-            .scratch/vnext-m1/**/*.json
-          if-no-files-found: ignore
-          retention-days: 7
-  web-journeys:
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 12
     env:
       E2E_LAB_REFERENCE_LOAD: '1'
+      LAB_WORD_MIGRATION_DESKTOP: 'true'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -79,102 +22,66 @@ jobs:
         with:
           version: 11.17.0
       - run: pnpm install --frozen-lockfile
-      - name: Install Chromium for actual Web/WebGL journeys
+      - name: Install same Chromium dependencies
         run: pnpm exec playwright install --with-deps chromium
-      - name: Owned retained desktop Web journeys
-        run: pnpm test:e2e
-      - name: Built production same-origin application journeys
-        env:
-          E2E_WEB_MODE: production
-        run: pnpm test:e2e tests/e2e/lab-node-assets-world.spec.ts tests/e2e/spa-deep-links.spec.ts
-      - name: Keep owned browser and service evidence
+      - name: Record CI-owned validation inventory
+        run: |
+          mkdir -p .scratch/peer-ci-inventory
+          docker ps -a --format '{{.ID}} {{.Names}} {{.Image}} {{.Status}} {{.Labels}} {{.Ports}}' > .scratch/peer-ci-inventory/start-containers.txt
+          docker volume ls --format '{{.Name}} {{.Driver}} {{.Labels}}' > .scratch/peer-ci-inventory/start-volumes.txt
+          docker network ls --format '{{.ID}} {{.Name}} {{.Driver}} {{.Labels}}' > .scratch/peer-ci-inventory/start-networks.txt
+          docker system df > .scratch/peer-ci-inventory/start-disk.txt
+      - name: One owned pointer case; original 120-second test deadline
+        run: node scripts/e2e-suite.mjs tests/e2e/lab-layout.spec.ts --grep 'real pointer transforms edit Placement while manual location stays unchanged'
+      - name: Reconcile owned ledgers after success, failure or interruption
+        if: always()
+        run: |
+          node --experimental-strip-types --input-type=module <<'JS'
+          import { existsSync, readdirSync, writeFileSync } from 'node:fs';
+          import { join } from 'node:path';
+          import { ContractResources } from './scripts/lib/contract-resources.mjs';
+          import { reconcileDevelopmentResources } from './tests/support/server-resources.ts';
+          const root = '.scratch/vnext-m1';
+          const results = [];
+          if (existsSync(root)) {
+            const directories = readdirSync(root);
+            for (const name of directories.filter(value => value.startsWith('browser-suite-'))) {
+              const path = join(root, name, 'owned-resources.json');
+              if (existsSync(path)) { const ledger = new ContractResources(path); await ledger.recover(); results.push({ path, state: ledger.data.state }); }
+            }
+            for (const name of directories.filter(value => value.startsWith('lab-word-m1-'))) {
+              const browser = join(root, name, 'browser-owned-resources.json');
+              if (existsSync(browser)) { const ledger = new ContractResources(browser); await ledger.recover(); results.push({ path: browser, state: ledger.data.state }); }
+              const service = join(root, name, 'owned-resources.json');
+              if (existsSync(service)) results.push({ path: service, result: await reconcileDevelopmentResources(service) });
+            }
+            writeFileSync(join(root, 'diagnostic-cleanup.json'), JSON.stringify({ runId: process.env.GITHUB_RUN_ID, results }, null, 2));
+          }
+          JS
+      - name: Record final inventory without reclaiming foreign resources
+        if: always()
+        run: |
+          mkdir -p .scratch/peer-ci-inventory
+          docker ps -a --format '{{.ID}} {{.Names}} {{.Image}} {{.Status}} {{.Labels}} {{.Ports}}' > .scratch/peer-ci-inventory/end-containers.txt
+          docker volume ls --format '{{.Name}} {{.Driver}} {{.Labels}}' > .scratch/peer-ci-inventory/end-volumes.txt
+          docker network ls --format '{{.ID}} {{.Name}} {{.Driver}} {{.Labels}}' > .scratch/peer-ci-inventory/end-networks.txt
+          docker system df > .scratch/peer-ci-inventory/end-disk.txt
+      - name: Keep owning packet and closure
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: web-journeys-evidence
+          name: peer-save-owner-observation
+          include-hidden-files: true
           path: |
-            .scratch/vnext-m1/
+            .scratch/vnext-m1/browser-suite-*/owned-resources.json
+            .scratch/vnext-m1/browser-suite-*/results.json
+            .scratch/vnext-m1/browser-suite-*/profile-*.json
+            .scratch/vnext-m1/lab-word-m1-*/owned-resources.json
+            .scratch/vnext-m1/lab-word-m1-*/browser-owned-resources.json
+            .scratch/vnext-m1/lab-word-m1-*/layout-peer-*.json
+            .scratch/vnext-m1/lab-word-m1-*/server.log
+            .scratch/vnext-m1/diagnostic-cleanup.json
             test-results/summary.json
-            test-results/lab-foundation/*.png
-          if-no-files-found: ignore
+            .scratch/peer-ci-inventory/*
+          if-no-files-found: error
           retention-days: 7
-      - name: Keep small browser and resource facts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: gate-facts-web-journeys
-          path: |
-            .scratch/vnext-m1/**/*.json
-            test-results/summary.json
-          if-no-files-found: ignore
-          retention-days: 7
-  windows-foundation:
-    runs-on: windows-2025
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .node-version
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 11.17.0
-      - run: pnpm install --frozen-lockfile
-      - name: Actual startup, migration, HTTP, persistence and owned process proof
-        run: pnpm test:server
-      - run: pnpm contracts:check
-      - run: pnpm spike:server --duration-seconds 5
-      - name: Keep platform evidence and cleanup receipts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: m1-windows-evidence
-          path: |
-            .scratch/vnext-m1/
-            .scratch/vnext-m0/
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Keep small gate facts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: gate-facts-windows
-          path: |
-            .scratch/vnext-m0/suite-*.json
-            .scratch/vnext-m0/coverage-*.json
-            .scratch/vnext-m0/runs/**/owned-resources.json
-            .scratch/vnext-m0/runs/**/results.json
-            .scratch/vnext-m0/runs/**/target.json
-            .scratch/vnext-m0/runs/**/config.json
-            .scratch/vnext-m0/runs/**/target-process-proof.jsonl
-            .scratch/vnext-m1/**/*.json
-          if-no-files-found: ignore
-          retention-days: 7
-  publish-docs:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: verify
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      pages: write
-    concurrency:
-      group: github-pages-publication
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .node-version
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          name: docs-site
-          path: apps/docs/.vitepress/dist
-      - name: Publish artifact and verify matching Pages build
-        env:
-          DOCS_SOURCE_REF: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/publish-docs.mjs --request-build

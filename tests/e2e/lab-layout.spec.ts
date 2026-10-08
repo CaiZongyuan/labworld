@@ -1,6 +1,10 @@
 import { showObjectDirectory, showEntityOperations } from './lab-desktop';
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import {
+  beginPeerSaveObservation,
+  observePeerSave,
+} from './lab-layout-peer-observation';
 import type { SceneNode } from '../../packages/contracts/src/generated/types.gen';
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -63,6 +67,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
   browser,
 }) => {
   test.setTimeout(120000);
+  const peerObservation = beginPeerSaveObservation();
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.name));
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -287,10 +292,33 @@ test('real pointer transforms edit Placement while manual location stays unchang
       .getByRole('button', { name: '选择 Beaker', exact: true })
       .click();
     await inspector.getByLabel('X (m)', { exact: true }).fill('3');
-    await other.getByRole('button', { name: '保存布局', exact: true }).click();
-    await expect(
-      other.getByRole('status', { name: '布局保存状态' }),
-    ).toHaveText('已保存');
+    const finishPeerObservation = await observePeerSave(
+      other,
+      lab,
+      benchId,
+      peerObservation,
+    );
+    try {
+      peerObservation.mark('peer-save-click-start');
+      await other
+        .getByRole('button', { name: '保存布局', exact: true })
+        .click();
+      peerObservation.mark('peer-save-click-end');
+      peerObservation.mark('saved-assertion-start');
+      try {
+        await expect(
+          other.getByRole('status', { name: '布局保存状态' }),
+        ).toHaveText('已保存');
+        peerObservation.mark('saved-assertion-pass');
+      } catch (error) {
+        peerObservation.mark('saved-assertion-fail');
+        await finishPeerObservation('failure');
+        throw error;
+      }
+    } finally {
+      peerObservation.mark('saved-assertion-end');
+      await finishPeerObservation('terminal');
+    }
     await page.getByRole('button', { name: '保存布局', exact: true }).click();
     await expect(
       page.getByText('布局已改变，草稿已保留', { exact: true }),
