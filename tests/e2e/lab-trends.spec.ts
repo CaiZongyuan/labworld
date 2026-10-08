@@ -15,14 +15,34 @@ test.afterEach(async ({ page }, info) => {
     await page.screenshot({ path: info.outputPath('failure-workspace.png') });
 });
 
-async function rasterDifference(page: Page, first: Buffer, second: Buffer) {
+type SceneMask = { x: number; y: number; width: number; height: number };
+async function sensorLabelMask(page: Page): Promise<SceneMask[]> {
+  const canvas = (await page.locator('.world-viewport canvas').boundingBox())!;
+  const label = (await page.locator('.world-sensor-label').boundingBox())!;
+  return [
+    {
+      x: label.x - canvas.x,
+      y: label.y - canvas.y,
+      width: label.width,
+      height: label.height,
+    },
+  ];
+}
+async function rasterDifference(
+  page: Page,
+  first: Buffer,
+  second: Buffer,
+  excluded: SceneMask[] = [],
+) {
   return page.evaluate(
-    async (images) => {
+    async ({ images, excluded }) => {
+      let width = 0;
       const pixels = await Promise.all(
         images.map(async (encoded) => {
           const image = new Image();
           image.src = `data:image/png;base64,${encoded}`;
           await image.decode();
+          width = image.width;
           const canvas = document.createElement('canvas');
           canvas.width = image.width;
           canvas.height = image.height;
@@ -32,7 +52,19 @@ async function rasterDifference(page: Page, first: Buffer, second: Buffer) {
         }),
       );
       let changed = 0;
-      for (let index = 0; index < pixels[0].length; index += 4)
+      for (let index = 0; index < pixels[0].length; index += 4) {
+        const x = (index / 4) % width,
+          y = Math.floor(index / 4 / width);
+        if (
+          excluded.some(
+            (box) =>
+              x >= box.x &&
+              x < box.x + box.width &&
+              y >= box.y &&
+              y < box.y + box.height,
+          )
+        )
+          continue;
         if (
           Math.abs(pixels[0][index] - pixels[1][index]) +
             Math.abs(pixels[0][index + 1] - pixels[1][index + 1]) +
@@ -40,9 +72,10 @@ async function rasterDifference(page: Page, first: Buffer, second: Buffer) {
           30
         )
           changed++;
+      }
       return changed;
     },
-    [first.toString('base64'), second.toString('base64')],
+    { images: [first.toString('base64'), second.toString('base64')], excluded },
   );
 }
 
@@ -123,6 +156,7 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
   const before = await canvas.screenshot({
     path: info.outputPath('camera-before.png'),
   });
+  const beforeMask = await sensorLabelMask(page);
   const queried = page.waitForResponse(
     (response) => new URL(response.url()).pathname === `${entityPath}/trend`,
   );
@@ -148,7 +182,11 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
   const cameraAfter = await canvas.screenshot({
     path: info.outputPath('camera-after.png'),
   });
-  expect(await rasterDifference(page, before, cameraAfter)).toBe(0);
+  const cameraPixels = await rasterDifference(page, before, cameraAfter, [
+    ...beforeMask,
+    ...(await sensorLabelMask(page)),
+  ]);
+  expect(cameraPixels).toBe(0);
   const points = chart.locator('circle[fill="var(--primary)"]');
   await expect(points.first()).toBeVisible();
   const point = (await points.first().boundingBox())!;
@@ -205,5 +243,31 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
   );
   await chart.screenshot({ path: info.outputPath('persistent-chart.png') });
   await page.screenshot({ path: info.outputPath('persistent-workspace.png') });
+  const scene = (await canvas.boundingBox())!;
+  const orbitBeforeMask = await sensorLabelMask(page);
+  const orbitBefore = await canvas.screenshot();
+  await page.mouse.move(
+    scene.x + scene.width * 0.55,
+    scene.y + scene.height * 0.7,
+  );
+  await page.mouse.down();
+  await page.mouse.move(
+    scene.x + scene.width * 0.55 + 70,
+    scene.y + scene.height * 0.7 + 30,
+    { steps: 12 },
+  );
+  await page.mouse.up();
+  const orbitAfter = await canvas.screenshot({
+    path: info.outputPath('orbit-negative.png'),
+  });
+  const orbitPixels = await rasterDifference(page, orbitBefore, orbitAfter, [
+    ...orbitBeforeMask,
+    ...(await sensorLabelMask(page)),
+  ]);
+  expect(orbitPixels).toBeGreaterThan(30);
+  writeFileSync(
+    info.outputPath('camera-oracle.json'),
+    JSON.stringify({ cameraPixels, orbitPixels, masks: beforeMask }, null, 2),
+  );
   expect(errors).toEqual([]);
 });

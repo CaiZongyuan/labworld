@@ -18,6 +18,7 @@ export const labMessages = {
     'trend.resolution': '简化粒度',
     'trend.gaps': '历史缺口',
     'trend.gap.collection_gap': '采集缺口',
+    'trend.gap.collection_not_started': '此区间尚未开始采集',
     'trend.gap.run_changed': 'Run 切换',
     'trend.gap.binding_changed': 'Binding 切换',
     'trend.gap.source_changed': '来源切换',
@@ -459,6 +460,8 @@ export const labMessages = {
     'trend.resolution': 'Sampling resolution',
     'trend.gaps': 'History gaps',
     'trend.gap.collection_gap': 'Collection gap',
+    'trend.gap.collection_not_started':
+      'Collection had not started in this interval',
     'trend.gap.run_changed': 'Run changed',
     'trend.gap.binding_changed': 'Binding changed',
     'trend.gap.source_changed': 'Source changed',
