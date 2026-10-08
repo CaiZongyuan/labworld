@@ -285,6 +285,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   await expect(
     inspector.getByText('未知 · 无观测', { exact: true }),
   ).toBeVisible();
+  await showEntityDetails(page);
   await expect(
     inspector.getByText('robot.pick', { exact: true }),
   ).toBeVisible();
