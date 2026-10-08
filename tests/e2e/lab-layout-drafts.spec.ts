@@ -398,8 +398,40 @@ test('one browser recovers private layout input while other users and browsers s
           height: rect.height,
           exposed: hit === canvas,
           overflow: document.documentElement.scrollWidth > window.innerWidth,
+          toolbars: Array.from(
+            canvas
+              .closest('.world-viewport')!
+              .querySelectorAll('.world-canvas-tools, .world-transform-tools'),
+            (toolbar) => ({
+              name: toolbar.className,
+              rect: toolbar.getBoundingClientRect().toJSON(),
+              gap: getComputedStyle(toolbar).gap,
+              controls: Array.from(
+                toolbar.querySelectorAll('button'),
+                (button) => {
+                  const control = button.getBoundingClientRect();
+                  const centre = document.elementFromPoint(
+                    control.x + control.width / 2,
+                    control.y + control.height / 2,
+                  );
+                  return {
+                    name: button.getAttribute('aria-label'),
+                    rect: control.toJSON(),
+                    centreHit: centre !== null && button.contains(centre),
+                  };
+                },
+              ),
+            }),
+          ),
         };
       });
+      writeFileSync(
+        join(
+          process.env.LAB_NODE_EVIDENCE ?? 'test-results',
+          `layout-draft-geometry-${viewport.width}.json`,
+        ),
+        JSON.stringify({ viewport, ...geometry }, null, 2),
+      );
       expect(geometry.width).toBeGreaterThan(150);
       expect(geometry.height).toBeGreaterThan(100);
       expect(geometry.exposed).toBe(true);

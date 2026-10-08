@@ -692,6 +692,9 @@
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+  .world-transform-tools {
+    gap: 3px;
+  }
   .world-body[data-directory-open='true'] .world-inspector {
     display: none;
   }
