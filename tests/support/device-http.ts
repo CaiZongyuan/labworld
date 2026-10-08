@@ -6,6 +6,8 @@ import { worldRoutes } from '../../packages/server/src/lab/world/routes.ts';
 import { DeviceRuntime } from '../../packages/server/src/lab/devices/runtime.ts';
 import { DeviceService } from '../../packages/server/src/lab/devices/use-cases.ts';
 import { deviceRoutes } from '../../packages/server/src/lab/devices/routes.ts';
+import { progressRoutes } from '../../packages/server/src/lab/progress/routes.ts';
+import { ProgressService } from '../../packages/server/src/lab/progress/use-cases.ts';
 import type {
   LabEntity,
   PersistentLab,
@@ -44,6 +46,7 @@ export async function deviceHttpFixture() {
       const app = coreApp(context, '0.1.0', policy, () => {});
       worldRoutes(app, new WorldService(context, policy), () => runtime.ready);
       deviceRoutes(app, new DeviceService(context, policy, runtime));
+      progressRoutes(app, new ProgressService(context, policy));
       return app;
     }
     await target.startInProcess(

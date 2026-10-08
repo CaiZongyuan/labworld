@@ -1904,6 +1904,236 @@
           "relationships"
         ]
       },
+      "LabGuideProgressRead": {
+        "type": "object",
+        "properties": {
+          "current_guide_version": {
+            "type": "string"
+          },
+          "compatibility": {
+            "$ref": "#/components/schemas/LabGuideCompatibility"
+          },
+          "progress": {
+            "$ref": "#/components/schemas/LabGuideProgress"
+          },
+          "previous_progress": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LabGuideProgress"
+              },
+              {
+                "type": [
+                  "object",
+                  "null"
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "current_guide_version",
+          "compatibility",
+          "progress",
+          "previous_progress"
+        ]
+      },
+      "LabGuideCompatibility": {
+        "type": "string",
+        "enum": [
+          "compatible",
+          "restart_required",
+          "unsupported"
+        ]
+      },
+      "LabGuideProgress": {
+        "type": "object",
+        "properties": {
+          "guide_id": {
+            "type": "string"
+          },
+          "guide_version": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740991
+          },
+          "status": {
+            "$ref": "#/components/schemas/LabGuideStatus"
+          },
+          "step": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "guide_attempt_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "context": {
+            "$ref": "#/components/schemas/LabGuideContext"
+          },
+          "updated_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "guide_id",
+          "guide_version",
+          "revision",
+          "status",
+          "step",
+          "guide_attempt_id",
+          "context",
+          "updated_at"
+        ]
+      },
+      "LabGuideStatus": {
+        "type": "string",
+        "enum": [
+          "not_started",
+          "in_progress",
+          "paused",
+          "completed"
+        ]
+      },
+      "LabGuideContext": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "lab_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "entity_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "node_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "business_attempt": {
+            "$ref": "#/components/schemas/GuideBusinessAttempt"
+          }
+        },
+        "additionalProperties": false
+      },
+      "GuideBusinessAttempt": {
+        "type": [
+          "object",
+          "null"
+        ],
+        "properties": {
+          "operation": {
+            "$ref": "#/components/schemas/GuideBusinessOperation"
+          },
+          "target_lab_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "default": null
+          },
+          "request_key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[!-~]+$"
+          }
+        },
+        "default": null,
+        "required": [
+          "operation",
+          "request_key"
+        ],
+        "additionalProperties": false
+      },
+      "GuideBusinessOperation": {
+        "type": "string",
+        "enum": [
+          "create_lab",
+          "register_entity"
+        ]
+      },
+      "SaveLabGuideProgress": {
+        "type": "object",
+        "properties": {
+          "expected_revision": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 9007199254740990
+          },
+          "status": {
+            "$ref": "#/components/schemas/LabGuideStatus"
+          },
+          "step": {
+            "$ref": "#/components/schemas/LabGuideStep"
+          },
+          "guide_attempt_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "context": {
+            "$ref": "#/components/schemas/LabGuideContext"
+          }
+        },
+        "required": [
+          "expected_revision",
+          "status",
+          "step",
+          "guide_attempt_id",
+          "context"
+        ],
+        "additionalProperties": false
+      },
+      "LabGuideStep": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "enum": [
+          "create_lab",
+          "register_light",
+          "select_entity",
+          "edit_placement",
+          "save_layout",
+          "return_run",
+          "start_program",
+          "light_action",
+          "verify_observation",
+          "asset_library",
+          "complete",
+          null
+        ]
+      },
       "ChangeEntityDefinition": {
         "type": "object",
         "properties": {
@@ -6071,6 +6301,274 @@
             }
           },
           "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/guides/{guide_id}/{guide_version}/progress": {
+      "get": {
+        "operationId": "getLabGuideProgress",
+        "tags": [
+          "Lab"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "guide_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "guide_version",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabGuideProgressRead"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Request budget exceeded; retry after the specified seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "saveLabGuideProgress",
+        "tags": [
+          "Lab"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "guide_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "guide_version",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveLabGuideProgress"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LabGuideProgress"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "408": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
             "description": "",
             "content": {
               "application/json": {

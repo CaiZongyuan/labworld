@@ -19,6 +19,8 @@ import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 import { registerAssetFileOwnership } from '../../../packages/server/src/lab/assets/composition.ts';
 import { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
 import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
+import { ProgressService } from '../../../packages/server/src/lab/progress/use-cases.ts';
+import { progressRoutes } from '../../../packages/server/src/lab/progress/routes.ts';
 import { DeviceRuntime } from '../../../packages/server/src/lab/devices/runtime.ts';
 import { DeviceService } from '../../../packages/server/src/lab/devices/use-cases.ts';
 import { deviceRoutes } from '../../../packages/server/src/lab/devices/routes.ts';
@@ -183,6 +185,7 @@ export async function run(
       await devices.initialize();
       const world = new WorldService(context, config.auth);
       worldRoutes(app, world, () => devices.ready);
+      progressRoutes(app, new ProgressService(context, config.auth));
       lifecycleRoutes(app, world);
       const subscriptions = new WorldSubscriptions(world, () => devices.ready);
       ownStop(() => subscriptions.stop());

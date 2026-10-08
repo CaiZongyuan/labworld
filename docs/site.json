@@ -220,7 +220,7 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "bounded-trends",
-      "next": "complete-foundation"
+      "next": "guide-progress"
     },
     {
       "id": "lab-records",
@@ -465,6 +465,17 @@
       "group": "开发",
       "type": "guide",
       "previous": "server-operations"
+    },
+    {
+      "id": "guide-progress",
+      "source": "docs/tutorials/guide-progress.md",
+      "sourceEn": "docs/tutorials/guide-progress.en.md",
+      "route": "tutorials/guide-progress.md",
+      "title": "个人引导进度",
+      "titleEn": "Private Guide Progress",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "entity-lifecycle"
     }
   ],
   "references": [

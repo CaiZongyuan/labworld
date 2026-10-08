@@ -264,14 +264,22 @@ export class Database {
     await this.open();
   }
   async archiveFacts() {
-    if (!(await this.ready('database:archive-history')))
-      throw new Error('Unsupported Node migration history');
     const history = await this.readSQL<{ hash: string; created_at: string }>(
       { id: 'database:archive-facts', kind: 'startup', budget: 1 },
       'select hash,created_at::text from drizzle.__drizzle_migrations order by created_at',
     );
+    if (
+      !history.length ||
+      history.length > expectedMigrations.length ||
+      history.some(
+        (entry, index) =>
+          entry.hash !== expectedMigrations[index].hash ||
+          Number(entry.created_at) !== expectedMigrations[index].when,
+      )
+    )
+      throw new Error('Unsupported Node migration history');
     const engine = await this.metadata();
-    return { schemaVersion, history, engine: engine[0] };
+    return { schemaVersion: history.length, history, engine: engine[0] };
   }
   read<T>(
     operation: DbOperation,
