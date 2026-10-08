@@ -37,7 +37,7 @@ function openDetails(definitionId = 'light') {
     definitionId === 'centrifuge'
       ? ['Centrifuge A', 'Centrifuge B']
       : ['Light A', 'Light B'];
-  const entities: LabEntity[] = names.map((name, index) => {
+  const entities = names.map((name, index): LabEntity => {
     const id = `${definitionId}-${index}`;
     const binding = {
       id: `binding-${index}`,
@@ -100,7 +100,15 @@ function openDetails(definitionId = 'light') {
         updated_at: receivedAt,
         quality: 'good',
         freshness: 'current',
-        properties: { on: property(false), brightness: property(0, 'percent') },
+        properties:
+          definitionId === 'centrifuge'
+            ? {
+                speed: property(0, 'rpm'),
+                temperature: property(22, 'degC'),
+                phase: property('idle'),
+                elapsed_seconds: property(0, 's'),
+              }
+            : { on: property(false), brightness: property(0, '%') },
       },
       capabilities: definition.capabilities.map((capability) => ({
         ...capability,
@@ -243,7 +251,7 @@ test('stopping and starting a source preserves last property values and their or
   expect(within(power).getByText('当前观测')).toBeVisible();
   expect(
     within(inspector).getByRole('region', { name: '观测亮度' }),
-  ).toHaveTextContent('0 percent');
+  ).toHaveTextContent('0 %');
   await user.click(within(inspector).getByRole('button', { name: '停止程序' }));
   await user.click(
     await within(inspector).findByRole('button', { name: '启动程序' }),
@@ -267,7 +275,7 @@ test('stopping and starting a source preserves last property values and their or
   await waitFor(() =>
     expect(
       within(inspector).getByRole('region', { name: '观测亮度' }),
-    ).toHaveTextContent('50 percent'),
+    ).toHaveTextContent('50 %'),
   );
   expect(within(power).getByText('最后报告值')).toBeVisible();
   expect(power.querySelector('time')).toHaveAttribute('datetime', observedAt);
@@ -298,11 +306,69 @@ test('each light retains its requested brightness when selection changes', async
   ).toHaveValue(23);
   expect(
     within(inspector).getByRole('region', { name: '观测亮度' }),
-  ).toHaveTextContent('0 percent');
+  ).toHaveTextContent('0 %');
   await user.click(screen.getByRole('button', { name: '选择 Light B' }));
   expect(
     within(inspector).getByRole('spinbutton', { name: '目标亮度 (%)' }),
   ).toHaveValue(77);
+});
+
+test('requested power remains independent per light while the actual false and true values await a report', async () => {
+  const { user, entities } = openDetails();
+  entities[1].observation!.values = { on: true, brightness: 0 };
+  entities[1].observation!.properties.on.value = true;
+  let release!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  server.use(
+    http.post(
+      'http://api.test/api/v1/lab/labs/detail-lab/entities/:entity/actions',
+      async ({ request, params }) => {
+        const input = await request.json();
+        await pending;
+        return HttpResponse.json(
+          {
+            id: `power-${params.entity}`,
+            entity_id: params.entity,
+            run_id: `run-original-${params.entity === 'light-0' ? '0' : '1'}`,
+            status: 'succeeded',
+            parameters: input,
+          },
+          { status: 202 },
+        );
+      },
+    ),
+  );
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
+  await user.click(await screen.findByRole('button', { name: '选择 Light A' }));
+  const inspector = screen.getByRole('complementary', { name: '对象信息' });
+  try {
+    await user.click(within(inspector).getByRole('switch', { name: '电源' }));
+    expect(within(inspector).getByLabelText('请求电源目标')).toHaveTextContent(
+      '开启',
+    );
+    expect(
+      within(inspector).getByRole('region', { name: '观测电源' }),
+    ).toHaveTextContent('关闭');
+    await user.click(screen.getByRole('button', { name: '选择 Light B' }));
+    await user.click(within(inspector).getByRole('switch', { name: '电源' }));
+    expect(within(inspector).getByLabelText('请求电源目标')).toHaveTextContent(
+      '关闭',
+    );
+    expect(
+      within(inspector).getByRole('region', { name: '观测电源' }),
+    ).toHaveTextContent('开启');
+    await user.click(screen.getByRole('button', { name: '选择 Light A' }));
+    expect(within(inspector).getByLabelText('请求电源目标')).toHaveTextContent(
+      '开启',
+    );
+    expect(
+      within(inspector).getByRole('region', { name: '观测电源' }),
+    ).toHaveTextContent('关闭');
+  } finally {
+    release();
+  }
 });
 
 test('source restart stops before starting, preserves a failed Stop, and recovers partial success with explicit Start', async () => {
@@ -483,6 +549,71 @@ test('a centrifuge shows fixed backend Task parameters and retains its ended res
   expect(within(details).getAllByText('run-original-0').length).toBeGreaterThan(
     0,
   );
+});
+
+test('a recorded unknown Task result stays unknown at idle and permits an explicit new Task', async () => {
+  const { user, entities } = openDetails('centrifuge');
+  server.use(
+    http.post(
+      'http://api.test/api/v1/lab/labs/detail-lab/entities/centrifuge-0/actions',
+      async ({ request }) => {
+        const input = (await request.json()) as { parameters: unknown };
+        entities[0].task = {
+          id: 'unknown-task',
+          entity_id: entities[0].id,
+          run_id: 'run-original-0',
+          command_id: 'unknown-command',
+          result_id: 'unknown-result',
+          parameters: input.parameters,
+          status: 'unknown',
+          elapsed_seconds: 0,
+          created_at: observedAt,
+        };
+        entities[0].task_result = {
+          id: 'unknown-result',
+          task_id: 'unknown-task',
+          status: 'unknown',
+          reason: 'observation_uncertain',
+        };
+        return HttpResponse.json(
+          {
+            id: 'unknown-command',
+            entity_id: entities[0].id,
+            run_id: 'run-original-0',
+            status: 'unknown',
+          },
+          { status: 202 },
+        );
+      },
+    ),
+    http.get(
+      'http://api.test/api/v1/lab/labs/detail-lab/entities/centrifuge-0/commands/unknown-command',
+      () =>
+        HttpResponse.json({
+          id: 'unknown-command',
+          entity_id: 'centrifuge-0',
+          run_id: 'run-original-0',
+          status: 'unknown',
+        }),
+    ),
+  );
+  await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
+  await user.click(
+    await screen.findByRole('button', { name: '选择 Centrifuge A' }),
+  );
+  const inspector = screen.getByRole('complementary', { name: '对象信息' });
+  await user.click(within(inspector).getByRole('button', { name: '开始离心' }));
+  const task = await within(inspector).findByRole('region', {
+    name: '当前 / 最近任务',
+  });
+  expect(task).toHaveTextContent('结果不确定');
+  expect(task).not.toHaveTextContent('已完成');
+  expect(
+    within(inspector).getByRole('region', { name: '观测阶段' }),
+  ).toHaveTextContent('空闲');
+  expect(
+    within(inspector).getByRole('button', { name: '开始离心' }),
+  ).toBeEnabled();
 });
 
 test.each([

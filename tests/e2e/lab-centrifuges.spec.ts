@@ -6,7 +6,11 @@ import {
 } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { showObjectDirectory } from './lab-desktop';
+import {
+  showObjectDirectory,
+  showEntityDetails,
+  showEntityOperations,
+} from './lab-desktop';
 import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
 import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
 import type {
@@ -129,6 +133,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
     await expect(
       inspector.getByRole('heading', { name, exact: true }),
     ).toBeVisible();
+    await showEntityDetails(page);
     const id = await inspector
       .locator('dt')
       .filter({ hasText: /^Entity$/ })
@@ -140,6 +145,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
       .locator('+ dd')
       .innerText();
     paths.push(`/api/v1/lab/labs/${lab}/entities/${id}`);
+    await showEntityOperations(page);
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })
       .click();
@@ -356,7 +362,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
       const detail = reopened.getByRole('complementary', { name: '对象信息' });
       await expect(
         detail
-          .getByRole('region', { name: '本次任务' })
+          .getByRole('region', { name: '当前 / 最近任务' })
           .getByText('已完成', { exact: true }),
       ).toHaveCount(2);
       const long = await agent.post(`${paths[0]}/actions`, {
@@ -413,7 +419,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
       ).toBeEnabled({ timeout: 20000 });
       await expect(
         detail
-          .getByRole('region', { name: '本次任务' })
+          .getByRole('region', { name: '当前 / 最近任务' })
           .getByText('已中断', { exact: true }),
       ).toHaveCount(2);
       await detail
@@ -443,6 +449,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
         .getByRole('button', { name: 'English', exact: true })
         .click();
       await reopened.getByRole('button', { name: 'Dark', exact: true }).click();
+      await showEntityOperations(reopened);
       await canvasPixels(
         reopened,
         `test-results/lab-foundation/t06-centrifuge-${desktopMigration ? 'desktop' : 'mobile'}-canvas.png`,

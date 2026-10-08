@@ -1012,7 +1012,10 @@ export default function WorldView() {
                 />
               }
             >
-              <section className="lab-inspector-section">
+              <section
+                className="lab-inspector-section"
+                aria-label={message('detail.identity')}
+              >
                 <h3>{message('detail.identity')}</h3>
                 <dl className="world-properties">
                   <dt>Entity</dt>
@@ -1031,14 +1034,20 @@ export default function WorldView() {
                       ? selected.configuration.label
                       : '-'}
                   </dd>
-                  <dt>{message('world.binding')}</dt>
+                  <dt>{message('device.program')}</dt>
                   <dd>
                     {selected.binding?.program_id ?? message('world.noBinding')}
                   </dd>
                   <dt>Binding</dt>
                   <dd>{selected.binding?.id ?? '-'}</dd>
+                  <dt>{message('assets.source')}</dt>
+                  <dd>
+                    {selected.binding?.source ?? message('world.noBinding')}
+                  </dd>
                   <dt>Run</dt>
                   <dd>{selected.program_run?.id ?? '-'}</dd>
+                  <dt>{message('detail.runBinding')}</dt>
+                  <dd>{selected.program_run?.binding_id ?? '-'}</dd>
                   <dt>{message('detail.runStatus')}</dt>
                   <dd>
                     {message(

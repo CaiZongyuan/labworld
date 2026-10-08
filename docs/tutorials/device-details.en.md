@@ -35,7 +35,7 @@ The [shared detail](../../packages/views/src/lab/entity-detail.tsx) provides Ope
 8. Set its target brightness to `77`.
 9. Return to `Light A`.
 
-   A retains its target of `23`. B retains its own inputs and Command feedback. Selection changes do not turn targets into measurements.
+   A retains its target of `23`. B retains its own inputs and Command feedback. Selection changes do not turn targets into measurements. **Requested power target** retains the last request separately from **Reported power**.
 
 Targets and attempts remain in the current workbench session. Reloading reads persistent actual state. These inputs are not backend device configuration.
 

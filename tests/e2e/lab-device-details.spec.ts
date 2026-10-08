@@ -236,3 +236,156 @@ for (const scenario of [
     );
   });
 }
+
+test('ready shared details support the accepted desktop and narrow viewports, keyboard and focus return', async ({
+  page,
+}) => {
+  test.setTimeout(90000);
+  await member(page, 'Shared details acceptance');
+  await register(page, 'centrifuge', 'Ready centrifuge');
+  await page
+    .getByRole('complementary', { name: '对象信息' })
+    .getByRole('button', { name: '启动程序', exact: true })
+    .click();
+  await expect(page.getByLabel('关键观测有效性')).toHaveText(
+    '当前关键观测有效',
+  );
+  const initialInfo = page.getByRole('complementary', { name: '对象信息' });
+  await initialInfo.getByRole('tab', { name: '记录', exact: true }).click();
+  const records = initialInfo.getByRole('tabpanel', {
+    name: '记录',
+    exact: true,
+  });
+  await expect(records.locator('.world-history-record').first()).toBeVisible();
+  await initialInfo.getByRole('tab', { name: '操作', exact: true }).click();
+  const results: unknown[] = [];
+  for (const viewport of [
+    { width: 1440, height: 1000, english: false },
+    { width: 1920, height: 1080, english: false },
+    { width: 390, height: 844, english: false },
+    { width: 320, height: 844, english: true },
+  ]) {
+    if (viewport.english) {
+      await page.getByRole('button', { name: 'English', exact: true }).click();
+      await page.getByRole('button', { name: 'Dark', exact: true }).click();
+    }
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    await page.emulateMedia({
+      reducedMotion: viewport.width < 560 ? 'reduce' : 'no-preference',
+    });
+    const directory = page.locator('.lab-toolbar').getByRole('button', {
+      name: /^(打开对象目录|关闭对象目录|Open object directory|Close object directory)$/,
+    });
+    if ((await directory.getAttribute('aria-expanded')) === 'true')
+      await directory.click();
+    const info = page.getByRole('complementary', {
+      name: viewport.english ? 'Object info' : '对象信息',
+    });
+    await expect(info).toBeVisible();
+    if (viewport.width < 560) {
+      await page.locator('.lab-toolbar').hover({ position: { x: 20, y: 20 } });
+      await page.mouse.wheel(0, 800);
+      await expect
+        .poll(() =>
+          page.locator('.world-viewport').evaluate(async (element) => {
+            const y = element.getBoundingClientRect().y;
+            await new Promise<void>((resolve) =>
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => resolve()),
+              ),
+            );
+            return Math.abs(element.getBoundingClientRect().y - y) < 0.01;
+          }),
+        )
+        .toBe(true);
+    }
+    const scene = await rectangle(page.locator('.world-viewport canvas'));
+    expect(scene.height).toBeGreaterThanOrEqual(180);
+    await expect.poll(() => colors(page)).toBeGreaterThan(20);
+    const start = info.getByRole('button', {
+      name: viewport.english ? 'Start centrifuge' : '开始离心',
+      exact: true,
+    });
+    const stop = info.getByRole('button', {
+      name: viewport.english ? 'Stop centrifuge' : '停止离心',
+      exact: true,
+    });
+    const input = info.getByLabel(
+      viewport.english ? 'Target speed (rpm)' : '目标转速 (rpm)',
+    );
+    for (const action of [start, stop, input])
+      await expect(action).toBeEnabled();
+    const speed = info.getByRole('region', {
+      name: viewport.english ? 'Observed speed' : '观测转速',
+    });
+    const temperature = info.getByRole('region', {
+      name: viewport.english ? 'Reported temperature' : '观测温度',
+    });
+    await expect(speed.locator('.observation-value')).toHaveText('0 rpm');
+    await expect(temperature.locator('.observation-value')).toHaveText(
+      '22 degC',
+    );
+    const infoBox = await rectangle(info);
+    const bar = await rectangle(start.locator('..'));
+    if (viewport.width < 560) {
+      await exposedScene(page, info);
+      for (const control of [
+        speed.locator('.observation-value'),
+        speed.locator('.observation-status'),
+        temperature.locator('.observation-value'),
+        temperature.locator('.observation-status'),
+      ]) {
+        const box = await rectangle(control);
+        expect(box.y).toBeGreaterThanOrEqual(infoBox.y);
+        expect(box.y + box.height).toBeLessThanOrEqual(bar.y);
+      }
+      for (const action of [start, stop])
+        expect((await rectangle(action)).height).toBeGreaterThanOrEqual(44);
+      expect(bar.y + bar.height).toBeLessThanOrEqual(
+        infoBox.y + infoBox.height + 1,
+      );
+    }
+    await input.focus();
+    await expect(input).toBeFocused();
+    await info.evaluate((element) => {
+      element.scrollTop = 0;
+    });
+    await page.screenshot({
+      path: join(
+        evidence,
+        `accepted-${viewport.width}-${viewport.english ? 'en-dark' : 'zh-light'}.png`,
+      ),
+      animations: 'disabled',
+    });
+    results.push({
+      viewport,
+      scene,
+      inspector: infoBox,
+      actionBar: bar,
+      inputFocus: true,
+    });
+  }
+  const info = page.getByRole('complementary', { name: 'Object info' });
+  await info
+    .getByRole('button', { name: 'Close object details', exact: true })
+    .click();
+  const open = page.getByRole('button', {
+    name: 'Open object details',
+    exact: true,
+  });
+  await open.click();
+  await page.keyboard.press('Escape');
+  await expect(info).toBeHidden();
+  await expect(open).toBeFocused();
+  writeFileSync(
+    join(evidence, 'accepted-viewports.json'),
+    JSON.stringify(
+      { results, keyboardEscape: true, focusReturn: true },
+      null,
+      2,
+    ),
+  );
+});

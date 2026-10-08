@@ -51,6 +51,7 @@ export type CommandAttempt = {
 };
 export type EntityCommandAttempts = Record<string, CommandAttempt>;
 export type DeviceInput = {
+  power?: boolean;
   brightness: string;
   rpm: string;
   temperature: string;
@@ -120,9 +121,9 @@ export default function DevicePanel({
     runtimeAvailable;
   const pendingAttempt = (value: CommandAttempt) => {
     const status = commandAttemptStatus(value);
-    if (status === 'unknown' || status === 'uncertain')
+    if (status === 'uncertain')
       return (value.command?.run_id ?? value.runId) === programRun?.id;
-    return !['succeeded', 'failed', 'rejected'].includes(status);
+    return !['succeeded', 'failed', 'rejected', 'unknown'].includes(status);
   };
   const locked = Object.values(attempts).some(pendingAttempt);
   async function program(operation: SourceAttempt['operation']) {
@@ -382,13 +383,24 @@ export default function DevicePanel({
                     locked ||
                     programPending
                   }
-                  onCheckedChange={(on) =>
+                  onCheckedChange={(on) => {
+                    onInput({ ...input, power: on });
                     void submit({
                       capability: 'light.set_power',
                       parameters: { on },
-                    })
-                  }
+                    });
+                  }}
                 />
+                <output aria-label={message('device.requestedPower')}>
+                  {message('device.requestedPower')}:{' '}
+                  {message(
+                    input.power === undefined
+                      ? 'device.notRequested'
+                      : input.power
+                        ? 'device.on'
+                        : 'device.off',
+                  )}
+                </output>
               </Field>
               <form
                 onSubmit={(event) => {

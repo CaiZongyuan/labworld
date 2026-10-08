@@ -41,7 +41,7 @@ test('a member keeps the last observation through duplicate, old, interrupted an
         name,
         {
           value,
-          unit: name === 'brightness' ? 'percent' : null,
+          unit: name === 'brightness' ? '%' : null,
           binding_id: 'binding',
           run_id: 'run',
           sequence: 1,

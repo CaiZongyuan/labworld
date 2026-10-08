@@ -130,7 +130,9 @@ function SensorReading({
         <strong>{temperature ? observationValue(temperature) : '-'}</strong>
         <small>
           {temperature
-            ? message(`device.freshness.${reading.reason}`)
+            ? message(
+                `device.freshness.${temperature.freshness !== 'current' ? temperature.freshness : reading.reason}`,
+              )
             : message('world.unknown')}
         </small>
       </div>
@@ -217,8 +219,8 @@ function Builtin({ entity }: { entity: LabEntity }) {
   const on = readings.on;
   const brightness = readings.brightness;
   const intensity =
-    on?.currentValid &&
-    brightness?.currentValid &&
+    on?.hasValue &&
+    brightness?.hasValue &&
     on.property?.value === true &&
     typeof brightness.property?.value === 'number'
       ? brightness.property.value / 100

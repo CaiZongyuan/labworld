@@ -241,6 +241,11 @@
 .device-panel [data-slot='field-group'] {
   margin-top: 14px;
 }
+.device-panel output {
+  font-size: 10px;
+  overflow-wrap: anywhere;
+  color: var(--muted-foreground);
+}
 .device-brightness {
   display: flex;
   gap: 8px;
@@ -718,7 +723,7 @@
   max-height: 300px;
   overflow: auto;
 }
-.world-page:has(.world-history) .world-body {
+.world-page:has(> .world-history-surface) .world-body {
   min-height: 320px;
 }
 .world-history-heading {
@@ -797,7 +802,7 @@
   .world-history-surface {
     max-height: min(44dvh, 360px);
   }
-  .world-page:has(.world-history) .world-body {
+  .world-page:has(> .world-history-surface) .world-body {
     min-height: 180px;
   }
 }

@@ -203,7 +203,7 @@ function openLights() {
             name,
             {
               value,
-              unit: name === 'brightness' ? 'percent' : null,
+              unit: name === 'brightness' ? '%' : null,
               binding_id: 'binding-0',
               run_id: 'run-light-0',
               sequence: 1,

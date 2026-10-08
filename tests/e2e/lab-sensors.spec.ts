@@ -1,4 +1,8 @@
-import { showObjectDirectory } from './lab-desktop';
+import {
+  showObjectDirectory,
+  showEntityDetails,
+  showEntityOperations,
+} from './lab-desktop';
 import {
   expect,
   test,
@@ -110,8 +114,11 @@ test('backend temperatures stay independent across browser closure, source expir
         inspector.getByRole('heading', { name, exact: true }),
       ).toBeVisible();
       await expect(
-        inspector.getByText('未知 · 无观测', { exact: true }),
+        inspector
+          .getByRole('region', { name: '观测温度' })
+          .getByText('未知 · 无观测', { exact: true }),
       ).toBeVisible();
+      await showEntityDetails(page);
       const entity = await inspector
         .locator('dt')
         .filter({ hasText: /^Entity$/ })
@@ -131,6 +138,7 @@ test('backend temperatures stay independent across browser closure, source expir
           })
         ).status(),
       ).toBe(200);
+      await showEntityOperations(page);
       await inspector
         .getByRole('button', { name: '启动程序', exact: true })
         .click();
@@ -276,6 +284,7 @@ test('backend temperatures stay independent across browser closure, source expir
         .getByRole('button', { name: 'English', exact: true })
         .click();
       await reopened.getByRole('button', { name: 'Dark', exact: true }).click();
+      await showEntityOperations(reopened);
       await expect(
         reopened
           .getByRole('complementary', { name: 'Object info' })

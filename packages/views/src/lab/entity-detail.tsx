@@ -130,8 +130,14 @@ export default function EntityDetail({
               <dl className="world-properties">
                 <dt>Task</dt>
                 <dd>{entity.task?.id ?? message('detail.noTask')}</dd>
-                <dt>Run</dt>
+                <dt>{message('detail.taskRun')}</dt>
                 <dd>{entity.task?.run_id ?? '-'}</dd>
+                <dt>{message('detail.taskStatus')}</dt>
+                <dd>
+                  {entity.task
+                    ? message(`task.${entity.task.status}`)
+                    : message('detail.noTask')}
+                </dd>
                 <dt>Command</dt>
                 <dd>{entity.task?.command_id ?? '-'}</dd>
                 <dt>{message('task.result')}</dt>
@@ -151,6 +157,16 @@ export default function EntityDetail({
                 <dt>{message('detail.endedAt')}</dt>
                 <dd>
                   {entity.task_result?.ended_at ?? entity.task?.ended_at ?? '-'}
+                </dd>
+                <dt>{message('task.reason')}</dt>
+                <dd>
+                  {entity.task_result?.reason
+                    ? message(`task.reason.${entity.task_result.reason}`)
+                    : '-'}
+                </dd>
+                <dt>{message('detail.fixedParameters')}</dt>
+                <dd>
+                  {entity.task ? JSON.stringify(entity.task.parameters) : '-'}
                 </dd>
               </dl>
             </section>

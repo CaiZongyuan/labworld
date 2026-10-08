@@ -21,7 +21,7 @@ Open <http://127.0.0.1:5173/lab>, sign in as a Member and create `Lighting lab`.
 
 1. Select A. Without a report, it shows **Unknown · No observation**. Its Binding implements lighting, but the program is not started and actions are not executable.
 2. Click **Start program**. Open **Details** and record the current Run UUID. Return to **Operations**. Starting does not invent an observation. Toggle **Power**: submission and waiting appear before execution completes and the actual observation arrives. The shade emits light from the server report.
-3. Enter `35` in **Target brightness (%)** and click **Apply**. This input is separate from **Reported brightness**, which becomes `35 percent` only after the device reports it.
+3. Enter `35` in **Target brightness (%)** and click **Apply**. This input is separate from **Reported brightness**, which becomes `35 %` only after the device reports it.
 4. Start B and turn on its power. Its Run, Binding, source and observation are independent; dimming A does not change B.
 5. Close and reopen the page. Programs run on the backend and observations remain readable. Click A's **Stop program**: the last values and source time remain, with **Source stopped** freshness. Stopping a program does not turn off the light.
 
