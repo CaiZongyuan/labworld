@@ -1,0 +1,38 @@
+.entity-trends {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+  min-width: 0;
+  font-size: 12px;
+}
+.entity-trends p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.trend-plot {
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+.trend-table-scroll {
+  max-height: 320px;
+  overflow: auto;
+}
+.trend-table-scroll table {
+  border-collapse: collapse;
+  font-size: 11px;
+  width: 100%;
+}
+.trend-table-scroll th,
+.trend-table-scroll td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+.trend-table-scroll th {
+  background: var(--background);
+  position: sticky;
+  top: 0;
+}

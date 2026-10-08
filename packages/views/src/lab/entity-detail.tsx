@@ -19,6 +19,7 @@ import RecordDetails from './record-details';
 import ObservationReading from './observation-reading';
 import { readEntityObservations } from './observation-state';
 import { Tool } from './view-controls';
+import TrendEntry from './trend-entry';
 
 function locationOf(world: LabWorld, entity: LabEntity) {
   const names: string[] = [];
@@ -54,17 +55,21 @@ export default function EntityDetail({
   connected,
   originalRecord,
   onCloseOriginalRecord,
+  visible,
+  userId,
 }: {
   entity: LabEntity;
   world: LabWorld;
   apiClient: ApiClient;
-  operations: ReactNode;
+  operations: (readingDetails: ReactNode) => ReactNode;
   children: ReactNode;
   editing: boolean;
   onConfigure: () => void;
   connected: boolean;
   originalRecord?: LabRecord;
   onCloseOriginalRecord?: () => void;
+  visible: boolean;
+  userId: string;
 }) {
   const message = useAppMessage('lab');
   const [tab, setTab] = useState('operations');
@@ -119,7 +124,16 @@ export default function EntityDetail({
           </TabsList>
         ) : null}
         <TabsContent value="operations" keepMounted>
-          {operations}
+          {operations(
+            <TrendEntry
+              entity={entity}
+              apiClient={apiClient}
+              userId={userId}
+              worldVersion={world.version}
+              visible={visible && !editing && tab === 'operations'}
+              connected={connected}
+            />,
+          )}
         </TabsContent>
         <TabsContent value="records" keepMounted>
           {recordsOpened ? (

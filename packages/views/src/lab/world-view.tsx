@@ -1030,9 +1030,12 @@ export default function WorldView() {
               apiClient={apiClient}
               editing={editing}
               connected={connection.available}
+              visible={inspectorVisible}
+              userId={identity.user.id}
               onConfigure={() => setDialog(selected)}
-              operations={
+              operations={(readingDetails) => (
                 <DevicePanel
+                  readingDetails={readingDetails}
                   key={selected.id}
                   entity={selected}
                   apiClient={apiClient}
@@ -1050,7 +1053,7 @@ export default function WorldView() {
                   input={deviceInputs[selected.id] ?? defaultDeviceInput}
                   onInput={(input) => setDeviceInput(selected.id, input)}
                 />
-              }
+              )}
             >
               <section
                 className="lab-inspector-section"
