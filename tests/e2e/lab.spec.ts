@@ -407,6 +407,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     path: `test-results/lab-foundation/t02-world-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
     fullPage: true,
   });
+  await showEntityDetails(other);
   await other
     .getByRole('complementary', { name: 'Object info' })
     .getByText(firstId, { exact: true })
