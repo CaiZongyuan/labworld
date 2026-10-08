@@ -197,11 +197,16 @@ class FrameTrace {
       if (this.armed && this.browserSession && this.complete) {
         const session = this.browserSession;
         const complete = this.complete;
-        facts = await deadline(
+        const terminal = await deadline(
           (async () => {
             await session.send('Tracing.end');
             this.endConfirmed = true;
-            const terminal = await complete;
+            return complete;
+          })(),
+          save ? 8000 : 2500,
+        );
+        facts = await deadline(
+          (async () => {
             if (!terminal.stream) return { status: 'missing-stream' };
             if (!live) {
               void this.closeStream(terminal.stream);
