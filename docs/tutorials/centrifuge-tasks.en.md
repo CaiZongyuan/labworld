@@ -41,7 +41,7 @@ Source: [task HTTP contract](../../packages/server/src/lab/devices/routes.ts), [
 12. Set **Task duration (s)** to `6`.
 13. Select **Start centrifuge**.
 
-    The API accepts a Command and reserves a DeviceTask. The task parameters remain fixed. The Inspector shows Command, Run, Task and result identities.
+    The API accepts a Command and reserves a DeviceTask. The task parameters remain fixed. **Operations** shows each action's Command feedback and the current or most recent Task. Open **Details** to check Command, Run, Task and result identities. Return to **Operations**.
 
 14. Wait for **Completed**.
 
@@ -67,7 +67,7 @@ The built-in representation names `centrifuge-rotor` and rotates around its loca
 
 ## Query With An Agent
 
-Prerequisites: an active `lab:full` key from settings and the Lab identity from the Inspector. The key input remains hidden.
+Prerequisites: an active `lab:full` key from settings and the Lab identity from **Details**. The key input remains hidden.
 
 1. Set the API address.
 

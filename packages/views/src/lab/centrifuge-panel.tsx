@@ -1,15 +1,16 @@
-import { useState } from 'react';
 import { Play, Square } from 'lucide-react';
 import type { EntityAction, LabEntity } from '@labos-threejs/sdk';
 import { Button } from '@labos-threejs/ui/components/button';
 import { Input } from '@labos-threejs/ui/components/input';
 import { Badge } from '@labos-threejs/ui/components/badge';
+import { Progress } from '@labos-threejs/ui/components/progress';
 import {
   Field,
   FieldGroup,
   FieldLabel,
 } from '@labos-threejs/ui/components/field';
 import { useAppMessage } from '../shell/messages';
+import type { DeviceInput } from './device-panel';
 
 export function activeTask(entity: LabEntity) {
   return (
@@ -24,19 +25,23 @@ export default function CentrifugePanel({
   locked,
   available,
   submit,
+  input,
+  onInput,
+  startAvailable = true,
+  stopAvailable = true,
 }: {
   entity: LabEntity;
   locked: boolean;
   available: boolean;
   submit: (input: EntityAction) => Promise<void>;
+  input: DeviceInput;
+  onInput: (input: DeviceInput) => void;
+  startAvailable?: boolean;
+  stopAvailable?: boolean;
 }) {
   const message = useAppMessage('lab');
-  const [rpm, setRpm] = useState('6000');
-  const [temperature, setTemperature] = useState('4');
-  const [duration, setDuration] = useState('60');
-  const [stopping, setStopping] = useState(false);
   const busy = activeTask(entity);
-  const disabled = locked || busy || !available;
+  const disabled = locked || busy || !available || !startAvailable;
   const parameters = entity.task?.parameters as
     { rpm: number; temperature: number; duration_seconds: number } | undefined;
   return (
@@ -47,9 +52,9 @@ export default function CentrifugePanel({
           void submit({
             capability: 'centrifuge.start',
             parameters: {
-              rpm: Number(rpm),
-              temperature: Number(temperature),
-              duration_seconds: Number(duration),
+              rpm: Number(input.rpm),
+              temperature: Number(input.temperature),
+              duration_seconds: Number(input.duration),
             },
           });
         }}
@@ -66,8 +71,10 @@ export default function CentrifugePanel({
               max={15000}
               step={1}
               required
-              value={rpm}
-              onChange={(event) => setRpm(event.target.value)}
+              value={busy ? (parameters?.rpm ?? '') : input.rpm}
+              onChange={(event) =>
+                onInput({ ...input, rpm: event.target.value })
+              }
               disabled={disabled}
             />
           </Field>
@@ -82,8 +89,10 @@ export default function CentrifugePanel({
               max={40}
               step="any"
               required
-              value={temperature}
-              onChange={(event) => setTemperature(event.target.value)}
+              value={busy ? (parameters?.temperature ?? '') : input.temperature}
+              onChange={(event) =>
+                onInput({ ...input, temperature: event.target.value })
+              }
               disabled={disabled}
             />
           </Field>
@@ -98,8 +107,12 @@ export default function CentrifugePanel({
               max={3600}
               step={1}
               required
-              value={duration}
-              onChange={(event) => setDuration(event.target.value)}
+              value={
+                busy ? (parameters?.duration_seconds ?? '') : input.duration
+              }
+              onChange={(event) =>
+                onInput({ ...input, duration: event.target.value })
+              }
               disabled={disabled}
             />
           </Field>
@@ -113,22 +126,17 @@ export default function CentrifugePanel({
             size="sm"
             type="button"
             variant="outline"
-            disabled={!available || stopping}
-            onClick={async () => {
-              setStopping(true);
-              try {
-                await submit({ capability: 'centrifuge.stop', parameters: {} });
-              } finally {
-                setStopping(false);
-              }
-            }}
+            disabled={!available || !stopAvailable}
+            onClick={() =>
+              void submit({ capability: 'centrifuge.stop', parameters: {} })
+            }
           >
             <Square data-icon="inline-start" />
             {message('task.stop')}
           </Button>
         </div>
       </form>
-      {entity.task ? (
+      {entity.task || entity.task_result ? (
         <section
           className="centrifuge-task"
           aria-label={message('task.current')}
@@ -136,16 +144,12 @@ export default function CentrifugePanel({
           <div className="lab-section-heading">
             <h3>{message('task.current')}</h3>
             <Badge variant="outline">
-              {message(`task.${entity.task.status}`)}
+              {message(
+                `task.${entity.task?.status ?? entity.task_result?.status}`,
+              )}
             </Badge>
           </div>
           <dl className="world-properties">
-            <dt>Task</dt>
-            <dd>{entity.task.id}</dd>
-            <dt>Command</dt>
-            <dd>{entity.task.command_id}</dd>
-            <dt>Run</dt>
-            <dd>{entity.task.run_id}</dd>
             <dt>{message('task.targetRpm')}</dt>
             <dd>{parameters?.rpm} rpm</dd>
             <dt>{message('task.targetTemperature')}</dt>
@@ -153,12 +157,12 @@ export default function CentrifugePanel({
             <dt>{message('task.duration')}</dt>
             <dd>{parameters?.duration_seconds} s</dd>
             <dt>{message('task.elapsed')}</dt>
-            <dd>{entity.task.elapsed_seconds.toFixed(1)} s</dd>
-            <dt>{message('task.result')}</dt>
-            <dd>{entity.task.result_id}</dd>
+            <dd>{entity.task?.elapsed_seconds.toFixed(1) ?? '-'} s</dd>
             <dt>{message('task.resultStatus')}</dt>
             <dd>
-              {message(`task.${entity.task_result?.status ?? 'pending'}`)}
+              {entity.task_result
+                ? message(`task.${entity.task_result.status}`)
+                : message('detail.noResult')}
             </dd>
             {entity.task_result?.reason ? (
               <>
@@ -167,6 +171,19 @@ export default function CentrifugePanel({
               </>
             ) : null}
           </dl>
+          {entity.task && parameters && parameters.duration_seconds > 0 ? (
+            <Progress
+              aria-label={message('task.progress')}
+              value={Math.max(
+                0,
+                Math.min(
+                  100,
+                  (entity.task.elapsed_seconds / parameters.duration_seconds) *
+                    100,
+                ),
+              )}
+            />
+          ) : null}
         </section>
       ) : null}
     </section>

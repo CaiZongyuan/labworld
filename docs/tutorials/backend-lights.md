@@ -20,8 +20,8 @@ pnpm dev
 打开 <http://127.0.0.1:5173/lab>，登录普通 Member，创建 `Lighting lab`。以 `智能照明 · 1.0`、内置外观、模拟对象分别登记 `Light A` 和 `Light B`。
 
 1. 选择 `Light A`。没有观测时显示 **未知 · 无观测**；Binding 已实现照明能力，但程序未启动，当前不可执行。
-2. 点击 **启动程序**，记录 Run UUID。启动本身不伪造观测。切换 **电源**，先看到提交、等待设备执行，再看到执行完成及实际观测。灯罩根据服务器报告发光。
-3. 在 **目标亮度 (%)** 填写 `35` 并点击 **设置**。目标输入与 **观测亮度** 分开，后者仅在设备报告后变为 `35 %`。
+2. 点击 **启动程序**。打开 **详情**，记录当前 Run UUID，再返回 **操作**。启动本身不伪造观测。切换 **电源**，先看到提交、等待设备执行，再看到执行完成及实际观测。灯罩根据服务器报告发光。
+3. 在 **目标亮度 (%)** 填写 `35` 并点击 **设置**。目标输入与 **观测亮度** 分开，后者仅在设备报告后变为 `35 percent`。
 4. 启动 `Light B` 并打开电源。其 Run、Binding、来源和观测独立，A 的调光不会改变 B。
 5. 关闭页面再打开，程序仍在后端运行，最后观测仍可读取。点击 A 的 **停止程序**，最后观测的值和来源时间保留，新鲜度变为 **来源已停止**；停止不等于关闭灯。
 
@@ -49,11 +49,13 @@ node examples/lab/control-lights.mjs
 
 `GET .../commands/{command_id}` 查询 `accepted`、`executing`、`succeeded`、`failed` 或 `unknown`、操作者、参数和结果。同一操作者、Entity、键与等价 JSON 参数返回同一命令；不同参数返回 409。记录由用户与 Agent 共用。同一个账号的会话和 Agent 使用相同键空间。
 
-`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时，`observed_at=null`、新鲜度为 `source_time_unknown`。接收时间不会替代来源时间。照明变化时才报告。`current` 表示报告来自仍运行的来源。已实现的连续采样与过期判定见[连续温度](continuous-temperature.md)。页面通过[可靠订阅](reliable-sync.md)接收快照和属性变化。操作须同时满足持久能力许可与 `X-Lab-Runtime` / `runtime_status` 表达的即时服务就绪条件。
+`GET .../entities/{entity_id}` 与 World 快照返回 Binding、当前 Run、观测及三层能力状态。观测包含 `source`、`run_id`、`sequence`、`observed_at`、`received_at`、`updated_at`、`quality` 与 `freshness`。缺少来源时间时，`observed_at=null`、新鲜度为 `source_time_unknown`。接收时间不会替代来源时间。照明变化时才报告。普通详情按属性检查实际值类型、`current` 新鲜度、已知来源时间、`good` 质量、当前 Binding 和正在运行的 Run。`false` 和 `0` 有效；缺失或 `null` 保持未知。停止或新 Run 尚未报告时，旧值带原时间和来源显示为最后报告值。心跳或另一属性不会刷新旧属性。已实现的连续采样与过期判定见[连续温度](continuous-temperature.md)。页面通过[可靠订阅](reliable-sync.md)接收快照和属性变化。操作须同时满足持久能力许可与 `X-Lab-Runtime` / `runtime_status` 表达的即时服务就绪条件。
 
 ## 失败与恢复
 
 脚本实际验证 `brightness=101` 返回 `422 lab.invalid_parameters`、停止后新动作返回 `422 lab.program_not_running`；两者不会改变观测。Robot 等未实现动作返回 `422 lab.capability_not_implemented`，Member 与 Agent 的拒绝一致。会话写入需要 CSRF；坏、过期或撤销的 Agent 凭据不能写入。
+
+无在途任务时，**重启来源**先 Stop 再 Start。Stop 失败不请求 Start。Stop 成功而 Start 失败时，来源保持停止；用 **启动程序**显式恢复。旧动作不重放，旧 Task 不续跑。完整普通入口见[操作与追溯设备](device-details.md)。
 
 响应丢失后，页面显示 **提交结果不确定**，保留原参数和键，选择其他对象后再回来仍保留反馈。点击 **重试同一命令** 使用原键；已有命令时可 **刷新命令**。不要生成新键来自动重复未知执行。后台重启把原运行标为 `interrupted`，未结束命令标为 `unknown`，保留最后观测并要求显式启动新 Run；旧 Run 与旧运行端报告均被拒绝。修改服务代码后，停止并重新运行 `pnpm dev`，同样采用此恢复规则。
 
@@ -62,8 +64,8 @@ Node 先取得目录租约、迁移数据库并完成恢复，再接收 HTTP。�
 ## 验证与下一阶段
 
 ```bash
-pnpm test:contract:server
-pnpm test:frontend apps/web/src/lab-devices.test.tsx
+pnpm test:server
+pnpm exec vitest run apps/web/src/lab-devices.test.tsx apps/web/src/lab-device-details.test.tsx
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 

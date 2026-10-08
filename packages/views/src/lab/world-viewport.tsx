@@ -39,6 +39,7 @@ import { MetricSampler } from './metric-sampler';
 import type { RenderMetrics } from './viewport-state';
 import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
 import { observationValue } from './observation-reading';
+import { readEntityObservations } from './observation-state';
 
 type Tuple = [number, number, number];
 function Block({
@@ -102,7 +103,8 @@ function SensorReading({
   position: Tuple;
 }) {
   const message = useAppMessage('lab');
-  const temperature = entity.observation?.properties?.temperature;
+  const reading = readEntityObservations(entity).properties.temperature;
+  const temperature = reading?.hasValue ? reading.property : undefined;
   return (
     <Html
       center
@@ -128,7 +130,7 @@ function SensorReading({
         <strong>{temperature ? observationValue(temperature) : '-'}</strong>
         <small>
           {temperature
-            ? message(`device.freshness.${temperature.freshness}`)
+            ? message(`device.freshness.${reading.reason}`)
             : message('world.unknown')}
         </small>
       </div>
@@ -137,12 +139,10 @@ function SensorReading({
 }
 function CentrifugeRotor({ entity }: { entity: LabEntity }) {
   const rotor = useRef<Group>(null);
-  const speed = entity.observation?.properties?.speed;
+  const reading = readEntityObservations(entity).properties.speed;
+  const speed = reading?.property;
   const rpm =
-    entity.program_run?.status === 'running' &&
-    speed?.freshness === 'current' &&
-    speed.quality === 'good' &&
-    typeof speed.value === 'number'
+    reading?.currentValid && speed && typeof speed.value === 'number'
       ? speed.value
       : 0;
   useFrame((_, delta) => {
@@ -184,8 +184,9 @@ function CentrifugeReading({
   position: Tuple;
 }) {
   const message = useAppMessage('lab');
-  const speed = entity.observation?.properties?.speed;
-  const phase = entity.observation?.properties?.phase;
+  const readings = readEntityObservations(entity).properties;
+  const speed = readings.speed?.hasValue ? readings.speed.property : undefined;
+  const phase = readings.phase?.hasValue ? readings.phase.property : undefined;
   return (
     <Html
       center
@@ -200,7 +201,11 @@ function CentrifugeReading({
       >
         <strong>{speed ? observationValue(speed) : '-'}</strong>
         <small>
-          {phase ? message(`task.${phase.value}`) : message('world.unknown')}
+          {speed && !readings.speed.currentValid
+            ? message('device.lastReported')
+            : phase
+              ? message(`task.${phase.value}`)
+              : message('world.unknown')}
         </small>
       </div>
     </Html>
@@ -208,11 +213,15 @@ function CentrifugeReading({
 }
 function Builtin({ entity }: { entity: LabEntity }) {
   const definition = entity.definition_id;
-  const light = entity.observation?.values as
-    { on?: boolean; brightness?: number } | undefined;
+  const readings = readEntityObservations(entity).properties;
+  const on = readings.on;
+  const brightness = readings.brightness;
   const intensity =
-    light?.on === true && typeof light.brightness === 'number'
-      ? light.brightness / 100
+    on?.currentValid &&
+    brightness?.currentValid &&
+    on.property?.value === true &&
+    typeof brightness.property?.value === 'number'
+      ? brightness.property.value / 100
       : 0;
   if (definition === 'bench')
     return (

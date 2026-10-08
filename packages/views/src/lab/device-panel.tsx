@@ -1,8 +1,7 @@
-import { useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Check, Play, RefreshCw, Square } from 'lucide-react';
 import {
-  getLabDeviceCommand,
   invokeLabEntityAction,
   startLabDeviceProgram,
   stopLabDeviceProgram,
@@ -23,10 +22,23 @@ import {
   FieldGroup,
 } from '@labos-threejs/ui/components/field';
 import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogClose,
+} from '@labos-threejs/ui/components/dialog';
 import { ErrorAlert } from '../shell/error-alert';
 import { useAppMessage } from '../shell/messages';
 import ObservationReading from './observation-reading';
+import { readEntityObservations } from './observation-state';
 import CentrifugePanel, { activeTask } from './centrifuge-panel';
+import CommandFeedback, { commandAttemptStatus } from './command-feedback';
+import { sessionKey } from '../identity/session';
+import { entityWithConfirmedRun, type SourceAttempt } from './source-state';
+export type { SourceAttempt } from './source-state';
 
 export type CommandAttempt = {
   key: string;
@@ -35,25 +47,52 @@ export type CommandAttempt = {
   submittedAt: number;
   command?: DeviceCommand;
   error?: unknown;
+  runId?: string;
+};
+export type EntityCommandAttempts = Record<string, CommandAttempt>;
+export type DeviceInput = {
+  brightness: string;
+  rpm: string;
+  temperature: string;
+  duration: string;
+};
+export const defaultDeviceInput: DeviceInput = {
+  brightness: '100',
+  rpm: '6000',
+  temperature: '4',
+  duration: '60',
 };
 export default function DevicePanel({
   entity,
   apiClient,
   identity,
-  attempt,
+  attempts,
   onAttempt,
   onRefresh,
   runtimeAvailable,
+  input,
+  onInput,
+  sourceAttempt,
+  onSourceAttempt,
 }: {
   entity: LabEntity;
   apiClient: ApiClient;
   identity: CurrentSession;
-  attempt?: CommandAttempt;
+  attempts: EntityCommandAttempts;
   onAttempt: (attempt: CommandAttempt) => void;
   onRefresh: () => Promise<unknown>;
   runtimeAvailable: boolean;
+  input: DeviceInput;
+  onInput: (input: DeviceInput) => void;
+  sourceAttempt?: SourceAttempt;
+  onSourceAttempt: (attempt: SourceAttempt) => void;
 }) {
   const message = useAppMessage('lab');
+  const client = useQueryClient();
+  function refreshIdentity(error: unknown) {
+    if (['auth.unauthorized', 'auth.csrf'].includes(errorCodeOf(error) ?? ''))
+      void client.invalidateQueries({ queryKey: sessionKey(apiClient) });
+  }
   const errorCodes = {
     'lab.device_busy': message('task.busy'),
     'lab.invalid_parameters': message('device.invalidParameters'),
@@ -62,77 +101,103 @@ export default function DevicePanel({
     'idempotency.conflict': message('device.keyConflict'),
     'lab.command_expired': message('device.commandExpired'),
   };
-  const [programPending, setProgramPending] = useState(false);
-  const [programError, setProgramError] = useState<unknown>(null);
-  const [brightness, setBrightness] = useState('100');
-  const submission = useRef(0);
+  const programPending = sourceAttempt?.phase === 'submitting';
+  const programSubmission = useRef(false);
+  const submission = useRef<Record<string, boolean>>({});
   const path = { lab_id: entity.lab_id, entity_id: entity.id };
-  const running = entity.program_run?.status === 'running';
-  const executable =
-    entity.capabilities.some((capability) => capability.executable) &&
+  const programRun = entityWithConfirmedRun(entity, sourceAttempt).program_run;
+  const running = programRun?.status === 'running';
+  const executableCapability = (id: string) =>
+    running &&
+    !programPending &&
+    !entity.archived_at &&
+    entity.capabilities.some(
+      (capability) =>
+        capability.id === id &&
+        capability.binding_implemented &&
+        capability.executable,
+    ) &&
     runtimeAvailable;
-  const command = useQuery({
-    queryKey: [
-      'lab',
-      'command',
-      apiClient.getConfig().baseUrl,
-      identity.user.id,
-      entity.id,
-      attempt?.command?.id,
-    ],
-    enabled: !!attempt?.command,
-    initialData: attempt?.command,
-    retry: false,
-    queryFn: async ({ signal }) => {
-      const { data } = await getLabDeviceCommand({
-        client: apiClient,
-        path: { ...path, command_id: attempt!.command!.id },
-        signal,
-        throwOnError: true,
-      });
-      if (!['accepted', 'executing'].includes(data.status)) await onRefresh();
-      return data;
-    },
-    refetchInterval: (query) =>
-      query.state.data &&
-      ['accepted', 'executing'].includes(query.state.data.status) &&
-      Date.now() - (attempt?.submittedAt ?? 0) < 30000
-        ? 500
-        : false,
-  });
-  const status =
-    attempt?.phase === 'accepted'
-      ? (command.data?.status ?? 'accepted')
-      : attempt?.phase;
-  const locked =
-    !!status &&
-    !['succeeded', 'failed', 'rejected', 'unknown'].includes(status);
-  async function program() {
-    setProgramPending(true);
-    setProgramError(null);
+  const pendingAttempt = (value: CommandAttempt) => {
+    const status = commandAttemptStatus(value);
+    if (status === 'unknown' || status === 'uncertain')
+      return (value.command?.run_id ?? value.runId) === programRun?.id;
+    return !['succeeded', 'failed', 'rejected'].includes(status);
+  };
+  const locked = Object.values(attempts).some(pendingAttempt);
+  async function program(operation: SourceAttempt['operation']) {
+    if (
+      programSubmission.current ||
+      programPending ||
+      !runtimeAvailable ||
+      entity.archived_at ||
+      activeTask(entity)
+    )
+      return;
+    programSubmission.current = true;
+    let next: SourceAttempt = {
+      key: crypto.randomUUID(),
+      operation,
+      phase: 'submitting',
+      originRunId: programRun?.id,
+      confirmedRun: programRun ?? undefined,
+    };
+    onSourceAttempt(next);
     try {
-      await (running ? stopLabDeviceProgram : startLabDeviceProgram)({
+      const options = {
         client: apiClient,
         path,
         headers: { 'x-csrf-token': identity.csrf_token },
-        throwOnError: true,
-      });
+        throwOnError: true as const,
+      };
+      if (operation !== 'start') {
+        const { data } = await stopLabDeviceProgram(options);
+        next = { ...next, stopSucceeded: true, confirmedRun: data };
+        onSourceAttempt(next);
+      }
+      if (operation !== 'stop') {
+        const { data } = await startLabDeviceProgram(options);
+        next = { ...next, confirmedRun: data };
+      }
+      onSourceAttempt({ ...next, phase: 'succeeded' });
     } catch (error) {
-      setProgramError(error);
-      return;
+      const code = errorCodeOf(error);
+      refreshIdentity(error);
+      onSourceAttempt({
+        ...next,
+        error,
+        phase:
+          code && !['lab.unavailable', 'auth.unavailable'].includes(code)
+            ? 'failed'
+            : 'uncertain',
+      });
     } finally {
-      setProgramPending(false);
+      programSubmission.current = false;
     }
     // World query errors remain visible through their owner after the mutation commits.
     void onRefresh().catch(() => {});
   }
   async function submit(input: EntityAction, previous?: CommandAttempt) {
-    const current = ++submission.current;
+    if (
+      submission.current[input.capability] ||
+      !executableCapability(input.capability) ||
+      programPending ||
+      (previous && previous.runId !== programRun?.id) ||
+      (!previous &&
+        attempts[input.capability] &&
+        pendingAttempt(attempts[input.capability])) ||
+      (!previous &&
+        input.capability !== 'centrifuge.stop' &&
+        (locked || Object.values(submission.current).some(Boolean)))
+    )
+      return;
+    submission.current[input.capability] = true;
     const pending: CommandAttempt = {
       key: previous?.key ?? crypto.randomUUID(),
       input,
       phase: 'submitting',
       submittedAt: Date.now(),
+      runId: previous?.runId ?? programRun?.id,
     };
     onAttempt(pending);
     try {
@@ -146,36 +211,65 @@ export default function DevicePanel({
         body: input,
         throwOnError: true,
       });
-      if (current === submission.current)
-        onAttempt({ ...pending, phase: 'accepted', command: data });
-      await onRefresh();
+      onAttempt({ ...pending, phase: 'accepted', command: data });
     } catch (error) {
       const code = errorCodeOf(error);
       const rejected =
         !!code && code !== 'lab.unavailable' && code !== 'auth.unavailable';
-      if (current === submission.current)
-        onAttempt({
-          ...pending,
-          phase: rejected ? 'rejected' : 'uncertain',
-          error,
-        });
+      refreshIdentity(error);
+      onAttempt({
+        ...pending,
+        phase: rejected ? 'rejected' : 'uncertain',
+        error,
+      });
+    } finally {
+      submission.current[input.capability] = false;
     }
+    void onRefresh().catch(() => {});
   }
-  const values = entity.observation?.values as
-    { on?: boolean; brightness?: number } | undefined;
-  const result = command.data?.result as { reason?: string } | undefined;
-  const time = (value: string | null | undefined) =>
-    value
-      ? new Date(value).toLocaleString()
-      : message('device.sourceTimeUnknown');
+  const readings = readEntityObservations(
+    { ...entity, program_run: programRun },
+    runtimeAvailable,
+  );
+  const power = readings.properties.on;
   return (
     <>
+      <section className="lab-inspector-section device-observations">
+        <div className="lab-section-heading">
+          <h3>{message('world.observation')}</h3>
+          {readings.keyProperties.length ? (
+            <Badge
+              aria-label={message('device.observationValidity')}
+              variant="outline"
+            >
+              {message(
+                readings.currentValid
+                  ? 'device.validObservation'
+                  : 'device.noValidObservation',
+              )}
+            </Badge>
+          ) : null}
+        </div>
+        <div className="device-key-readings">
+          {Object.entries(readings.properties)
+            .filter(([name]) => name !== 'elapsed_seconds')
+            .map(([name, reading]) => (
+              <ObservationReading key={name} name={name} reading={reading} />
+            ))}
+        </div>
+        {!Object.keys(readings.properties).length ? (
+          <p>{message('world.unknown')}</p>
+        ) : null}
+      </section>
       {entity.binding ? (
-        <section className="lab-inspector-section device-panel">
+        <section
+          className="lab-inspector-section device-panel"
+          aria-label={message('device.program')}
+        >
           <div className="lab-section-heading">
             <h3>{message('device.program')}</h3>
             <Badge variant="outline">
-              {message(`device.${entity.program_run?.status ?? 'not_started'}`)}
+              {message(`device.${programRun?.status ?? 'not_started'}`)}
             </Badge>
           </div>
           {!runtimeAvailable ? (
@@ -185,18 +279,7 @@ export default function DevicePanel({
               </AlertDescription>
             </Alert>
           ) : null}
-          <dl className="world-properties">
-            <dt>Binding</dt>
-            <dd>{entity.binding.id}</dd>
-            <dt>Program</dt>
-            <dd>{entity.binding.program_id}</dd>
-            {entity.program_run ? (
-              <>
-                <dt>Run</dt>
-                <dd>{entity.program_run.id}</dd>
-              </>
-            ) : null}
-          </dl>
+
           <Button
             size="sm"
             variant="outline"
@@ -206,7 +289,7 @@ export default function DevicePanel({
               !runtimeAvailable ||
               activeTask(entity)
             }
-            onClick={() => void program()}
+            onClick={() => void program(running ? 'stop' : 'start')}
           >
             {running ? (
               <Square data-icon="inline-start" />
@@ -215,9 +298,70 @@ export default function DevicePanel({
             )}
             {message(running ? 'device.stop' : 'device.start')}
           </Button>
-          {programError ? (
+          {running ? (
+            <Dialog>
+              <DialogTrigger
+                render={
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={
+                      programPending ||
+                      !runtimeAvailable ||
+                      !!entity.archived_at ||
+                      activeTask(entity)
+                    }
+                  />
+                }
+              >
+                <RefreshCw data-icon="inline-start" />
+                {message('device.restart')}
+              </DialogTrigger>
+              <DialogContent>
+                <DialogTitle>{message('device.restart')}</DialogTitle>
+                <DialogDescription>
+                  {message('device.restartNote')}
+                </DialogDescription>
+                <DialogClose render={<Button variant="outline" />}>
+                  {message('viewer.cancel')}
+                </DialogClose>
+                <DialogClose
+                  render={<Button />}
+                  onClick={() => void program('restart')}
+                >
+                  {message('device.confirmRestart')}
+                </DialogClose>
+              </DialogContent>
+            </Dialog>
+          ) : null}
+          {sourceAttempt ? (
+            <p role="status">
+              {message(
+                sourceAttempt.phase === 'submitting'
+                  ? 'device.sourcePending'
+                  : sourceAttempt.phase === 'succeeded'
+                    ? `device.source.${sourceAttempt.operation === 'stop' ? 'stopped' : 'started'}`
+                    : sourceAttempt.phase === 'uncertain'
+                      ? 'device.sourceUncertain'
+                      : sourceAttempt.operation === 'restart'
+                        ? `device.source.${sourceAttempt.stopSucceeded ? 'startFailed' : 'stopFailed'}`
+                        : `device.source.${sourceAttempt.operation}Failed`,
+              )}
+            </p>
+          ) : null}
+          {sourceAttempt?.phase === 'uncertain' ? (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => void onRefresh().catch(() => {})}
+            >
+              <RefreshCw data-icon="inline-start" />
+              {message('device.refreshSource')}
+            </Button>
+          ) : null}
+          {sourceAttempt?.error ? (
             <ErrorAlert
-              error={programError}
+              error={sourceAttempt.error}
               title={message('assets.error')}
               codes={errorCodes}
             />
@@ -232,8 +376,12 @@ export default function DevicePanel({
                   id={`power-${entity.id}`}
                   nativeButton
                   render={<button />}
-                  checked={values?.on === true}
-                  disabled={!executable || locked || programPending}
+                  checked={power?.hasValue && power.property?.value === true}
+                  disabled={
+                    !executableCapability('light.set_power') ||
+                    locked ||
+                    programPending
+                  }
                   onCheckedChange={(on) =>
                     void submit({
                       capability: 'light.set_power',
@@ -247,7 +395,7 @@ export default function DevicePanel({
                   event.preventDefault();
                   void submit({
                     capability: 'light.set_brightness',
-                    parameters: { brightness: Number(brightness) },
+                    parameters: { brightness: Number(input.brightness) },
                   });
                 }}
               >
@@ -263,14 +411,20 @@ export default function DevicePanel({
                       max={100}
                       step="any"
                       required
-                      value={brightness}
-                      onChange={(event) => setBrightness(event.target.value)}
-                      disabled={!executable || locked}
+                      value={input.brightness}
+                      onChange={(event) =>
+                        onInput({ ...input, brightness: event.target.value })
+                      }
+                      disabled={
+                        !executableCapability('light.set_brightness') || locked
+                      }
                     />
                     <Button
                       type="submit"
                       size="sm"
-                      disabled={!executable || locked}
+                      disabled={
+                        !executableCapability('light.set_brightness') || locked
+                      }
                     >
                       <Check data-icon="inline-start" />
                       {message('device.apply')}
@@ -286,97 +440,36 @@ export default function DevicePanel({
               locked={locked || programPending}
               available={running && runtimeAvailable}
               submit={submit}
+              input={input}
+              onInput={onInput}
+              startAvailable={executableCapability('centrifuge.start')}
+              stopAvailable={
+                executableCapability('centrifuge.stop') &&
+                !(
+                  attempts['centrifuge.stop'] &&
+                  pendingAttempt(attempts['centrifuge.stop'])
+                )
+              }
             />
           ) : null}
-          {attempt ? (
-            <div className="device-command" role="status">
-              <strong>{message(`device.command.${status}`)}</strong>
-              <code>{command.data?.id ?? attempt.key}</code>
-              <small>{JSON.stringify(attempt.input.parameters)}</small>
-              {result?.reason ? (
-                <small>{message(`device.reason.${result.reason}`)}</small>
-              ) : null}
-              {attempt.error ? (
-                <ErrorAlert
-                  error={attempt.error}
-                  title={message('assets.error')}
-                  codes={errorCodes}
-                />
-              ) : null}
-              {command.error ? (
-                <ErrorAlert
-                  error={command.error}
-                  title={message('assets.error')}
-                  codes={errorCodes}
-                />
-              ) : null}
-              {status === 'uncertain' ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => void submit(attempt.input, attempt)}
-                >
-                  <RefreshCw data-icon="inline-start" />
-                  {message('device.retrySame')}
-                </Button>
-              ) : attempt.command ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={command.isFetching}
-                  onClick={() => void command.refetch()}
-                >
-                  <RefreshCw data-icon="inline-start" />
-                  {message('device.refreshCommand')}
-                </Button>
-              ) : null}
-            </div>
-          ) : null}
-        </section>
-      ) : null}
-      {entity.observation ? (
-        <section className="lab-inspector-section">
-          <h3>{message('world.observation')}</h3>
-          {entity.observation.properties ? (
-            Object.entries(entity.observation.properties).map(
-              ([name, property]) => (
-                <ObservationReading
-                  key={name}
-                  name={name}
-                  property={property}
-                />
-              ),
-            )
-          ) : (
-            <dl className="world-properties">
-              <dt>{message('device.actualPower')}</dt>
-              <dd>{message(values?.on ? 'device.on' : 'device.off')}</dd>
-              <dt>{message('device.actualBrightness')}</dt>
-              <dd>{values?.brightness ?? '-'} %</dd>
-              <dt>{message('assets.source')}</dt>
-              <dd>{entity.observation.source}</dd>
-              <dt>{message('device.observedAt')}</dt>
-              <dd>{time(entity.observation.observed_at)}</dd>
-              <dt>{message('device.receivedAt')}</dt>
-              <dd>{time(entity.observation.received_at)}</dd>
-              <dt>{message('device.updatedAt')}</dt>
-              <dd>{time(entity.observation.updated_at)}</dd>
-              <dt>{message('device.quality')}</dt>
-              <dd>{message(`device.quality.${entity.observation.quality}`)}</dd>
-              <dt>{message('device.freshness')}</dt>
-              <dd>
-                {message(`device.freshness.${entity.observation.freshness}`)}
-              </dd>
-            </dl>
-          )}
-          {!entity.observation.properties &&
-          entity.observation.freshness !== 'current' ? (
-            <Alert>
-              <AlertDescription>
-                {message(`device.freshness.${entity.observation.freshness}`)}
-              </AlertDescription>
-            </Alert>
-          ) : null}
+          {Object.values(attempts).map((value) => (
+            <CommandFeedback
+              key={value.key}
+              entity={entity}
+              apiClient={apiClient}
+              identity={identity}
+              attempt={value}
+              onAttempt={onAttempt}
+              onRefresh={onRefresh}
+              onRetry={() => void submit(value.input, value)}
+              retryAvailable={
+                executableCapability(value.input.capability) &&
+                !programPending &&
+                value.runId === programRun?.id
+              }
+              errorCodes={errorCodes}
+            />
+          ))}
         </section>
       ) : null}
     </>
