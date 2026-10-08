@@ -22,6 +22,15 @@ function differences(document) {
 }
 test('the two approved progress operations preserve the immutable retained API and reachable schemas', () => {
   assert.deepEqual(differences(source), []);
+  assert.deepEqual(
+    source.components.schemas.LabGuideProgressRead.properties.previous_progress,
+    {
+      anyOf: [
+        { $ref: '#/components/schemas/LabGuideProgress' },
+        { type: 'null' },
+      ],
+    },
+  );
 });
 test('changed or removed retained operations and reachable schemas still fail comparison', () => {
   for (const mutate of [

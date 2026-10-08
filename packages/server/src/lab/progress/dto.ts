@@ -61,6 +61,6 @@ export const LabGuideProgressRead = z
     current_guide_version: z.string(),
     compatibility: LabGuideCompatibility,
     progress: LabGuideProgress,
-    previous_progress: LabGuideProgress.nullable(),
+    previous_progress: z.union([LabGuideProgress, z.null()]),
   })
   .openapi('LabGuideProgressRead');

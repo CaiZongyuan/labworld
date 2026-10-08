@@ -505,9 +505,7 @@ export type LabGuideProgressRead = {
     current_guide_version: string;
     compatibility: LabGuideCompatibility;
     progress: LabGuideProgress;
-    previous_progress: LabGuideProgress & ({
-        [key: string]: unknown;
-    } | null);
+    previous_progress: LabGuideProgress | null;
 };
 
 export type LabGuideCompatibility = 'compatible' | 'restart_required' | 'unsupported';

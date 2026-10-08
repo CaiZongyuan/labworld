@@ -6,6 +6,7 @@ import type {
   PersistentLab,
   LabEntity,
   LabWorld,
+  LabGuideProgressRead as ProgressRead,
 } from '../../packages/contracts/src/generated/types.gen.ts';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
@@ -22,13 +23,6 @@ type Progress = {
   context: unknown;
   updated_at: string | null;
 };
-type ProgressRead = {
-  current_guide_version: string;
-  compatibility: string;
-  progress: Progress;
-  previous_progress: Progress | null;
-};
-
 test('initial progress is private to the current user, permits no Lab and is shared with that user Agent', async () => {
   const target = await new ServerProcess().create();
   target.env.APP_ORIGIN = target.url;
@@ -361,7 +355,8 @@ test('older progress stays readable and requires explicit current-version start 
     const current = await fixture.client.json<ProgressRead>('GET', path);
     assert.equal(current.compatibility, 'restart_required');
     assert.equal(current.progress.revision, 0);
-    assert.deepEqual(current.previous_progress, original.progress);
+    const previous: ProgressRead['previous_progress'] = original.progress;
+    assert.deepEqual(current.previous_progress, previous);
     const input = {
       expected_revision: 0,
       status: 'paused',

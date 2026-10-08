@@ -1917,15 +1917,12 @@
             "$ref": "#/components/schemas/LabGuideProgress"
           },
           "previous_progress": {
-            "allOf": [
+            "anyOf": [
               {
                 "$ref": "#/components/schemas/LabGuideProgress"
               },
               {
-                "type": [
-                  "object",
-                  "null"
-                ]
+                "type": "null"
               }
             ]
           }
