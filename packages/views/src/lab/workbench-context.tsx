@@ -29,6 +29,12 @@ import type {
   SourceAttempt,
 } from './device-panel';
 import type { LayoutDraft } from './layout-editor';
+import {
+  readLayoutDraft,
+  writeLayoutDraft,
+  removeLayoutDraft,
+  type StoredLayoutDraft,
+} from './layout-draft-storage';
 import { useWorldSubscription } from './world-subscription';
 
 type LayoutStatus = 'idle' | 'saved' | 'conflict';
@@ -168,8 +174,74 @@ function useWorkbenchController({
     if (isCurrentLab(labId)) setNode({ labId, id });
   }
   const [drafts, setDrafts] = useState<Record<string, LayoutDraft>>({});
+  const apiBase = apiClient.getConfig().baseUrl ?? '';
+  const loadedDrafts = useRef(new Set<string>());
+  const persistedDrafts = useRef<Record<string, LayoutDraft>>({});
+  const [storageProblems, setStorageProblems] = useState<
+    Record<string, StoredLayoutDraft['problem']>
+  >({});
+  const [restoredDrafts, setRestoredDrafts] = useState<Record<string, boolean>>(
+    {},
+  );
+  useEffect(() => {
+    if (!labId || loadedDrafts.current.has(labId)) return;
+    loadedDrafts.current.add(labId);
+    const restored = readLayoutDraft({
+      apiBase,
+      userId: identity.user.id,
+      labId,
+    });
+    if (restored.draft) {
+      const draft = restored.draft;
+      setDrafts((previous) => ({
+        ...previous,
+        [labId]: previous[labId] ?? draft,
+      }));
+      setRestoredDrafts((previous) => ({ ...previous, [labId]: true }));
+    }
+    setStorageProblems((previous) => ({
+      ...previous,
+      [labId]: restored.problem,
+    }));
+  }, [apiBase, identity.user.id, labId]);
+  useEffect(() => {
+    for (const [draftLabId, draft] of Object.entries(drafts)) {
+      if (persistedDrafts.current[draftLabId] === draft) continue;
+      const saved = writeLayoutDraft(
+        { apiBase, userId: identity.user.id, labId: draftLabId },
+        draft,
+      );
+      setStorageProblems((previous) => ({
+        ...previous,
+        [draftLabId]: saved ? null : 'unavailable',
+      }));
+    }
+    persistedDrafts.current = drafts;
+  }, [apiBase, identity.user.id, drafts]);
+  function clearLayoutDraft(originLab: string) {
+    const removed = removeLayoutDraft({
+      apiBase,
+      userId: identity.user.id,
+      labId: originLab,
+    });
+    setStorageProblems((previous) => ({
+      ...previous,
+      [originLab]: removed ? null : 'unavailable',
+    }));
+    setDrafts((previous) => {
+      const next = { ...previous };
+      delete next[originLab];
+      return next;
+    });
+    setRestoredDrafts((previous) => ({ ...previous, [originLab]: false }));
+  }
   const [statuses, setStatuses] = useState<Record<string, LayoutStatus>>({});
-  const layoutStatus = statuses[labId] ?? 'idle';
+  const layoutStatus =
+    drafts[labId] &&
+    world.data &&
+    drafts[labId].version !== world.data.lab.layout_version
+      ? 'conflict'
+      : (statuses[labId] ?? 'idle');
   function setLayoutStatus(change: SetStateAction<LayoutStatus>) {
     setStatuses((previous) => ({
       ...previous,
@@ -264,6 +336,9 @@ function useWorkbenchController({
     setNodeSelection,
     drafts,
     setDrafts,
+    clearLayoutDraft,
+    layoutStorageProblem: storageProblems[labId] ?? null,
+    layoutRestored: restoredDrafts[labId] ?? false,
     layoutStatus,
     setLayoutStatus,
     layoutPending,
