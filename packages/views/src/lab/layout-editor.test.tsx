@@ -161,3 +161,33 @@ test('moving X replaces its numeric spelling while unfinished Y still blocks sav
   expect(screen.getByLabelText<HTMLInputElement>('Y (m)').value).toBe('-');
   expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
 });
+
+test('arrow keys step valid coordinates by 0.01 while preserving unfinished text and limits', async () => {
+  const user = userEvent.setup();
+  render(<Editor />);
+  const x = screen.getByLabelText<HTMLInputElement>('X (m)');
+  await user.clear(x);
+  await user.type(x, '7');
+  await user.keyboard('{ArrowUp}');
+  expect(x.value).toBe('7.01');
+  expect(screen.getByLabelText('Valid X placement')).toHaveTextContent('7.01');
+  await user.keyboard('{ArrowDown}');
+  expect(x.value).toBe('7');
+  await user.clear(x);
+  await user.type(x, '-.');
+  await user.keyboard('{ArrowUp}{ArrowDown}');
+  expect(x.value).toBe('-.');
+  expect(screen.getByLabelText('Valid X placement')).toHaveTextContent('7');
+  await user.clear(x);
+  await user.type(x, '10000');
+  await user.keyboard('{ArrowUp}');
+  expect(x.value).toBe('10000');
+  const scale = screen.getByLabelText<HTMLInputElement>('Sx');
+  await user.clear(scale);
+  await user.type(scale, '0.001');
+  await user.keyboard('{ArrowDown}');
+  expect(scale.value).toBe('0.001');
+  await user.keyboard('{ArrowUp}');
+  expect(scale.value).toBe('0.011');
+  expect(screen.getByLabelText('Valid X scale')).toHaveTextContent('0.011');
+});

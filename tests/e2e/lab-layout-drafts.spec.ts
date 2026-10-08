@@ -1,6 +1,7 @@
 import { expect, test, type Page, type BrowserContext } from '@playwright/test';
 import { showObjectDirectory } from './lab-desktop';
 import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 test.use({ locale: 'zh-CN', colorScheme: 'light', actionTimeout: 10000 });
 
@@ -72,15 +73,87 @@ async function edit(page: Page) {
   return x;
 }
 
+let saveAttempt = 0;
 async function save(page: Page) {
-  await page
-    .getByRole('button', {
-      name: /^(保存布局|重试保存|Save layout|Retry save)$/,
+  const attempt = ++saveAttempt;
+  const location = new URL(page.url());
+  const labId = location.searchParams.get('lab');
+  const entityId = location.searchParams.get('entity');
+  const action = page.getByRole('button', {
+    name: /^(保存布局|重试保存|Save layout|Retry save)$/,
+  });
+  const status = page.getByRole('status', {
+    name: /^(布局保存状态|Layout save status)$/,
+  });
+  const response = page
+    .waitForResponse(
+      (result) =>
+        result.request().method() === 'PUT' &&
+        new URL(result.url()).pathname === `/api/v1/lab/labs/${labId}/layout`,
+      { timeout: 10000 },
+    )
+    .then(async (result) => {
+      const body = await result.json().catch(() => null);
+      const input = result.request().postDataJSON();
+      return {
+        status: result.status(),
+        code: body?.error?.code ?? null,
+        returnedVersion: body?.layout_version ?? null,
+        expectedVersion: input?.expected_version ?? null,
+      };
     })
-    .click();
-  await expect(
-    page.getByRole('status', { name: /^(布局保存状态|Layout save status)$/ }),
-  ).toHaveText(/^(已保存|Saved)$/);
+    .catch(() => null);
+  try {
+    await action.click();
+    await expect(status).toHaveText(/^(已保存|Saved)$/);
+  } finally {
+    const saved = labId
+      ? await page.request
+          .get(`/api/v1/lab/labs/${labId}/world`, { timeout: 5000 })
+          .then(async (result) => {
+            const body = result.ok() ? await result.json() : null;
+            return {
+              status: result.status(),
+              layoutVersion: body?.lab?.layout_version ?? null,
+              placements:
+                body?.nodes
+                  ?.filter(
+                    (node: { entity_id: string }) =>
+                      node.entity_id === entityId,
+                  )
+                  .map((node: { placement: unknown }) => node.placement) ?? [],
+            };
+          })
+          .catch(() => null)
+      : null;
+    writeFileSync(
+      join(
+        process.env.LAB_NODE_EVIDENCE ?? 'test-results',
+        `layout-draft-save-${attempt}.json`,
+      ),
+      JSON.stringify(
+        {
+          attempt,
+          labId,
+          entityId,
+          response: await response,
+          saved,
+          uiStatus: await status
+            .textContent({ timeout: 1000 })
+            .catch(() => null),
+          disabled: await action
+            .isDisabled({ timeout: 1000 })
+            .catch(() => null),
+          rawX: await page
+            .getByLabel('X (m)', { exact: true })
+            .inputValue({ timeout: 1000 })
+            .catch(() => null),
+        },
+        null,
+        2,
+      ),
+    );
+  }
 }
 
 async function world(page: Page, lab: string) {
@@ -304,6 +377,10 @@ test('one browser recovers private layout input while other users and browsers s
       await page
         .getByRole('button', { name: /^(聚焦模型|Fit model)$/ })
         .click();
+      if (viewport.width === 320) {
+        await page.locator('canvas').hover();
+        await page.mouse.wheel(0, 1000);
+      }
       const saveButton = page.getByRole('button', {
         name: /^(保存布局|Save layout)$/,
       });

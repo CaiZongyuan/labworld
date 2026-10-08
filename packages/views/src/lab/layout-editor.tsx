@@ -158,6 +158,12 @@ function Coordinate({
     text !== null &&
     text !== undefined &&
     coordinateNumber(text, min, max) === null;
+  function changeText(nextText: string) {
+    if (onTextChange) onTextChange(id, nextText);
+    else setLocalText(nextText);
+    const next = coordinateNumber(nextText, min, max);
+    if (next !== null) onChange(next);
+  }
   return (
     <Field data-invalid={invalid || undefined}>
       <FieldLabel htmlFor={id}>{label}</FieldLabel>
@@ -172,11 +178,31 @@ function Coordinate({
         aria-describedby={invalid ? `${id}-range` : undefined}
         disabled={disabled}
         value={text ?? Number(value.toFixed(4))}
-        onChange={(event) => {
-          if (onTextChange) onTextChange(id, event.target.value);
-          else setLocalText(event.target.value);
-          const next = coordinateNumber(event.target.value, min, max);
-          if (next !== null) onChange(next);
+        onChange={(event) => changeText(event.target.value)}
+        onKeyDown={(event) => {
+          if (
+            !['ArrowUp', 'ArrowDown'].includes(event.key) ||
+            event.altKey ||
+            event.ctrlKey ||
+            event.metaKey
+          )
+            return;
+          const current = coordinateNumber(
+            String(text ?? Number(value.toFixed(4))),
+            min,
+            max,
+          );
+          if (current === null) return;
+          event.preventDefault();
+          const stepper = document.createElement('input');
+          stepper.type = 'number';
+          stepper.step = '0.01';
+          stepper.min = String(min);
+          stepper.max = String(max);
+          stepper.value = String(current);
+          if (event.key === 'ArrowUp') stepper.stepUp();
+          else stepper.stepDown();
+          if (stepper.valueAsNumber !== current) changeText(stepper.value);
         }}
       />
       {invalid ? (
