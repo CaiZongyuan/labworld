@@ -101,4 +101,4 @@ pnpm exec vitest run apps/web/src/lab-device-details.test.tsx apps/web/src/lab-d
 
 该入口操作真实 Lab Views；MSW 只替代 HTTP。真实 Node/Web 浏览器验收另用隔离服务和持久数据。它检查桌面、已批准窄屏、实际 WebGL 像素、焦点和可点击区域。测试不访问你正在使用的开发数据库。
 
-继续[后端照明](backend-lights.md)，使用普通 Member 与 Agent 查询同一设备的公开身份和命令。
+继续[设备趋势](device-trends.md)，查看同一设备的真实历史读数、缺口与来源。

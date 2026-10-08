@@ -9,7 +9,10 @@ import { expect, test, vi } from 'vitest';
 import { server } from '../../../tests/frontend/server';
 import { createAppRouter } from './router';
 
-function openTrends(shape?: (trend: EntityTrend) => EntityTrend) {
+function openTrends(
+  shape?: (trend: EntityTrend) => EntityTrend,
+  respond?: (trend: EntityTrend) => Response,
+) {
   const definitions = JSON.parse(
     readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
   );
@@ -175,12 +178,12 @@ function openTrends(shape?: (trend: EntityTrend) => EntityTrend) {
           max_range_seconds: 86400,
         };
         if (shape) trend = shape(trend);
-        return HttpResponse.json(trend);
+        return respond ? respond(trend) : HttpResponse.json(trend);
       },
     ),
   );
   const client = new QueryClient({
-    defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    defaultOptions: { queries: { retry: false } },
   });
   const router = createAppRouter(
     {
@@ -469,6 +472,49 @@ test('the recent-minute range queries the selected real Entity over exactly sixt
   ).not.toHaveTextContent('1000 degC');
 });
 
+test('a hidden browser document stops trend refresh and resumes from the latest World when visible', async () => {
+  const descriptor = Object.getOwnPropertyDescriptor(
+    document,
+    'visibilityState',
+  );
+  let state: DocumentVisibilityState = 'visible';
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    get: () => state,
+  });
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-03-09T00:00:00Z');
+  vi.setSystemTime(start);
+  try {
+    const { user, queries, publish } = openTrends();
+    const inspector = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await user.click(
+      within(inspector).getByRole('button', { name: '查看趋势' }),
+    );
+    await within(inspector).findByRole('table', { name: '趋势读数' });
+    state = 'hidden';
+    document.dispatchEvent(new Event('visibilitychange'));
+    vi.setSystemTime(new Date(start.getTime() + 5000));
+    const version = publish();
+    await waitFor(() =>
+      expect(screen.getByLabelText('世界版本')).toHaveTextContent(
+        `W${version}`,
+      ),
+    );
+    expect(queries).toHaveLength(1);
+    state = 'visible';
+    document.dispatchEvent(new Event('visibilitychange'));
+    await waitFor(() => expect(queries).toHaveLength(2));
+  } finally {
+    vi.useRealTimers();
+    if (descriptor)
+      Object.defineProperty(document, 'visibilityState', descriptor);
+    else Reflect.deleteProperty(document, 'visibilityState');
+  }
+});
+
 test('only visible trends refresh from World updates at five-second intervals while manual refresh remains immediate', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   const start = new Date('2026-03-09T00:00:00Z');
@@ -512,6 +558,201 @@ test('only visible trends refresh from World updates at five-second intervals wh
     expect(queries).toHaveLength(3);
     await user.click(within(inspector).getByRole('tab', { name: '操作' }));
     await waitFor(() => expect(queries).toHaveLength(4));
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('reconnecting after a failed query cannot bypass the five-second World refresh budget while manual recovery stays immediate', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-03-09T00:00:00Z');
+  vi.setSystemTime(start);
+  let attempts = 0;
+  try {
+    const { user, queries, publish } = openTrends(undefined, (trend) => {
+      attempts++;
+      return attempts === 1
+        ? HttpResponse.json(
+            { error: { code: 'server.unavailable', message: 'Try again' } },
+            { status: 503 },
+          )
+        : HttpResponse.json(trend);
+    });
+    const inspector = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await user.click(
+      within(inspector).getByRole('button', { name: '查看趋势' }),
+    );
+    expect(await within(inspector).findByText('趋势查询失败')).toBeVisible();
+    expect(queries).toHaveLength(1);
+    vi.setSystemTime(new Date(start.getTime() + 1000));
+    window.dispatchEvent(new Event('offline'));
+    window.dispatchEvent(new Event('online'));
+    const version = publish();
+    await waitFor(() =>
+      expect(screen.getByLabelText('世界版本')).toHaveTextContent(
+        `W${version}`,
+      ),
+    );
+    await user.tab();
+    expect(queries).toHaveLength(1);
+    expect(within(inspector).getByText('趋势查询失败')).toBeVisible();
+    await user.click(
+      within(inspector).getByRole('button', { name: '刷新趋势' }),
+    );
+    await waitFor(() => expect(queries).toHaveLength(2));
+    expect(
+      await within(inspector).findByRole('table', { name: '趋势读数' }),
+    ).toHaveTextContent('1000 degC');
+    expect(
+      within(inspector).queryByText('趋势查询失败'),
+    ).not.toBeInTheDocument();
+  } finally {
+    window.dispatchEvent(new Event('online'));
+    vi.useRealTimers();
+  }
+});
+
+test('a manual refresh consumes a pending World refresh instead of querying again before five seconds', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-03-09T00:00:00Z');
+  vi.setSystemTime(start);
+  try {
+    const { user, queries, publish } = openTrends();
+    const inspector = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await user.click(
+      within(inspector).getByRole('button', { name: '查看趋势' }),
+    );
+    await within(inspector).findByRole('table', { name: '趋势读数' });
+    vi.setSystemTime(new Date(start.getTime() + 4000));
+    const version = publish();
+    await waitFor(() =>
+      expect(screen.getByLabelText('世界版本')).toHaveTextContent(
+        `W${version}`,
+      ),
+    );
+    expect(queries).toHaveLength(1);
+    await user.click(
+      within(inspector).getByRole('button', { name: '刷新趋势' }),
+    );
+    await waitFor(() => expect(queries).toHaveLength(2));
+    // Observe the original query's five-second deadline after the manual request.
+    await new Promise<void>((resolve) =>
+      window.setTimeout(
+        resolve,
+        5000 - (Date.now() - Date.parse(queries[0].searchParams.get('to')!)),
+      ),
+    );
+    expect(queries).toHaveLength(2);
+    expect(
+      within(inspector).getByRole('table', { name: '趋势读数' }),
+    ).toHaveTextContent('1000 degC');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('showing a fresh cached trend after a hidden World update queries the latest World at the original five-second budget', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-03-09T00:00:00Z');
+  vi.setSystemTime(start);
+  try {
+    const { user, queries, publish } = openTrends();
+    const inspector = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await user.click(
+      within(inspector).getByRole('button', { name: '查看趋势' }),
+    );
+    await within(inspector).findByRole('table', { name: '趋势读数' });
+    await user.click(
+      within(inspector).getByRole('button', { name: '收起趋势' }),
+    );
+    vi.setSystemTime(new Date(start.getTime() + 4000));
+    const version = publish();
+    await waitFor(() =>
+      expect(screen.getByLabelText('世界版本')).toHaveTextContent(
+        `W${version}`,
+      ),
+    );
+    expect(queries).toHaveLength(1);
+    await user.click(
+      within(inspector).getByRole('button', { name: '查看趋势' }),
+    );
+    await within(inspector).findByRole('table', { name: '趋势读数' });
+    expect(queries).toHaveLength(1);
+    vi.setSystemTime(new Date(start.getTime() + 5000));
+    await waitFor(() => expect(queries).toHaveLength(2), { timeout: 1500 });
+    expect(queries[1].searchParams.get('to')).toBe(
+      new Date(start.getTime() + 5000).toISOString(),
+    );
+    expect(
+      await within(inspector).findByText(queries[1].searchParams.get('to')!),
+    ).toBeVisible();
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('returning to a fresh cached range reads its own World version while respecting the latest device query deadline', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-03-09T00:00:00Z');
+  vi.setSystemTime(start);
+  try {
+    const { user, queries, publish } = openTrends();
+    const inspector = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await user.click(
+      within(inspector).getByRole('button', { name: '查看趋势' }),
+    );
+    await within(inspector).findByRole('table', { name: '趋势读数' });
+    await user.click(within(inspector).getByRole('button', { name: '6 小时' }));
+    await waitFor(() => expect(queries).toHaveLength(2));
+    vi.setSystemTime(new Date(start.getTime() + 2000));
+    const version = publish();
+    await waitFor(() =>
+      expect(screen.getByLabelText('世界版本')).toHaveTextContent(
+        `W${version}`,
+      ),
+    );
+    await user.click(
+      within(inspector).getByRole('button', { name: '刷新趋势' }),
+    );
+    await waitFor(() => expect(queries).toHaveLength(3));
+    await waitFor(() =>
+      expect(
+        within(inspector).getByRole('button', { name: '刷新趋势' }),
+      ).toBeEnabled(),
+    );
+    vi.setSystemTime(new Date(start.getTime() + 4000));
+    await user.click(within(inspector).getByRole('button', { name: '1 小时' }));
+    expect(queries).toHaveLength(3);
+    vi.setSystemTime(new Date(start.getTime() + 6000));
+    // Observe the latest device query's deadline without another World event.
+    await new Promise<void>((resolve) =>
+      window.setTimeout(
+        resolve,
+        5000 - (Date.now() - Date.parse(queries[2].searchParams.get('to')!)),
+      ),
+    );
+    expect(queries).toHaveLength(3);
+    vi.setSystemTime(new Date(start.getTime() + 7000));
+    await waitFor(() => expect(queries).toHaveLength(4), { timeout: 2500 });
+    expect(
+      Date.parse(queries[3].searchParams.get('to')!) -
+        Date.parse(queries[2].searchParams.get('to')!),
+    ).toBe(5000);
+    expect(
+      Date.parse(queries[3].searchParams.get('to')!) -
+        Date.parse(queries[3].searchParams.get('from')!),
+    ).toBe(3600000);
+    expect(
+      await within(inspector).findByText(queries[3].searchParams.get('to')!),
+    ).toBeVisible();
   } finally {
     vi.useRealTimers();
   }
@@ -700,6 +941,7 @@ test('a late response from the previous range cannot replace the newly selected 
   const { user } = openTrends();
   let release!: (response: Response) => void;
   let old!: EntityTrend;
+  let oldRequest!: Request;
   server.use(
     http.get(
       'http://api.test/api/v1/lab/labs/trend-lab/entities/trend-sensor/trend',
@@ -748,6 +990,7 @@ test('a late response from the previous range cannot replace the newly selected 
           max_range_seconds: 86400,
         };
         if (Date.parse(to) - Date.parse(from) === 3600000) {
+          oldRequest = request;
           old = {
             ...dto,
             segments: dto.segments.map((segment) => ({
@@ -775,6 +1018,7 @@ test('a late response from the previous range cannot replace the newly selected 
     await waitFor(() => expect(release).toBeDefined());
     await user.click(within(inspector).getByRole('button', { name: '6 小时' }));
     expect(await within(inspector).findByText('222 degC')).toBeVisible();
+    await waitFor(() => expect(oldRequest.signal.aborted).toBe(true));
   } finally {
     release(HttpResponse.json(old));
   }

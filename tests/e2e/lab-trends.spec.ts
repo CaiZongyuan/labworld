@@ -15,6 +15,49 @@ test.afterEach(async ({ page }, info) => {
     await page.screenshot({ path: info.outputPath('failure-workspace.png') });
 });
 
+async function newDevice(page: Page, definition: string, name: string) {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.goto('/register');
+  await page
+    .getByLabel('邮箱', { exact: true })
+    .fill(`trend-${definition}-${Date.now()}@example.test`);
+  await page.getByLabel('密码', { exact: true }).fill('trend-browser-password');
+  await page.getByRole('button', { name: '创建账号' }).click();
+  await expect(page).toHaveURL(/\/lab$/);
+  await page.getByRole('button', { name: '创建 Lab', exact: true }).click();
+  await page
+    .getByRole('dialog')
+    .getByLabel('名称', { exact: true })
+    .fill(`Trend ${definition}`);
+  await page
+    .getByRole('dialog')
+    .getByRole('button', { name: '创建', exact: true })
+    .click();
+  await page.getByRole('button', { name: '登记对象', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('定义版本').selectOption(`${definition}@1.0`);
+  await dialog.getByLabel('名称', { exact: true }).fill(name);
+  await dialog.getByRole('button', { name: '登记', exact: true }).click();
+  const details = await showEntityDetails(page);
+  const entityId = await details
+    .locator('dt')
+    .filter({ hasText: /^Entity$/ })
+    .locator('+ dd')
+    .innerText();
+  const labId = await details
+    .locator('dt')
+    .filter({ hasText: /^Lab$/ })
+    .locator('+ dd')
+    .innerText();
+  await showEntityOperations(page);
+  return {
+    entityId,
+    labId,
+    path: `/api/v1/lab/labs/${labId}/entities/${entityId}`,
+    inspector: page.getByRole('complementary', { name: '对象信息' }),
+  };
+}
+
 type SceneMask = { x: number; y: number; width: number; height: number };
 async function sensorLabelMask(page: Page): Promise<SceneMask[]> {
   const canvas = (await page.locator('.world-viewport canvas').boundingBox())!;
@@ -193,7 +236,7 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
   await expect(points.first()).toBeInViewport();
   const point = (await points.first().boundingBox())!;
   await page.mouse.move(point.x + point.width / 2, point.y + point.height / 2);
-  const tooltip = page.getByRole('tooltip');
+  const tooltip = page.getByRole('status').filter({ hasText: 'degC' });
   await expect(tooltip).toContainText('degC');
   await expect(tooltip).toContainText(result.segments[0].source);
   await chart.focus();
@@ -272,4 +315,171 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
     JSON.stringify({ cameraPixels, orbitPixels, masks: beforeMask }, null, 2),
   );
   expect(errors).toEqual([]);
+});
+
+test('actual centrifuge speed extrema stay in the chart and four accepted viewports keep trends readable', async ({
+  page,
+}, info) => {
+  test.setTimeout(120000);
+  const { path, inspector } = await newDevice(
+    page,
+    'centrifuge',
+    'Trend centrifuge',
+  );
+  await inspector
+    .getByRole('button', { name: '启动程序', exact: true })
+    .click();
+  await expect(inspector.getByLabel('关键观测有效性')).toHaveText(
+    '当前关键观测有效',
+  );
+  await inspector.getByLabel('目标转速 (rpm)').fill('14000');
+  await inspector.getByLabel('目标温度 (degC)').fill('22');
+  await inspector.getByLabel('任务时长 (s)').fill('6');
+  await inspector
+    .getByRole('button', { name: '开始离心', exact: true })
+    .click();
+  await expect
+    .poll(
+      async () =>
+        ((await (await page.request.get(path)).json()) as LabEntity).task
+          ?.status,
+      { timeout: 30000 },
+    )
+    .toBe('completed');
+  await inspector
+    .getByRole('button', { name: '查看趋势', exact: true })
+    .click();
+  const queried = page.waitForResponse(
+    (response) =>
+      new URL(response.url()).pathname === `${path}/trend` &&
+      new URL(response.url()).searchParams.get('property') === 'speed',
+  );
+  await inspector
+    .getByRole('button', { name: '转速趋势', exact: true })
+    .click();
+  const dto = (await (await queried).json()) as EntityTrend;
+  const maximum = Math.max(
+    ...dto.segments.flatMap((segment) =>
+      segment.samples.map((sample) => sample.value),
+    ),
+  );
+  expect(maximum).toBe(14000);
+  const chart = inspector.getByRole('img', { name: '转速趋势 · rpm' });
+  await chart.scrollIntoViewIfNeeded();
+  await expect(chart).toBeVisible();
+  const extents = await chart.evaluate((element) => {
+    const svg =
+      element instanceof SVGSVGElement
+        ? element
+        : element.querySelector('svg')!;
+    const height = svg.viewBox.baseVal.height;
+    return {
+      height,
+      points: Array.from(
+        svg.querySelectorAll('circle[fill="var(--primary)"]'),
+      ).map((point) => ({
+        y: Number(point.getAttribute('cy')),
+        radius: Number(point.getAttribute('r')),
+      })),
+    };
+  });
+  expect(extents.points.length).toBeGreaterThan(2);
+  expect(
+    extents.points.every(
+      (point) => point.radius > 0 && point.y >= 0 && point.y <= extents.height,
+    ),
+  ).toBe(true);
+  expect(Math.min(...extents.points.map((point) => point.y))).toBeLessThan(
+    extents.height * 0.25,
+  );
+  const viewports = [
+    { width: 1440, height: 1000, english: false, dark: false },
+    { width: 1920, height: 1080, english: false, dark: false },
+    { width: 390, height: 844, english: false, dark: false },
+    { width: 320, height: 844, english: true, dark: true },
+  ];
+  const rectangles: Record<string, unknown>[] = [];
+  for (const viewport of viewports) {
+    await page.setViewportSize({
+      width: viewport.width,
+      height: viewport.height,
+    });
+    if (viewport.english)
+      await page.getByRole('button', { name: 'English', exact: true }).click();
+    if (viewport.dark)
+      await page.getByRole('button', { name: 'Dark', exact: true }).click();
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const owner = page.getByRole('complementary', {
+      name: viewport.english ? 'Object info' : '对象信息',
+    });
+    const plot = owner.getByRole('img', {
+      name: viewport.english ? 'Speed trend · rpm' : '转速趋势 · rpm',
+    });
+    if (viewport.width <= 560) await showEntityOperations(page);
+    await plot.scrollIntoViewIfNeeded();
+    await expect(plot).toBeInViewport();
+    const box = (await plot.boundingBox())!;
+    const panel = (await owner.boundingBox())!;
+    expect(box.width).toBeGreaterThanOrEqual(180);
+    expect(box.x).toBeGreaterThanOrEqual(panel.x);
+    expect(box.x + box.width).toBeLessThanOrEqual(panel.x + panel.width + 1);
+    expect(
+      await page.evaluate(
+        () => document.documentElement.scrollWidth <= innerWidth,
+      ),
+    ).toBe(true);
+    const refresh = owner.getByRole('button', {
+      name: viewport.english ? 'Refresh trend' : '刷新趋势',
+      exact: true,
+    });
+    if (viewport.width <= 560)
+      expect((await refresh.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    const peakIndex = await plot.evaluate((element) => {
+      const points = Array.from(
+        element.querySelectorAll('circle[fill="var(--primary)"]'),
+      );
+      return points.reduce(
+        (index, point, next) =>
+          Number(point.getAttribute('cy')) <
+          Number(points[index].getAttribute('cy'))
+            ? next
+            : index,
+        0,
+      );
+    });
+    const point = (await plot
+      .locator('circle[fill="var(--primary)"]')
+      .nth(peakIndex)
+      .boundingBox())!;
+    await page.touchscreen.tap(
+      point.x + point.width / 2,
+      point.y + point.height / 2,
+    );
+    await expect(
+      page.getByRole('status').filter({ hasText: 'rpm' }),
+    ).toContainText('14000 rpm');
+    await expect(
+      owner.getByRole('table', {
+        name: viewport.english ? 'Trend readings' : '趋势读数',
+      }),
+    ).toContainText('14000 rpm');
+    await page.screenshot({
+      path: info.outputPath(
+        `trend-${viewport.width}-${viewport.english ? 'en' : 'zh'}.png`,
+      ),
+    });
+    await plot.press('Escape');
+    await expect(
+      page.getByRole('status').filter({ hasText: 'rpm' }),
+    ).not.toBeVisible();
+    rectangles.push({ ...viewport, box, panel });
+  }
+  writeFileSync(
+    info.outputPath('accepted-trend-rectangles.json'),
+    JSON.stringify(rectangles, null, 2),
+  );
+  writeFileSync(
+    info.outputPath('actual-rpm-trend.json'),
+    JSON.stringify(dto, null, 2),
+  );
 });

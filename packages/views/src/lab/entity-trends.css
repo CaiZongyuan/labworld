@@ -36,3 +36,11 @@
   position: sticky;
   top: 0;
 }
+.entity-trend-tooltip {
+  --ts-chart-tooltip-max-width: min(300px, calc(100vw - 24px));
+  --ts-chart-tooltip-color: var(--foreground);
+  --ts-chart-tooltip-background: var(--popover);
+  max-height: min(380px, calc(100dvh - 24px));
+  overflow: auto;
+  overflow-wrap: anywhere;
+}

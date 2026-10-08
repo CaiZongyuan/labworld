@@ -13,7 +13,6 @@ export default function TrendEntry(props: {
   userId: string;
   worldVersion: string;
   visible: boolean;
-  connected: boolean;
   initialOpen?: boolean;
   initialRange?: string;
 }) {
@@ -34,7 +33,7 @@ export default function TrendEntry(props: {
       </Button>
       {open ? (
         <Suspense fallback={<Skeleton className="h-56" />}>
-          <EntityTrends {...props} visible={props.visible && open} />
+          <EntityTrends {...props} />
         </Suspense>
       ) : null}
     </section>

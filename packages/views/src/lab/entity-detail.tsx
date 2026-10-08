@@ -139,7 +139,6 @@ export default function EntityDetail({
               userId={userId}
               worldVersion={world.version}
               visible={visible && !editing && tab === 'operations'}
-              connected={connected}
               initialOpen={recentMinuteRequest !== undefined}
               initialRange={recentMinuteRequest !== undefined ? 'minute' : '1'}
             />,

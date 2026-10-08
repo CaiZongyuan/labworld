@@ -6,6 +6,7 @@ import { Chart } from '@tanstack/charts/react';
 import { lineY } from '@tanstack/charts/line';
 import { dot } from '@tanstack/charts/dot';
 import { tooltip } from '@tanstack/charts/tooltip';
+import { portal } from '@tanstack/charts/tooltip/portal';
 import { scaleLinear } from '@tanstack/charts/scales/linear';
 import { scaleUtc } from 'd3-scale';
 import {
@@ -35,6 +36,12 @@ import './entity-trends.css';
 
 type Reading = TrendSample &
   Omit<TrendSegment, 'samples'> & { received: Date; segment: number };
+
+type TrendQueryResult = {
+  trend: EntityTrend;
+  worldVersion: string;
+  startedAt: number;
+};
 
 function rows(trend: EntityTrend): Reading[] {
   return trend.segments.flatMap(({ samples, ...segment }, index) =>
@@ -119,6 +126,8 @@ function TrendPlot({
         svgAnimation: false,
         tooltip: {
           use: tooltip,
+          portal,
+          className: 'entity-trend-tooltip',
           format: (point) => {
             const value = point.datum;
             return `${value.value} ${unit}\n${message('device.receivedAt')}: ${value.received_at}\n${message('device.observedAt')}: ${value.observed_at ?? message('device.sourceTimeUnknown')}\n${value.source}\nRun: ${value.run_id}\nBinding: ${value.binding_id}\n${message('detail.sequence')}: ${value.sequence}\n${message(`device.quality.${value.quality}`)}`;
@@ -281,39 +290,60 @@ export default function EntityTrends({
   userId: string;
   visible: boolean;
   worldVersion: string;
-  connected: boolean;
   initialRange?: string;
 }) {
   const message = useAppMessage('lab');
   const [range, setRange] = useState(initialRange);
   const [property, setProperty] = useState('temperature');
+  const [pageVisible, setPageVisible] = useState(
+    () => document.visibilityState !== 'hidden',
+  );
+  const active = visible && pageVisible;
+  useEffect(() => {
+    const update = () => setPageVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
   const client = useQueryClient();
-  const lastStarted = useRef(0);
-  const queriedVersion = useRef(worldVersion);
+  const entityKey = [
+    'lab',
+    'trend',
+    apiClient.getConfig().baseUrl,
+    userId,
+    entity.lab_id,
+    entity.id,
+  ];
+  const queryKey = [...entityKey, property, range];
+  const entityScope = JSON.stringify(entityKey);
+  const scope = JSON.stringify(queryKey);
+  const latestAttempt = useRef<{
+    scope: string;
+    entityScope: string;
+    worldVersion: string;
+    startedAt: number;
+  } | null>(null);
   const query = useQuery({
-    queryKey: [
-      'lab',
-      'trend',
-      apiClient.getConfig().baseUrl,
-      userId,
-      entity.lab_id,
-      entity.id,
-      property,
-      range,
-    ],
-    enabled: visible,
+    queryKey,
+    // The visible World effect owns automatic queries, including cached scopes.
+    enabled: false,
     retry: false,
     staleTime: 5000,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
     queryFn: async ({ signal }) => {
-      lastStarted.current = Date.now();
-      queriedVersion.current = worldVersion;
-      const to = new Date().toISOString();
+      const attempt = {
+        scope,
+        entityScope,
+        worldVersion,
+        startedAt: Date.now(),
+      };
+      latestAttempt.current = attempt;
+      const to = new Date(attempt.startedAt).toISOString();
       const from = new Date(
         Date.parse(to) - (range === 'minute' ? 60000 : Number(range) * 3600000),
       ).toISOString();
       try {
-        return (
+        const trend = (
           await getLabEntityTrend({
             client: apiClient,
             path: { lab_id: entity.lab_id, entity_id: entity.id },
@@ -322,6 +352,11 @@ export default function EntityTrends({
             throwOnError: true,
           })
         ).data;
+        return {
+          trend,
+          worldVersion: attempt.worldVersion,
+          startedAt: attempt.startedAt,
+        };
       } catch (cause) {
         if (!signal.aborted && errorCodeOf(cause) === 'auth.unauthorized')
           void client.invalidateQueries({ queryKey: sessionKey(apiClient) });
@@ -329,16 +364,39 @@ export default function EntityTrends({
       }
     },
   });
-  const { refetch, isPending } = query;
+  const { refetch, isFetching } = query;
+  const queriedVersion =
+    latestAttempt.current?.scope === scope
+      ? latestAttempt.current.worldVersion
+      : query.data?.worldVersion;
+  const lastStarted = Math.max(
+    latestAttempt.current?.entityScope === entityScope
+      ? latestAttempt.current.startedAt
+      : 0,
+    ...client
+      .getQueriesData<TrendQueryResult>({ queryKey: entityKey })
+      .map(([key, result]) =>
+        Math.max(
+          result?.startedAt ?? 0,
+          client.getQueryState(key)?.errorUpdatedAt ?? 0,
+        ),
+      ),
+  );
+  const delay =
+    query.data || query.error
+      ? Math.max(0, 5000 - (Date.now() - lastStarted))
+      : 0;
   useEffect(() => {
-    if (!visible || isPending || queriedVersion.current === worldVersion)
-      return;
-    const timer = setTimeout(
-      () => void refetch(),
-      Math.max(0, 5000 - (Date.now() - lastStarted.current)),
-    );
+    if (!active || isFetching || queriedVersion === worldVersion) return;
+    const timer = setTimeout(() => {
+      if (
+        latestAttempt.current?.scope !== scope ||
+        latestAttempt.current.worldVersion !== worldVersion
+      )
+        void refetch();
+    }, delay);
     return () => clearTimeout(timer);
-  }, [visible, worldVersion, refetch, isPending]);
+  }, [active, scope, worldVersion, refetch, isFetching, queriedVersion, delay]);
   return (
     <div className="entity-trends">
       <div className="lab-section-heading">
@@ -400,7 +458,7 @@ export default function EntityTrends({
           {query.data ? <p>{message('trend.retainedData')}</p> : null}
         </>
       ) : null}
-      {query.data ? <TrendResult trend={query.data} /> : null}
+      {query.data ? <TrendResult trend={query.data.trend} /> : null}
     </div>
   );
 }
