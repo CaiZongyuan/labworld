@@ -203,7 +203,13 @@ export default function WorldView() {
     () => new Set(nodes.map((node) => node.entity_id)),
     [nodes],
   );
-  const entities = world.data?.entities ?? [];
+  const entities = useMemo(
+    () =>
+      world.data?.entities.map((entity) =>
+        entityWithConfirmedRun(entity, sourceAttempts[entity.id]),
+      ) ?? [],
+    [world.data?.entities, sourceAttempts],
+  );
   const modelAssets = useMemo(
     () =>
       world.data?.assets.map((asset): ModelAsset => ({
@@ -217,15 +223,7 @@ export default function WorldView() {
       })) ?? [],
     [world.data?.assets, apiClient],
   );
-  const selectedSnapshot = entities.find(
-    (entity) => entity.id === selection.at(-1),
-  );
-  const selected = selectedSnapshot
-    ? entityWithConfirmedRun(
-        selectedSnapshot,
-        sourceAttempts[selectedSnapshot.id],
-      )
-    : undefined;
+  const selected = entities.find((entity) => entity.id === selection.at(-1));
   const inspectorVisible =
     !!selected && inspectorOpen && !(narrow && (directoryOpen || historyOpen));
   const activeNode =
@@ -874,7 +872,8 @@ export default function WorldView() {
                 >
                   <WorldViewport
                     key={`${labId}-${renderVersion}`}
-                    world={draft ? { ...world.data, nodes } : world.data}
+                    world={{ ...world.data, entities, nodes }}
+                    connected={connection.available}
                     assets={modelAssets}
                     selected={selection}
                     onSelect={select}

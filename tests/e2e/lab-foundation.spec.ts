@@ -1,4 +1,8 @@
-import { showObjectDirectory } from './lab-desktop';
+import {
+  showObjectDirectory,
+  showEntityDetails,
+  showEntityOperations,
+} from './lab-desktop';
 import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
 import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
 import { expect, test, type CDPSession } from '@playwright/test';
@@ -474,6 +478,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     expect(
       (await world(agent, lab)).nodes.some((node) => node.entity_id === device),
     ).toBe(true);
+    await showEntityOperations(page);
     await inspector
       .getByRole('button', { name: '停止程序', exact: true })
       .click();
@@ -494,6 +499,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     expect(
       (await page.request.post(`${path}/program/start`, { headers })).status(),
     ).toBe(409);
+    await showEntityDetails(page);
     await expect(
       page.getByText('已归档', { exact: true }).first(),
     ).toBeVisible();

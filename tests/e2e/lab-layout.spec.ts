@@ -1,4 +1,4 @@
-import { showObjectDirectory } from './lab-desktop';
+import { showObjectDirectory, showEntityOperations } from './lab-desktop';
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import type { SceneNode } from '../../packages/contracts/src/generated/types.gen';
@@ -328,15 +328,19 @@ test('real pointer transforms edit Placement while manual location stays unchang
     await otherContext.close();
   }
   await registerObject(page, 'light', 'Editing light');
+  await showEntityOperations(page);
   await inspector
     .getByRole('button', { name: '启动程序', exact: true })
     .click();
   await expect(
     inspector.getByRole('switch', { name: '电源', exact: true }),
   ).toBeEnabled();
+  await page.getByRole('tab', { name: '编辑布局', exact: true }).click();
   await inspector.getByLabel('X (m)', { exact: true }).fill('7');
+  await showEntityOperations(page);
   await inspector.getByRole('switch', { name: '电源', exact: true }).click();
   await expect(inspector.getByText('执行完成', { exact: true })).toBeVisible();
+  await page.getByRole('tab', { name: '编辑布局', exact: true }).click();
   await expect(inspector.getByLabel('X (m)', { exact: true })).toHaveValue('7');
   await inspector.getByLabel('X (m)', { exact: true }).focus();
   await page.keyboard.press('ArrowUp');

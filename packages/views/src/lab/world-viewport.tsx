@@ -97,13 +97,16 @@ function readingPosition(
 }
 function SensorReading({
   entity,
+  connected,
   position,
 }: {
   entity: LabEntity;
+  connected: boolean;
   position: Tuple;
 }) {
   const message = useAppMessage('lab');
-  const reading = readEntityObservations(entity).properties.temperature;
+  const reading = readEntityObservations(entity, connected).properties
+    .temperature;
   const temperature = reading?.hasValue ? reading.property : undefined;
   return (
     <Html
@@ -139,9 +142,15 @@ function SensorReading({
     </Html>
   );
 }
-function CentrifugeRotor({ entity }: { entity: LabEntity }) {
+function CentrifugeRotor({
+  entity,
+  connected,
+}: {
+  entity: LabEntity;
+  connected: boolean;
+}) {
   const rotor = useRef<Group>(null);
-  const reading = readEntityObservations(entity).properties.speed;
+  const reading = readEntityObservations(entity, connected).properties.speed;
   const speed = reading?.property;
   const rpm =
     reading?.currentValid && speed && typeof speed.value === 'number'
@@ -180,13 +189,15 @@ function CentrifugeRotor({ entity }: { entity: LabEntity }) {
 }
 function CentrifugeReading({
   entity,
+  connected,
   position,
 }: {
   entity: LabEntity;
+  connected: boolean;
   position: Tuple;
 }) {
   const message = useAppMessage('lab');
-  const readings = readEntityObservations(entity).properties;
+  const readings = readEntityObservations(entity, connected).properties;
   const speed = readings.speed?.hasValue ? readings.speed.property : undefined;
   const phase = readings.phase?.hasValue ? readings.phase.property : undefined;
   return (
@@ -213,9 +224,15 @@ function CentrifugeReading({
     </Html>
   );
 }
-function Builtin({ entity }: { entity: LabEntity }) {
+function Builtin({
+  entity,
+  connected,
+}: {
+  entity: LabEntity;
+  connected: boolean;
+}) {
   const definition = entity.definition_id;
-  const readings = readEntityObservations(entity).properties;
+  const readings = readEntityObservations(entity, connected).properties;
   const on = readings.on;
   const brightness = readings.brightness;
   const intensity =
@@ -389,7 +406,7 @@ function Builtin({ entity }: { entity: LabEntity }) {
           height={0.045}
           color="#5d7d83"
         />
-        <CentrifugeRotor entity={entity} />
+        <CentrifugeRotor entity={entity} connected={connected} />
       </group>
     );
   return (
@@ -439,6 +456,7 @@ function Imported({
 const NodeModel = memo(function NodeModel({
   node,
   entity,
+  connected,
   asset,
   renderer,
   selected,
@@ -451,6 +469,7 @@ const NodeModel = memo(function NodeModel({
 }: {
   node: SceneNode;
   entity: LabEntity;
+  connected: boolean;
   asset?: ModelAsset;
   renderer: WebGLRenderer | null;
   selected: boolean;
@@ -509,12 +528,13 @@ const NodeModel = memo(function NodeModel({
             appearance={appearance}
           />
         ) : (
-          <Builtin entity={entity} />
+          <Builtin entity={entity} connected={connected} />
         )}
       </group>
       {showReading && entity.definition_id === 'sensor' ? (
         <SensorReading
           entity={entity}
+          connected={connected}
           position={
             bounds
               ? [
@@ -529,6 +549,7 @@ const NodeModel = memo(function NodeModel({
       {showReading && entity.definition_id === 'centrifuge' ? (
         <CentrifugeReading
           entity={entity}
+          connected={connected}
           position={
             bounds
               ? [
@@ -555,6 +576,7 @@ const NodeModel = memo(function NodeModel({
 
 function Scene({
   world,
+  connected,
   assets,
   renderer,
   selected,
@@ -570,6 +592,7 @@ function Scene({
   onPlacement,
 }: {
   world: LabWorld;
+  connected: boolean;
   assets: ModelAsset[];
   renderer: WebGLRenderer | null;
   selected: string[];
@@ -720,6 +743,7 @@ function Scene({
               key={node.id}
               node={node}
               entity={entity}
+              connected={connected}
               asset={asset}
               renderer={renderer}
               selected={selected.includes(entity.id)}
@@ -768,6 +792,7 @@ function Scene({
 
 export default function WorldViewport(props: {
   world: LabWorld;
+  connected: boolean;
   assets: ModelAsset[];
   selected: string[];
   onSelect: (id: string | null, additive: boolean, nodeId?: string) => void;
