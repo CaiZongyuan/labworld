@@ -1,4 +1,6 @@
 import type { Page } from '@playwright/test';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 const knownErrorNames = new Set([
   'Error',
@@ -109,5 +111,83 @@ export function observeBrowserFailure(page: Page) {
         pageClosed: page.isClosed(),
       },
     };
+  };
+}
+
+/** Failure-only facts at an owning action; caller keeps the original error. */
+export function observeBrowserSeam(page: Page, seam: string) {
+  const boundary = observeBrowserFailure(page);
+  const responses: { path: string; status: number }[] = [];
+  page.on('response', (response) => {
+    const path = new URL(response.url()).pathname;
+    if (
+      responses.length < 40 &&
+      (path.endsWith('/world') ||
+        path === '/api/v1/lab/labs' ||
+        path.startsWith('/api/v1/lab/assets') ||
+        path.startsWith('/objects/'))
+    )
+      responses.push({ path, status: response.status() });
+  });
+  return async () => {
+    const [browser, dom] = await Promise.all([
+      boundary(),
+      boundedBrowserFact(() =>
+        page.mainFrame().evaluate(() => {
+          const root = document.querySelector('.world-page, .lab-page');
+          const inspector = root?.querySelector('.world-inspector');
+          const tabs = Array.from(
+            inspector?.querySelectorAll('[role="tab"]') ?? [],
+          );
+          const selectedLab = (
+            root?.querySelector(
+              'select[aria-label="打开 Lab"],select[aria-label="Open Lab"]',
+            ) as HTMLSelectElement | null
+          )?.value;
+          return {
+            rootPresent: !!root,
+            rootKind: root?.classList.contains('world-page')
+              ? 'world'
+              : root
+                ? 'asset-viewer'
+                : null,
+            busy: root?.getAttribute('aria-busy') ?? null,
+            selectedLab: /^[0-9a-f-]{36}$/i.test(selectedLab ?? '')
+              ? selectedLab
+              : null,
+            canvasCount: root?.querySelectorAll('canvas').length ?? 0,
+            loadingCount: root?.querySelectorAll('.lab-loading').length ?? 0,
+            renderErrorCount:
+              root?.querySelectorAll('.world-render-error').length ?? 0,
+            inspectorPresent: !!inspector,
+            inspectorHidden: inspector?.hasAttribute('hidden') ?? null,
+            inspectorHasRectangle: inspector
+              ? inspector.getClientRects().length > 0
+              : null,
+            tabs: tabs.map((tab) => ({
+              label: /^(详情|操作|记录|Details|Operations|Records)$/.test(
+                tab.textContent?.trim() ?? '',
+              )
+                ? tab.textContent?.trim()
+                : null,
+              selected: tab.getAttribute('aria-selected'),
+              connected: tab.isConnected,
+              hasRectangle: tab.getClientRects().length > 0,
+            })),
+          };
+        }),
+      ),
+    ]);
+    writeFileSync(
+      join(
+        process.env.LAB_NODE_EVIDENCE ?? 'test-results',
+        `${seam}-failure.json`,
+      ),
+      JSON.stringify(
+        { seam, path: new URL(page.url()).pathname, browser, dom, responses },
+        null,
+        2,
+      ),
+    );
   };
 }

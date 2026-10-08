@@ -6,6 +6,7 @@ import {
 } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
+import { observeBrowserSeam } from './lab-browser-facts';
 import {
   showObjectDirectory,
   showEntityDetails,
@@ -615,8 +616,20 @@ test('persistent Draco, Meshopt and Basis models render at their original scale 
     .fill('lab-browser-test-password');
   await page.getByRole('button', { name: '创建账号' }).click();
   await expect(page).toHaveURL(/\/lab$/);
-  await page.goto('/lab/asset');
-  await expect(page.locator('.lab-page')).toHaveAttribute('aria-busy', 'false');
+  const initialFailure = observeBrowserSeam(
+    page,
+    'compressed-viewer-initial-ready',
+  );
+  try {
+    await page.goto('/lab/asset');
+    await expect(page.locator('.lab-page')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    );
+  } catch (error) {
+    await initialFailure().catch(() => {});
+    throw error;
+  }
   for (const codec of ['draco', 'meshopt', 'basis']) {
     await page
       .getByLabel('GLB 文件')

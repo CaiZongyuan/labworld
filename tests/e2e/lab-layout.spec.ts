@@ -1,6 +1,8 @@
 import { showObjectDirectory, showEntityOperations } from './lab-desktop';
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { SceneNode } from '../../packages/contracts/src/generated/types.gen';
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -291,7 +293,20 @@ test('real pointer transforms edit Placement while manual location stays unchang
     await expect(
       other.getByRole('status', { name: '布局保存状态' }),
     ).toHaveText('已保存');
-    await page.getByRole('button', { name: '保存布局', exact: true }).click();
+    const mainSave = page.getByRole('button', {
+      name: /^(保存布局|重试保存)$/,
+    });
+    writeFileSync(
+      join(
+        process.env.LAB_NODE_EVIDENCE ?? 'test-results',
+        'layout-main-save-action.json',
+      ),
+      JSON.stringify({
+        label: await mainSave.getAttribute('aria-label'),
+        rawX: await inspector.getByLabel('X (m)', { exact: true }).inputValue(),
+      }),
+    );
+    await mainSave.click();
     await expect(
       page.getByText('布局已改变，草稿已保留', { exact: true }),
     ).toBeVisible();
