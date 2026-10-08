@@ -7,6 +7,13 @@ import type {
 } from '../../packages/contracts/src/generated/types.gen';
 
 test.use({ locale: 'zh-CN', hasTouch: true });
+test.afterEach(async ({ page }, info) => {
+  if (
+    info.status !== info.expectedStatus &&
+    new URL(page.url()).pathname === '/lab'
+  )
+    await page.screenshot({ path: info.outputPath('failure-workspace.png') });
+});
 
 async function rasterDifference(page: Page, first: Buffer, second: Buffer) {
   return page.evaluate(
@@ -121,6 +128,10 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
   );
   await page.getByRole('button', { name: '最近 1 分钟', exact: true }).click();
   const result = (await (await queried).json()) as EntityTrend;
+  writeFileSync(
+    info.outputPath('first-sdk-trend.json'),
+    JSON.stringify(result, null, 2),
+  );
   expect(Date.parse(result.to) - Date.parse(result.from)).toBe(60000);
   expect(result.returned_sample_count).toBeGreaterThanOrEqual(2);
   const chart = inspector.getByRole('img', { name: '温度趋势 · degC' });
@@ -129,8 +140,8 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
   await expect(table).toBeVisible();
   const sample = result.segments[0].samples[0];
   await expect(
-    table.getByText(sample.received_at, { exact: true }),
-  ).toBeVisible();
+    table.locator('tbody tr').first().getByRole('cell').nth(1),
+  ).toHaveText(sample.received_at);
   await expect(
     table.getByText(result.segments[0].source, { exact: true }).first(),
   ).toBeVisible();
