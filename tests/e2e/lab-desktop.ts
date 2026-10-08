@@ -19,8 +19,7 @@ export async function showRunHistory(page: Page) {
     await toggle.click();
 }
 
-/** Use the ordinary shared detail tabs before reading identities or operating. */
-export async function showEntityDetails(page: Page) {
+async function closeNarrowDirectory(page: Page) {
   if ((page.viewportSize()?.width ?? 0) <= 560) {
     const directory = page.locator('.lab-toolbar').getByRole('button', {
       name: /^(打开对象目录|关闭对象目录|Open object directory|Close object directory)$/,
@@ -28,6 +27,11 @@ export async function showEntityDetails(page: Page) {
     if ((await directory.getAttribute('aria-expanded')) === 'true')
       await directory.click();
   }
+}
+
+/** Use the ordinary shared detail tabs before reading identities or operating. */
+export async function showEntityDetails(page: Page) {
+  await closeNarrowDirectory(page);
   const inspector = page.getByRole('complementary', {
     name: /^(对象信息|Object info)$/,
   });
@@ -39,13 +43,7 @@ export async function showEntityOperations(page: Page) {
   const runtime = page.getByRole('tab', { name: /^(运行查看|Runtime)$/ });
   if ((await runtime.getAttribute('aria-selected')) === 'false')
     await runtime.click();
-  if ((page.viewportSize()?.width ?? 0) <= 560) {
-    const directory = page.locator('.lab-toolbar').getByRole('button', {
-      name: /^(打开对象目录|关闭对象目录|Open object directory|Close object directory)$/,
-    });
-    if ((await directory.getAttribute('aria-expanded')) === 'true')
-      await directory.click();
-  }
+  await closeNarrowDirectory(page);
   const inspector = page.getByRole('complementary', {
     name: /^(对象信息|Object info)$/,
   });
