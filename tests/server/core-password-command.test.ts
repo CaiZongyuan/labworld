@@ -1,7 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { ServerProcess, until } from '../support/server-process.ts';
+import { processIdentity } from '../support/server-resources.ts';
 import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 import { CoreHttp } from '../support/core-http.ts';
 import type { AuditPage } from '../../packages/contracts/src/generated/types.gen.ts';
@@ -87,22 +90,124 @@ test('real reset-password command revokes old sessions changes login records act
 test('necessary actual DB close plus controlled adapter filesystem rejection exits the password command and releases its owned directory', async () => {
   const target = await new ServerProcess().create();
   const password = 'isolated-close-fault-password';
+  const driverFacts = join(
+    target.evidence,
+    'password-close-driver-phases.json',
+  );
+  target.env.OWNED_PASSWORD_CLOSE_FACTS = driverFacts;
+  let failed = false;
+  let originalFailure: unknown;
+  let cleanupFailed = false;
+  let cleanupFailure: unknown;
+  let stage = 'spawn';
   try {
     target.entry = 'tests/support/password-storage-close-fault.ts';
     target.args = ['--email', 'fault@example.test'];
     target.input = password + '\n';
     await target.spawn();
+    stage = 'wait-for-command-exit';
     await until(
       async () => target.child!.exitCode,
       (code) => code !== null,
       6500,
     );
+    stage = 'check-command-result';
     assert.equal(target.child!.exitCode, 1);
     assert.equal(target.logs.includes(password), false);
     assert.equal(target.logs.includes('auth.unavailable'), true);
+    stage = 'check-directory-release';
     const lease = await DirectoryLease.acquire(target.directory);
     await lease.release();
+    stage = 'complete';
+  } catch (error) {
+    failed = true;
+    originalFailure = error;
+    const capturedAt = new Date().toISOString();
+    const child = {
+      pid: target.child?.pid ?? null,
+      exitCode: target.child?.exitCode ?? null,
+      signalCode: target.child?.signalCode ?? null,
+    };
+    // Freeze owning facts before the supervisor changes process and lease state.
+    const phases = await readFile(driverFacts, 'utf8')
+      .then((text) => JSON.parse(text))
+      .catch(() => null);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const identity = await Promise.race([
+        child.pid
+          ? processIdentity(child.pid).then(
+              (value) => ({
+                status: 'ack',
+                present: !!value,
+                identity: value ?? null,
+              }),
+              () => ({ status: 'error' }),
+            )
+          : Promise.resolve({ status: 'unknown' }),
+        new Promise((resolve) => {
+          timer = setTimeout(() => resolve({ status: 'timeout' }), 1000);
+        }),
+      ]);
+      if (timer) clearTimeout(timer);
+      const lease = await Promise.race([
+        DirectoryLease.reserve(target.directory).then(
+          async (reservation) => {
+            await reservation.release();
+            return { status: 'ack', available: true };
+          },
+          (failure: NodeJS.ErrnoException) => ({
+            status: 'error',
+            code: failure.code ?? null,
+          }),
+        ),
+        new Promise((resolve) => {
+          timer = setTimeout(() => resolve({ status: 'timeout' }), 1000);
+        }),
+      ]);
+      await writeFile(
+        join(target.evidence, 'password-close-first-failure.json'),
+        JSON.stringify(
+          {
+            capturedAt,
+            stage,
+            failure: {
+              name: error instanceof Error ? error.name : 'OtherError',
+              code: (error as NodeJS.ErrnoException)?.code ?? null,
+            },
+            child,
+            identity,
+            lease,
+            phases,
+            unavailableReported: target.logs.includes('auth.unavailable'),
+            driverFacts: 'password-close-driver-phases.json',
+            childLog: 'server.log',
+            primaryLedger: 'owned-resources.json',
+          },
+          null,
+          2,
+        ),
+      );
+    } catch {
+      /* Supplemental capture preserves the original failure. */
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
   } finally {
-    await target.cleanup();
+    try {
+      await target.cleanup();
+    } catch (error) {
+      cleanupFailed = true;
+      cleanupFailure = error;
+      await writeFile(
+        join(target.evidence, 'password-close-cleanup-failure.json'),
+        JSON.stringify({
+          name: error instanceof Error ? error.name : 'OtherError',
+          code: (error as NodeJS.ErrnoException)?.code ?? null,
+        }),
+      ).catch(() => {});
+    }
   }
+  if (failed) throw originalFailure;
+  if (cleanupFailed) throw cleanupFailure;
 });
