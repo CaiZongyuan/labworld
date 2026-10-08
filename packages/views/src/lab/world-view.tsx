@@ -177,6 +177,7 @@ export default function WorldView() {
   const [dialog, setDialog] = useState<WorldDialogMode | null>(null);
   const [grid, setGrid] = useState(true);
   const [fit, setFit] = useState(0);
+  const [fitNodeId, setFitNodeId] = useState<string | null>(null);
   const [renderVersion, setRenderVersion] = useState(0);
   const [renderBusy, setRenderBusy] = useState(false);
   const [performance, setPerformance] = useState(false);
@@ -943,6 +944,7 @@ export default function WorldView() {
                     dark={resolvedTheme === 'dark'}
                     grid={grid}
                     fit={fit}
+                    fitNodeId={fitNodeId}
                     label={message('viewer.viewport')}
                     onMetrics={setMetrics}
                     onBusy={setRenderBusy}
@@ -972,7 +974,10 @@ export default function WorldView() {
             <Tool
               icon={Crosshair}
               label={message('viewer.focus')}
-              onClick={() => setFit((value) => value + 1)}
+              onClick={() => {
+                setFitNodeId(activeNode?.id ?? null);
+                setFit((value) => value + 1);
+              }}
             />
             <Tool
               icon={Grid2X2}

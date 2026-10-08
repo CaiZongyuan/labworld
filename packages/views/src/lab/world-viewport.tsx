@@ -527,6 +527,7 @@ const NodeModel = memo(function NodeModel({
   return (
     <group
       ref={outer}
+      name={node.id}
       position={node.placement.position as Tuple}
       rotation={node.placement.rotation as Tuple}
       scale={node.placement.scale as Tuple}
@@ -605,6 +606,7 @@ function Scene({
   dark,
   grid,
   fit,
+  fitNodeId,
   contentReady,
   onError,
   onReady,
@@ -622,6 +624,7 @@ function Scene({
   dark: boolean;
   grid: boolean;
   fit: number;
+  fitNodeId: string | null;
   contentReady: boolean;
   onError: (id: string, appearance: string, error: boolean) => void;
   onReady: (id: string, appearance: string) => void;
@@ -695,7 +698,10 @@ function Scene({
       return;
     if (!contentReady && (!previous || previous.fit === fit)) return;
     root.current.updateWorldMatrix(true, true);
-    const box = new Box3().setFromObject(root.current);
+    const target = root.current.children.find(
+      (object) => object.name === fitNodeId,
+    );
+    const box = new Box3().setFromObject(target ?? root.current);
     const hasGeometry = !box.isEmpty();
     if (!hasGeometry && previous?.fit === fit && previous.camera === camera)
       return;
@@ -729,6 +735,7 @@ function Scene({
     size.width,
     size.height,
     fit,
+    fitNodeId,
     contentReady,
   ]);
   return (
@@ -827,6 +834,7 @@ export default function WorldViewport(props: {
   grid: boolean;
   fit: number;
   onOpenRecentMinute?: (entityId: string) => void;
+  fitNodeId: string | null;
   label: string;
   onMetrics: (metrics: RenderMetrics) => void;
   onBusy: (busy: boolean) => void;
