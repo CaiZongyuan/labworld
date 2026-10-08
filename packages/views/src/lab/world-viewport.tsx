@@ -38,6 +38,7 @@ import { useAppMessage } from '../shell/messages';
 import { MetricSampler } from './metric-sampler';
 import type { RenderMetrics } from './viewport-state';
 import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
+import { Button } from '@labos-threejs/ui/components/button';
 import { observationValue } from './observation-reading';
 import { readEntityObservations } from './observation-state';
 
@@ -99,10 +100,12 @@ function SensorReading({
   entity,
   connected,
   position,
+  onOpenRecentMinute,
 }: {
   entity: LabEntity;
   connected: boolean;
   position: Tuple;
+  onOpenRecentMinute?: (entityId: string) => void;
 }) {
   const message = useAppMessage('lab');
   const reading = readEntityObservations(entity, connected).properties
@@ -115,29 +118,44 @@ function SensorReading({
       calculatePosition={readingPosition}
       zIndexRange={[10, 0]}
     >
-      <div
-        className="world-sensor-reading"
-        role="img"
-        aria-label={`${entity.name}: ${temperature ? observationValue(temperature) : message('world.unknown')}`}
-        title={
-          temperature
-            ? [
-                temperature.source,
-                temperature.observed_at ?? message('device.sourceTimeUnknown'),
-                temperature.received_at,
-                message(`device.quality.${temperature.quality}`),
-              ].join('\n')
-            : message('world.unknown')
-        }
-      >
-        <strong>{temperature ? observationValue(temperature) : '-'}</strong>
-        <small>
-          {temperature
-            ? message(
-                `device.freshness.${temperature.freshness !== 'current' ? temperature.freshness : reading.reason}`,
-              )
-            : message('world.unknown')}
-        </small>
+      <div className="world-sensor-label">
+        <div
+          className="world-sensor-reading"
+          role="img"
+          aria-label={`${entity.name}: ${temperature ? observationValue(temperature) : message('world.unknown')}`}
+          title={
+            temperature
+              ? [
+                  temperature.source,
+                  temperature.observed_at ??
+                    message('device.sourceTimeUnknown'),
+                  temperature.received_at,
+                  message(`device.quality.${temperature.quality}`),
+                ].join('\n')
+              : message('world.unknown')
+          }
+        >
+          <strong>{temperature ? observationValue(temperature) : '-'}</strong>
+          <small>
+            {temperature
+              ? message(
+                  `device.freshness.${temperature.freshness !== 'current' ? temperature.freshness : reading.reason}`,
+                )
+              : message('world.unknown')}
+          </small>
+        </div>
+        {onOpenRecentMinute ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenRecentMinute(entity.id);
+            }}
+          >
+            {message('world.recentMinute')}
+          </Button>
+        ) : null}
       </div>
     </Html>
   );
@@ -461,6 +479,7 @@ const NodeModel = memo(function NodeModel({
   renderer,
   selected,
   showReading,
+  onOpenRecentMinute,
   onSelect,
   onReady,
   onError,
@@ -474,6 +493,7 @@ const NodeModel = memo(function NodeModel({
   renderer: WebGLRenderer | null;
   selected: boolean;
   showReading: boolean;
+  onOpenRecentMinute?: (entityId: string) => void;
   onSelect: (id: string, additive: boolean, nodeId?: string) => void;
   onReady: (id: string, appearance: string) => void;
   onError: (id: string, appearance: string, error: boolean) => void;
@@ -535,6 +555,7 @@ const NodeModel = memo(function NodeModel({
         <SensorReading
           entity={entity}
           connected={connected}
+          onOpenRecentMinute={onOpenRecentMinute}
           position={
             bounds
               ? [
@@ -590,6 +611,7 @@ function Scene({
   activeNodeId,
   transformMode,
   onPlacement,
+  onOpenRecentMinute,
 }: {
   world: LabWorld;
   connected: boolean;
@@ -606,6 +628,7 @@ function Scene({
   activeNodeId?: string;
   transformMode: 'translate' | 'rotate' | 'scale' | null;
   onPlacement: (id: string, placement: Placement) => void;
+  onOpenRecentMinute?: (entityId: string) => void;
 }) {
   const root = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
@@ -748,6 +771,7 @@ function Scene({
               renderer={renderer}
               selected={selected.includes(entity.id)}
               showReading={node.id === activeNodeId}
+              onOpenRecentMinute={onOpenRecentMinute}
               onSelect={onSelect}
               onReady={ready}
               onError={onError}
@@ -802,6 +826,7 @@ export default function WorldViewport(props: {
   dark: boolean;
   grid: boolean;
   fit: number;
+  onOpenRecentMinute?: (entityId: string) => void;
   label: string;
   onMetrics: (metrics: RenderMetrics) => void;
   onBusy: (busy: boolean) => void;
