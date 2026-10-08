@@ -60,10 +60,26 @@ export function rebaseLayout(
   latest: LabWorld,
 ): LayoutDraft {
   const fresh = layoutDraft(latest);
+  const nodes = mergeChanges(draft.baseNodes, draft.nodes, fresh.nodes);
+  const coordinateText: Record<string, string> = {};
+  for (const node of nodes)
+    for (const property of ['position', 'rotation', 'scale'] as const)
+      for (const [index, axis] of ['X', 'Y', 'Z'].entries()) {
+        const id = `${node.id}-${property}-${axis}`;
+        const text = draft.coordinateText?.[id];
+        if (text === undefined) continue;
+        const value = coordinateNumber(
+          text,
+          property === 'scale' ? 0.001 : -10000,
+          property === 'scale' ? 1000 : 10000,
+        );
+        if (value === null || value === node.placement[property][index])
+          coordinateText[id] = text;
+      }
   return {
     ...fresh,
-    coordinateText: draft.coordinateText,
-    nodes: mergeChanges(draft.baseNodes, draft.nodes, fresh.nodes),
+    coordinateText,
+    nodes,
     relationships: mergeChanges(
       draft.baseRelationships,
       draft.relationships,

@@ -414,3 +414,120 @@ test('a lost save response retains the draft and restores committed World withou
   );
   expect((await savedWorld()).lab.layout_version).toBe(1);
 });
+
+test('reload keeps matching spelling and unfinished text while showing the merged remote coordinate', async () => {
+  const app = fixture();
+  const first = app.mount();
+  const x = await edit(first.user);
+  await first.user.clear(x);
+  await first.user.type(x, '0.00');
+  await first.user.clear(screen.getByLabelText('Y (m)'));
+  await first.user.type(screen.getByLabelText('Y (m)'), '0.00');
+  await first.user.clear(screen.getByLabelText('Z (m)'));
+  await first.user.type(screen.getByLabelText('Z (m)'), '-');
+  const before = await savedWorld();
+  const response = await fetch(
+    'http://api.test/api/v1/lab/labs/lab-one/layout',
+    {
+      method: 'PUT',
+      body: JSON.stringify({
+        expected_version: 0,
+        nodes: [
+          {
+            ...before.nodes[0],
+            placement: { ...before.nodes[0].placement, position: [4, 0, 0] },
+          },
+        ],
+      }),
+    },
+  );
+  expect(response.status).toBe(200);
+  first.view.unmount();
+  const returned = app.mount();
+  await edit(returned.user);
+  await returned.user.click(
+    await screen.findByRole('button', { name: '重新载入并保留草稿' }),
+  );
+  expect(screen.getByLabelText<HTMLInputElement>('X (m)').value).toBe('4');
+  expect(screen.getByLabelText<HTMLInputElement>('Y (m)').value).toBe('0.00');
+  expect(screen.getByLabelText<HTMLInputElement>('Z (m)').value).toBe('-');
+  returned.view.unmount();
+  const restored = app.mount();
+  expect((await edit(restored.user)).value).toBe('4');
+  expect(screen.getByLabelText<HTMLInputElement>('Y (m)').value).toBe('0.00');
+  const z = screen.getByLabelText<HTMLInputElement>('Z (m)');
+  expect(z.value).toBe('-');
+  expect((await savedWorld()).nodes[0].placement.position).toEqual([4, 0, 0]);
+  await restored.user.clear(z);
+  await restored.user.type(z, '0');
+  await restored.user.click(screen.getByRole('button', { name: '保存布局' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('status', { name: '布局保存状态' }),
+    ).toHaveTextContent('已保存'),
+  );
+  expect((await savedWorld()).nodes[0].placement.position).toEqual([4, 0, 0]);
+});
+
+test('reload removes orphan text without losing another node’s input on refresh', async () => {
+  const app = fixture();
+  const original = await savedWorld();
+  const second = {
+    ...original.nodes[0],
+    id: 'second-node',
+    placement: { ...original.nodes[0].placement, position: [4, 0, 0] },
+  };
+  const seeded = await fetch('http://api.test/api/v1/lab/labs/lab-one/layout', {
+    method: 'PUT',
+    body: JSON.stringify({
+      expected_version: 0,
+      nodes: [original.nodes[0], second],
+    }),
+  });
+  expect(seeded.status).toBe(200);
+  const first = app.mount();
+  await edit(first.user);
+  await first.user.clear(screen.getByLabelText('Y (m)'));
+  await first.user.type(screen.getByLabelText('Y (m)'), '-');
+  const selectors = screen.getAllByRole('button', { name: '编辑节点' });
+  expect(selectors).toHaveLength(2);
+  await first.user.click(selectors[1]);
+  const x = screen.getByLabelText('X (m)');
+  await first.user.clear(x);
+  await first.user.type(x, '9.00');
+  const removed = await fetch(
+    'http://api.test/api/v1/lab/labs/lab-one/layout',
+    {
+      method: 'PUT',
+      body: JSON.stringify({ expected_version: 1, nodes: [second] }),
+    },
+  );
+  expect(removed.status).toBe(200);
+  first.view.unmount();
+  const returned = app.mount();
+  await edit(returned.user);
+  await returned.user.click(
+    await screen.findByRole('button', { name: '重新载入并保留草稿' }),
+  );
+  expect(screen.getAllByRole('button', { name: '编辑节点' })).toHaveLength(1);
+  expect(screen.getByLabelText<HTMLInputElement>('X (m)').value).toBe('9.00');
+  returned.view.unmount();
+  const restored = app.mount();
+  expect((await edit(restored.user)).value).toBe('9.00');
+  expect(
+    screen.queryByText(
+      '本浏览器的布局草稿格式无效，未恢复。已保存的共享布局未改变。',
+    ),
+  ).toBeNull();
+  expect((await savedWorld()).nodes[0].placement.position).toEqual([4, 0, 0]);
+  await restored.user.click(screen.getByRole('button', { name: '保存布局' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('status', { name: '布局保存状态' }),
+    ).toHaveTextContent('已保存'),
+  );
+  const saved = await savedWorld();
+  expect(saved.nodes).toHaveLength(1);
+  expect(saved.nodes[0].id).toBe('second-node');
+  expect(saved.nodes[0].placement.position).toEqual([9, 0, 0]);
+});
