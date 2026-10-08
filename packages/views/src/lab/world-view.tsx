@@ -74,7 +74,9 @@ import WorldDialog, {
   type WorldDialogMode,
   type WorldSubmission,
 } from './world-dialog';
-import DevicePanel from './device-panel';
+import DevicePanel, { defaultDeviceInput } from './device-panel';
+import EntityDetail from './entity-detail';
+import { entityWithConfirmedRun } from './source-state';
 import HistoryPanel from './history-panel';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
@@ -129,7 +131,11 @@ export default function WorldView() {
     layoutPending,
     setLayoutPending,
     attempts,
-    setAttempts,
+    setCommandAttempt,
+    sourceAttempts,
+    setSourceAttempt,
+    deviceInputs,
+    setDeviceInput,
     setActiveLab,
     mutation,
   } = useLabWorkbench();
@@ -197,7 +203,13 @@ export default function WorldView() {
     () => new Set(nodes.map((node) => node.entity_id)),
     [nodes],
   );
-  const entities = world.data?.entities ?? [];
+  const entities = useMemo(
+    () =>
+      world.data?.entities.map((entity) =>
+        entityWithConfirmedRun(entity, sourceAttempts[entity.id]),
+      ) ?? [],
+    [world.data?.entities, sourceAttempts],
+  );
   const modelAssets = useMemo(
     () =>
       world.data?.assets.map((asset): ModelAsset => ({
@@ -860,7 +872,8 @@ export default function WorldView() {
                 >
                   <WorldViewport
                     key={`${labId}-${renderVersion}`}
-                    world={draft ? { ...world.data, nodes } : world.data}
+                    world={{ ...world.data, entities, nodes }}
+                    connected={connection.available}
                     assets={modelAssets}
                     selected={selection}
                     onSelect={select}
@@ -968,17 +981,41 @@ export default function WorldView() {
               onClick={closeInspector}
             />
           </header>
-          {selected ? (
-            <>
-              <section className="lab-inspector-section">
-                <div className="lab-section-heading">
-                  <h3>{selected.name}</h3>
-                  <Tool
-                    icon={Pencil}
-                    label={message('world.configure')}
-                    onClick={() => setDialog(selected)}
-                  />
-                </div>
+          {selected && world.data ? (
+            <EntityDetail
+              key={`${labId}-${selected.id}`}
+              entity={selected}
+              world={world.data}
+              apiClient={apiClient}
+              editing={editing}
+              connected={connection.available}
+              onConfigure={() => setDialog(selected)}
+              operations={
+                <DevicePanel
+                  key={selected.id}
+                  entity={selected}
+                  apiClient={apiClient}
+                  identity={identity}
+                  attempts={attempts[selected.id] ?? {}}
+                  onAttempt={(attempt) =>
+                    setCommandAttempt(selected.id, attempt)
+                  }
+                  sourceAttempt={sourceAttempts[selected.id]}
+                  onSourceAttempt={(attempt) =>
+                    setSourceAttempt(selected.id, attempt)
+                  }
+                  onRefresh={world.refetch}
+                  runtimeAvailable={connection.available}
+                  input={deviceInputs[selected.id] ?? defaultDeviceInput}
+                  onInput={(input) => setDeviceInput(selected.id, input)}
+                />
+              }
+            >
+              <section
+                className="lab-inspector-section"
+                aria-label={message('detail.identity')}
+              >
+                <h3>{message('detail.identity')}</h3>
                 <dl className="world-properties">
                   <dt>Entity</dt>
                   <dd>{selected.id}</dd>
@@ -996,35 +1033,29 @@ export default function WorldView() {
                       ? selected.configuration.label
                       : '-'}
                   </dd>
-                  <dt>{message('world.binding')}</dt>
+                  <dt>{message('device.program')}</dt>
                   <dd>
                     {selected.binding?.program_id ?? message('world.noBinding')}
                   </dd>
-                  <dt>{message('world.observation')}</dt>
+                  <dt>Binding</dt>
+                  <dd>{selected.binding?.id ?? '-'}</dd>
+                  <dt>{message('assets.source')}</dt>
                   <dd>
-                    {selected.observation
-                      ? message(
-                          `device.freshness.${selected.observation.freshness}`,
-                        )
-                      : message('world.unknown')}
+                    {selected.binding?.source ?? message('world.noBinding')}
+                  </dd>
+                  <dt>Run</dt>
+                  <dd>{selected.program_run?.id ?? '-'}</dd>
+                  <dt>{message('detail.runBinding')}</dt>
+                  <dd>{selected.program_run?.binding_id ?? '-'}</dd>
+                  <dt>{message('detail.runStatus')}</dt>
+                  <dd>
+                    {message(
+                      `device.${selected.program_run?.status ?? 'not_started'}`,
+                    )}
                   </dd>
                 </dl>
               </section>
-              <DevicePanel
-                key={selected.id}
-                entity={selected}
-                apiClient={apiClient}
-                identity={identity}
-                attempt={attempts[selected.id]}
-                onAttempt={(attempt) =>
-                  setAttempts((previous) => ({
-                    ...previous,
-                    [selected.id]: attempt,
-                  }))
-                }
-                onRefresh={world.refetch}
-                runtimeAvailable={connection.available}
-              />
+
               <EntityLifecyclePanel
                 key={`lifecycle-${selected.id}`}
                 entity={selected}
@@ -1206,7 +1237,7 @@ export default function WorldView() {
                     : selected.definition.name}
                 </small>
               </section>
-            </>
+            </EntityDetail>
           ) : (
             <Empty>
               <EmptyHeader>

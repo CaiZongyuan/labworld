@@ -36,6 +36,25 @@ test('a member keeps the last observation through duplicate, old, interrupted an
     observed_at: '2026-10-03T06:00:00Z',
     received_at: '2026-10-03T06:00:00Z',
     updated_at: '2026-10-03T06:00:00Z',
+    properties: Object.fromEntries(
+      Object.entries({ on: false, brightness: 35 }).map(([name, value]) => [
+        name,
+        {
+          value,
+          unit: name === 'brightness' ? '%' : null,
+          binding_id: 'binding',
+          run_id: 'run',
+          sequence: 1,
+          source: 'simulated:light',
+          observed_at: '2026-10-03T06:00:00Z',
+          received_at: '2026-10-03T06:00:00Z',
+          updated_at: '2026-10-03T06:00:00Z',
+          expires_at: '2026-10-03T06:01:00Z',
+          quality: 'good',
+          freshness: 'current',
+        },
+      ]),
+    ),
   };
   const entity = {
     id: 'light',
@@ -48,8 +67,8 @@ test('a member keeps the last observation through duplicate, old, interrupted an
     definition,
     configuration: {},
     representation_id: null,
-    binding: { program_id: 'light.v1' },
-    program_run: { id: 'run', status: 'running' },
+    binding: { id: 'binding', program_id: 'light.v1' },
+    program_run: { id: 'run', binding_id: 'binding', status: 'running' },
     observation,
     capabilities: definition.capabilities.map(
       (entry: Record<string, unknown>) => ({
@@ -165,7 +184,14 @@ test('a member keeps the last observation through duplicate, old, interrupted an
         collection: 'entities',
         id: 'light',
         patch: {
-          observation: { ...observation, values: { on: true, brightness: 35 } },
+          observation: {
+            ...observation,
+            values: { on: true, brightness: 35 },
+            properties: {
+              ...observation.properties,
+              on: { ...observation.properties.on, value: true },
+            },
+          },
         },
       },
     ],

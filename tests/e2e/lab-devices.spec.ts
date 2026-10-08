@@ -1,4 +1,8 @@
-import { showObjectDirectory } from './lab-desktop';
+import {
+  showObjectDirectory,
+  showEntityDetails,
+  showEntityOperations,
+} from './lab-desktop';
 import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
 import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
 import {
@@ -153,8 +157,11 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       page.getByRole('button', { name: `选择 ${name}`, exact: true }),
     ).toBeVisible();
     await expect(
-      inspector.getByText('未知 · 无观测', { exact: true }),
+      inspector
+        .getByRole('region', { name: '观测电源' })
+        .getByText('未知 · 无观测', { exact: true }),
     ).toBeVisible();
+    await showEntityDetails(page);
     ids.push(
       await inspector
         .locator('dt')
@@ -167,6 +174,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       .filter({ hasText: /^Lab$/ })
       .locator('+ dd')
       .innerText();
+    await showEntityOperations(page);
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })
       .click();
@@ -328,17 +336,79 @@ test('two backend lights report independent pixels to a Member and an Agent afte
   }
   try {
     await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
-    for (const id of ids) await apply(id, 'light.set_power', { on: false });
+    for (const id of ids) {
+      await apply(id, 'light.set_power', { on: true });
+      await apply(id, 'light.set_power', { on: false });
+    }
     await page
       .getByRole('button', { name: '选择 Light A', exact: true })
       .click();
     await expect(
-      inspector.getByText('观测电源', { exact: true }),
+      inspector
+        .getByRole('region', { name: '观测电源' })
+        .getByRole('heading', { name: '观测电源' }),
     ).toBeVisible();
     await expect(
       inspector.getByRole('switch', { name: '电源' }),
     ).not.toBeChecked();
-    const off = await page.locator('canvas').screenshot();
+    let baselineWorld!: LabWorld;
+    await expect
+      .poll(async () => {
+        baselineWorld = (await (
+          await agent.get(`/api/v1/lab/labs/${lab}/world`)
+        ).json()) as LabWorld;
+        return ids.every((id) => {
+          const entity = baselineWorld.entities.find(
+            (entry) => entry.id === id,
+          );
+          const power = entity?.observation?.properties.on;
+          return (
+            entity?.program_run?.status === 'running' &&
+            power?.value === false &&
+            power.quality === 'good' &&
+            power.freshness === 'current' &&
+            !!power.observed_at &&
+            power.binding_id === entity.binding?.id &&
+            power.run_id === entity.program_run.id
+          );
+        });
+      })
+      .toBe(true);
+    await expect(
+      inspector
+        .getByRole('region', { name: '观测电源' })
+        .locator('.observation-value'),
+    ).toHaveText('关闭');
+    await expect
+      .poll(
+        async () =>
+          BigInt(
+            (await page.getByLabel('世界版本').innerText()).replace(/^W/, ''),
+          ) >= BigInt(baselineWorld.version),
+      )
+      .toBe(true);
+    let off!: Buffer;
+    const stableFrames: unknown[] = [];
+    await expect
+      .poll(async () => {
+        const before = await page.locator('canvas').screenshot();
+        await page.evaluate(async () => {
+          await new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          );
+        });
+        off = await page.locator('canvas').screenshot();
+        const change = await pixelChange(page, before, off);
+        stableFrames.push(change);
+        return change.count;
+      })
+      .toBe(0);
+    await page.evaluate(async () => {
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      );
+    });
+    const offAgain = await page.locator('canvas').screenshot();
     await inspector.getByRole('switch', { name: '电源' }).click();
     await expect(inspector.getByRole('switch', { name: '电源' })).toBeChecked();
     await expect(
@@ -356,12 +426,70 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       .toBeGreaterThan(30);
     const bothOn = await page.locator('canvas').screenshot();
     const changedB = await pixelChange(page, aOn, bothOn);
+    const pixelEvidence = test.info().outputPath('light-pixels');
+    const pixelWorld = (await (
+      await agent.get(`/api/v1/lab/labs/${lab}/world`)
+    ).json()) as LabWorld;
+    await Promise.all([
+      writeFile(pixelEvidence + '-off.png', off),
+      writeFile(pixelEvidence + '-off-again.png', offAgain),
+      writeFile(pixelEvidence + '-a-on.png', aOn),
+      writeFile(pixelEvidence + '-both-on.png', bothOn),
+      writeFile(
+        pixelEvidence + '.json',
+        JSON.stringify(
+          {
+            changedA,
+            changedB,
+            baselineWorldVersion: baselineWorld.version,
+            baselineProperties: baselineWorld.entities.map((entity) => ({
+              id: entity.id,
+              properties: entity.observation?.properties,
+            })),
+            stableFrames,
+            unchangedOffFrames: await pixelChange(page, off, offAgain),
+            viewport: page.viewportSize(),
+            canvas: await page.locator('canvas').boundingBox(),
+            entities: pixelWorld.entities.map((entity) => ({
+              id: entity.id,
+              name: entity.name,
+              run: entity.program_run
+                ? {
+                    id: entity.program_run.id,
+                    status: entity.program_run.status,
+                  }
+                : null,
+              properties: entity.observation?.properties,
+            })),
+            nodes: pixelWorld.nodes,
+            frameFacts: await page.evaluate(() => ({
+              visibility: document.visibilityState,
+              sourceVersion: document.querySelector('[aria-label="世界版本"]')
+                ?.textContent,
+              resources: performance
+                .getEntriesByType('resource')
+                .filter((entry) => /\.(hdr|glb|ktx2)(\?|$)/.test(entry.name))
+                .map((entry) => ({
+                  path: new URL(entry.name).pathname,
+                  duration: entry.duration,
+                })),
+            })),
+          },
+          null,
+          2,
+        ),
+      ),
+    ]);
     expect(
       changedB.right < changedA.left || changedA.right < changedB.left,
     ).toBe(true);
     await inspector.getByLabel('目标亮度 (%)').fill('35');
     await inspector.getByRole('button', { name: '设置', exact: true }).click();
-    await expect(inspector.getByText('35 %', { exact: true })).toBeVisible();
+    await expect(
+      inspector
+        .getByRole('region', { name: '观测亮度' })
+        .getByText('35 %', { exact: true }),
+    ).toBeVisible();
     const world = await (
       await agent.get(`/api/v1/lab/labs/${lab}/world`)
     ).json();
@@ -394,7 +522,9 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       name: '对象信息',
     });
     await expect(
-      reopenedInspector.getByText('20 %', { exact: true }),
+      reopenedInspector
+        .getByRole('region', { name: '观测亮度' })
+        .getByText('20 %', { exact: true }),
     ).toBeVisible();
     await reopened
       .getByRole('button', { name: '选择 Light A', exact: true })
@@ -406,7 +536,9 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       reopenedInspector.getByRole('button', { name: '启动程序', exact: true }),
     ).toBeVisible();
     await expect(
-      reopenedInspector.getByText('35 %', { exact: true }),
+      reopenedInspector
+        .getByRole('region', { name: '观测亮度' })
+        .getByText('35 %', { exact: true }),
     ).toBeVisible();
     await expect(
       reopenedInspector.getByRole('switch', { name: '电源' }),

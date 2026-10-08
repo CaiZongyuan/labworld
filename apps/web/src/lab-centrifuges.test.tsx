@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { readFileSync } from 'node:fs';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   createApiClient,
@@ -11,7 +12,9 @@ import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { server } from '../../../tests/frontend/server';
 import DevicePanel, {
-  type CommandAttempt,
+  type EntityCommandAttempts,
+  type SourceAttempt,
+  defaultDeviceInput,
 } from '../../../packages/views/src/lab/device-panel';
 import { AppMessagesProvider } from '../../../packages/views/src/shell/messages';
 import { PreferencesProvider } from '../../../packages/views/src/shell/preferences';
@@ -27,27 +30,44 @@ const identity = {
   csrf_token: 'csrf',
 } satisfies CurrentSession;
 function Harness() {
-  const [attempt, setAttempt] = useState<CommandAttempt>();
+  const [attempts, setAttempts] = useState<EntityCommandAttempts>({});
+  const [sourceAttempt, setSourceAttempt] = useState<SourceAttempt>();
+  const [input, setInput] = useState(defaultDeviceInput);
   const entity = {
     id: 'centrifuge',
     lab_id: 'lab',
     name: 'Centrifuge A',
+    definition: JSON.parse(
+      readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
+    ).find((entry: { id: string }) => entry.id === 'centrifuge'),
     binding: { id: 'binding', program_id: 'centrifuge.v1' },
     program_run: { id: 'run', status: 'running' },
     observation: null,
     task: null,
     task_result: null,
-    capabilities: [{ id: 'centrifuge.start', executable: true }],
+    capabilities: [
+      { id: 'centrifuge.start', executable: true, binding_implemented: true },
+      { id: 'centrifuge.stop', executable: true, binding_implemented: true },
+    ],
   } as unknown as LabEntity;
   return (
     <DevicePanel
       entity={entity}
       identity={identity}
       apiClient={createApiClient('http://api.test')}
-      attempt={attempt}
-      onAttempt={setAttempt}
+      attempts={attempts}
+      onAttempt={(attempt) =>
+        setAttempts((previous) => ({
+          ...previous,
+          [attempt.input.capability]: attempt,
+        }))
+      }
+      sourceAttempt={sourceAttempt}
+      onSourceAttempt={setSourceAttempt}
       onRefresh={async () => {}}
       runtimeAvailable
+      input={input}
+      onInput={setInput}
     />
   );
 }
@@ -118,10 +138,11 @@ test('centrifuge submits fixed typed parameters and keeps Stop available while a
       async ({ request }) => {
         const input = await request.json();
         calls.push(input);
+        const commandId = `command-${calls.length}`;
         if ((input as { capability: string }).capability === 'centrifuge.start')
           await pending;
         return HttpResponse.json(
-          { id: `command-${calls.length}`, status: 'succeeded', result: null },
+          { id: commandId, status: 'succeeded', result: null },
           { status: 202 },
         );
       },

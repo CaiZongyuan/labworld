@@ -6,7 +6,11 @@ import {
 } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
-import { showObjectDirectory } from './lab-desktop';
+import {
+  showObjectDirectory,
+  showEntityDetails,
+  showEntityOperations,
+} from './lab-desktop';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -157,6 +161,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   await expectCanvasPixels(page);
   await page.getByRole('button', { name: '选择 Cube A', exact: true }).click();
   const inspector = page.getByRole('complementary', { name: '对象信息' });
+  await showEntityDetails(page);
   const labId = await inspector
     .locator('dt')
     .filter({ hasText: /^Lab$/ })
@@ -168,6 +173,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     .locator('+ dd')
     .innerText();
   await page.getByRole('button', { name: '选择 Cube B', exact: true }).click();
+  await showEntityDetails(page);
   const secondId = await inspector
     .locator('dt')
     .filter({ hasText: /^Entity$/ })
@@ -183,6 +189,8 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
       await canvas.click({
         position: { x: bounds!.width * x, y: bounds!.height * y },
       });
+      if (!(await inspector.isVisible())) continue;
+      await showEntityDetails(page);
       if (
         (await inspector
           .locator('dt')
@@ -214,6 +222,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     '2',
   );
   await page.getByRole('button', { name: '选择 Cube A', exact: true }).click();
+  await showEntityDetails(page);
   await page
     .getByRole('button', { name: '新增同一对象表示', exact: true })
     .click();
@@ -268,12 +277,15 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     page.getByRole('button', { name: '选择 Robot A', exact: true }),
   ).toBeVisible();
   await page.getByRole('button', { name: '选择 Robot A', exact: true }).click();
+  await showEntityDetails(page);
   await expect(
     inspector.getByText(tutorial.entity_ids[0], { exact: true }),
   ).toBeVisible();
+  await showEntityOperations(page);
   await expect(
     inspector.getByText('未知 · 无观测', { exact: true }),
   ).toBeVisible();
+  await showEntityDetails(page);
   await expect(
     inspector.getByText('robot.pick', { exact: true }),
   ).toBeVisible();
@@ -308,6 +320,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   await showObjectDirectory(other);
   await other.getByRole('button', { name: '选择 Cube A', exact: true }).click();
   const otherInspector = other.getByRole('complementary', { name: '对象信息' });
+  await showEntityDetails(other);
   await expect(
     otherInspector.getByText(firstId, { exact: true }),
   ).toBeVisible();
@@ -394,6 +407,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     path: `test-results/lab-foundation/t02-world-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
     fullPage: true,
   });
+  await showEntityDetails(other);
   await other
     .getByRole('complementary', { name: 'Object info' })
     .getByText(firstId, { exact: true })

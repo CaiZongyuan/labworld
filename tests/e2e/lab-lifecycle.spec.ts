@@ -6,6 +6,7 @@ import {
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
+import { showEntityDetails, showEntityOperations } from './lab-desktop';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -121,6 +122,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
         exact: true,
       }),
     ).toBeVisible();
+    await showEntityDetails(page);
     const entity = await inspector
       .locator('dt')
       .filter({ hasText: /^Entity$/ })
@@ -132,6 +134,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       .locator('+ dd')
       .innerText();
     const path = `/api/v1/lab/labs/${lab}/entities/${entity}`;
+    await showEntityOperations(page);
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })
       .click();
@@ -190,6 +193,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       return reading;
     }
     async function appearance(representation: string) {
+      await showEntityDetails(page);
       await inspector
         .getByRole('button', { name: '更换外观', exact: true })
         .click();
@@ -329,10 +333,12 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
     expect((await get(path)).id).toBe(entity);
     expect((await get(path)).task).toEqual(task);
     await page.getByRole('tab', { name: '运行查看', exact: true }).click();
+    await showEntityOperations(page);
     await inspector
       .getByRole('button', { name: '停止程序', exact: true })
       .click();
     const stopped = await get(`${path}/runs/${before.program_run.id}`);
+    await showEntityDetails(page);
     await inspector.getByRole('button', { name: '更换定义与程序' }).click();
     await page
       .getByRole('dialog')
@@ -348,6 +354,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
     expect(await get(`${path}/runs/${before.program_run.id}`)).toEqual(stopped);
     expect(await get(`${path}/tasks/${task.id}`)).toEqual(task);
     expect(await get(`${path}/results/${result.id}`)).toEqual(result);
+    await showEntityOperations(page);
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })
       .click();
@@ -368,6 +375,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       },
     });
     expect(bench.status()).toBe(201);
+    await showEntityDetails(page);
     await inspector
       .getByRole('button', { name: '归档对象', exact: true })
       .click();
@@ -400,6 +408,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       await page.setViewportSize({ width: 320, height: 900 });
     await page.getByRole('button', { name: 'English', exact: true }).click();
     await page.getByRole('button', { name: 'Dark', exact: true }).click();
+    await showEntityDetails(page);
     await pixels(
       page,
       `t09-archive-${desktopMigration ? 'desktop' : 'mobile'}-canvas.png`,

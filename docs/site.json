@@ -124,6 +124,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "persistent-world",
+      "next": "device-details"
+    },
+    {
+      "id": "device-details",
+      "source": "docs/tutorials/device-details.md",
+      "sourceEn": "docs/tutorials/device-details.en.md",
+      "route": "tutorials/device-details.md",
+      "title": "操作与追溯设备",
+      "titleEn": "Operate and trace devices",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "spatial-workbench",
       "next": "backend-lights"
     },
     {
@@ -135,7 +147,7 @@
       "titleEn": "Backend lighting control",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "spatial-workbench",
+      "previous": "device-details",
       "next": "edit-layout"
     },
     {

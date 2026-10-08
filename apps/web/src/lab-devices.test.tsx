@@ -54,6 +54,7 @@ function openLights() {
       }),
     ),
   }));
+  const startCounts: Record<string, number> = {};
   let command: Record<string, unknown> | null = null;
   let version = 0;
   let stream: ReadableStreamDefaultController<Uint8Array>;
@@ -106,7 +107,12 @@ function openLights() {
       ({ params, request }) => {
         expect(request.headers.get('x-csrf-token')).toBe(identity.csrf_token);
         const entity = entities.find((entry) => entry.id === params.entity)!;
-        entity.program_run = { id: `run-${entity.id}`, status: 'running' };
+        startCounts[entity.id] = (startCounts[entity.id] ?? 0) + 1;
+        entity.program_run = {
+          id: `run-${entity.id}${startCounts[entity.id] === 1 ? '' : `-${startCounts[entity.id]}`}`,
+          binding_id: entity.binding.id,
+          status: 'running',
+        };
         entity.capabilities = entity.capabilities.map(
           (capability: Record<string, unknown>) => ({
             ...capability,
@@ -192,6 +198,25 @@ function openLights() {
         updated_at: '2026-10-03T06:00:01Z',
         quality: 'good',
         freshness: 'current',
+        properties: Object.fromEntries(
+          Object.entries({ on: true, brightness: 100 }).map(([name, value]) => [
+            name,
+            {
+              value,
+              unit: name === 'brightness' ? '%' : null,
+              binding_id: 'binding-0',
+              run_id: 'run-light-0',
+              sequence: 1,
+              source: 'simulated:light:0',
+              observed_at: '2026-10-03T06:00:00Z',
+              received_at: '2026-10-03T06:00:01Z',
+              updated_at: '2026-10-03T06:00:01Z',
+              expires_at: '2026-10-03T06:01:00Z',
+              quality: 'good',
+              freshness: 'current',
+            },
+          ]),
+        ),
       };
     },
   };
@@ -201,13 +226,21 @@ test('a member sees submission and waiting separately from measured power', asyn
   await user.click(await screen.findByRole('button', { name: '打开对象目录' }));
   await user.click(await screen.findByRole('button', { name: '选择 Light A' }));
   const inspector = screen.getByRole('complementary', { name: '对象信息' });
-  expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
+  expect(
+    within(
+      within(inspector).getByRole('region', { name: '观测电源' }),
+    ).getByText('未知 · 无观测'),
+  ).toBeVisible();
   await user.click(within(inspector).getByRole('button', { name: '启动程序' }));
   await user.click(
     await within(inspector).findByRole('switch', { name: '电源' }),
   );
   expect(await within(inspector).findByText('正在提交命令')).toBeVisible();
-  expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
+  expect(
+    within(
+      within(inspector).getByRole('region', { name: '观测电源' }),
+    ).getByText('未知 · 无观测'),
+  ).toBeVisible();
   resolveSubmission();
   expect(await within(inspector).findByText('等待设备执行')).toBeVisible();
   expect(
@@ -220,7 +253,11 @@ test('a member sees submission and waiting separately from measured power', asyn
     await within(inspector).findByRole('switch', { name: '电源' }),
   ).toBeChecked();
   await user.click(screen.getByRole('button', { name: '选择 Light B' }));
-  expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
+  expect(
+    within(
+      within(inspector).getByRole('region', { name: '观测电源' }),
+    ).getByText('未知 · 无观测'),
+  ).toBeVisible();
 });
 
 test('committed Start and an authoritative running snapshot unlock controls while a redundant World body is pending', async () => {
@@ -269,13 +306,21 @@ test('committed Start and an authoritative running snapshot unlock controls whil
       within(inspector).getByRole('button', { name: '启动程序' }),
     );
     await waitFor(() => expect(refreshStarted).toBe(true));
-    expect(await within(inspector).findByText('运行中')).toBeVisible();
+    expect(
+      await within(
+        within(inspector).getByRole('region', { name: '设备程序' }),
+      ).findByText('运行中'),
+    ).toBeVisible();
     await waitFor(() =>
       expect(
         within(inspector).getByRole('switch', { name: '电源' }),
       ).toBeEnabled(),
     );
-    expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
+    expect(
+      within(
+        within(inspector).getByRole('region', { name: '观测电源' }),
+      ).getByText('未知 · 无观测'),
+    ).toBeVisible();
     expect(
       within(inspector).getByRole('switch', { name: '电源' }),
     ).not.toBeChecked();
@@ -314,7 +359,11 @@ test('a rejected command leaves the last observation intact and allows correctio
   );
   await user.click(within(inspector).getByRole('switch', { name: '电源' }));
   expect(await within(inspector).findByText('命令被拒绝')).toBeVisible();
-  expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
+  expect(
+    within(
+      within(inspector).getByRole('region', { name: '观测电源' }),
+    ).getByText('未知 · 无观测'),
+  ).toBeVisible();
   expect(within(inspector).getByRole('switch', { name: '电源' })).toBeEnabled();
 });
 test('a lost response keeps the original key across object selection until an explicit retry', async () => {

@@ -20,7 +20,7 @@ pnpm dev
 Open <http://127.0.0.1:5173/lab>, sign in as a Member and create `Lighting lab`. Register `Light A` and `Light B` using `Smart light · 1.0`, built-in appearance and simulated identity.
 
 1. Select A. Without a report, it shows **Unknown · No observation**. Its Binding implements lighting, but the program is not started and actions are not executable.
-2. Click **Start program** and record its Run UUID. Starting does not invent an observation. Toggle **Power**: submission and waiting appear before execution completes and the actual observation arrives. The shade emits light from the server report.
+2. Click **Start program**. Open **Details** and record the current Run UUID. Return to **Operations**. Starting does not invent an observation. Toggle **Power**: submission and waiting appear before execution completes and the actual observation arrives. The shade emits light from the server report.
 3. Enter `35` in **Target brightness (%)** and click **Apply**. This input is separate from **Reported brightness**, which becomes `35 %` only after the device reports it.
 4. Start B and turn on its power. Its Run, Binding, source and observation are independent; dimming A does not change B.
 5. Close and reopen the page. Programs run on the backend and observations remain readable. Click A's **Stop program**: the last values and source time remain, with **Source stopped** freshness. Stopping a program does not turn off the light.
@@ -55,6 +55,8 @@ Complete executable requests:
 
 The script verifies that `brightness=101` produces `422 lab.invalid_parameters` and a new action after stopping produces `422 lab.program_not_running`, without changing observations. Unimplemented Robot actions return `422 lab.capability_not_implemented`. Member and Agent rejections agree. Session writes require CSRF; invalid, expired or revoked Agent credentials cannot write.
 
+Without an active Task, **Restart source** requests Stop before Start. A failed Stop prevents Start. If Start fails after Stop, select **Start program** explicitly. Old actions do not replay and old Tasks do not resume. See [Operate and trace devices](device-details.md) for the ordinary UI.
+
 After a lost response, the page shows **Submission uncertain** and retains the parameters and key, including after selecting another Entity and returning. **Retry same command** reuses that key; **Refresh command** queries a known command. Do not automatically repeat unknown execution using a new key. Backend restart marks former Runs `interrupted` and unfinished commands `unknown`, keeps the last observation and requires explicitly starting a new Run. Reports from old Runs or runtime hosts are rejected. After server code changes, stop and rerun `pnpm dev` with the same recovery rule.
 
 Node acquires its directory lease, migrates and recovers before HTTP admission. Startup failure prevents new actions. After recovery, query or retry uncertain requests with the original key.
@@ -62,8 +64,8 @@ Node acquires its directory lease, migrates and recovers before HTTP admission. 
 ## Verification and Next Stage
 
 ```bash
-pnpm test:contract:server
-pnpm test:frontend apps/web/src/lab-devices.test.tsx
+pnpm test:server
+pnpm exec vitest run apps/web/src/lab-devices.test.tsx apps/web/src/lab-device-details.test.tsx
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-node-assets-world.spec.ts
 ```
 

@@ -64,4 +64,4 @@ pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. Migration validation uses desktop Web and checks external canvas area, camera pixels, deep links, panels and focus. Existing product narrow-screen and touch responsibilities remain for validation after Migration Gate. Continue with [Backend lighting control](backend-lights.md). The same object details distinguish commands from actual observations.
+Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. Migration validation uses desktop Web and checks external canvas area, camera pixels, deep links, panels and focus. Existing product narrow-screen and touch responsibilities remain for validation after Migration Gate. Continue with [Operate and trace devices](device-details.md). Operations, Records and Details separate targets, Commands and actual observations for the same Entity.

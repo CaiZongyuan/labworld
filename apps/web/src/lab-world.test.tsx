@@ -212,14 +212,17 @@ test('a member creates a Lab and selects two independent Robots from the object 
   }
   await user.click(screen.getByRole('button', { name: '选择 Robot A' }));
   let inspector = screen.getByRole('complementary', { name: '对象信息' });
+  await user.click(within(inspector).getByRole('tab', { name: '详情' }));
   expect(
     within(inspector).getByText('entity-1', { exact: true }),
   ).toBeVisible();
   expect(within(inspector).getByText('robot.pick')).toBeVisible();
   expect(within(inspector).getAllByText('尚未实现').length).toBe(3);
+  await user.click(within(inspector).getByRole('tab', { name: '操作' }));
   expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
   await user.click(screen.getByRole('button', { name: '选择 Robot B' }));
   inspector = screen.getByRole('complementary', { name: '对象信息' });
+  await user.click(within(inspector).getByRole('tab', { name: '详情' }));
   expect(
     within(inspector).getByText('entity-2', { exact: true }),
   ).toBeVisible();

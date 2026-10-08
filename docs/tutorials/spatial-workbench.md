@@ -64,4 +64,4 @@ pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views 测试只用 MSW 替代 HTTP。浏览器使用真实身份、API、数据库、订阅、HDR 和 WebGL。迁移验证使用 desktop web，核对画布外部可见面积、相机像素、深链、面板与焦点。已有产品窄屏与触屏职责保留到 Migration Gate 后继续验证。继续[后端照明控制](backend-lights.md)，在同一对象详情中区分命令与实际观测。
+Views 测试只用 MSW 替代 HTTP。浏览器使用真实身份、API、数据库、订阅、HDR 和 WebGL。迁移验证使用 desktop web，核对画布外部可见面积、相机像素、深链、面板与焦点。已有产品窄屏与触屏职责保留到 Migration Gate 后继续验证。继续[操作与追溯设备](device-details.md)，在同一对象的操作、记录和详情中区分目标、命令与实际观测。

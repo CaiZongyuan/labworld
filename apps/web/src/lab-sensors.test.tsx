@@ -97,7 +97,11 @@ test('the temperature Inspector keeps expired measurements and shows source time
       ({ request }) => {
         expect(request.headers.get('x-csrf-token')).toBe(identity.csrf_token);
         starts++;
-        entity.program_run = { id: `sensor-run-${starts}`, status: 'running' };
+        entity.program_run = {
+          id: `sensor-run-${starts}`,
+          binding_id: entity.binding.id,
+          status: 'running',
+        };
         const observed_at = starts === 1 ? '2026-10-03T06:00:00Z' : null;
         const freshness = starts === 1 ? 'current' : 'source_time_unknown';
         const quality = starts === 1 ? 'good' : 'uncertain';
@@ -171,17 +175,23 @@ test('the temperature Inspector keeps expired measurements and shows source time
   );
   const inspector = screen.getByRole('complementary', { name: '对象信息' });
   expect(
-    within(inspector).getByText('未知 · 无观测', { exact: true }),
+    within(
+      within(inspector).getByRole('region', { name: '观测温度' }),
+    ).getByText('未知 · 无观测', { exact: true }),
   ).toBeVisible();
   await user.click(within(inspector).getByRole('button', { name: '启动程序' }));
   expect(
-    await within(inspector).findByText('21.5 degC', { exact: true }),
+    await within(
+      within(inspector).getByRole('region', { name: '观测温度' }),
+    ).findByText('21.5 degC', { exact: true }),
   ).toBeVisible();
   expect(
-    within(inspector).getByText('观测温度', { exact: true }),
+    within(inspector).getByRole('region', { name: '观测温度' }),
   ).toBeVisible();
   expect(
-    within(inspector).getByText(entity.binding.source, { exact: true }),
+    within(
+      within(inspector).getByRole('region', { name: '观测温度' }),
+    ).getByText(entity.binding.source, { exact: true }),
   ).toBeVisible();
   expect(
     within(inspector).queryByRole('switch', { name: '电源' }),
@@ -196,11 +206,15 @@ test('the temperature Inspector keeps expired measurements and shows source time
     ).findByText('观测已过期 · 保留最后值', { exact: true }),
   ).toBeVisible();
   expect(
-    within(inspector).getByText('21.5 degC', { exact: true }),
+    within(
+      within(inspector).getByRole('region', { name: '观测温度' }),
+    ).getByText('21.5 degC', { exact: true }),
   ).toBeVisible();
   await user.click(within(inspector).getByRole('button', { name: '启动程序' }));
   expect(
-    await within(inspector).findByText('22.4 degC', { exact: true }),
+    await within(
+      within(inspector).getByRole('region', { name: '观测温度' }),
+    ).findByText('22.4 degC', { exact: true }),
   ).toBeVisible();
   const temperature = within(inspector).getByRole('region', {
     name: '观测温度',
@@ -211,12 +225,10 @@ test('the temperature Inspector keeps expired measurements and shows source time
   expect(
     within(temperature).getByText('不确定', { exact: true }),
   ).toBeVisible();
-  expect(
-    within(temperature).getAllByText(
-      new Date('2026-10-03T06:00:01Z').toLocaleString(),
-      { exact: true },
-    ),
-  ).toHaveLength(2);
+  expect(temperature.querySelector('time')).toHaveAttribute(
+    'datetime',
+    '2026-10-03T06:00:01Z',
+  );
   await user.click(screen.getByRole('button', { name: 'English' }));
   const english = within(
     screen.getByRole('complementary', { name: 'Object info' }),
