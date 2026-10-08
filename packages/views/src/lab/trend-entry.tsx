@@ -14,9 +14,11 @@ export default function TrendEntry(props: {
   worldVersion: string;
   visible: boolean;
   connected: boolean;
+  initialOpen?: boolean;
+  initialRange?: string;
 }) {
   const message = useAppMessage('lab');
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(props.initialOpen ?? false);
   if (!['sensor', 'centrifuge'].includes(props.entity.definition_id))
     return null;
   return (

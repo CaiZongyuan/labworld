@@ -57,6 +57,7 @@ export default function EntityDetail({
   onCloseOriginalRecord,
   visible,
   userId,
+  recentMinuteRequest,
 }: {
   entity: LabEntity;
   world: LabWorld;
@@ -70,9 +71,15 @@ export default function EntityDetail({
   onCloseOriginalRecord?: () => void;
   visible: boolean;
   userId: string;
+  recentMinuteRequest?: number;
 }) {
   const message = useAppMessage('lab');
-  const [tab, setTab] = useState('operations');
+  const [view, setView] = useState({ tab: 'operations', recentMinuteRequest });
+  const tab =
+    recentMinuteRequest !== undefined &&
+    recentMinuteRequest !== view.recentMinuteRequest
+      ? 'operations'
+      : view.tab;
   const [recordsOpened, setRecordsOpened] = useState(false);
   const location = locationOf(world, entity);
   return (
@@ -102,7 +109,7 @@ export default function EntityDetail({
       <Tabs
         value={editing || originalRecord ? 'details' : tab}
         onValueChange={(value) => {
-          setTab(String(value));
+          setView({ tab: String(value), recentMinuteRequest });
           if (value !== 'details') onCloseOriginalRecord?.();
           if (value === 'records') setRecordsOpened(true);
         }}
@@ -126,12 +133,15 @@ export default function EntityDetail({
         <TabsContent value="operations" keepMounted>
           {operations(
             <TrendEntry
+              key={recentMinuteRequest ?? 'ordinary'}
               entity={entity}
               apiClient={apiClient}
               userId={userId}
               worldVersion={world.version}
               visible={visible && !editing && tab === 'operations'}
               connected={connected}
+              initialOpen={recentMinuteRequest !== undefined}
+              initialRange={recentMinuteRequest !== undefined ? 'minute' : '1'}
             />,
           )}
         </TabsContent>

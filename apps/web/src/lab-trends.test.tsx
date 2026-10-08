@@ -436,6 +436,39 @@ test('an expired trend identity leaves the private workspace and a new login can
   expect(within(inspector).queryByText('1000 degC')).not.toBeInTheDocument();
 });
 
+test('the recent-minute range queries the selected real Entity over exactly sixty seconds', async () => {
+  const { user, queries } = openTrends((trend) =>
+    Date.parse(trend.to) - Date.parse(trend.from) === 60000
+      ? {
+          ...trend,
+          raw_sample_count: 1,
+          returned_sample_count: 1,
+          plot_item_count: 1,
+          gaps: [],
+          segments: [trend.segments[1]],
+        }
+      : trend,
+  );
+  const inspector = await screen.findByRole('complementary', {
+    name: '对象信息',
+  });
+  await user.click(within(inspector).getByRole('button', { name: '查看趋势' }));
+  await within(inspector).findByRole('table', { name: '趋势读数' });
+  await user.click(within(inspector).getByRole('button', { name: '1 分钟' }));
+  await waitFor(() => expect(queries).toHaveLength(2));
+  const last = queries.at(-1)!;
+  expect(last.pathname).toBe(
+    '/api/v1/lab/labs/trend-lab/entities/trend-sensor/trend',
+  );
+  expect(
+    Date.parse(last.searchParams.get('to')!) -
+      Date.parse(last.searchParams.get('from')!),
+  ).toBe(60000);
+  expect(
+    within(inspector).getByRole('table', { name: '趋势读数' }),
+  ).not.toHaveTextContent('1000 degC');
+});
+
 test('only visible trends refresh from World updates at five-second intervals while manual refresh remains immediate', async () => {
   vi.useFakeTimers({ toFake: ['Date'] });
   const start = new Date('2026-03-09T00:00:00Z');

@@ -121,7 +121,7 @@ function TrendPlot({
           use: tooltip,
           format: (point) => {
             const value = point.datum;
-            return `${value.value} ${unit}\n${message('device.receivedAt')}: ${value.received_at}\n${message('device.observedAt')}: ${value.observed_at ?? message('device.sourceTimeUnknown')}\n${value.source}\nRun: ${value.run_id}\n${message(`device.quality.${value.quality}`)}`;
+            return `${value.value} ${unit}\n${message('device.receivedAt')}: ${value.received_at}\n${message('device.observedAt')}: ${value.observed_at ?? message('device.sourceTimeUnknown')}\n${value.source}\nRun: ${value.run_id}\nBinding: ${value.binding_id}\n${message('detail.sequence')}: ${value.sequence}\n${message(`device.quality.${value.quality}`)}`;
           },
         },
       }),
@@ -133,6 +133,7 @@ function TrendPlot({
       height={220}
       initialWidth={640}
       ariaLabel={`${message(`trend.${trend.property}`)} · ${unit || message('trend.unknownUnit')}`}
+      ariaDescription={`${trend.from} → ${trend.to}. ${message('trend.receivedUtc')}. ${message('trend.qualityKey')}`}
     />
   );
 }
@@ -155,6 +156,7 @@ function TrendResult({ trend }: { trend: EntityTrend }) {
           ),
         ].join(', ')}
       </p>
+      <p>{message('trend.strategy')}</p>
       {trend.gaps.length ? (
         <Alert>
           <AlertDescription>
@@ -191,7 +193,11 @@ function TrendResult({ trend }: { trend: EntityTrend }) {
               />
             </div>
           ))}
-          <div className="trend-table-scroll">
+          <div
+            className="trend-table-scroll"
+            tabIndex={0}
+            aria-label={message('trend.table')}
+          >
             <table aria-label={message('trend.table')}>
               <thead>
                 <tr>
@@ -235,6 +241,29 @@ function TrendResult({ trend }: { trend: EntityTrend }) {
           </div>
         </>
       )}
+      <details>
+        <summary>{message('trend.coverage')}</summary>
+        <dl className="world-properties">
+          <dt>{message('trend.availableSince')}</dt>
+          <dd>
+            <time dateTime={trend.available_since}>
+              {trend.available_since}
+            </time>
+          </dd>
+          <dt>{message('trend.retainedSince')}</dt>
+          <dd>
+            <time dateTime={trend.retained_since}>{trend.retained_since}</time>
+          </dd>
+          <dt>{message('trend.capturedSince')}</dt>
+          <dd>
+            <time dateTime={trend.captured_since}>{trend.captured_since}</time>
+          </dd>
+          <dt>{message('trend.firstReport')}</dt>
+          <dd>{trend.first_report_at ?? message('trend.noBoundary')}</dd>
+          <dt>{message('trend.lastReport')}</dt>
+          <dd>{trend.last_report_at ?? message('trend.noBoundary')}</dd>
+        </dl>
+      </details>
     </>
   );
 }
@@ -245,6 +274,7 @@ export default function EntityTrends({
   userId,
   visible,
   worldVersion,
+  initialRange = '1',
 }: {
   entity: LabEntity;
   apiClient: ApiClient;
@@ -252,9 +282,10 @@ export default function EntityTrends({
   visible: boolean;
   worldVersion: string;
   connected: boolean;
+  initialRange?: string;
 }) {
   const message = useAppMessage('lab');
-  const [range, setRange] = useState('1');
+  const [range, setRange] = useState(initialRange);
   const [property, setProperty] = useState('temperature');
   const client = useQueryClient();
   const lastStarted = useRef(0);
@@ -279,7 +310,7 @@ export default function EntityTrends({
       queriedVersion.current = worldVersion;
       const to = new Date().toISOString();
       const from = new Date(
-        Date.parse(to) - Number(range) * 3600000,
+        Date.parse(to) - (range === 'minute' ? 60000 : Number(range) * 3600000),
       ).toISOString();
       try {
         return (
@@ -329,7 +360,7 @@ export default function EntityTrends({
         }}
         aria-label={message('trend.range')}
       >
-        {['1', '6', '24'].map((value) => (
+        {['minute', '1', '6', '24'].map((value) => (
           <ToggleGroupItem key={value} value={value}>
             {message(`trend.range.${value}`)}
           </ToggleGroupItem>

@@ -189,6 +189,12 @@ export default function WorldView() {
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(selection.length > 0);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [recentMinute, setRecentMinute] = useState<{
+    labId: string;
+    entityId: string;
+    requestId: number;
+  } | null>(null);
+  const minuteSequence = useRef(0);
   const directoryTrigger = useRef<HTMLButtonElement>(null);
   const inspectorTrigger = useRef<HTMLButtonElement>(null);
   const historyTrigger = useRef<HTMLButtonElement>(null);
@@ -262,6 +268,7 @@ export default function WorldView() {
   );
   const select = useCallback(
     (id: string | null, additive: boolean, nodeId?: string) => {
+      setRecentMinute(null);
       selectionTrigger.current = document.activeElement as HTMLElement | null;
       setInspectorOpen(id !== null);
       if (id !== null && !additive && narrow) {
@@ -913,6 +920,17 @@ export default function WorldView() {
                     key={`${labId}-${renderVersion}`}
                     world={{ ...world.data, entities, nodes }}
                     connected={connection.available}
+                    onOpenRecentMinute={(entityId) => {
+                      if (!entities.some((entity) => entity.id === entityId))
+                        return;
+                      select(entityId, false);
+                      setEditing(false);
+                      setRecentMinute({
+                        labId,
+                        entityId,
+                        requestId: ++minuteSequence.current,
+                      });
+                    }}
                     assets={modelAssets}
                     selected={selection}
                     onSelect={select}
@@ -1032,6 +1050,12 @@ export default function WorldView() {
               connected={connection.available}
               visible={inspectorVisible}
               userId={identity.user.id}
+              recentMinuteRequest={
+                recentMinute?.labId === labId &&
+                recentMinute.entityId === selected.id
+                  ? recentMinute.requestId
+                  : undefined
+              }
               onConfigure={() => setDialog(selected)}
               operations={(readingDetails) => (
                 <DevicePanel
