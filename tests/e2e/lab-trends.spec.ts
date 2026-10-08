@@ -187,8 +187,10 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
     ...(await sensorLabelMask(page)),
   ]);
   expect(cameraPixels).toBe(0);
+  await chart.scrollIntoViewIfNeeded();
   const points = chart.locator('circle[fill="var(--primary)"]');
   await expect(points.first()).toBeVisible();
+  await expect(points.first()).toBeInViewport();
   const point = (await points.first().boundingBox())!;
   await page.mouse.move(point.x + point.width / 2, point.y + point.height / 2);
   const tooltip = page.getByRole('tooltip');
