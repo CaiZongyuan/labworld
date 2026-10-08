@@ -7,6 +7,7 @@ import {
   canonical,
   semanticDifferences,
 } from './lib/contract-openapi.ts';
+import { guideProgressApiParts } from './lib/guide-progress-api.ts';
 const { values } = parseArgs({
   options: {
     input: { type: 'string', default: 'packages/contracts/openapi.json' },
@@ -21,11 +22,22 @@ if (values.write) {
   writeFileSync(baseline, JSON.stringify(canonical(actual), null, 2) + '\n');
   console.log('Retained Rust API baseline written');
 } else {
+  const parts = guideProgressApiParts(actual);
   const diff = semanticDifferences(
     JSON.parse(readFileSync(baseline, 'utf8')),
-    actual,
+    parts.existing,
   );
   if (diff.length)
     throw new Error(`Retained API semantic drift:\n${diff.join('\n')}`);
   console.log('Retained API semantic difference is empty');
+  const additions = resolve(root, 'tests/contract/guide-progress-api.json');
+  const addedDiff = semanticDifferences(
+    JSON.parse(readFileSync(additions, 'utf8')),
+    parts.addition,
+  );
+  if (addedDiff.length)
+    throw new Error(
+      `Approved guide progress API drift:\n${addedDiff.join('\n')}`,
+    );
+  console.log('Approved guide progress API semantic difference is empty');
 }

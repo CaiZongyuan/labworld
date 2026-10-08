@@ -501,6 +501,53 @@ export type LabWorld = {
     relationships: Array<EntityRelationship>;
 };
 
+export type LabGuideProgressRead = {
+    current_guide_version: string;
+    compatibility: LabGuideCompatibility;
+    progress: LabGuideProgress;
+    previous_progress: LabGuideProgress | null;
+};
+
+export type LabGuideCompatibility = 'compatible' | 'restart_required' | 'unsupported';
+
+export type LabGuideProgress = {
+    guide_id: string;
+    guide_version: string;
+    revision: number;
+    status: LabGuideStatus;
+    step: string | null;
+    guide_attempt_id: string | null;
+    context: LabGuideContext;
+    updated_at: string | null;
+};
+
+export type LabGuideStatus = 'not_started' | 'in_progress' | 'paused' | 'completed';
+
+export type LabGuideContext = {
+    lab_id?: string | null;
+    entity_id?: string | null;
+    node_id?: string | null;
+    business_attempt?: GuideBusinessAttempt;
+} | null;
+
+export type GuideBusinessAttempt = {
+    operation: GuideBusinessOperation;
+    target_lab_id?: string | null;
+    request_key: string;
+} | null;
+
+export type GuideBusinessOperation = 'create_lab' | 'register_entity';
+
+export type SaveLabGuideProgress = {
+    expected_revision: number;
+    status: LabGuideStatus;
+    step: LabGuideStep;
+    guide_attempt_id: string | null;
+    context: LabGuideContext;
+};
+
+export type LabGuideStep = 'create_lab' | 'register_light' | 'select_entity' | 'edit_placement' | 'save_layout' | 'return_run' | 'start_program' | 'light_action' | 'verify_observation' | 'asset_library' | 'complete' | null;
+
 export type ChangeEntityDefinition = {
     definition_id: string;
     definition_version: string;
@@ -1707,6 +1754,71 @@ export type GetLabWorldResponses = {
 };
 
 export type GetLabWorldResponse = GetLabWorldResponses[keyof GetLabWorldResponses];
+
+export type GetLabGuideProgressData = {
+    body?: never;
+    path: {
+        guide_id: string;
+        guide_version: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/guides/{guide_id}/{guide_version}/progress';
+};
+
+export type GetLabGuideProgressErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    408: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabGuideProgressError = GetLabGuideProgressErrors[keyof GetLabGuideProgressErrors];
+
+export type GetLabGuideProgressResponses = {
+    200: LabGuideProgressRead;
+};
+
+export type GetLabGuideProgressResponse = GetLabGuideProgressResponses[keyof GetLabGuideProgressResponses];
+
+export type SaveLabGuideProgressData = {
+    body: SaveLabGuideProgress;
+    path: {
+        guide_id: string;
+        guide_version: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/guides/{guide_id}/{guide_version}/progress';
+};
+
+export type SaveLabGuideProgressErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    408: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type SaveLabGuideProgressError = SaveLabGuideProgressErrors[keyof SaveLabGuideProgressErrors];
+
+export type SaveLabGuideProgressResponses = {
+    200: LabGuideProgress;
+};
+
+export type SaveLabGuideProgressResponse = SaveLabGuideProgressResponses[keyof SaveLabGuideProgressResponses];
 
 export type ArchiveLabEntityData = {
     body?: never;
