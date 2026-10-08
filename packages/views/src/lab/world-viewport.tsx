@@ -835,6 +835,7 @@ export default function WorldViewport(props: {
   fit: number;
   onOpenRecentMinute?: (entityId: string) => void;
   fitNodeId: string | null;
+  onOpenRecentMinute?: (entityId: string) => void;
   label: string;
   onMetrics: (metrics: RenderMetrics) => void;
   onBusy: (busy: boolean) => void;
