@@ -695,10 +695,6 @@
   .world-body[data-directory-open='true'] .world-inspector {
     display: none;
   }
-  .world-transform-tools {
-    top: auto;
-    bottom: 12px;
-  }
   .world-page button,
   .world-page [data-slot='toggle-group-item'] {
     min-height: 44px;

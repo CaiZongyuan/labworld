@@ -218,7 +218,7 @@ test('Node assets and World preserve desktop space, selection, deep links and co
       second.getByRole('status', { name: '布局保存状态' }),
     ).toHaveText('已保存');
     checkpoint('conflict-save');
-    await page.getByRole('button', { name: '保存布局', exact: true }).click();
+    await page.getByRole('button', { name: /^(保存布局|重试保存)$/ }).click();
     await expect(
       page.getByText('布局已改变，草稿已保留', { exact: true }),
     ).toBeVisible();
