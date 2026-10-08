@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { errorCodeOf } from '@labos-threejs/core';
 import { defineChart } from '@tanstack/charts';
 import { Chart } from '@tanstack/charts/react';
 import { lineY } from '@tanstack/charts/line';
@@ -29,6 +30,7 @@ import {
 } from '@labos-threejs/ui/components/toggle-group';
 import { useAppMessage } from '../shell/messages';
 import { ErrorAlert } from '../shell/error-alert';
+import { sessionKey } from '../identity/session';
 import './entity-trends.css';
 
 type Reading = TrendSample &
@@ -63,28 +65,28 @@ function TrendPlot({
             const values = readings.filter(
               (reading) => reading.segment === index,
             );
-            if (values.length < 2) return [];
+            if (!values.length) return [];
+            const trusted =
+              segment.quality === 'good' && segment.source_time_known;
+            const points = dot(values, {
+              x: 'received',
+              y: 'value',
+              r: trusted ? 3 : 4,
+              fill: trusted ? 'var(--primary)' : 'var(--background)',
+              stroke: trusted ? 'var(--primary)' : 'var(--warning)',
+              strokeWidth: trusted ? 1 : 2,
+              key: 'id',
+            });
+            if (values.length < 2) return [points];
             return [
               lineY(values, {
                 x: 'received',
                 y: 'value',
-                stroke:
-                  segment.quality === 'good' && segment.source_time_known
-                    ? 'var(--primary)'
-                    : 'var(--muted-foreground)',
-                strokeDasharray:
-                  segment.quality === 'good' && segment.source_time_known
-                    ? undefined
-                    : '4 3',
+                stroke: trusted ? 'var(--primary)' : 'var(--muted-foreground)',
+                strokeDasharray: trusted ? undefined : '4 3',
               }),
+              points,
             ];
-          }),
-          dot(readings, {
-            x: 'received',
-            y: 'value',
-            r: 3,
-            fill: 'var(--primary)',
-            key: 'id',
           }),
         ],
         scales: {
@@ -177,6 +179,7 @@ function TrendResult({ trend }: { trend: EntityTrend }) {
         </Empty>
       ) : (
         <>
+          <p>{message('trend.qualityKey')}</p>
           {units.map((unit) => (
             <div className="trend-plot" key={unit}>
               <TrendPlot
@@ -241,6 +244,7 @@ export default function EntityTrends({
   apiClient,
   userId,
   visible,
+  worldVersion,
 }: {
   entity: LabEntity;
   apiClient: ApiClient;
@@ -252,6 +256,9 @@ export default function EntityTrends({
   const message = useAppMessage('lab');
   const [range, setRange] = useState('1');
   const [property, setProperty] = useState('temperature');
+  const client = useQueryClient();
+  const lastStarted = useRef(0);
+  const queriedVersion = useRef(worldVersion);
   const query = useQuery({
     queryKey: [
       'lab',
@@ -265,23 +272,42 @@ export default function EntityTrends({
     ],
     enabled: visible,
     retry: false,
+    staleTime: 5000,
     refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => {
+      lastStarted.current = Date.now();
+      queriedVersion.current = worldVersion;
       const to = new Date().toISOString();
       const from = new Date(
         Date.parse(to) - Number(range) * 3600000,
       ).toISOString();
-      return (
-        await getLabEntityTrend({
-          client: apiClient,
-          path: { lab_id: entity.lab_id, entity_id: entity.id },
-          query: { property, from, to, max_points: 600 },
-          signal,
-          throwOnError: true,
-        })
-      ).data;
+      try {
+        return (
+          await getLabEntityTrend({
+            client: apiClient,
+            path: { lab_id: entity.lab_id, entity_id: entity.id },
+            query: { property, from, to, max_points: 600 },
+            signal,
+            throwOnError: true,
+          })
+        ).data;
+      } catch (cause) {
+        if (!signal.aborted && errorCodeOf(cause) === 'auth.unauthorized')
+          void client.invalidateQueries({ queryKey: sessionKey(apiClient) });
+        throw cause;
+      }
     },
   });
+  const { refetch, isPending } = query;
+  useEffect(() => {
+    if (!visible || isPending || queriedVersion.current === worldVersion)
+      return;
+    const timer = setTimeout(
+      () => void refetch(),
+      Math.max(0, 5000 - (Date.now() - lastStarted.current)),
+    );
+    return () => clearTimeout(timer);
+  }, [visible, worldVersion, refetch, isPending]);
   return (
     <div className="entity-trends">
       <div className="lab-section-heading">
@@ -326,9 +352,22 @@ export default function EntityTrends({
           </ToggleGroupItem>
         </ToggleGroup>
       ) : null}
-      {query.isPending ? <Skeleton className="h-56" /> : null}
+      {query.isPending ? (
+        <div role="status" aria-label={message('trend.loadingState')}>
+          <p>{message('trend.loading')}</p>
+          <Skeleton className="h-56" />
+        </div>
+      ) : null}
       {query.error ? (
-        <ErrorAlert error={query.error} title={message('trend.error')} />
+        <>
+          <ErrorAlert error={query.error} title={message('trend.error')} />
+          {errorCodeOf(query.error) === 'lab.trend_budget_exceeded' ? (
+            <Alert>
+              <AlertDescription>{message('trend.budget')}</AlertDescription>
+            </Alert>
+          ) : null}
+          {query.data ? <p>{message('trend.retainedData')}</p> : null}
+        </>
       ) : null}
       {query.data ? <TrendResult trend={query.data} /> : null}
     </div>

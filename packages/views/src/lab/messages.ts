@@ -21,6 +21,11 @@ export const labMessages = {
     'trend.empty': '此范围没有样本',
     'trend.table': '趋势读数',
     'trend.error': '趋势查询失败',
+    'trend.loadingState': '趋势加载状态',
+    'trend.qualityKey': '空心点：质量待确认、较差或来源时间未知',
+    'trend.loading': '正在查询趋势',
+    'trend.budget': '样本和缺口超出查询预算。缩短时间范围后重试。',
+    'trend.retainedData': '已加载的读数保留，请按其查询截至时间阅读。',
     'workbench.openDirectory': '打开对象目录',
     'workbench.closeDirectory': '关闭对象目录',
     'workbench.openInspector': '打开对象信息',
@@ -435,6 +440,14 @@ export const labMessages = {
     'trend.empty': 'No samples in this range',
     'trend.table': 'Trend readings',
     'trend.error': 'Trend query failed',
+    'trend.loadingState': 'Trend loading state',
+    'trend.qualityKey':
+      'Hollow points: uncertain or bad quality, or unknown source time',
+    'trend.loading': 'Querying trend',
+    'trend.budget':
+      'Samples and gaps exceed the query budget. Shorten the time range and retry.',
+    'trend.retainedData':
+      'Loaded readings remain available. Read them using their query cutoff time.',
     'workbench.openDirectory': 'Open object directory',
     'workbench.closeDirectory': 'Close object directory',
     'workbench.openInspector': 'Open object details',
