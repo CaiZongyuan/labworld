@@ -19,7 +19,7 @@ Members need an active session. Session writes require CSRF. Agents need an acti
 2. Start the development stack.
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 3. Open <http://127.0.0.1:5173/lab>.
@@ -31,7 +31,7 @@ Members need an active session. Session writes require CSRF. Agents need an acti
 6. Open **Settings → API keys**.
 7. Create a key with the `lab:full` scope.
 
-   Keep `just dev` running in the development terminal. Stopping it stops the API, Worker and Web.
+   Keep `pnpm dev` running in the development terminal. Stopping it drains Node and Web and preserves the selected data directory.
 
 8. Open a second Bash terminal in the repository root.
 9. Set the API address printed by your development stack.
@@ -227,13 +227,13 @@ The two browser commands each create PostgreSQL, Redis, object-storage and mail 
 1. Run the complete journey.
 
    ```bash
-   node scripts/e2e.mjs tests/e2e/lab-foundation.spec.ts
+   node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-foundation.spec.ts
    ```
 
 2. Run the reference load.
 
    ```bash
-   just perf-lab-reference
+   E2E_LAB_REFERENCE_LOAD=1 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-reference-load.spec.ts
    ```
 
 3. Run the deterministic Lab HTTP budgets.

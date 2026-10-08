@@ -9,7 +9,7 @@ import { evaluateBundle } from '../../scripts/lib/perf-budget.mjs';
 // real checker synthetic builds so the gate's failure ability is pinned in
 // tooling: an over-budget sample must fail with the numbers, and the real
 // build shape must pass. The live measurement itself runs in
-// scripts/perf-bundle.mjs (just perf-ci).
+// scripts/perf-bundle.mjs (pnpm check).
 
 const KiB = 1024;
 const baselines = JSON.parse(

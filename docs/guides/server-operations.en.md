@@ -33,7 +33,7 @@ On Linux, SIGTERM/SIGINT cancels archive work, drains the current copy and close
 
 Log in with the original account. Open its Lab and download the asset. Identity and bytes remain the same. Retry an acknowledged Command with its original key and parameters to receive the original result. Startup interrupts old Runs. It does not replay Commands or resume long Tasks. A fresh signer issues new byte URLs.
 
-The current format supports only this implementation's verified Node migration history and database format. Later baseline compression must provide verified compatibility or refuse old history before target mutation. Preserve earlier Node directories and archives. This command does not convert or delete old Rust/PostgreSQL data.
+The current build uses one `0000_baseline` migration. Startup and migration check existing applied history before running migration SQL. Earlier Node histories and archives are unsupported and are refused without conversion or target publication. Preserve those directories and archives; use their original source version to read them. Select a new data directory for this baseline. These commands do not convert or delete earlier Node or Rust/PostgreSQL data.
 
 ## Migrate and Recover a Password
 

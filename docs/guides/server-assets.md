@@ -45,7 +45,7 @@ Member 与 Agent 共用这些 HTTP 接口。会话写入需要 Cookie、可信 O
 
 ```bash
 node --test --experimental-strip-types tests/server/lab-assets.test.ts tests/server/lab-assets-recovery.test.ts tests/server/lab-asset-gc.test.ts
-pnpm contracts:m1:check
+pnpm contracts:baseline:check
 ```
 
 检查使用真实 Node HTTP、嵌入数据库与所属临时目录，验证拒绝、重试、字节读回和清理，不打开你的开发数据。递归 API 检查从 [Zod 路由](../../packages/server/src/lab/assets/routes.ts)生成隔离合同，并确认正式 SDK 未被改写。继续[Node 世界与布局](server-world.md)。

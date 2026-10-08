@@ -1,0 +1,6 @@
+/packages/contracts/openapi.json text eol=lf
+/packages/contracts/src/generated/** text eol=lf
+/packages/sdk/src/generated/** text eol=lf
+/packages/server/migrations/*.sql text eol=lf
+/tests/fixtures/node-history/pre-baseline/*.sql text eol=lf
+/tests/fixtures/node-history/pre-baseline/meta/_journal.json text eol=lf

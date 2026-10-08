@@ -1,36 +1,16 @@
-# Module Boundaries
+# Module boundaries
 
-Lab Word reuses Core and Platform while keeping laboratory behavior separate. [ADR 0003](../adr/0003-static-example-composition.md)and [ADR 0005](../adr/0005-lab-digital-twin-on-saas-foundation.md)record the target boundaries.
+Lab owns laboratory behavior. Platform Core owns identity, members, keys, files, audit, idempotency and limits. Core does not import Lab. The Node application composes them through public capabilities, as recorded in [ADR 0010](../adr/0010-single-typescript-lab-word-server.md) and [ADR 0011](../adr/0011-pglite-embedded-database.md).
 
-## Dependencies
+The [application entry](../../apps/web/src/app.ts) supplies Lab's routes, navigation and messages to the shared shell. The [router](../../apps/web/src/router.tsx) owns TanStack types and browser navigation. Heavy views stay lazy. Web consumes generated SDK/DTOs; database code does not enter its bundle.
 
-```text
-Application entry ──composes──> Universal shell + business contributions
-Business Views ──────────────> SDK / Core / UI
-SDK ─────────────────────────> Contracts
-Business Application ────────> Core public capabilities / Platform
-Platform ────────────────────> Infrastructure
-```
+The [runtime](../../apps/server/src/runtime.ts) composes service owners. Database drivers and migration execution belong only to platform/db. Pure domains cannot import infrastructure. Business use cases own transactions; Core audit and idempotency commit with the same business operation.
 
-Application entry points choose composition. Core and the universal shell do not import concrete businesses. Platform does not depend on Application. Knowledge is currently a reference domain; Lab will own 3D assets and equipment concepts.
-
-## Current Public Interfaces
-
-The [composition contract](../../packages/views/src/shell/app-contract.ts)declares pages, navigation, messages and default entry. [Assembly validation](../../packages/views/src/shell/app-contract.ts)rejects duplicate ids, conflicting/reserved routes and missing translations. TanStack Router stays in the Web adapter.
-
-The [API entry](../../apps/api/src/lib.rs)composes Router and OpenAPI. Each Rust module declares table ownership in `module.json`; modules collaborate through public capabilities instead of accessing each other's tables. Business use cases own transactions; audit and jobs share the same connection where atomic commit is required.
-
-## Validation And Limits
+[Node schema declarations](../../packages/server/src/lab/world/schema.ts) own qualified tables. [Lab ownership](../../packages/server/src/lab/ownership.json) records its Views path, exact SDK helper paths and contract symbols. [Boundary checks](../../scripts/check-boundaries.mjs) validate package imports, Node table declarations/migrations and the SDK/Core restrictions. [Server checks](../../scripts/lib/server-boundaries.mjs) follow transitive Core/domain dependencies. Static checks do not prove authorization, dynamic SQL or recovery.
 
 ```bash
 pnpm boundaries:check
 pnpm typecheck
 ```
 
-Static checks reject known dependency and ownership violations. They cannot establish dynamic SQL correctness, authorization or recovery. Observe those behaviors through HTTP and public capability checks; see the [testing strategy](../testing/strategy.md).
-
-Independent businesses have distinct source ownership, not separate customer organizations. The application retains [one Organization per deployment](../adr/0001-single-organization-deployment.md). Complete historical example manifests and removal tools are absent from this copy; target architecture does not establish implemented commands.
-
-Lab [ownership](../../crates/app/src/modules/lab/module.json) declares the subscription helper through exact `sdkPaths`, its SDK facade integration through `assemblyPoints`, and its exports in `contractSymbols`. Removing Lab includes those helpers, tests, tutorials, and Lab facade exports, followed by contract/SDK regeneration. Shared HTTP/SSE lifetimes remain owned by the SDK. Boundary checks allow only declared business SDK files to import that business's contracts; undeclared SDK files and Core retain the existing restrictions.
-
-Production Lab validation must cover import failure, resource disposal, fast switching and lazy loading. See [product scope](lab-word.md).
+Run from the repository root. Use HTTP/browser and controlled ownership checks for behavior. See [testing](../testing/strategy.md) and [product scope](lab-word.md). Historical static-example architecture remains recorded in earlier ADRs; it is not an active removal or composition framework.

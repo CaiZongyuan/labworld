@@ -8,13 +8,13 @@
 
 使用[完整旅程](complete-foundation.md)指定的共同版本。先完成[持久 Lab 与对象](persistent-world.md)及[后端照明](backend-lights.md)。命令在仓库根目录运行。浏览器和脚本都会写入开发数据库。
 
-源码入口是[布局 HTTP](../../crates/app/src/modules/lab/layout.rs)、[对象关系](../../crates/app/src/modules/lab/relationships.rs)、[关系迁移](../../migrations/0022_lab_relationships.sql)、[布局 Inspector](../../packages/views/src/lab/layout-editor.tsx)、[关系表单](../../packages/views/src/lab/relationship-panel.tsx)、[真实三维变换](../../packages/views/src/lab/world-viewport.tsx)和[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)登记新增表、合同、验证和教程。
+源码入口是[布局 HTTP](../../packages/server/src/lab/world/layout.ts)、[对象关系](../../packages/server/src/lab/relationships/use-cases.ts)、[关系迁移](../../packages/server/migrations/0000_baseline.sql)、[布局 Inspector](../../packages/views/src/lab/layout-editor.tsx)、[关系表单](../../packages/views/src/lab/relationship-panel.tsx)、[真实三维变换](../../packages/views/src/lab/world-viewport.tsx)和[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../packages/server/src/lab/ownership.json)登记新增表、合同、验证和教程。
 
 ## 在浏览器摆放并登记
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 打开 <http://127.0.0.1:5173/lab>，登录普通 Member，创建 `Layout lab`。分别用 `bench · 1.0` 和 `labware · 1.0`、内置外观登记 `North bench` 与 `Beaker A`。
@@ -72,7 +72,7 @@ node examples/lab/edit-layout.mjs
 ```bash
 node scripts/test-backend.mjs --test lab_world --test lab_devices
 pnpm test:frontend apps/web/src/lab-world.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-layout.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-layout.spec.ts
 ```
 
 HTTP 使用真实 Router 和隔离 PostgreSQL；页面仅用 MSW 替代 HTTP；浏览器使用真实应用、独立上下文与 WebGL 指针。接下来按[可靠同步与恢复](reliable-sync.md)让两个浏览器和 Agent 观察同一世界，并验证断线恢复与撤权。

@@ -1,17 +1,18 @@
 # Replay the migration contract baseline
 
-This guide is for developers who migrate the Lab Word service. M0 replays delivered Core, Foundation #2–#11, and #26–#28 behavior against real Rust HTTP/SSE. The new TypeScript service does not exist yet. Product behavior in #29–#40 is outside this baseline.
+This guide is for developers who migrate the Lab Word service. M0 records delivered Core, Foundation #2–#11, and #26–#28 behavior. The current runner replays those retained contracts against the compiled Node HTTP/SSE service. The original Rust evidence remains historical at `legacy-rust-final`. Product behavior in #29–#40 is outside this baseline.
 
 ## Get the first result
 
-Run these commands at the repository root. Use the repository Node, pnpm, and Rust versions. Docker must be available.
+Run these commands at the repository root. Use the pinned Node and pnpm versions. Rust and Docker are not prerequisites.
 
 ```bash
 pnpm install --frozen-lockfile
+pnpm build:server
 pnpm test:contract core.test.ts
 ```
 
-The runner builds an isolated Rust target. It creates temporary PostgreSQL, Redis, RustFS, and Mailpit services. It applies migrations and starts the API and file cleanup Worker. It creates the first Owner through HTTP. Later registered test users are Members.
+Build the Node service first. The runner starts that compiled entry with an isolated data directory and creates the first Owner through HTTP. The service owns its embedded database, file cleanup and device runtime. It starts no containers. Later registered test users are Members.
 
 The terminal reports actual discovery and execution counts. `CORE-02` rejects a write without CSRF, checks the unchanged Lab list, then performs a valid write. `CORE-03` checks Agent access, invalid Bearer rejection without Cookie fallback, and revocation.
 
@@ -43,11 +44,11 @@ Normal rate limits remain registration 20, authentication 60, and resource 600 p
 During development, select a focused check against a compiled target:
 
 ```bash
-pnpm test:contract --no-build sse.test.ts
-pnpm test:contract --no-build --profile retention
+pnpm test:contract sse.test.ts
+pnpm test:contract --profile retention
 ```
 
-Use `--no-build` only after compiling the current Rust source. It cannot prove that an older binary matches the candidate.
+The runner consumes `apps/server/dist/apps/server/src/main.js` and does not compile it. Run `pnpm build:server` after server changes. The accepted compatibility flag `--no-build` adds no build behavior; an old artifact cannot establish current-candidate coverage.
 
 ## Read coverage and failures
 
@@ -57,7 +58,7 @@ Current public interfaces cannot reliably produce deterministic 24-hour spikes, 
 
 Evidence is in `.scratch/vnext-m0/runs/<run-id>/`. `results.json` records discovered, passed, and failed tests. `owned-resources.json` records acquisition intent, identities, consumers, and before/after inventories. `.scratch/vnext-m0/current.json` points to the latest run. The complete command also writes a suite manifest.
 
-Classify a failure first. Compilation, zero discovery, and fixture failures are not business red evidence. Preserve the original assertion and budget for business failures. Fixture repairs cannot change production defaults. The Rust 24-hour capacity case uses 172800 seconds of observation retention only in that case. A separate HTTP case uses the default 86400 seconds to check cropping and retention gaps. Production defaults remain unchanged.
+Classify a failure first. Compilation, zero discovery, and fixture failures are not business red evidence. Preserve the original assertion and budget for business failures. Fixture repairs cannot change production defaults. The retained 24-hour capacity case uses 172800 seconds of observation retention only in that case. A separate HTTP case uses the default 86400 seconds to check cropping and retention gaps. Production defaults remain unchanged.
 
 ## Compare the retained API
 
@@ -67,11 +68,11 @@ pnpm contracts:baseline:check
 
 The [comparison tool](../../scripts/lib/contract-openapi.ts) filters only removed knowledge, notification, email password-reset, generic jobs, and system cache routes. It preserves referenced DTOs and security declarations. Declaration order does not cause drift. DTO, operationId, response status, error, and security changes report JSON paths.
 
-Run `node scripts/contract-api-baseline.mjs --input <candidate-openapi.json>` to compare another OpenAPI file. `--write` replaces the baseline. Use it only for an approved contract change. M0 does not fix schema version 28. Rust expectations come from current build and migration sources. Other targets report their actual versions.
+Run `node scripts/contract-api-baseline.mjs --input <candidate-openapi.json>` to compare another OpenAPI file. `--write` replaces the baseline. Use it only for an approved contract change. M0 does not fix schema version 28. Default Node expectations come from the application version and current migration bundle. The target response must match them. Descriptor metadata can state explicit expectations.
 
 ## Select a target and recover resources
 
-Rust is the only built-in adapter. An executable descriptor can connect another target. This does not mean the new service exists:
+The compiled Node service is the default candidate target. An executable descriptor can select another implementation of the same retained contract:
 
 ```json
 { "command": "/absolute/path/to/server", "args": [] }
@@ -81,7 +82,7 @@ Rust is the only built-in adapter. An executable descriptor can connect another 
 pnpm test:contract --target candidate --descriptor /absolute/path/to/target.json
 ```
 
-The target receives `APP_BIND`, `APP_ORIGIN`, and a separate `CONTRACT_DATA_DIRECTORY`. It must initialize that directory and serve the same HTTP contract. Non-Rust targets do not create Docker services. Optional `version` and `schemaVersion` fields verify target metadata.
+The target receives `APP_BIND`, `APP_ORIGIN`, and a separate `CONTRACT_DATA_DIRECTORY`. It must initialize that directory and serve the same HTTP contract. The runner creates no Docker services. Optional `version` and `schemaVersion` fields verify target metadata.
 
 Success, failure, timeout, SIGINT, and SIGTERM stop owned consumers and clean resources. After abnormal termination, wait for the original supervisor to stop. Then run:
 
@@ -89,8 +90,8 @@ Success, failure, timeout, SIGINT, and SIGTERM stop owned consumers and clean re
 pnpm test:contract --recover .scratch/vnext-m0/runs/<run-id>/owned-resources.json
 ```
 
-Recovery verifies process IDs, start tokens, PGID/session, and child process proofs. It then verifies container labels and immutable IDs. Unknown or replaced resources remain intact. Cleanup removes only proven resources in the owned ledger. It uses `docker rm -f -v` to remove anonymous volumes. It never runs global prune or removes existing root services and persistent volumes.
+Recovery verifies process IDs, start tokens, PGID/session, run markers and child-process proofs before signaling. Unknown or replaced consumers remain intact. Historical ledgers with Docker ownership are refused without changing their resources. Existing root services, volumes and data remain preserved. Completed run directories retain evidence/data for reproduction; process reconciliation records the stopped consumers.
 
-M0 Rust/Docker and process-group recovery validation covers Linux. Later foundation work owns Windows target adaptation and child-process checks. M0 does not claim a Windows pass.
+Full marked process-group execution/recovery runs on Linux. Windows CI runs the actual Node startup, migration, persistence, directory ownership and server contract subset. Historical M0 Rust/Linux receipts do not establish current Windows coverage.
 
-Use `pnpm test:contract:lifecycle` for real interruption and wrapper descendant recovery checks. It creates its own isolated legacy stack. CI runs the complete contract on the final candidate. Local passes and a Draft PR do not replace final CI.
+Use `pnpm test:contract:lifecycle` for real interruption and wrapper descendant recovery checks. It uses its own isolated Node data and marked processes. CI runs the complete contract on the final candidate. Local passes and a Draft PR do not replace final CI.

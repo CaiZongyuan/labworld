@@ -1,4 +1,3 @@
-import { execFileSync, spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
   mkdirSync,
@@ -10,37 +9,6 @@ import {
 import { dirname } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 
-const docker = (args) =>
-  execFileSync('docker', args, {
-    encoding: 'utf8',
-    timeout: 30_000,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
-export function inventory() {
-  return {
-    at: new Date().toISOString(),
-    containers: docker(['ps', '-a', '--format', '{{json .}}'])
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .map(JSON.parse),
-    volumes: docker(['volume', 'ls', '--format', '{{json .}}'])
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .map(JSON.parse),
-    networks: docker(['network', 'ls', '--format', '{{json .}}'])
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .map(JSON.parse),
-    disk: docker(['system', 'df', '--format', '{{json .}}'])
-      .trim()
-      .split('\n')
-      .filter(Boolean)
-      .map(JSON.parse),
-  };
-}
 function token(pid) {
   try {
     return readFileSync(`/proc/${pid}/stat`, 'utf8')
@@ -174,29 +142,12 @@ function discoverIntent(consumer) {
     });
   }
 }
-function inspect(name) {
-  try {
-    const data = JSON.parse(docker(['inspect', name]))[0];
-    return {
-      id: data.Id,
-      labels: data.Config.Labels,
-      ports: data.NetworkSettings.Ports,
-      mounts: data.Mounts.map(({ Type, Name, Destination }) => ({
-        type: Type,
-        name: Name,
-        destination: Destination,
-      })),
-    };
-  } catch (error) {
-    if (/no such object/i.test(String(error.stderr))) return undefined;
-    throw error;
-  }
-}
 function validateLedger(data) {
   if (
     !data ||
     !/^[A-Za-z0-9-]+$/.test(data.runId) ||
-    data.owner !== '#46 developer_m0' ||
+    typeof data.owner !== 'string' ||
+    !data.owner.trim() ||
     !Array.isArray(data.containers) ||
     !Array.isArray(data.consumers) ||
     !Number.isInteger(data.supervisor?.pid) ||
@@ -220,29 +171,19 @@ function validateLedger(data) {
       markers.add(consumer.marker);
     }
   }
-  for (const container of data.containers) {
-    if (
-      typeof container.name !== 'string' ||
-      !/^[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(container.name) ||
-      container.labels?.['labword.contract.run'] !== data.runId ||
-      container.labels?.['labword.contract.owner'] !== '#46-developer_m0' ||
-      (container.actual?.id !== undefined &&
-        !/^[0-9a-f]{64}$/.test(container.actual.id))
-    ) {
-      throw new Error(
-        'Ledger lacks required run/owner resource proof; no resources were changed',
-      );
-    }
-  }
+  if (data.usesDocker || data.containers.length)
+    throw new Error(
+      'Historical Docker resources are unsupported and preserved',
+    );
 }
 export class ContractResources {
-  constructor(path, runId, usesDocker = true) {
+  constructor(path, runId, usesDocker = false) {
     this.path = path;
     this.data = runId
       ? {
           runId,
           usesDocker,
-          owner: '#46 developer_m0',
+          owner: 'Lab Word owned Node process supervisor',
           supervisor: { pid: process.pid, token: token(process.pid) },
           state: 'active',
           containers: [],
@@ -268,33 +209,9 @@ export class ContractResources {
   snapshot(stage) {
     this.data.inventories.push({
       stage,
-      ...(this.data.usesDocker
-        ? inventory()
-        : { at: new Date().toISOString(), docker: 'not-used' }),
+      at: new Date().toISOString(),
+      docker: 'not-used',
     });
-    this.save();
-  }
-  plan(name, purpose) {
-    if (this.data.closing)
-      throw new Error(
-        'Resource supervisor is closing; new acquisition refused',
-      );
-    const labels = {
-      'labword.contract.run': this.data.runId,
-      'labword.contract.owner': '#46-developer_m0',
-    };
-    this.data.containers.push({ name, purpose, labels, state: 'planned' });
-    this.save();
-    return Object.entries(labels).flatMap(([key, value]) => [
-      '--label',
-      `${key}=${value}`,
-    ]);
-  }
-  started(name) {
-    const entry = this.data.containers.find(
-      (container) => container.name === name,
-    );
-    Object.assign(entry, { state: 'running', actual: inspect(name) });
     this.save();
   }
   planConsumer(role, proofJournal) {
@@ -312,42 +229,6 @@ export class ContractResources {
     this.data.consumers.push(consumer);
     this.save();
     return consumer;
-  }
-  async runContainer(args) {
-    const intent = this.planConsumer('docker-create-process-group');
-    const child = spawn('docker', args, {
-      env: {
-        ...process.env,
-        CONTRACT_RUN_ID: this.data.runId,
-        CONTRACT_CONSUMER_MARKER: intent.marker,
-      },
-      detached: true,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-    if (!child.pid) {
-      child.once('error', () => {});
-      intent.state = 'not-started';
-      this.save();
-      throw new Error('Docker creation command did not start');
-    }
-    this.launchedConsumer(intent.id, child.pid);
-    let stderr = '';
-    child.stdout.resume();
-    child.stderr.on('data', (bytes) => {
-      if (stderr.length < 8192) stderr += bytes.toString();
-    });
-    try {
-      const exit = await new Promise((resolveExit, reject) => {
-        child.once('error', reject);
-        child.once('exit', resolveExit);
-      });
-      if (exit !== 0)
-        throw new Error(
-          `Owned Docker creation exited ${exit}: ${stderr.trim()}`,
-        );
-    } finally {
-      await this.stop(child.pid);
-    }
   }
   launchedConsumer(id, pid) {
     const consumer = this.data.consumers.find((entry) => entry.id === id);
@@ -394,10 +275,7 @@ export class ContractResources {
     const record = {
       at: new Date().toISOString(),
       stage,
-      containers: this.data.containers.map(({ name }) => ({
-        name,
-        actual: inspect(name),
-      })),
+      containers: [],
       consumers: this.data.consumers.map((consumer) => ({
         ...consumer,
         alive: members(consumer).length > 0,
@@ -408,43 +286,11 @@ export class ContractResources {
     this.save();
     return record;
   }
-  remove(name) {
-    validateLedger(this.data);
-    const entry = this.data.containers.find(
-      (container) => container.name === name,
-    );
-    if (!entry) throw new Error('Container absent from owned ledger');
-    const actual = inspect(name);
-    if (!actual) {
-      if (entry.state !== 'cleaned') entry.state = 'absent';
-      this.save();
-      return;
-    }
-    if (
-      Object.entries(entry.labels).some(
-        ([key, value]) => actual.labels?.[key] !== value,
-      )
-    ) {
-      entry.state = 'retained-label-mismatch';
-      this.save();
-      throw new Error(`Resource ownership mismatch: ${name}`);
-    }
-    if (entry.actual?.id && entry.actual.id !== actual.id) {
-      entry.state = 'retained-id-mismatch';
-      this.save();
-      throw new Error('Container identity changed; preserving replacement');
-    }
-    if (this.data.consumers.some((consumer) => members(consumer).length > 0))
-      throw new Error('Stop owned consumers before resource cleanup');
-    docker(['rm', '-f', '-v', actual.id]);
-    entry.state = 'cleaned';
-    this.save();
-  }
   async recover() {
     validateLedger(this.data);
     if (process.platform !== 'linux')
       throw new Error(
-        'M0 process-group recovery is supported on Linux; no resources were reclaimed',
+        'Owned process-group recovery is supported on Linux; no resources were reclaimed',
       );
     if (alive(this.data.supervisor))
       throw new Error(
@@ -464,7 +310,6 @@ export class ContractResources {
           );
         await this.stop(consumer.pid);
       }
-      for (const container of this.data.containers) this.remove(container.name);
       this.data.state = 'recovered';
     } catch (error) {
       this.data.state = 'recovery-failed';

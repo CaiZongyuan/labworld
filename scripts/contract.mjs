@@ -1,20 +1,15 @@
 import { randomUUID } from 'node:crypto';
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  writeFileSync,
-} from 'node:fs';
+import { schemaVersion } from '../packages/server/src/platform/db/index.ts';
+import { configurationFields } from '../apps/server/src/config.ts';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { parseArgs } from 'node:util';
-import { withTestServices } from './lib/test-services.mjs';
 import { freePort, launch, root, waitFor } from './lib/process.mjs';
 import { ContractResources } from './lib/contract-resources.mjs';
 
 const { values, positionals } = parseArgs({
   options: {
-    target: { type: 'string', default: 'rust' },
+    target: { type: 'string', default: 'candidate' },
     descriptor: { type: 'string' },
     recover: { type: 'string' },
     'no-build': { type: 'boolean' },
@@ -30,14 +25,11 @@ if (values.recover) {
   const resource = new ContractResources(resolve(values.recover));
   await resource.recover();
 } else {
-  const rust = values.target === 'rust';
+  if (values.target !== 'candidate')
+    throw new Error('Contract target must be candidate');
   if (process.platform !== 'linux')
     throw new Error(
-      'M0 controlled targets run on Linux; the Windows adapter is pending',
-    );
-  if (!rust && !values.descriptor)
-    throw new Error(
-      'The new service does not exist; provide an executable descriptor to select another target',
+      'Owned full-contract process groups run on Linux; Windows Node checks use the server suite',
     );
   const runId = values['run-id'] ?? `${Date.now()}-${randomUUID().slice(0, 8)}`;
   if (!/^[a-zA-Z0-9-]+$/.test(runId))
@@ -55,11 +47,7 @@ if (values.recover) {
   const resource = new ContractResources(
     resolve(directory, 'owned-resources.json'),
     runId,
-    rust,
-  );
-  const targetDirectory = resolve(
-    root,
-    process.env.CARGO_TARGET_DIR ?? '.scratch/vnext-m0/target',
+    false,
   );
   const children = [];
   function assertOpen() {
@@ -124,8 +112,6 @@ if (values.recover) {
           failures.map((result) => result.reason),
           'Some consumer identities could not be stopped safely; resources retained',
         );
-      for (const container of resource.data.containers)
-        resource.remove(container.name);
     })();
     return closing;
   }
@@ -162,36 +148,35 @@ if (values.recover) {
         2,
       ) + '\n',
     );
-    if (rust && !values['no-build'])
-      await controlled(
-        'cargo',
-        ['build', '--locked', '--workspace', '--bins'],
-        {
-          ...process.env,
-          CARGO_TARGET_DIR: targetDirectory,
-          CARGO_BUILD_JOBS: '4',
-        },
-        'cargo-process-group',
-      );
-    async function exercise({ env: services }) {
+    async function exercise() {
       const port = await freePort();
       const origin = `http://127.0.0.1:${port}`;
       const descriptor = values.descriptor
         ? JSON.parse(readFileSync(resolve(values.descriptor), 'utf8'))
-        : { command: resolve(targetDirectory, 'debug/labos-threejs-api') };
+        : {
+            command: process.execPath,
+            args: ['apps/server/dist/apps/server/src/main.js'],
+            version: JSON.parse(
+              readFileSync(resolve(root, 'apps/server/package.json'), 'utf8'),
+            ).version,
+            schemaVersion,
+          };
       const descriptorPath = resolve(directory, 'target.json');
       writeFileSync(descriptorPath, JSON.stringify(descriptor), {
         mode: 0o600,
       });
       const env = {
         ...process.env,
-        ...services,
+        ...Object.fromEntries(
+          configurationFields().map((field) => [field.name, field.default]),
+        ),
         APP_BIND: `127.0.0.1:${port}`,
+        LAB_WORD_HOST: '127.0.0.1',
+        SERVER_PORT: String(port),
+        LAB_WORD_DATA_DIR: resolve(directory, 'data'),
+        LAB_WORD_WEB_DIR: '',
         APP_ORIGIN: origin,
-        TELEMETRY_ENDPOINT: '',
-        TELEMETRY_LOG_DIRECTORY: '',
-        CACHE_PREFIX: `contract:${runId}`,
-        RATE_LIMIT_PREFIX: `contract:${runId}`,
+        FILE_PUBLIC_ORIGIN: origin,
         CONTRACT_LEDGER_PATH: resource.path,
         CONTRACT_RUN_ID: runId,
         CONTRACT_PROCESS_PROOF_JOURNAL: proofJournal,
@@ -205,26 +190,11 @@ if (values.recover) {
         CONTRACT_REPORT: resolve(directory, 'results.json'),
         CONTRACT_OWNER_EMAIL: 'contract-owner@example.test',
         CONTRACT_OWNER_PASSWORD: 'contract-isolated-password',
-        RUST_LOG: 'warn',
       };
-      if (rust) {
-        env.CONTRACT_EXPECTED_VERSION = readFileSync(
-          resolve(root, 'Cargo.toml'),
-          'utf8',
-        ).match(/\[workspace.package\][\s\S]*?version = "([^"]+)"/)[1];
-        env.CONTRACT_EXPECTED_SCHEMA = String(
-          Math.max(
-            ...readdirSync(resolve(root, 'migrations'))
-              .filter((name) => /^\d+.*\.sql$/.test(name))
-              .map((name) => Number(name.split('_')[0])),
-          ),
-        );
-      } else {
-        if (descriptor.version !== undefined)
-          env.CONTRACT_EXPECTED_VERSION = String(descriptor.version);
-        if (descriptor.schemaVersion !== undefined)
-          env.CONTRACT_EXPECTED_SCHEMA = String(descriptor.schemaVersion);
-      }
+      if (descriptor.version !== undefined)
+        env.CONTRACT_EXPECTED_VERSION = String(descriptor.version);
+      if (descriptor.schemaVersion !== undefined)
+        env.CONTRACT_EXPECTED_SCHEMA = String(descriptor.schemaVersion);
       if (values.profile === 'capacity') env.RATE_LIMIT_ENABLED = 'false';
       if (values.profile === 'session-ttl') {
         env.SESSION_ABSOLUTE_SECS = '65';
@@ -240,41 +210,6 @@ if (values.recover) {
       }
       if (values.profile === 'rate') env.RATE_LIMIT_WINDOW_SECS = '5';
       try {
-        if (rust) {
-          await controlled(
-            resolve(targetDirectory, 'debug/migrate'),
-            [],
-            env,
-            'migration-process-group',
-          );
-          await controlled(
-            resolve(targetDirectory, 'debug/bootstrap-storage'),
-            [],
-            env,
-            'storage-bootstrap-process-group',
-          );
-          const workerPort = await freePort();
-          const worker = spawnOwned(
-            resolve(targetDirectory, 'debug/labos-threejs-worker'),
-            [],
-            {
-              ...env,
-              WORKER_BIND: `127.0.0.1:${workerPort}`,
-              JOB_MAINTENANCE_SECS: '1',
-              JOB_SHUTDOWN_SECS: '1',
-            },
-            'file-cleanup-worker-process-group',
-          );
-          if (values['lifecycle-barrier'] === 'worker-wait') {
-            resource.data.stage = 'worker-wait';
-            resource.save();
-            await waitFor(`http://127.0.0.1:${workerPort}/not-ready`, worker);
-          } else
-            await waitFor(
-              `http://127.0.0.1:${workerPort}/health/ready`,
-              worker,
-            );
-        }
         const api = spawnOwned(
           'node',
           ['scripts/lib/contract-target.mjs'],
@@ -351,8 +286,7 @@ if (values.recover) {
         await Promise.all(children.map(stopOwned));
       }
     }
-    if (rust) await withTestServices(exercise, { resource });
-    else await exercise({ env: {} });
+    await exercise();
     resource.data.state = 'completed';
   } catch (error) {
     resource.data.state = 'failed';

@@ -8,13 +8,13 @@
 
 使用[完整旅程](complete-foundation.md)指定的 Foundation V1 工作副本。全部章节保持同一版本。资产、表示和文件身份独立，并使用现有文件生命周期。以下命令在仓库根目录运行；上传会写入开发数据。
 
-主要源码为 [Lab 资产业务](../../crates/app/src/modules/lab/assets.rs)、[迁移](../../migrations/0018_lab_assets.sql)、[内置定义](../../crates/app/src/modules/lab/definitions.json)、[资产库](../../packages/views/src/lab/asset-library.tsx)与[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。Lab 的 [module.json](../../crates/app/src/modules/lab/module.json)登记业务归属；Core 文件与身份职责沿用公共接口。
+主要源码为 [Lab 资产业务](../../packages/server/src/lab/assets/use-cases.ts)、[迁移](../../packages/server/migrations/0000_baseline.sql)、[内置定义](../../packages/server/src/lab/world/catalog.json)、[资产库](../../packages/views/src/lab/asset-library.tsx)与[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。Lab 的 [module.json](../../packages/server/src/lab/ownership.json)登记业务归属；Core 文件与身份职责沿用公共接口。
 
 ## 在浏览器保存模型
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 打开 <http://127.0.0.1:5173/assets>，登录一个普通 Member；新部署可先注册 Owner，再注册第二个账号。选择 **导入 GLB**，使用 `tests/fixtures/lab/cube.glb`，填写名称、来源、许可与版本，点击 **发布资产**。页面显示部署提供的实际 GLB 大小上限；默认值与设置见[生成配置参考](site:reference/config.md)。没有可信来源或许可时可留空，界面显示“未注明”。
@@ -58,7 +58,7 @@ LAB_ASSET_NAME='Agent cube' LAB_ASSET_SOURCE='Generated test geometry' \
 ```bash
 node scripts/test-backend.mjs --test lab_assets
 pnpm exec vitest run apps/web/src/lab.test.tsx
-node scripts/e2e.mjs tests/e2e/lab.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab.spec.ts
 ```
 
 HTTP 检查使用隔离 PostgreSQL 与真实对象存储；页面检查仅由 MSW 替代 HTTP；浏览器检查覆盖另一上下文、真实 Agent、GLB/WebGL 与 Draco、Meshopt、Basis 压缩加载。

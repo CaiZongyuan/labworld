@@ -4,13 +4,20 @@ import {
   request as playwrightRequest,
   type Page,
 } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { showObjectDirectory } from './lab-desktop';
+import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
+import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
+import type {
+  DeviceProgramRun,
+  LabWorld,
+} from '../../packages/contracts/src/generated/types.gen';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
+test.afterEach(releaseFrameTraces);
 async function canvasPixels(page: Page, path?: string) {
   const png = await page.locator('canvas').screenshot({ path });
   const colors = await page.evaluate(async (encoded) => {
@@ -42,6 +49,7 @@ test('centrifuge results survive closed browsers and a real API process restart'
   page.setDefaultTimeout(10000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.name));
+  const browserFailure = observeBrowserFailure(page);
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/register');
   await page
@@ -64,6 +72,54 @@ test('centrifuge results survive closed browsers and a real API process restart'
   const inspector = page.getByRole('complementary', { name: '对象信息' });
   const paths: string[] = [];
   let lab = '';
+  const frameTrace = await startFrameTrace(
+    page,
+    'centrifuge-start-frame-trace.json',
+    test.info(),
+  );
+  const readinessStarted = performance.now();
+  const responseFacts: Record<string, unknown>[] = [];
+  page.on('response', (response) => {
+    const path = new URL(response.url()).pathname;
+    if (!path.endsWith('/world') && !path.endsWith('/program/start')) return;
+    const fact: Record<string, unknown> = {
+      order: responseFacts.length,
+      seenAtMs: performance.now() - readinessStarted,
+      path,
+      status: response.status(),
+    };
+    responseFacts.push(fact);
+    if (!response.ok()) return;
+    void (async () => {
+      try {
+        if (path.endsWith('/world')) {
+          const world = (await response.json()) as LabWorld;
+          fact.version = world.version;
+          fact.entities = world.entities.map((entity) => ({
+            id: entity.id,
+            run: entity.program_run
+              ? { id: entity.program_run.id, status: entity.program_run.status }
+              : null,
+            task: entity.task
+              ? { id: entity.task.id, status: entity.task.status }
+              : null,
+            capabilities: entity.capabilities.map((capability) => ({
+              id: capability.id,
+              executable: capability.executable,
+            })),
+          }));
+          frameTrace.mark('world-parsed');
+        } else {
+          const run = (await response.json()) as DeviceProgramRun;
+          fact.run = { id: run.id, status: run.status };
+          frameTrace.mark('start-response');
+        }
+        fact.parsedAtMs = performance.now() - readinessStarted;
+      } catch {
+        fact.bodyAvailable = false;
+      }
+    })();
+  });
   for (const name of ['Centrifuge A', 'Centrifuge B']) {
     await page.getByRole('button', { name: '登记对象', exact: true }).click();
     const dialog = page.getByRole('dialog');
@@ -87,10 +143,105 @@ test('centrifuge results survive closed browsers and a real API process restart'
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })
       .click();
-    await expect(
-      inspector.getByRole('button', { name: '开始离心', exact: true }),
-    ).toBeEnabled();
+    let enableFailed = false;
+    try {
+      await expect(
+        inspector.getByRole('button', { name: '开始离心', exact: true }),
+      ).toBeEnabled();
+    } catch (error) {
+      enableFailed = true;
+      throw error;
+    } finally {
+      frameTrace.mark('assertion-end');
+      if (enableFailed) {
+        await (async () => {
+          const assertionEndedAtMs = performance.now() - readinessStarted;
+          const [browserFacts, domFact] = await Promise.all([
+            browserFailure(),
+            boundedBrowserFact(() =>
+              inspector.evaluate(
+                (root) => {
+                  const selected = Array.from(root.querySelectorAll('dt')).find(
+                    (entry) => entry.textContent === 'Entity',
+                  )?.nextElementSibling?.textContent;
+                  const buttons = Array.from(root.querySelectorAll('button'));
+                  const control = (label: string) => {
+                    const matches = buttons.filter(
+                      (button) => button.textContent?.trim() === label,
+                    );
+                    return {
+                      count: matches.length,
+                      enabled:
+                        matches.length === 1 ? !matches[0].disabled : null,
+                    };
+                  };
+                  const target = (label: string) => {
+                    const field = Array.from(
+                      root.querySelectorAll('label'),
+                    ).find((element) => element.textContent?.trim() === label);
+                    const input = Array.from(
+                      root.querySelectorAll('input'),
+                    ).find((element) => element.id === field?.htmlFor);
+                    const value = input?.value ? Number(input.value) : NaN;
+                    return Number.isFinite(value) ? value : null;
+                  };
+                  const version = document
+                    .querySelector('[aria-label="世界版本"]')
+                    ?.textContent?.match(/^W(\d+)$/);
+                  return {
+                    selectedEntityId: /^[0-9a-f-]{36}$/i.test(selected ?? '')
+                      ? selected
+                      : null,
+                    worldVersion: version ? Number(version[1]) : null,
+                    startProgram: control('启动程序'),
+                    stopProgram: control('停止程序'),
+                    startTask: control('开始离心'),
+                    stopTask: control('停止离心'),
+                    target: {
+                      rpm: target('目标转速 (rpm)'),
+                      temperature: target('目标温度 (degC)'),
+                      durationSeconds: target('任务时长 (s)'),
+                    },
+                    alertPresent: !!root.querySelector('[role="alert"]'),
+                    runtimeAlertPresent: Array.from(
+                      document.querySelectorAll('*'),
+                    ).some(
+                      (element) => element.textContent === '运行端尚未就绪',
+                    ),
+                  };
+                },
+                undefined,
+                { timeout: 250 },
+              ),
+            ),
+          ]);
+          frameTrace.mark('ack-capture-end');
+          writeFileSync(
+            `${process.env.LAB_NODE_EVIDENCE}/centrifuge-start-facts.json`,
+            JSON.stringify({
+              requestedEntityId: /^[0-9a-f-]{36}$/i.test(id) ? id : null,
+              assertionEndedAtMs,
+              capturedAtMs: performance.now() - readinessStarted,
+              browserFacts,
+              domCapture: {
+                status: domFact.status,
+                elapsedMs: domFact.elapsedMs,
+                ...(domFact.status === 'error'
+                  ? { errorName: domFact.errorName }
+                  : {}),
+              },
+              dom: domFact.status === 'ack' ? domFact.value : null,
+              responses: responseFacts,
+            }) + '\n',
+          );
+        })().catch(() => {
+          // Optional diagnostics preserve the original enabled assertion failure.
+        });
+        await frameTrace.finish(true);
+      }
+    }
   }
+  await frameTrace.finish(false);
   const session = await (await page.request.get('/api/v1/auth/session')).json();
   const credential = await (
     await page.request.post('/api/v1/api-keys', {

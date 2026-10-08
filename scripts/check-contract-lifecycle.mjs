@@ -64,14 +64,14 @@ async function probe(mode) {
     assert.equal(statSync(ledger).mtimeMs, beforeMtime);
     assert(!existsSync(`${ledger}.next`));
     const invalid = read(ledger);
-    invalid.containers[0].labels = {};
+    invalid.supervisor.token = '';
     const invalidPath = resolve(directory, 'invalid-proof.json');
     writeFileSync(invalidPath, JSON.stringify(invalid));
     const invalidBytes = readFileSync(invalidPath);
     const invalidMtime = statSync(invalidPath).mtimeMs;
     assert.throws(
       () => new ContractResources(invalidPath),
-      /required run\/owner/,
+      /Invalid owned resource ledger/,
     );
     assert.deepEqual(readFileSync(invalidPath), invalidBytes);
     assert.equal(statSync(invalidPath).mtimeMs, invalidMtime);
@@ -175,11 +175,8 @@ async function probe(mode) {
     assert(reconciliation.consumers.every((entry) => !entry.alive));
     const before = result.inventories[0],
       after = result.inventories.at(-1);
-    for (const field of ['containers', 'volumes', 'networks'])
-      assert.deepEqual(
-        after[field].map((entry) => entry.ID ?? entry.Name).sort(),
-        before[field].map((entry) => entry.ID ?? entry.Name).sort(),
-      );
+    assert.equal(before.docker, 'not-used');
+    assert.equal(after.docker, 'not-used');
     checks.push({ mode, runId, ledger, outcome: 'passed' });
     writeFileSync(
       resolve(root, '.scratch/vnext-m0/lifecycle-results.json'),
@@ -193,7 +190,7 @@ async function probe(mode) {
       child.kill('SIGKILL');
     const data = read(ledger);
     if (!['recovered', 'interrupted'].includes(data.state)) {
-      // Recovery always validates stored process identity and container labels.
+      // Recovery validates stored process identity and refuses historical Docker ledgers.
       const recovery = spawn(
         process.execPath,
         ['scripts/contract.mjs', '--recover', ledger],
@@ -212,7 +209,6 @@ for (const mode of selected.length
       'orphan-recover',
       'orphan-restart',
       'consumer-orphan',
-      'worker-wait',
       'register-wait',
     ])
   await probe(mode);
@@ -220,4 +216,4 @@ writeFileSync(
   resolve(root, '.scratch/vnext-m0/lifecycle-results.json'),
   JSON.stringify(checks, null, 2) + '\n',
 );
-console.log(`${checks.length} actual Rust supervisor lifecycle checks passed`);
+console.log(`${checks.length} actual Node supervisor lifecycle checks passed`);

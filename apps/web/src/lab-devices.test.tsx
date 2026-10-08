@@ -19,7 +19,7 @@ const identity = {
 } satisfies CurrentSession;
 function openLights() {
   const definitions = JSON.parse(
-    readFileSync('crates/app/src/modules/lab/definitions.json', 'utf8'),
+    readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
   );
   const definition = definitions.find(
     (entry: { id: string }) => entry.id === 'light',
@@ -56,6 +56,7 @@ function openLights() {
   }));
   let command: Record<string, unknown> | null = null;
   let version = 0;
+  let stream: ReadableStreamDefaultController<Uint8Array>;
   let resolveSubmission!: () => void;
   const submission = new Promise<void>((resolve) => {
     resolveSubmission = resolve;
@@ -89,6 +90,7 @@ function openLights() {
         new HttpResponse(
           new ReadableStream({
             start(controller) {
+              stream = controller;
               controller.enqueue(
                 new TextEncoder().encode(
                   'data: {"type":"runtime_status","available":true}\n\n',
@@ -162,6 +164,23 @@ function openLights() {
     user: userEvent.setup(),
     entities,
     resolveSubmission,
+    publishWorld() {
+      stream.enqueue(
+        new TextEncoder().encode(
+          `data: ${JSON.stringify({
+            type: 'snapshot',
+            world: {
+              version: String(++version),
+              lab,
+              entities,
+              nodes: [],
+              assets: [],
+              relationships: [],
+            },
+          })}\n\n`,
+        ),
+      );
+    },
     complete() {
       command!['status'] = 'succeeded';
       entities[0].observation = {
@@ -202,6 +221,67 @@ test('a member sees submission and waiting separately from measured power', asyn
   ).toBeChecked();
   await user.click(screen.getByRole('button', { name: '选择 Light B' }));
   expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
+});
+
+test('committed Start and an authoritative running snapshot unlock controls while a redundant World body is pending', async () => {
+  const f = openLights();
+  await f.user.click(
+    await screen.findByRole('button', { name: '打开对象目录' }),
+  );
+  await f.user.click(
+    await screen.findByRole('button', { name: '选择 Light A' }),
+  );
+  const inspector = screen.getByRole('complementary', { name: '对象信息' });
+  let release = () => {};
+  let refreshStarted = false;
+  server.use(
+    http.get('http://api.test/api/v1/lab/labs/lighting-lab/world', () => {
+      refreshStarted = true;
+      return new HttpResponse(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{'));
+            release = () =>
+              controller.error(new Error('Owned refresh released'));
+          },
+        }),
+        { headers: { 'content-type': 'application/json' } },
+      );
+    }),
+    http.post(
+      'http://api.test/api/v1/lab/labs/lighting-lab/entities/light-0/program/start',
+      () => {
+        f.entities[0].program_run = { id: 'run-light-0', status: 'running' };
+        f.entities[0].capabilities = f.entities[0].capabilities.map(
+          (capability: Record<string, unknown>) => ({
+            ...capability,
+            executable: true,
+            reason: 'ready',
+          }),
+        );
+        f.publishWorld();
+        return HttpResponse.json(f.entities[0].program_run, { status: 201 });
+      },
+    ),
+  );
+  try {
+    await f.user.click(
+      within(inspector).getByRole('button', { name: '启动程序' }),
+    );
+    await waitFor(() => expect(refreshStarted).toBe(true));
+    expect(await within(inspector).findByText('运行中')).toBeVisible();
+    await waitFor(() =>
+      expect(
+        within(inspector).getByRole('switch', { name: '电源' }),
+      ).toBeEnabled(),
+    );
+    expect(within(inspector).getByText('未知 · 无观测')).toBeVisible();
+    expect(
+      within(inspector).getByRole('switch', { name: '电源' }),
+    ).not.toBeChecked();
+  } finally {
+    release();
+  }
 });
 
 test('a rejected command leaves the last observation intact and allows correction', async () => {

@@ -10,7 +10,7 @@
 
 在仓库根目录运行命令。操作会写入开发数据库。普通 Member 需要有效会话。Agent 需要有效的 `lab:full` API 密钥。
 
-实现入口：[后端程序与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[属性观测合同](../../packages/server/src/lab/devices/use-cases.ts)、[新增迁移](../../packages/server/migrations/0000_foundation.sql)、[观测面板](../../packages/views/src/lab/observation-reading.tsx)。Node 使用共享保留 schema。
+实现入口：[后端程序与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[属性观测合同](../../packages/server/src/lab/devices/use-cases.ts)、[新增迁移](../../packages/server/migrations/0000_baseline.sql)、[观测面板](../../packages/views/src/lab/observation-reading.tsx)。Node 使用共享保留 schema。
 
 ## 查看两个来源
 

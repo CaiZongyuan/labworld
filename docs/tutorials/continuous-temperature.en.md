@@ -10,7 +10,7 @@ Use the current checkout containing this chapter's Node implementation. Complete
 
 Run commands from the repository root. These operations write to the development database. Members need an active session. Agents need an active `lab:full` API key.
 
-Source: [backend programs and observation ingress](../../packages/server/src/lab/devices/runtime.ts), [property contract](../../packages/server/src/lab/devices/use-cases.ts), [new migration](../../packages/server/migrations/0000_foundation.sql), and [observation panel](../../packages/views/src/lab/observation-reading.tsx). Node uses the shared retained schema.
+Source: [backend programs and observation ingress](../../packages/server/src/lab/devices/runtime.ts), [property contract](../../packages/server/src/lab/devices/use-cases.ts), [new migration](../../packages/server/migrations/0000_baseline.sql), and [observation panel](../../packages/views/src/lab/observation-reading.tsx). Node uses the shared retained schema.
 
 ## Read Two Sources
 

@@ -37,10 +37,10 @@ Keep each paragraph on one topic. Separate actions from explanations. Both langu
 
 For example, replace "After adding SQL, migrate and restart development so the embedded migration set is refreshed." with:
 
-1. After you add SQL migrations, run `just migrate`.
+1. After you append a SQL migration, run `pnpm server migrate`.
 2. Restart development.
 
-The restart updates the migration set in the binary.
+Restart the service to load the new migration set.
 
 Before delivery, review each changed passage against the table. Compare it with the source and the other language version. Word counts guide editing; they do not replace a review of meaning. `docs:check` checks documentation structure and source relationships. It does not validate STE compliance.
 
@@ -52,14 +52,14 @@ Before delivery, review each changed passage against the table. Compare it with 
 
 The registration needs one stable id, both titles and sources, published routes, a group and a page type. Pages without a chapter relationship have no automatic previous or next page.
 
-Repository Markdown is the source of page content. Current Node Zod/OpenAPI and frozen legacy OpenAPI provide API facts. The Node parser and frozen Settings provide configuration facts. Use `<<<` to include checked, complete source code. Scripts generate `apps/docs/.generated` and the build output. Put site images in `apps/docs/public/`.
+Repository Markdown is the source of page content. Official Node Zod/OpenAPI provides API facts. The running Node parser provides configuration facts. Use `<<<` to include checked, complete source code. Scripts generate `apps/docs/.generated` and the build output. Put site images in `apps/docs/public/`.
 
 Run these checks from the repository root:
 
 ```bash
 pnpm docs:check
 pnpm docs:build
-just e2e-docs
+pnpm test:e2e:docs
 ```
 
 The first two commands check sources, language pairs, generated references and links in the built site. Browser tests check language, theme, search and the deployment base. Use the [testing strategy](../testing/strategy.md) to check business HTTP behavior, components and actual 3D rendering separately.

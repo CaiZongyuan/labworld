@@ -117,12 +117,14 @@ export default function DevicePanel({
         headers: { 'x-csrf-token': identity.csrf_token },
         throwOnError: true,
       });
-      await onRefresh();
     } catch (error) {
       setProgramError(error);
+      return;
     } finally {
       setProgramPending(false);
     }
+    // World query errors remain visible through their owner after the mutation commits.
+    void onRefresh().catch(() => {});
   }
   async function submit(input: EntityAction, previous?: CommandAttempt) {
     const current = ++submission.current;

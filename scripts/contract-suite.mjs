@@ -6,12 +6,12 @@ import { root } from './lib/process.mjs';
 import { parseArgs } from 'node:util';
 const { values } = parseArgs({
   options: {
-    target: { type: 'string', default: 'rust' },
+    target: { type: 'string', default: 'candidate' },
     descriptor: { type: 'string' },
   },
 });
-if (values.target !== 'rust' && !values.descriptor)
-  throw new Error('Candidate suite requires its owned executable descriptor');
+if (values.target !== 'candidate')
+  throw new Error('Contract target must be candidate');
 const provenance = {
   target: values.target,
   descriptor: values.descriptor

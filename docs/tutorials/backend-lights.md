@@ -8,7 +8,7 @@
 
 使用包含本章 Node 实现的当前 checkout。先完成[Node World](../guides/server-world.md)，取得 Lab、Entity、独立节点、定义快照和 `lab:full` 凭据。命令在仓库根目录运行。浏览器和脚本会写入开发数据库。
 
-实现入口是 [设备 HTTP](../../packages/server/src/lab/devices/use-cases.ts)、[公开设备运行与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[持久迁移](../../packages/server/migrations/0000_foundation.sql)、[来源排序迁移](../../packages/server/migrations/0000_foundation.sql)、[Inspector](../../packages/views/src/lab/device-panel.tsx)、[三维外观](../../packages/views/src/lab/world-viewport.tsx)及[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../crates/app/src/modules/lab/module.json)包含新增表、合同、测试和教程。
+实现入口是 [设备 HTTP](../../packages/server/src/lab/devices/use-cases.ts)、[公开设备运行与观测入口](../../packages/server/src/lab/devices/runtime.ts)、[持久迁移](../../packages/server/migrations/0000_baseline.sql)、[来源排序迁移](../../packages/server/migrations/0000_baseline.sql)、[Inspector](../../packages/views/src/lab/device-panel.tsx)、[三维外观](../../packages/views/src/lab/world-viewport.tsx)及[生成 SDK](../../packages/sdk/src/generated/sdk.gen.ts)。[Lab ownership](../../packages/server/src/lab/ownership.json)包含新增表、合同、测试和教程。
 
 ## 从浏览器得到第一条观测
 

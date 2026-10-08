@@ -27,27 +27,52 @@ function files(directory, extension = /\.(ts|tsx)$/) {
         : [];
   });
 }
-const modulesRoot = join(root, 'crates/app/src/modules');
-const modules = readdirSync(modulesRoot, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory())
-  .map((entry) => {
-    const directory = join(modulesRoot, entry.name);
-    const description = JSON.parse(
-      readFileSync(join(directory, 'module.json'), 'utf8'),
-    );
-    return { ...description, name: entry.name, directory };
-  });
-const references = modules.filter((module) => module.kind === 'reference');
+const references = [
+  JSON.parse(
+    readFileSync(join(root, 'packages/server/src/lab/ownership.json'), 'utf8'),
+  ),
+];
+const serverRoot = join(root, 'packages/server/src');
 const tableOwners = new Map();
-for (const module of modules) {
-  for (const table of module.tables) {
-    if (tableOwners.has(table))
-      throw new Error(`Duplicate table ownership: ${table}`);
-    tableOwners.set(table, module.name);
+for (const path of files(serverRoot).filter((path) =>
+  path.endsWith(`${sep}schema.ts`),
+)) {
+  const owner = path.startsWith(join(serverRoot, 'core') + sep)
+    ? { name: 'core', schema: 'labos_threejs_core', binding: 'coreSchema' }
+    : path.startsWith(join(serverRoot, 'lab') + sep)
+      ? { name: 'lab', schema: 'lab', binding: 'labSchema' }
+      : undefined;
+  if (!owner) continue;
+  const source = ts.createSourceFile(
+    path,
+    readFileSync(path, 'utf8'),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  function visit(node) {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      node.expression.name.text === 'table'
+    ) {
+      if (
+        !ts.isIdentifier(node.expression.expression) ||
+        node.expression.expression.text !== owner.binding ||
+        !node.arguments[0] ||
+        !ts.isStringLiteral(node.arguments[0])
+      )
+        throw new Error(`Table ownership must be explicit: ${path}`);
+      const table = `${owner.schema}.${node.arguments[0].text}`;
+      if (tableOwners.has(table))
+        throw new Error(`Duplicate table ownership: ${table}`);
+      tableOwners.set(table, owner.name);
+    }
+    ts.forEachChild(node, visit);
   }
+  visit(source);
 }
-for (const path of files(join(root, 'migrations'), /\.sql$/)) {
-  const source = readFileSync(path, 'utf8');
+for (const path of files(join(root, 'packages/server/migrations'), /\.sql$/)) {
+  const source = readFileSync(path, 'utf8').replaceAll('"', '');
   for (const match of source.matchAll(
     /\bCREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?([a-z_][a-z0-9_]*\.[a-z_][a-z0-9_]*)/gi,
   )) {
@@ -55,45 +80,6 @@ for (const path of files(join(root, 'migrations'), /\.sql$/)) {
       throw new Error(
         `Migration creates an unowned table ${match[1]}: ${path}`,
       );
-  }
-}
-for (const module of modules) {
-  for (const path of files(module.directory, /\.rs$/)) {
-    const source = readFileSync(path, 'utf8');
-    const literals = source.match(/"(?:\\.|[^"\\])*"/gs) ?? [];
-    for (const literal of literals.filter((text) =>
-      /\b(SELECT|INSERT|UPDATE|DELETE)\b/i.test(text),
-    )) {
-      for (const [table, owner] of tableOwners) {
-        if (
-          new RegExp(`\\b${table.replaceAll('.', '\\.')}\\b`).test(literal) &&
-          owner !== module.name
-        )
-          throw new Error(
-            `${module.name} reads/writes ${owner}'s table ${table}: ${path}`,
-          );
-      }
-    }
-    const code = source
-      .replace(/"(?:\\.|[^"\\])*"/gs, '""')
-      .replace(/\/\/[^\n]*|\/\*[\s\S]*?\*\//g, '');
-    if (module.kind === 'core') {
-      for (const reference of references) {
-        if (
-          new RegExp(
-            `\\b(?:use[^;]*|(?:crate|super|self)::(?:modules::)?)\\b${reference.name}\\b`,
-          ).test(code)
-        )
-          throw new Error(
-            `Core imports reference module ${reference.name}: ${path}`,
-          );
-      }
-    }
-    if (
-      path.endsWith('/domain.rs') &&
-      /\b(axum|sqlx|redis|aws_sdk_s3|opentelemetry)::/.test(code)
-    )
-      throw new Error(`Pure Domain imports infrastructure: ${path}`);
   }
 }
 for (const [name, dependencies] of Object.entries(allowed)) {
@@ -147,7 +133,7 @@ for (const [name, dependencies] of Object.entries(allowed)) {
               ? resolve(dirname(path), dependency)
               : '';
             if (target === viewRoot || target.startsWith(viewRoot + sep))
-              throw new Error(`Core imports reference Views: ${path}`);
+              throw new Error(`Core imports Lab Views: ${path}`);
             if (
               ['@labos-threejs/contracts', '@labos-threejs/sdk'].includes(
                 dependency,
@@ -164,7 +150,7 @@ for (const [name, dependencies] of Object.entries(allowed)) {
                   ),
                 )
               )
-                throw new Error(`Core imports a reference contract: ${path}`);
+                throw new Error(`Core imports a Lab contract: ${path}`);
             }
           }
         }
@@ -180,5 +166,5 @@ for (const [name, dependencies] of Object.entries(allowed)) {
   }
 }
 console.log(
-  `Package imports and ${modules.length} retained module ownership declarations verified; TypeScript server boundaries verified. Dynamic SQL still requires review.`,
+  `Package imports and ${tableOwners.size} Node table ownership declarations verified; TypeScript server boundaries verified. Dynamic SQL still requires review.`,
 );

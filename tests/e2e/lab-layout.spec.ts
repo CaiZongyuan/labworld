@@ -1,6 +1,7 @@
 import { showObjectDirectory } from './lab-desktop';
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import type { SceneNode } from '../../packages/contracts/src/generated/types.gen';
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
@@ -10,10 +11,21 @@ async function registerObject(page: Page, definition: string, name: string) {
   const dialog = page.getByRole('dialog');
   await dialog.getByLabel('定义版本').selectOption(`${definition}@1.0`);
   await dialog.getByLabel('名称', { exact: true }).fill(name);
+  const created = page.waitForResponse(
+    (response) =>
+      response.request().method() === 'POST' &&
+      /\/api\/v1\/lab\/labs\/[^/]+\/entities$/.test(
+        new URL(response.url()).pathname,
+      ),
+  );
   await dialog.getByRole('button', { name: '登记', exact: true }).click();
+  const response = await created;
+  expect(response.status()).toBe(201);
+  const entity = await response.json();
   await expect(
     page.getByRole('button', { name: `选择 ${name}`, exact: true }),
   ).toBeVisible();
+  return entity.id as string;
 }
 async function redHandle(page: Page) {
   const png = await page.locator('canvas').screenshot();
@@ -75,10 +87,16 @@ test('real pointer transforms edit Placement while manual location stays unchang
   await expect(
     page.getByRole('heading', { name: 'Layout lab', exact: true }),
   ).toBeVisible();
-  await registerObject(page, 'bench', 'Bench');
-  await registerObject(page, 'labware', 'Beaker');
+  const benchId = await registerObject(page, 'bench', 'Bench');
+  const beakerId = await registerObject(page, 'labware', 'Beaker');
   await page.getByRole('tab', { name: '编辑布局', exact: true }).click();
   const inspector = page.getByRole('complementary', { name: '对象信息' });
+  await expect(
+    inspector
+      .locator('dt')
+      .filter({ hasText: /^Entity$/ })
+      .locator('+ dd'),
+  ).toHaveText(beakerId);
   const lab = await inspector
     .locator('dt')
     .filter({ hasText: /^Lab$/ })
@@ -87,9 +105,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
   const beforeWorld = await (
     await page.request.get(`/api/v1/lab/labs/${lab}/world`)
   ).json();
-  await inspector
-    .getByLabel('关系对象')
-    .selectOption(beforeWorld.entities[0].id);
+  await inspector.getByLabel('关系对象').selectOption(benchId);
   await inspector
     .getByRole('button', { name: '登记关系', exact: true })
     .click();
@@ -100,6 +116,16 @@ test('real pointer transforms edit Placement while manual location stays unchang
   const registered = await (
     await page.request.get(`/api/v1/lab/labs/${lab}/world`)
   ).json();
+  const ownedBeakerNodes = registered.nodes.filter(
+    (node: SceneNode) => node.entity_id === beakerId,
+  );
+  expect(ownedBeakerNodes).toHaveLength(1);
+  const beakerNodeId = ownedBeakerNodes[0].id;
+  const beakerNode = (snapshot: { nodes: SceneNode[] }) => {
+    const node = snapshot.nodes.find((entry) => entry.id === beakerNodeId);
+    expect(node?.entity_id).toBe(beakerId);
+    return node!;
+  };
   await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
   await page.getByRole('button', { name: '移动', exact: true }).click();
   await expect
@@ -129,8 +155,8 @@ test('real pointer transforms edit Placement while manual location stays unchang
     await page.request.get(`/api/v1/lab/labs/${lab}/world`)
   ).json();
   expect(moved.relationships).toEqual(registered.relationships);
-  expect(moved.nodes[1].placement.position).not.toEqual(
-    registered.nodes[1].placement.position,
+  expect(beakerNode(moved).placement.position).not.toEqual(
+    beakerNode(registered).placement.position,
   );
   await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
   for (const [mode, field] of [
@@ -166,6 +192,12 @@ test('real pointer transforms edit Placement while manual location stays unchang
     await page.request.get(`/api/v1/lab/labs/${lab}/world`)
   ).json();
   expect(transformed.relationships).toEqual(registered.relationships);
+  expect(beakerNode(transformed).placement.rotation).not.toEqual(
+    beakerNode(moved).placement.rotation,
+  );
+  expect(beakerNode(transformed).placement.scale).not.toEqual(
+    beakerNode(moved).placement.scale,
+  );
   await inspector
     .getByRole('button', { name: '复制为独立实例', exact: true })
     .click();
@@ -178,6 +210,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
   const originalId = beforeWorld.entities.find(
     (entity: { name: string }) => entity.name === 'Beaker',
   ).id;
+  expect(originalId).toBe(beakerId);
   const copiedId = copied.entities.find(
     (entity: { name: string }) => entity.name === 'Beaker 副本',
   ).id;
@@ -358,7 +391,7 @@ test('real pointer transforms edit Placement while manual location stays unchang
   });
   await mobileInspector
     .getByLabel('Related object', { exact: true })
-    .selectOption(beforeWorld.entities[0].id, { timeout: 10000 });
+    .selectOption(benchId, { timeout: 10000 });
   await mobileInspector
     .getByRole('button', { name: 'Register relationship', exact: true })
     .click();

@@ -19,7 +19,7 @@ Member 需要有效会话；会话写入需要 CSRF。Agent 需要有效的 `lab
 2. 启动开发栈。
 
    ```bash
-   just dev
+   pnpm dev
    ```
 
 3. 打开 <http://127.0.0.1:5173/lab>。
@@ -31,7 +31,7 @@ Member 需要有效会话；会话写入需要 CSRF。Agent 需要有效的 `lab
 6. 打开 **设置 → API 密钥**。
 7. 创建带 `lab:full` 范围的密钥。
 
-   在开发终端中保持 `just dev` 运行。停止它会同时停止 API、Worker 和 Web。
+   在开发终端中保持 `pnpm dev` 运行。停止它会排空并关闭 Node 与 Web，保留所选数据目录。
 
 8. 在仓库根目录打开第二个 Bash 终端。
 9. 设置开发栈输出的 API 地址。
@@ -227,13 +227,13 @@ Member 需要有效会话；会话写入需要 CSRF。Agent 需要有效的 `lab
 1. 运行完整旅程。
 
    ```bash
-   node scripts/e2e.mjs tests/e2e/lab-foundation.spec.ts
+   node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-foundation.spec.ts
    ```
 
 2. 运行参考负载。
 
    ```bash
-   just perf-lab-reference
+   E2E_LAB_REFERENCE_LOAD=1 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-reference-load.spec.ts
    ```
 
 3. 运行确定性 Lab HTTP 预算。

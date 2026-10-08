@@ -1,4 +1,6 @@
 import { showObjectDirectory } from './lab-desktop';
+import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
+import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
 import { expect, test } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -15,6 +17,7 @@ import {
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
+test.afterEach(releaseFrameTraces);
 test.afterEach(retainFailure);
 
 test('the 320px Lab keeps its complete 3D viewport and Inspector above history without a clipped workspace', async ({
@@ -242,15 +245,136 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     });
     const observer = await second.newPage();
     observer.on('pageerror', (error) => errors.push(error.name));
+    const browserFailure = observeBrowserFailure(observer);
+    const frameTrace = await startFrameTrace(
+      observer,
+      'observer-readiness-frame-trace.json',
+      test.info(),
+      [page],
+    );
+    const readinessStart = performance.now();
+    const readinessResponses: Record<string, unknown>[] = [];
+    observer.on('response', (response) => {
+      const path = new URL(response.url()).pathname;
+      if (
+        !path.endsWith('/world') &&
+        !path.includes('/lab-assets/') &&
+        !path.startsWith('/objects/') &&
+        !path.endsWith('/download')
+      )
+        return;
+      const fact: Record<string, unknown> = {
+        order: readinessResponses.length,
+        seenAtMs: performance.now() - readinessStart,
+        path,
+        status: response.status(),
+      };
+      readinessResponses.push(fact);
+      if (path.endsWith('.hdr')) frameTrace.mark('hdr-response');
+      if (path.endsWith('/world') && response.ok())
+        void response
+          .json()
+          .then((value) => {
+            fact.world = {
+              version: value.version,
+              labId: value.lab.id,
+              entities: value.entities.length,
+              nodes: value.nodes.length,
+              assets: value.assets.length,
+            };
+            fact.parsedAtMs = performance.now() - readinessStart;
+            frameTrace.mark('world-parsed');
+          })
+          .catch(() => {
+            fact.bodyAvailable = false;
+          });
+    });
     await observer.goto('/lab');
     await observer
       .getByRole('combobox', { name: '打开 Lab' })
       .selectOption(lab);
     await showObjectDirectory(observer);
-    await expect(observer.locator('.world-page')).toHaveAttribute(
-      'aria-busy',
-      'false',
-    );
+    let observerReady = false;
+    try {
+      await expect(observer.locator('.world-page')).toHaveAttribute(
+        'aria-busy',
+        'false',
+      );
+      observerReady = true;
+    } finally {
+      frameTrace.mark('assertion-end');
+      if (!observerReady)
+        await (async () => {
+          const assertionEndedAtMs = performance.now() - readinessStart;
+          const [browserFacts, domFact] = await Promise.all([
+            browserFailure(),
+            boundedBrowserFact(() =>
+              observer.locator('.world-page').evaluate(
+                (root) => {
+                  const visible = (element: Element | null) =>
+                    !!element &&
+                    element.getClientRects().length > 0 &&
+                    getComputedStyle(element).visibility === 'visible';
+                  const canvas = root?.querySelector('canvas');
+                  const version = root?.querySelector(
+                    '[aria-label="世界版本"]',
+                  )?.textContent;
+                  const selected = (
+                    root?.querySelector(
+                      'select[aria-label="打开 Lab"]',
+                    ) as HTMLSelectElement | null
+                  )?.value;
+                  return {
+                    busy: root?.getAttribute('aria-busy'),
+                    selectedLab: /^[0-9a-f-]{36}$/i.test(selected ?? '')
+                      ? selected
+                      : null,
+                    worldLabel: /^W\d+$/.test(version ?? '') ? version : null,
+                    headingVisible: visible(root?.querySelector('h1') ?? null),
+                    loadingVisible: visible(
+                      root?.querySelector('.lab-loading') ?? null,
+                    ),
+                    renderErrorVisible: visible(
+                      root?.querySelector('.world-render-error') ?? null,
+                    ),
+                    canvas: {
+                      count: root?.querySelectorAll('canvas').length ?? 0,
+                      visible: visible(canvas ?? null),
+                      width: canvas?.width,
+                      height: canvas?.height,
+                    },
+                  };
+                },
+                undefined,
+                { timeout: 250 },
+              ),
+            ),
+          ]);
+          const dom = domFact.status === 'ack' ? domFact.value : null;
+          frameTrace.mark('ack-capture-end');
+          writeFileSync(
+            `${process.env.LAB_NODE_EVIDENCE}/observer-readiness.json`,
+            JSON.stringify({
+              expectedLab: lab,
+              assertionEndedAtMs,
+              capturedAtMs: performance.now() - readinessStart,
+              browserFacts,
+              domCapture: {
+                status: domFact.status,
+                elapsedMs: domFact.elapsedMs,
+                ...(domFact.status === 'error'
+                  ? { errorName: domFact.errorName }
+                  : {}),
+              },
+              dom,
+              responses: readinessResponses,
+            }) + '\n',
+          );
+        })().catch(() => {
+          // Optional diagnostics preserve the original readiness failure.
+        });
+      await frameTrace.finish(!observerReady);
+    }
     await page.context().setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
     await expect(page.getByText('连接中断', { exact: true })).toBeVisible({
@@ -391,11 +515,36 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
       member: await page.getByLabel('世界版本').textContent(),
       peer: await observer.getByLabel('世界版本').textContent(),
     };
+    let convergence:
+      | {
+          serverVersion: string;
+          memberVersion: string | null;
+          peerVersion: string | null;
+          running: number;
+        }
+      | undefined;
     try {
-      await expect(page.getByLabel('世界版本')).toHaveText(`W${final.version}`);
-      await expect(observer.getByLabel('世界版本')).toHaveText(
-        `W${final.version}`,
-      );
+      await expect
+        .poll(async () => {
+          const current = await world(agent, lab);
+          convergence = {
+            serverVersion: current.version,
+            memberVersion: await page.getByLabel('世界版本').textContent(),
+            peerVersion: await observer.getByLabel('世界版本').textContent(),
+            running: current.entities.filter(
+              (entity) => entity.program_run?.status === 'running',
+            ).length,
+          };
+          expect(current.lab.layout_version).toBe(final.lab.layout_version);
+          expect(current.nodes).toEqual(final.nodes);
+          expect(current.relationships).toEqual(final.relationships);
+          return (
+            convergence.running === 0 &&
+            convergence.memberVersion === `W${convergence.serverVersion}` &&
+            convergence.peerVersion === `W${convergence.serverVersion}`
+          );
+        })
+        .toBe(true);
     } finally {
       writeFileSync(
         `${evidence}/final-world-comparison.json`,
@@ -404,6 +553,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
             event: 'foundation.final-world-comparison',
             expectedVersion: final.version,
             initialVersions,
+            convergence,
             memberVersion: await page.getByLabel('世界版本').textContent(),
             peerVersion: await observer.getByLabel('世界版本').textContent(),
             runStates: final.entities.flatMap((entity) =>

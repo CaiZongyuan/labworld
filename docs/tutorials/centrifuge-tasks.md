@@ -10,7 +10,7 @@
 
 在仓库根目录运行命令。这些操作写入持久开发数据。普通成员需要有效会话。Agent 需要有效的 `lab:full` API key。
 
-源码：[任务 HTTP 合同](../../packages/server/src/lab/devices/routes.ts)、[后端程序](../../packages/server/src/lab/devices/domain.ts)、[迁移](../../packages/server/migrations/0000_foundation.sql)和[任务面板](../../packages/views/src/lab/centrifuge-panel.tsx)。
+源码：[任务 HTTP 合同](../../packages/server/src/lab/devices/routes.ts)、[后端程序](../../packages/server/src/lab/devices/domain.ts)、[迁移](../../packages/server/migrations/0000_baseline.sql)和[任务面板](../../packages/views/src/lab/centrifuge-panel.tsx)。
 
 ## 完成一次任务
 

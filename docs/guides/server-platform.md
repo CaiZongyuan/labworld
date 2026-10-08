@@ -145,7 +145,7 @@ Core 不引用 Lab。应用组合注册 scope 与真实消费者。当前 JSON �
 
 ```bash
 node --test --experimental-strip-types tests/server/core-identity.test.ts tests/server/core-members.test.ts tests/server/core-keys.test.ts tests/server/core-password-command.test.ts
-pnpm contracts:m1:check
+pnpm contracts:baseline:check
 ```
 
 这些检查通过实际 HTTP 或密码命令观察拒绝、读回和恢复。更细的事务、并发与阶段归属见[逐断言映射](../testing/vnext-core-assertions.md)。继续[文件指南](server-files.md)，学习如何在同一事务发布文件与业务引用。

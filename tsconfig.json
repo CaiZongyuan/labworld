@@ -34,8 +34,6 @@
     "tests/server",
     "tests/support/server-process.ts",
     "scripts/server-*.ts",
-    "scripts/*validation-codec.ts",
-    "scripts/check-server-contracts.ts",
     "docs/examples"
   ],
   "exclude": ["node_modules", "target", "apps/docs/.generated"]

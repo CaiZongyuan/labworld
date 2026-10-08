@@ -8,13 +8,13 @@ Place a beaker, explicitly register it on a bench, and keep a draft after anothe
 
 Use the common version specified in the [complete journey](complete-foundation.en.md). Complete [persistent Lab and objects](persistent-world.en.md) and [backend lighting](backend-lights.en.md) first. Run commands from the repository root. Browser operations and the script write development data.
 
-Sources: [layout HTTP](../../crates/app/src/modules/lab/layout.rs), [relationships](../../crates/app/src/modules/lab/relationships.rs), [migration](../../migrations/0022_lab_relationships.sql), [placement Inspector](../../packages/views/src/lab/layout-editor.tsx), [relationship form](../../packages/views/src/lab/relationship-panel.tsx), [real 3D transforms](../../packages/views/src/lab/world-viewport.tsx), and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) lists the tables, contracts, checks, and tutorial.
+Sources: [layout HTTP](../../packages/server/src/lab/world/layout.ts), [relationships](../../packages/server/src/lab/relationships/use-cases.ts), [migration](../../packages/server/migrations/0000_baseline.sql), [placement Inspector](../../packages/views/src/lab/layout-editor.tsx), [relationship form](../../packages/views/src/lab/relationship-panel.tsx), [real 3D transforms](../../packages/views/src/lab/world-viewport.tsx), and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../packages/server/src/lab/ownership.json) lists the tables, contracts, checks, and tutorial.
 
 ## Place and Register in the Browser
 
 ```bash
 pnpm install --frozen-lockfile
-just dev
+pnpm dev
 ```
 
 Open <http://127.0.0.1:5173/lab>, sign in as a Member, and create `Layout lab`. Register `North bench` from `bench · 1.0` and `Beaker A` from `labware · 1.0`, using the built-in appearance.
@@ -72,7 +72,7 @@ Complete requests:
 ```bash
 node scripts/test-backend.mjs --test lab_world --test lab_devices
 pnpm test:frontend apps/web/src/lab-world.test.tsx
-node scripts/e2e.mjs tests/e2e/lab-layout.spec.ts
+node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-layout.spec.ts
 ```
 
 HTTP checks use the real Router and isolated PostgreSQL. Page tests replace only HTTP with MSW. Browser checks use real application services, independent contexts, and WebGL pointers. Continue with [reliable synchronization and recovery](reliable-sync.md) to observe one world from two browsers and an Agent and verify connection recovery and revocation.

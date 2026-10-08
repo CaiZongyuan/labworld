@@ -1,6 +1,5 @@
 name: Perf nightly
-# Current M1 reports use isolated synthetic data and the new service. The full
-# Web journey workload remains pending migration; frozen legacy services do not run.
+# Synthetic reports use isolated Node data and remain separate from real Web journeys.
 on:
   schedule:
     - cron: '23 18 * * *'
@@ -31,7 +30,7 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Report synthetic device persistence, concurrent HTTP and two SSE readers
         run: pnpm spike:server --duration-seconds ${{ inputs.soak_duration_secs || '300' }}
-      - name: Report migrated and pending coverage
+      - name: Report final migration source coverage
         run: node scripts/migration-stage.mjs
       - name: Keep synthetic report and owned cleanup receipts
         if: always()

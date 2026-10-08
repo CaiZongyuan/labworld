@@ -20,7 +20,7 @@ const identity = {
 } satisfies CurrentSession;
 function open() {
   const definitions = JSON.parse(
-    readFileSync('crates/app/src/modules/lab/definitions.json', 'utf8'),
+    readFileSync('packages/server/src/lab/world/catalog.json', 'utf8'),
   );
   const lab = { id: 'lab-one', name: 'Lifecycle lab', layout_version: 1 };
   const entity = {

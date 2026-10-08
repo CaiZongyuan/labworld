@@ -1,0 +1,12 @@
+{
+  "source": "legacy-rust-final",
+  "commit": "2fef28c35afea44ae2018f0e4b6a3a18a96a2bf7",
+  "tree": "ff466d9ead0aa7cac35ccf2e93295daa568aacd7",
+  "purpose": "Immutable previous three-row Node history for safe refusal tests; not runtime migrations",
+  "sha256": {
+    "0000_foundation.sql": "636a191c410c669c63c703ab836e0bb8dd928d55decdf49281245c727399076d",
+    "0001_core_creation_order.sql": "e3f87738309dba203316970b784bca7646e8b71cd3b77fe9a39929c4360b8d3b",
+    "0002_file_content_references.sql": "e2e5c8678d85c87af26da09805a8f6576d4ffef00c511937f72893bf0063d88b",
+    "meta/_journal.json": "ccbd45a0ac93a049199d4f4a2d5c97ab8849ab607ff93e17dd33f7b029cb1465"
+  }
+}

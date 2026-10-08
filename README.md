@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md)
 
 The application includes persistent Labs, assets, Entities, Scene Nodes, saved layouts, observations, Commands, Tasks, records and trends. Users and Agents share the retained HTTP/SSE contract. A single Node service owns the embedded database, local file bytes and runtime; the React Web application consumes its generated SDK.
 
-The migration is in progress under [#45](https://github.com/CaiZongyuan/labworld/issues/45). Frozen Rust and container sources remain until final cleanup; ordinary development and official contract generation use Node. See [product architecture](docs/architecture/lab-word.en.md) and [domain vocabulary](CONTEXT.md).
+The migration is in progress under [#45](https://github.com/CaiZongyuan/labworld/issues/45). Ordinary development, builds, checks and contract generation use Node. Historical Rust source is preserved at the immutable `legacy-rust-final` tag. See [product architecture](docs/architecture/lab-word.en.md) and [domain vocabulary](CONTEXT.md).
 
 ## Run the application
 

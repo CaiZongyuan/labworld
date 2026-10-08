@@ -12,7 +12,7 @@
 
 Member 需要有效会话，写入需要 CSRF。Agent 需要有效的 `lab:full` 密钥。两类调用者遵守相同生命周期规则。
 
-源码：[生命周期 HTTP](../../packages/server/src/lab/world/lifecycle.ts)、[Inspector 控件](../../packages/views/src/lab/entity-lifecycle-panel.tsx)和[迁移](../../packages/server/migrations/0000_foundation.sql)。
+源码：[生命周期 HTTP](../../packages/server/src/lab/world/lifecycle.ts)、[Inspector 控件](../../packages/views/src/lab/entity-lifecycle-panel.tsx)和[迁移](../../packages/server/migrations/0000_baseline.sql)。
 
 ## 移除并放回节点
 

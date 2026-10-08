@@ -37,10 +37,10 @@
 
 例如，把 “After adding SQL, migrate and restart development so the embedded migration set is refreshed.” 改成：
 
-1. After you add SQL migrations, run `just migrate`.
+1. After you append a SQL migration, run `pnpm server migrate`.
 2. Restart development.
 
-The restart updates the migration set in the binary.
+Restart the service to load the new migration set.
 
 提交前逐段核对上表，并与源码和另一语言版本比较。词数是编辑提示，不能代替语义审查。`docs:check` 检查文档结构与来源关系，不验证 STE 合规性。
 
@@ -48,12 +48,12 @@ The restart updates the migration set in the binary.
 
 在中文文件旁创建 `.en.md`，在 [site.json](../site.json)登记稳定 id、两组标题与 source、发布 route、group 和 type。连续章节用 `previous`/`next` 的 id；不相关页面不自动串联。
 
-Markdown 为正文来源；API 来自当前 Node Zod/OpenAPI 与冻结旧栈 OpenAPI；配置来自当前 Node parser 与冻结 Settings。受检查的完整源码可用 `<<<` 引用，避免复制第二份代码。`apps/docs/.generated` 与构建产物由脚本生成；站点图片放在 `apps/docs/public/`。
+Markdown 为正文来源；API 来自正式 Node Zod/OpenAPI，配置来自运行 Node parser。受检查的完整源码可用 `<<<` 引用，避免复制第二份代码。`apps/docs/.generated` 与构建产物由脚本生成；站点图片放在 `apps/docs/public/`。
 
 ```bash
 pnpm docs:check
 pnpm docs:build
-just e2e-docs
+pnpm test:e2e:docs
 ```
 
 前两项检查正文来源、双语关系、生成参考和构建链接；浏览器验证语言、主题、搜索和部署 base。业务 HTTP、组件及实际三维渲染分别按[测试策略](../testing/strategy.md)验证。

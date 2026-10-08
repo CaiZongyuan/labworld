@@ -8,7 +8,7 @@ Goal: start two independent lights, invoke the same commands as a Member and an 
 
 Use the current checkout containing this chapter's Node implementation. Complete [Node World](../guides/server-world.en.md) first. You need a Lab, Entities, separate nodes, pinned definitions and a `lab:full` credential. Run commands from the repository root. Browser operations and the script write development data.
 
-Entry points are [device HTTP](../../packages/server/src/lab/devices/use-cases.ts), the [public device runtime and observation interface](../../packages/server/src/lab/devices/runtime.ts), [migration](../../packages/server/migrations/0000_foundation.sql), [source-order migration](../../packages/server/migrations/0000_foundation.sql), [Inspector](../../packages/views/src/lab/device-panel.tsx), [3D appearance](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../crates/app/src/modules/lab/module.json) registers the new tables, contracts, tests and tutorials.
+Entry points are [device HTTP](../../packages/server/src/lab/devices/use-cases.ts), the [public device runtime and observation interface](../../packages/server/src/lab/devices/runtime.ts), [migration](../../packages/server/migrations/0000_baseline.sql), [source-order migration](../../packages/server/migrations/0000_baseline.sql), [Inspector](../../packages/views/src/lab/device-panel.tsx), [3D appearance](../../packages/views/src/lab/world-viewport.tsx) and [generated SDK](../../packages/sdk/src/generated/sdk.gen.ts). [Lab ownership](../../packages/server/src/lab/ownership.json) registers the new tables, contracts, tests and tutorials.
 
 ## Get the First Browser Observation
 
