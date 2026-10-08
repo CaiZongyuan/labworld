@@ -44,34 +44,6 @@ test(
       child.env = { LAB_WORD_DATA_DIR: directory };
       child.args = args;
       try {
-        await mkdir(baselineRoot);
-        const source = execFileSync(
-          'git',
-          [
-            'archive',
-            '--format=tar',
-            baselineRevision,
-            'apps/server',
-            'packages/server',
-          ],
-          { maxBuffer: 32 * 1024 * 1024 },
-        );
-        execFileSync('tar', ['-xf', '-', '-C', baselineRoot], {
-          input: source,
-        });
-        for (const path of [
-          'node_modules',
-          'apps/server/node_modules',
-          'packages/server/node_modules',
-        ]) {
-          const target = join(baselineRoot, path);
-          await mkdir(join(target, '..'), { recursive: true });
-          await symlink(
-            await realpath(resolve(path)),
-            target,
-            process.platform === 'win32' ? 'junction' : 'dir',
-          );
-        }
         await child.spawn();
         const code = await until(
           async () => child.child!.exitCode,
@@ -95,6 +67,34 @@ test(
       }
     }
     try {
+      await mkdir(baselineRoot);
+      const source = execFileSync(
+        'git',
+        [
+          'archive',
+          '--format=tar',
+          baselineRevision,
+          'apps/server',
+          'packages/server',
+        ],
+        { maxBuffer: 32 * 1024 * 1024 },
+      );
+      execFileSync('tar', ['-xf', '-', '-C', baselineRoot], {
+        input: source,
+      });
+      for (const path of [
+        'node_modules',
+        'apps/server/node_modules',
+        'packages/server/node_modules',
+      ]) {
+        const target = join(baselineRoot, path);
+        await mkdir(join(target, '..'), { recursive: true });
+        await symlink(
+          await realpath(resolve(path)),
+          target,
+          process.platform === 'win32' ? 'junction' : 'dir',
+        );
+      }
       const journal = JSON.parse(
         await readFile(
           join(baselineRoot, 'packages/server/migrations/meta/_journal.json'),
