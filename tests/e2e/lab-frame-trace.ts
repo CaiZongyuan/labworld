@@ -13,7 +13,9 @@ type MarkName =
   | 'assertion-end'
   | 'ack-capture-end';
 type TraceFile =
-  'light-start-frame-trace.json' | 'observer-readiness-frame-trace.json';
+  | 'centrifuge-start-frame-trace.json'
+  | 'light-start-frame-trace.json'
+  | 'observer-readiness-frame-trace.json';
 async function deadline<T>(promise: Promise<T>, milliseconds: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
