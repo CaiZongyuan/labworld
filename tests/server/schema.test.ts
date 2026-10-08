@@ -36,6 +36,7 @@ const retained = [
   'lab.entities',
   'lab.entity_relationships',
   'lab.history_bounds',
+  'lab.guide_progress',
   'lab.labs',
   'lab.observation_history',
   'lab.program_runs',

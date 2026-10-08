@@ -6,7 +6,7 @@ import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 
 test(
-  'a single baseline migrates once and preserves identity and applied history across startup and reopening',
+  'the immutable baseline and approved append migrate once and preserve identity and applied history across startup and reopening',
   { timeout: 90000 },
   async () => {
     const target = await new ServerProcess().create();
@@ -59,7 +59,7 @@ test(
       );
       assert.deepEqual(JSON.parse(target.logs.trim()), {
         status: 'migrated',
-        schemaVersion: 1,
+        schemaVersion: 2,
       });
       await target.stop();
       target.entry = 'apps/server/src/main.ts';
@@ -71,10 +71,10 @@ test(
         'GET',
         '/api/v1/system/status',
       );
-      assert.equal(status.schema_version, 1);
+      assert.equal(status.schema_version, 2);
       await target.stop();
       const first = await history('baseline.first-history');
-      assert.equal(first.length, 1);
+      assert.equal(first.length, 2);
       await target.start();
       assert.equal(
         (await new CoreHttp(target.url).login('baseline@example.test')).user.id,

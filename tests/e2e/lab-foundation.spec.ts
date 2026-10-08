@@ -1,7 +1,7 @@
 import { showObjectDirectory } from './lab-desktop';
 import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
 import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
-import { expect, test } from '@playwright/test';
+import { expect, test, type CDPSession } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { type LabEntity } from '../../packages/sdk/src/index';
@@ -352,6 +352,57 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
           ]);
           const dom = domFact.status === 'ack' ? domFact.value : null;
           frameTrace.mark('ack-capture-end');
+          const expectedLabPath = new URL(observer.url()).pathname === '/lab';
+          let viewportCapture: Record<string, unknown> = {
+            status: 'skipped',
+            expectedLabPath,
+          };
+          if (
+            process.env.LAB_NODE_EVIDENCE &&
+            /^[0-9a-f-]{36}$/i.test(lab) &&
+            expectedLabPath
+          ) {
+            let session: CDPSession | undefined;
+            let captureOpen = true;
+            const started = performance.now();
+            const viewport = await boundedBrowserFact(async () => {
+              const owned = await observer.context().newCDPSession(observer);
+              if (!captureOpen) {
+                void owned.detach().catch(() => {});
+                throw new Error('Capture deadline');
+              }
+              session = owned;
+              const result = await owned.send('Page.captureScreenshot', {
+                format: 'png',
+                fromSurface: true,
+                captureBeyondViewport: false,
+              });
+              return result.data;
+            });
+            captureOpen = false;
+            void session?.detach().catch(() => {});
+            viewportCapture = {
+              status: viewport.status,
+              elapsedMs: viewport.elapsedMs,
+              expectedLabPath,
+              ...(viewport.status === 'error'
+                ? { errorName: viewport.errorName }
+                : {}),
+            };
+            if (viewport.status === 'ack')
+              try {
+                writeFileSync(
+                  `${process.env.LAB_NODE_EVIDENCE}/observer-readiness.png`,
+                  Buffer.from(viewport.value, 'base64'),
+                );
+              } catch {
+                viewportCapture = {
+                  status: 'write-error',
+                  elapsedMs: performance.now() - started,
+                  expectedLabPath,
+                };
+              }
+          }
           writeFileSync(
             `${process.env.LAB_NODE_EVIDENCE}/observer-readiness.json`,
             JSON.stringify({
@@ -359,6 +410,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
               assertionEndedAtMs,
               capturedAtMs: performance.now() - readinessStart,
               browserFacts,
+              viewportCapture,
               domCapture: {
                 status: domFact.status,
                 elapsedMs: domFact.elapsedMs,

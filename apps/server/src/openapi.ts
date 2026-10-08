@@ -5,6 +5,8 @@ import type { FoundationContext } from '../../../packages/server/src/platform/co
 import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 import type { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
 import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
+import { progressRoutes } from '../../../packages/server/src/lab/progress/routes.ts';
+import type { ProgressService } from '../../../packages/server/src/lab/progress/use-cases.ts';
 import type { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
 import { deviceRoutes } from '../../../packages/server/src/lab/devices/routes.ts';
 import type { DeviceService } from '../../../packages/server/src/lab/devices/use-cases.ts';
@@ -30,6 +32,7 @@ const app = coreApp(
 );
 assetRoutes(app, undefined as unknown as FileService);
 worldRoutes(app, undefined as unknown as WorldService);
+progressRoutes(app, undefined as unknown as ProgressService);
 lifecycleRoutes(app, undefined as unknown as WorldService);
 deviceRoutes(app, undefined as unknown as DeviceService);
 subscriptionRoutes(app, undefined as unknown as WorldSubscriptions);

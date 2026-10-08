@@ -17,7 +17,13 @@
       "trendBytes": 262144,
       "trendRangeSeconds": 86400,
       "entitiesPerLab": 1000,
-      "nodesPerLab": 1000
+      "nodesPerLab": 1000,
+      "guideProgressReadSqlStatements": 6,
+      "guideProgressSaveSqlStatements": 8,
+      "guideProgressRequestBytes": 8192,
+      "guideProgressContextBytes": 4096,
+      "guideProgressReadBytes": 12288,
+      "guideProgressSaveBytes": 6144
     },
     "bundle": {
       "initialGzipKiB": 400,
@@ -26,16 +32,24 @@
     }
   },
   "firstMeasured": {
-    "note": "First recorded baseline (2026-09-27, local x86_64 WSL2, node 24, vite build). Adjusting a budget requires PR evidence per spec §17.1 — a failing gate is never silenced by raising the number in the same change that broke it.",
+    "note": "First recorded baseline (2026-09-27, local x86_64 WSL2, node 24, vite build). Adjusting a budget requires PR evidence per spec \u00a717.1 \u2014 a failing gate is never silenced by raising the number in the same change that broke it.",
     "bundle": {
       "initialGzipKiB": 174.4,
       "chunks": [
-        { "name": "index.js", "role": "initial", "gzipKiB": 174.4 },
-        { "name": "markdown-content.js", "role": "async", "gzipKiB": 46.7 }
+        {
+          "name": "index.js",
+          "role": "initial",
+          "gzipKiB": 174.4
+        },
+        {
+          "name": "markdown-content.js",
+          "role": "async",
+          "gzipKiB": 46.7
+        }
       ]
     },
     "queryPlans": {
-      "note": "First recorded query-plan baseline (2026-09-27, local x86_64 WSL2, postgres from the compose config, EXPLAIN ANALYZE). Regenerate with `just perf`; this is review material, never a gate — a Seq Scan is recorded, not failed. Parameters are inlined as literals, so plans may differ from sqlx's prepared-statement path.",
+      "note": "First recorded query-plan baseline (2026-09-27, local x86_64 WSL2, postgres from the compose config, EXPLAIN ANALYZE). Regenerate with `just perf`; this is review material, never a gate \u2014 a Seq Scan is recorded, not failed. Parameters are inlined as literals, so plans may differ from sqlx's prepared-statement path.",
       "tiers": [
         {
           "rows": 10,

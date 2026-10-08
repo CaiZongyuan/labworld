@@ -33,7 +33,11 @@ On Linux, SIGTERM/SIGINT cancels archive work, drains the current copy and close
 
 Log in with the original account. Open its Lab and download the asset. Identity and bytes remain the same. Retry an acknowledged Command with its original key and parameters to receive the original result. Startup interrupts old Runs. It does not replay Commands or resume long Tasks. A fresh signer issues new byte URLs.
 
-The current build uses one `0000_baseline` migration. Startup and migration check existing applied history before running migration SQL. Earlier Node histories and archives are unsupported and are refused without conversion or target publication. Preserve those directories and archives; use their original source version to read them. Select a new data directory for this baseline. These commands do not convert or delete earlier Node or Rust/PostgreSQL data.
+The current build appends `0001_guide_progress` after `0000_baseline` and uses schema version 2. Startup and migration check existing history against the known migration prefix before running SQL.
+
+Restore supports baseline schema 1 and current schema 2 archives. Applied migration hashes and timestamps must match an exact prefix of the known sequence. Restore first checks the original manifest against staged database history, engine metadata, ready references and file bytes. Only then does it append missing migrations in owned staging and publish schema version 2. The source archive remains unchanged.
+
+Pre-baseline Node histories and Rust/PostgreSQL data remain unsupported. These commands refuse those archives and do not convert or delete those data directories. Preserve them and use their original source version to read them. Choose a new data directory for the current build.
 
 ## Migrate and Recover a Password
 

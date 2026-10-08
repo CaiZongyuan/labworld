@@ -279,11 +279,15 @@ export async function restore(
         throw new Error('Restored ready file is invalid');
     }
     await db.close();
+    db = new Database(workspace.lease);
+    await db.initialize();
+    const upgraded = await db.archiveFacts();
+    await db.close();
     await workspace.publish(signal);
     return {
       status: 'restored',
       format: manifest.format,
-      schemaVersion: actual.schemaVersion,
+      schemaVersion: upgraded.schemaVersion,
       files: files.length,
     };
   } finally {

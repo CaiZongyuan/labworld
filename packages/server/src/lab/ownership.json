@@ -94,6 +94,17 @@
     "ChangeEntityDefinition",
     "archiveLabEntity",
     "changeLabEntityAppearance",
-    "changeLabEntityDefinition"
+    "changeLabEntityDefinition",
+    "LabGuideStatus",
+    "LabGuideStep",
+    "GuideBusinessOperation",
+    "GuideBusinessAttempt",
+    "LabGuideContext",
+    "SaveLabGuideProgress",
+    "LabGuideProgress",
+    "LabGuideCompatibility",
+    "LabGuideProgressRead",
+    "getLabGuideProgress",
+    "saveLabGuideProgress"
   ]
 }
