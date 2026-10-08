@@ -383,7 +383,7 @@ test('an old identity cannot apply a pending registration to the new identity co
       lab: 'lab-one',
       entity: 'bench-one',
     });
-    expect(screen.getByLabelText('X (m)')).toHaveValue(7);
+    expect(screen.getByLabelText('X (m)')).toHaveValue('7');
     expect(
       screen.getByRole('status', { name: '布局保存状态' }),
     ).toHaveTextContent('未保存');
@@ -459,7 +459,7 @@ test('mode and panel changes retain a private layout draft without creating anot
   await user.click(screen.getByRole('button', { name: '关闭对象信息' }));
   await user.click(screen.getByRole('button', { name: '打开对象信息' }));
   await user.click(screen.getByRole('tab', { name: '编辑布局' }));
-  expect(screen.getByLabelText('X (m)')).toHaveValue(3);
+  expect(screen.getByLabelText('X (m)')).toHaveValue('3');
   expect(
     screen.getByRole('status', { name: '布局保存状态' }),
   ).toHaveTextContent('未保存');
@@ -481,7 +481,7 @@ test('mode and panel changes retain a private layout draft without creating anot
   await user.click(screen.getByRole('button', { name: '打开对象目录' }));
   await user.click(screen.getByRole('button', { name: '选择 Second bench' }));
   await user.click(screen.getByRole('tab', { name: '编辑布局' }));
-  expect(screen.getByLabelText('X (m)')).toHaveValue(3);
+  expect(screen.getByLabelText('X (m)')).toHaveValue('3');
 });
 
 test('a save that completes after changing Lab clears only its original draft', async () => {
@@ -549,7 +549,7 @@ test('a save that completes after changing Lab clears only its original draft', 
       lab: 'lab-one',
       entity: 'bench-one',
     });
-    expect(screen.getByLabelText('X (m)')).toHaveValue(7);
+    expect(screen.getByLabelText('X (m)')).toHaveValue('7');
     expect(
       screen.getByRole('status', { name: '布局保存状态' }),
     ).toHaveTextContent('未保存');
@@ -653,7 +653,7 @@ test('returning to a Lab retains its conflict recovery and can save the rebased 
   await user.click(screen.getByRole('tab', { name: '编辑布局' }));
   await user.click(screen.getByRole('button', { name: '打开对象目录' }));
   await user.click(screen.getByRole('button', { name: '选择 Second bench' }));
-  expect(screen.getByLabelText('X (m)')).toHaveValue(3);
+  expect(screen.getByLabelText('X (m)')).toHaveValue('3');
   await user.click(screen.getByRole('button', { name: '重试保存' }));
   await waitFor(() =>
     expect(

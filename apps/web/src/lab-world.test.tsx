@@ -409,12 +409,12 @@ test('a layout conflict keeps the coordinate draft and reloads additions before 
   });
   await user.click(screen.getByRole('button', { name: '保存布局' }));
   expect(await screen.findByText('布局已改变，草稿已保留')).toBeVisible();
-  expect(x).toHaveValue(2);
+  expect(x).toHaveValue('2');
   await user.clear(x);
   await user.type(x, '3');
   await user.click(screen.getByRole('button', { name: '重新载入并保留草稿' }));
   expect(await screen.findByText('added-by-other')).toBeVisible();
-  expect(screen.getByLabelText('X (m)')).toHaveValue(3);
+  expect(screen.getByLabelText('X (m)')).toHaveValue('3');
   await user.click(screen.getByRole('button', { name: '重试保存' }));
   await waitFor(() =>
     expect(
