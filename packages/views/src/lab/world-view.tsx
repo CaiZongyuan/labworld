@@ -75,6 +75,8 @@ import WorldDialog, {
   type WorldSubmission,
 } from './world-dialog';
 import DevicePanel from './device-panel';
+import EntityDetail from './entity-detail';
+import { readEntityObservations } from './observation-state';
 import HistoryPanel from './history-panel';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
@@ -129,7 +131,11 @@ export default function WorldView() {
     layoutPending,
     setLayoutPending,
     attempts,
-    setAttempts,
+    setCommandAttempt,
+    deviceInputs,
+    setDeviceInput,
+    programAttempts,
+    setProgramAttempt,
     setActiveLab,
     mutation,
   } = useLabWorkbench();
@@ -968,8 +974,37 @@ export default function WorldView() {
               onClick={closeInspector}
             />
           </header>
-          {selected ? (
-            <>
+          {selected && world.data ? (
+            <EntityDetail
+              key={selected.id}
+              entity={selected}
+              world={world.data}
+              apiClient={apiClient}
+              editing={editing}
+              onConfigure={() => setDialog(selected)}
+              connected={connection.status === 'live'}
+              operations={
+                <DevicePanel
+                  entity={selected}
+                  apiClient={apiClient}
+                  identity={identity}
+                  attempts={attempts[selected.id]}
+                  onAttempt={(attempt) =>
+                    setCommandAttempt(selected.id, attempt)
+                  }
+                  onRefresh={world.refetch}
+                  runtimeAvailable={connection.available}
+                  connected={connection.status === 'live'}
+                  lastSyncedAt={world.dataUpdatedAt}
+                  input={deviceInputs[selected.id]}
+                  programAttempt={programAttempts[selected.id]}
+                  onProgramAttempt={(attempt) =>
+                    setProgramAttempt(selected.id, attempt)
+                  }
+                  onInput={(input) => setDeviceInput(selected.id, input)}
+                />
+              }
+            >
               <section className="lab-inspector-section">
                 <div className="lab-section-heading">
                   <h3>{selected.name}</h3>
@@ -977,6 +1012,7 @@ export default function WorldView() {
                     icon={Pencil}
                     label={message('world.configure')}
                     onClick={() => setDialog(selected)}
+                    disabled={connection.status !== 'live'}
                   />
                 </div>
                 <dl className="world-properties">
@@ -997,34 +1033,66 @@ export default function WorldView() {
                       : '-'}
                   </dd>
                   <dt>{message('world.binding')}</dt>
+                  <dd>{selected.binding?.id ?? message('world.noBinding')}</dd>
+                  <dt>{message('device.program')}</dt>
                   <dd>
                     {selected.binding?.program_id ?? message('world.noBinding')}
                   </dd>
+                  <dt>{message('assets.source')}</dt>
+                  <dd>
+                    {selected.binding?.source ?? message('world.noBinding')}
+                  </dd>
+                  <dt>Run</dt>
+                  <dd>
+                    {selected.program_run?.id ?? message('device.not_started')}
+                  </dd>
+                  {selected.program_run ? (
+                    <>
+                      <dt>{message('detail.runBinding')}</dt>
+                      <dd>{selected.program_run.binding_id}</dd>
+                      <dt>{message('detail.runStatus')}</dt>
+                      <dd>
+                        {message(`device.${selected.program_run.status}`)}
+                      </dd>
+                    </>
+                  ) : null}
+                  <dt>Task</dt>
+                  <dd>{selected.task?.id ?? message('detail.noTask')}</dd>
+                  {selected.task ? (
+                    <>
+                      <dt>{message('detail.taskRun')}</dt>
+                      <dd>{selected.task.run_id}</dd>
+                      <dt>Command</dt>
+                      <dd>{selected.task.command_id}</dd>
+                      <dt>{message('detail.taskStatus')}</dt>
+                      <dd>{message(`task.${selected.task.status}`)}</dd>
+                    </>
+                  ) : null}
+                  <dt>{message('task.result')}</dt>
+                  <dd>
+                    {selected.task_result?.id ?? message('detail.noResult')}
+                  </dd>
+                  {selected.task_result ? (
+                    <>
+                      <dt>{message('task.resultStatus')}</dt>
+                      <dd>{message(`task.${selected.task_result.status}`)}</dd>
+                    </>
+                  ) : null}
                   <dt>{message('world.observation')}</dt>
                   <dd>
                     {selected.observation
                       ? message(
-                          `device.freshness.${selected.observation.freshness}`,
+                          readEntityObservations(
+                            selected,
+                            connection.status === 'live',
+                          ).currentValid
+                            ? 'device.validObservation'
+                            : 'device.noValidObservation',
                         )
                       : message('world.unknown')}
                   </dd>
                 </dl>
               </section>
-              <DevicePanel
-                key={selected.id}
-                entity={selected}
-                apiClient={apiClient}
-                identity={identity}
-                attempt={attempts[selected.id]}
-                onAttempt={(attempt) =>
-                  setAttempts((previous) => ({
-                    ...previous,
-                    [selected.id]: attempt,
-                  }))
-                }
-                onRefresh={world.refetch}
-                runtimeAvailable={connection.available}
-              />
               <EntityLifecyclePanel
                 key={`lifecycle-${selected.id}`}
                 entity={selected}
@@ -1034,7 +1102,9 @@ export default function WorldView() {
                 )}
                 apiClient={apiClient}
                 identity={identity}
-                disabled={!!draft || layoutPending}
+                disabled={
+                  !!draft || layoutPending || connection.status !== 'live'
+                }
                 onRefresh={world.refetch}
                 onArchived={() => setArchivedOnly(true)}
                 hasMoreAssets={catalog.query.hasNextPage}
@@ -1206,7 +1276,7 @@ export default function WorldView() {
                     : selected.definition.name}
                 </small>
               </section>
-            </>
+            </EntityDetail>
           ) : (
             <Empty>
               <EmptyHeader>

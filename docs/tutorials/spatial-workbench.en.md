@@ -20,7 +20,7 @@ Open <http://127.0.0.1:5173/lab>. Sign in as the Member who registered the objec
 1. Use **Open Lab** to choose the Lab from the previous chapter.
 2. Click **Collapse navigation**. The narrow rail retains business entries and the single account entry at the bottom. Hover over an icon for its name. **Expand navigation** restores the navigation width.
 3. Click **Open object directory**. Search by name or filter by category, unplaced state, or archived state. Directory checkboxes retain multiple selection.
-4. Select a directory entry or its scene representation. Object info shows the same Entity identity. Multiple nodes can still represent one Entity.
+4. Select a directory entry or its scene representation. Object info keeps the same Entity. Open **Details** to inspect its full identity. Multiple nodes can still represent one Entity.
 5. Click **Close object directory** and **Close object details**. The camera retains its angle and the scene regains space. **Open object details** shows the current selection again.
 6. Orbit and zoom to inspect the scene. **Fit model** changes the framing. **Grid** and **Performance** control their respective displays.
 
@@ -64,4 +64,4 @@ pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.
 node scripts/e2e.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. They check external canvas area, camera pixels, deep links, panels, focus, and narrow-screen commands. Continue with [Backend lighting control](backend-lights.md). The same object details distinguish commands from actual observations.
+Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. They check external canvas area, camera pixels, deep links, panels, focus, and narrow-screen commands. Continue with [shared device details](device-details.md). Check targets, Commands, actual observations and task results separately.

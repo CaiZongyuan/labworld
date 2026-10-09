@@ -18,10 +18,10 @@ just dev
 Open <http://127.0.0.1:5173/lab>, sign in as a Member and create `Lighting lab`. Register `Light A` and `Light B` using `Smart light · 1.0`, built-in appearance and simulated identity.
 
 1. Select A. Without a report, it shows **Unknown · No observation**. Its Binding implements lighting, but the program is not started and actions are not executable.
-2. Click **Start program** and record its Run UUID. Starting does not invent an observation. Toggle **Power**: submission and waiting appear before execution completes and the actual observation arrives. The shade emits light from the server report.
+2. Open **Operations** and select **Start program**. Expand **Source identities** or open **Details** to read the Run UUID. Starting does not invent observations. Toggle **Power** and check submission, execution and reports separately. **Requested power target** retains the requested value. The shade uses server reports.
 3. Enter `35` in **Target brightness (%)** and click **Apply**. This input is separate from **Reported brightness**, which becomes `35 %` only after the device reports it.
 4. Start B and turn on its power. Its Run, Binding, source and observation are independent; dimming A does not change B.
-5. Close and reopen the page. Programs run on the backend and observations remain readable. Click A's **Stop program**: the last values and source time remain, with **Source stopped** freshness. Stopping a program does not turn off the light.
+5. Close and reopen the page. Backend programs continue. Select A's **Stop program** and confirm. Values and source timestamps remain as last reports. Stopping the program does not turn off the light.
 
 Only the built-in backend `light.v1` program executes; user code is not supported. A Run snapshots instance configuration at startup; later configuration edits apply on the next start. Migration gives previously registered simulated lights a Binding without rewriting their pinned definitions. Entity capabilities obtain execution metadata from the Binding and separately report definition support, implementation and current executability. Physical identities still have no execution Binding.
 

@@ -36,6 +36,36 @@ test('a member keeps the last observation through duplicate, old, interrupted an
     observed_at: '2026-10-03T06:00:00Z',
     received_at: '2026-10-03T06:00:00Z',
     updated_at: '2026-10-03T06:00:00Z',
+    properties: {
+      on: {
+        value: false,
+        binding_id: 'binding',
+        run_id: 'run',
+        source: 'simulated:light',
+        sequence: 1,
+        quality: 'good',
+        freshness: 'current',
+        unit: null,
+        observed_at: '2026-10-03T06:00:00Z',
+        received_at: '2026-10-03T06:00:00Z',
+        updated_at: '2026-10-03T06:00:00Z',
+        expires_at: '2026-10-03T06:00:05Z',
+      },
+      brightness: {
+        value: 35,
+        binding_id: 'binding',
+        run_id: 'run',
+        source: 'simulated:light',
+        sequence: 1,
+        quality: 'good',
+        freshness: 'current',
+        unit: '%',
+        observed_at: '2026-10-03T06:00:00Z',
+        received_at: '2026-10-03T06:00:00Z',
+        updated_at: '2026-10-03T06:00:00Z',
+        expires_at: '2026-10-03T06:00:05Z',
+      },
+    },
   };
   const entity = {
     id: 'light',
@@ -48,7 +78,11 @@ test('a member keeps the last observation through duplicate, old, interrupted an
     definition,
     configuration: {},
     representation_id: null,
-    binding: { program_id: 'light.v1' },
+    binding: {
+      id: 'binding',
+      program_id: 'light.v1',
+      source: 'simulated:light',
+    },
     program_run: { id: 'run', status: 'running' },
     observation,
     capabilities: definition.capabilities.map(
@@ -159,7 +193,14 @@ test('a member keeps the last observation through duplicate, old, interrupted an
         collection: 'entities',
         id: 'light',
         patch: {
-          observation: { ...observation, values: { on: true, brightness: 35 } },
+          observation: {
+            ...observation,
+            values: { on: true, brightness: 35 },
+            properties: {
+              ...observation.properties,
+              on: { ...observation.properties.on, value: true },
+            },
+          },
         },
       },
     ],

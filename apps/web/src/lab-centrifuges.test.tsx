@@ -5,7 +5,7 @@ import {
   type CurrentSession,
   type LabEntity,
 } from '@labos-threejs/sdk';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
@@ -37,7 +37,10 @@ function Harness() {
     observation: null,
     task: null,
     task_result: null,
-    capabilities: [{ id: 'centrifuge.start', executable: true }],
+    capabilities: [
+      { id: 'centrifuge.start', binding_implemented: true, executable: true },
+      { id: 'centrifuge.stop', binding_implemented: true, executable: true },
+    ],
   } as unknown as LabEntity;
   return (
     <DevicePanel
@@ -113,6 +116,11 @@ test('centrifuge submits fixed typed parameters and keeps Stop available while a
     release = resolve;
   });
   server.use(
+    http.get(
+      'http://api.test/api/v1/lab/labs/lab/entities/centrifuge/commands/:id',
+      ({ params }) =>
+        HttpResponse.json({ id: params.id, status: 'succeeded', result: null }),
+    ),
     http.post(
       'http://api.test/api/v1/lab/labs/lab/entities/centrifuge/actions',
       async ({ request }) => {
@@ -145,6 +153,11 @@ test('centrifuge submits fixed typed parameters and keeps Stop available while a
   expect(screen.getByRole('button', { name: '开始离心' })).toBeDisabled();
   expect(screen.getByRole('button', { name: '停止离心' })).toBeEnabled();
   await user.click(screen.getByRole('button', { name: '停止离心' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', {
+      name: '停止离心',
+    }),
+  );
   await waitFor(() => expect(calls).toHaveLength(2));
   expect(calls[1]).toEqual({ capability: 'centrifuge.stop', parameters: {} });
   release();

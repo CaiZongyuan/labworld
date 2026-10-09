@@ -393,9 +393,11 @@ test('an old identity cannot apply a pending registration to the new identity co
 });
 
 test('a valid deep link restores its Lab and Entity rather than the first Lab', async () => {
-  open('/lab?lab=lab-two&entity=bench-two&view=space');
+  const { user } = open('/lab?lab=lab-two&entity=bench-two&view=space');
   await screen.findByRole('heading', { name: 'Second lab' });
-  const inspector = screen.getByRole('complementary', { name: '对象信息' });
+  expect(screen.getByRole('heading', { name: 'Second bench' })).toBeVisible();
+  await user.click(screen.getByRole('tab', { name: '详情' }));
+  const inspector = screen.getByRole('tabpanel', { name: '详情' });
   expect(
     within(inspector).getByText('bench-two', { exact: true }),
   ).toBeVisible();

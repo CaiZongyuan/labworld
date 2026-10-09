@@ -51,6 +51,7 @@ export function useWorldSubscription(
           labId,
           signal: controller.signal,
           onWorld(world) {
+            if (controller.signal.aborted) return;
             client.setQueryData<LabWorld>(
               ['lab', 'world', apiClient.getConfig().baseUrl, userId, labId],
               (previous) =>
@@ -62,6 +63,7 @@ export function useWorldSubscription(
             update('live');
           },
           onEvent(event) {
+            if (controller.signal.aborted) return;
             if (event.type === 'runtime_status')
               update('live', event.available);
             if (event.type === 'access_ended') {

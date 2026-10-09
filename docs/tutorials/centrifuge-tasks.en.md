@@ -56,10 +56,11 @@ The allowed target speed is `500` through `15000 rpm`. Temperature is `-10` thro
 3. Set **Task duration (s)** to `60`.
 4. Select **Start centrifuge**.
 5. Select **Stop centrifuge** while the task is active.
+6. Select **Stop centrifuge** again in the confirmation dialog.
 
    The task decelerates. Its result becomes cancelled at zero RPM. The program remains running. Centrifuge A keeps its own configuration, task and observations.
 
-**Stop centrifuge** cancels the active DeviceTask. **Stop program** ends the Device Program Run. The API rejects program stop while a task is active. Program stop is available when no task is active.
+**Stop centrifuge** cancels the active DeviceTask. Confirming **Stop program** ends the Device Program Run. The API rejects program stop while a task is active. Program stop is available when no task is active.
 
 The built-in representation names `centrifuge-rotor` and rotates around its local Y axis. The browser calculates its rotation from reported `speed` in RPM. Each instance owns its rotor and changing material. Imported GLB appearances have no rotor mapping. They remain static, even when the Entity runs a task.
 

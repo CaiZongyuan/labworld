@@ -159,6 +159,7 @@ test('running appearance changes keep identity and archive rejection recovers af
   await user.click(
     await screen.findByRole('button', { name: '选择 Device A' }),
   );
+  await user.click(screen.getByRole('tab', { name: '详情' }));
   await user.click(screen.getByRole('button', { name: '更换外观' }));
   let dialog = screen.getByRole('dialog');
   await user.selectOptions(
@@ -176,7 +177,14 @@ test('running appearance changes keep identity and archive rejection recovers af
   ).toBeVisible();
   expect(entity.archived_at).toBeNull();
   await user.click(within(dialog).getByRole('button', { name: '取消' }));
+  await user.click(screen.getByRole('tab', { name: '操作' }));
   await user.click(screen.getByRole('button', { name: '停止程序' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', {
+      name: '停止程序',
+    }),
+  );
+  await user.click(screen.getByRole('tab', { name: '详情' }));
   await user.click(screen.getByRole('button', { name: '归档对象' }));
   await user.click(
     within(screen.getByRole('dialog')).getByRole('button', { name: '归档' }),
@@ -186,6 +194,7 @@ test('running appearance changes keep identity and archive rejection recovers af
     await within(inspector).findByText('已归档', { exact: true }),
   ).toBeVisible();
   expect(within(inspector).getByText('device', { exact: true })).toBeVisible();
+  await user.click(screen.getByRole('tab', { name: '操作' }));
   expect(
     within(inspector).getByRole('button', { name: '启动程序' }),
   ).toBeDisabled();

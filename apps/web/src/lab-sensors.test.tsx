@@ -169,7 +169,7 @@ test('the temperature Inspector keeps expired measurements and shows source time
   await user.click(
     await screen.findByRole('button', { name: '选择 Sensor A' }),
   );
-  const inspector = screen.getByRole('complementary', { name: '对象信息' });
+  const inspector = screen.getByRole('tabpanel', { name: '操作' });
   expect(
     within(inspector).getByText('未知 · 无观测', { exact: true }),
   ).toBeVisible();
@@ -190,6 +190,11 @@ test('the temperature Inspector keeps expired measurements and shows source time
     within(inspector).queryByRole('spinbutton', { name: '目标亮度' }),
   ).not.toBeInTheDocument();
   await user.click(within(inspector).getByRole('button', { name: '停止程序' }));
+  await user.click(
+    within(screen.getByRole('dialog')).getByRole('button', {
+      name: '停止程序',
+    }),
+  );
   expect(
     await within(
       within(inspector).getByRole('region', { name: '观测温度' }),
@@ -212,11 +217,8 @@ test('the temperature Inspector keeps expired measurements and shows source time
     within(temperature).getByText('不确定', { exact: true }),
   ).toBeVisible();
   expect(
-    within(temperature).getAllByText(
-      new Date('2026-10-03T06:00:01Z').toLocaleString(),
-      { exact: true },
-    ),
-  ).toHaveLength(2);
+    temperature.querySelector('time[datetime="2026-10-03T06:00:01Z"]'),
+  ).toBeVisible();
   await user.click(screen.getByRole('button', { name: 'English' }));
   const english = within(
     screen.getByRole('complementary', { name: 'Object info' }),

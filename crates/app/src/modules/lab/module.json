@@ -51,6 +51,8 @@
     "migrations/0028_lab_entity_lifecycle.sql"
   ],
   "tests": [
+    "apps/web/src/lab-device-details.test.tsx",
+    "tests/e2e/lab-device-details.spec.ts",
     "apps/web/src/lab-workbench.test.tsx",
     "tests/e2e/lab-workbench.spec.ts",
     "tests/e2e/lab-workbench-review.spec.ts",
@@ -89,6 +91,8 @@
     "tests/fixtures/lab"
   ],
   "tutorials": [
+    "docs/tutorials/device-details.md",
+    "docs/tutorials/device-details.en.md",
     "docs/tutorials/spatial-workbench.md",
     "docs/tutorials/spatial-workbench.en.md",
     "apps/docs/public/lab-foundation-v1.png",

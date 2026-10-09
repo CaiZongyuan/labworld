@@ -1,3 +1,10 @@
+.device-capability-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+}
 .world-body {
   display: grid;
   grid-template-columns: var(--directory-width, 0px) minmax(0, 1fr) var(
@@ -7,11 +14,125 @@
   flex: 1;
   min-height: 0;
 }
+.device-key-readings {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.device-key-readings > :only-child {
+  grid-column: 1 / -1;
+}
+.observation-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.observation-summary .observation-value {
+  min-height: 28px;
+  font-size: 22px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.observation-status,
+.observation-provenance-summary {
+  color: var(--muted-foreground);
+}
+.observation-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.observation-provenance-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.device-readings .lab-section-heading {
+  flex-wrap: wrap;
+}
+.device-readings [data-slot='badge'] {
+  max-width: 100%;
+  white-space: normal;
+}
+.device-source-trace {
+  font-size: 11px;
+  margin-bottom: 10px;
+}
+.device-panel output {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
 .world-body[data-directory-open='true'] {
   --directory-width: 232px;
 }
 .world-body[data-inspector-open='true'] {
-  --inspector-width: 292px;
+  --inspector-width: 360px;
+}
+.entity-detail {
+  min-width: 0;
+  flex-shrink: 0;
+  grid-column: 1 / -1;
+}
+.entity-detail > [data-slot='tabs'] {
+  flex-direction: column;
+}
+.device-program-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.device-source-result {
+  padding-block: 8px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.entity-detail-identity {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.entity-detail-location {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 8px 0;
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.entity-detail-location svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+.entity-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.entity-detail-tabs {
+  width: 100%;
+}
+.entity-detail-tabs [data-slot='tabs-trigger'] {
+  min-height: 44px;
+}
+.entity-detail-tabs[data-slot='tabs-list'] {
+  height: 50px;
+  border-radius: 0;
+}
+.entity-detail [data-slot='tabs-content'][hidden] {
+  display: none;
+}
+.entity-detail .world-history {
+  padding: 12px;
+}
+.entity-detail .world-history-filters {
+  display: flex;
+  flex-direction: column;
 }
 .world-directory {
   grid-column: 1;
@@ -476,6 +597,9 @@
   .world-body[data-inspector-open='true'] {
     grid-template-rows: minmax(180px, 1fr) minmax(0, 1fr);
   }
+  .world-body[data-inspector-open='true']:not([data-directory-open='true']) {
+    grid-template-rows: minmax(180px, 0.8fr) minmax(260px, 1fr);
+  }
   .world-directory {
     grid-column: 1;
     grid-row: 2;
@@ -516,11 +640,115 @@
     display: block;
     min-height: 0;
     overflow-y: auto;
+    position: relative;
+    scroll-padding-bottom: 68px;
   }
   .world-inspector > header {
     position: sticky;
     top: 0;
     background: var(--background);
+  }
+  .world-inspector .entity-detail {
+    padding-bottom: 64px;
+  }
+  .world-inspector:has(.entity-detail) > header {
+    width: 44px;
+    height: 44px;
+    margin-left: auto;
+    margin-bottom: -44px;
+    padding: 0;
+    border: 0;
+    z-index: 2;
+  }
+  .world-inspector:has(.entity-detail) > header > svg,
+  .world-inspector:has(.entity-detail) > header > h2,
+  .world-inspector:has(.entity-detail) > header > span {
+    display: none;
+  }
+  .world-inspector .entity-detail-identity {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    padding: 0 12px;
+    gap: 0 8px;
+  }
+  .world-inspector .entity-detail-identity .lab-section-heading {
+    grid-column: 1 / -1;
+    margin: 0;
+    padding-right: 44px;
+    min-height: 44px;
+  }
+  .world-inspector .entity-detail-identity h3 {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+  .world-inspector .entity-detail-location {
+    margin: 0;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+  }
+  .world-inspector .entity-detail-identity > .entity-detail-tags {
+    flex-wrap: nowrap;
+    gap: 4px;
+    font-size: 10px;
+    min-width: 0;
+  }
+  .world-inspector .entity-detail-identity > .entity-detail-tags > span {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    min-width: 0;
+  }
+  .world-inspector .entity-detail > [data-slot='tabs'] {
+    gap: 2px;
+  }
+  .world-inspector .entity-detail-tabs[data-slot='tabs-list'] {
+    height: 44px;
+  }
+  .world-inspector .device-readings {
+    padding: 4px 12px;
+  }
+  .world-inspector .device-readings .lab-section-heading {
+    margin-bottom: 2px;
+    justify-content: flex-end;
+  }
+  .world-inspector .device-readings .lab-section-heading h3 {
+    display: none;
+  }
+  .world-inspector .device-readings [data-slot='badge'] {
+    font-size: 9px;
+  }
+  .world-inspector .device-key-readings {
+    gap: 4px;
+  }
+  .world-inspector .observation-summary {
+    border-top: 0;
+    padding-block: 4px;
+    gap: 2px;
+    font-size: 10px;
+    line-height: 1.2;
+  }
+  .world-inspector .observation-summary h4 {
+    font-size: 10px;
+  }
+  .world-inspector .observation-provenance-summary {
+    display: none;
+  }
+  .world-inspector input {
+    scroll-margin-bottom: 68px;
+  }
+  .world-inspector .centrifuge-panel > form > .centrifuge-actions {
+    position: fixed;
+    inset: auto 0 40px;
+    z-index: 10;
+    margin: 0;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border);
+    background: var(--background);
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
   .world-body[data-directory-open='true'] .world-inspector {
     display: none;

@@ -22,7 +22,12 @@ import {
 import { errorCodeOf } from '@labos-threejs/core';
 import { sessionKey } from '../identity/session';
 import type { NavigatePort } from '../shell/app-contract';
-import type { CommandAttempt } from './device-panel';
+import type {
+  CommandAttempt,
+  EntityCommandAttempts,
+  DeviceInput,
+  ProgramAttempt,
+} from './device-panel';
 import type { LayoutDraft } from './layout-editor';
 import { useWorldSubscription } from './world-subscription';
 
@@ -180,15 +185,49 @@ function useWorkbenchController({
     setPending((previous) => ({ ...previous, [labId]: value }));
   }
   const [allAttempts, setAllAttempts] = useState<
-    Record<string, Record<string, CommandAttempt>>
+    Record<string, Record<string, EntityCommandAttempts>>
   >({});
   const attempts = allAttempts[labId] ?? {};
-  function setAttempts(change: SetStateAction<Record<string, CommandAttempt>>) {
-    setAllAttempts((previous) => ({
+  const [allDeviceInputs, setAllDeviceInputs] = useState<
+    Record<string, Record<string, DeviceInput>>
+  >({});
+  const deviceInputs = allDeviceInputs[labId] ?? {};
+  const [allProgramAttempts, setAllProgramAttempts] = useState<
+    Record<string, Record<string, ProgramAttempt>>
+  >({});
+  const programAttempts = allProgramAttempts[labId] ?? {};
+  function setProgramAttempt(entityId: string, attempt: ProgramAttempt) {
+    setAllProgramAttempts((previous) => ({
       ...previous,
-      [labId]:
-        typeof change === 'function' ? change(previous[labId] ?? {}) : change,
+      [labId]: { ...previous[labId], [entityId]: attempt },
     }));
+  }
+  function setDeviceInput(entityId: string, input: DeviceInput) {
+    setAllDeviceInputs((previous) => ({
+      ...previous,
+      [labId]: { ...previous[labId], [entityId]: input },
+    }));
+  }
+  function setCommandAttempt(entityId: string, attempt: CommandAttempt) {
+    setAllAttempts((previous) => {
+      const current = previous[labId]?.[entityId]?.[attempt.input.capability];
+      if (
+        current &&
+        current.key !== attempt.key &&
+        attempt.phase !== 'submitting'
+      )
+        return previous;
+      return {
+        ...previous,
+        [labId]: {
+          ...previous[labId],
+          [entityId]: {
+            ...previous[labId]?.[entityId],
+            [attempt.input.capability]: attempt,
+          },
+        },
+      };
+    });
   }
   async function mutation(operation: () => Promise<unknown>) {
     try {
@@ -223,7 +262,11 @@ function useWorkbenchController({
     layoutPending,
     setLayoutPending,
     attempts,
-    setAttempts,
+    setCommandAttempt,
+    deviceInputs,
+    setDeviceInput,
+    programAttempts,
+    setProgramAttempt,
     setActiveLab,
     mutation,
     invalidLink,
