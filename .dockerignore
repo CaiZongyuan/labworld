@@ -1,0 +1,13 @@
+.git
+.agents
+.claude
+.scratch
+node_modules
+**/node_modules
+target
+**/dist
+apps/docs/.generated
+.env
+.env.*
+!.env.example
+.secrets

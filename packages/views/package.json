@@ -1,0 +1,35 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "name": "@labos-threejs/views",
+  "exports": {
+    ".": "./src/index.ts",
+    "./knowledge": "./src/knowledge/index.ts",
+    "./notes": "./src/notes/example.tsx",
+    "./lab": "./src/lab/app-example.tsx",
+    "./design-system": "./src/design-system/design-system-view.tsx"
+  },
+  "dependencies": {
+    "@dicebear/core": "10.7.0",
+    "@dicebear/styles": "10.6.0",
+    "@labos-threejs/contracts": "workspace:*",
+    "@labos-threejs/core": "workspace:*",
+    "@labos-threejs/sdk": "workspace:*",
+    "@labos-threejs/ui": "workspace:*",
+    "@react-three/drei": "10.7.9",
+    "@react-three/fiber": "9.8.1",
+    "@tabler/icons-react": "3.46.0",
+    "@tanstack/react-query": "5.103.2",
+    "cn": "^0.4.0",
+    "lucide-react": "1.48.0",
+    "react-markdown": "10.1.0",
+    "rehype-sanitize": "6.0.0",
+    "remark-gfm": "4.0.1",
+    "three": "0.186.1"
+  },
+  "peerDependencies": {
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}
