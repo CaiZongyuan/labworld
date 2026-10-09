@@ -12,6 +12,8 @@ type Connection = {
   scope: string;
   status: 'connecting' | 'live' | 'offline' | 'ended';
   available: boolean;
+  generation?: number;
+  lastSyncAt?: number;
 };
 
 export function useWorldSubscription(
@@ -40,17 +42,34 @@ export function useWorldSubscription(
             previous.status === status &&
             previous.available === ready
             ? previous
-            : { scope, status, available: ready };
+            : {
+                scope,
+                status,
+                available: ready,
+                generation:
+                  status === 'live' &&
+                  (previous.scope !== scope || previous.status !== 'live')
+                    ? (previous.scope === scope
+                        ? (previous.generation ?? 0)
+                        : 0) + 1
+                    : previous.scope === scope
+                      ? previous.generation
+                      : undefined,
+                lastSyncAt:
+                  previous.scope === scope ? previous.lastSyncAt : undefined,
+              };
         });
     };
     async function connect() {
       let ended = false;
+      let refreshed = false;
       try {
         await subscribeLabWorld({
           client: apiClient,
           labId,
           signal: controller.signal,
           onWorld(world) {
+            if (controller.signal.aborted) return;
             client.setQueryData<LabWorld>(
               ['lab', 'world', apiClient.getConfig().baseUrl, userId, labId],
               (previous) =>
@@ -60,10 +79,28 @@ export function useWorldSubscription(
                   : world,
             );
             update('live');
+            setConnection((previous) => ({
+              ...previous,
+              lastSyncAt: Date.now(),
+            }));
           },
           onEvent(event) {
-            if (event.type === 'runtime_status')
+            if (controller.signal.aborted) return;
+            if (event.type === 'runtime_status') {
               update('live', event.available);
+              if (!refreshed)
+                void client.invalidateQueries({
+                  queryKey: [
+                    'lab',
+                    'world',
+                    apiClient.getConfig().baseUrl,
+                    userId,
+                    labId,
+                  ],
+                  exact: true,
+                });
+              refreshed = true;
+            }
             if (event.type === 'access_ended') {
               ended = true;
               update('ended', false);
@@ -112,7 +149,12 @@ export function useWorldSubscription(
       ? connection
       : { scope, status: 'connecting' as const, available: false }),
     reconnect: () => {
-      setConnection({ scope, status: 'connecting', available: false });
+      setConnection((previous) => ({
+        ...previous,
+        scope,
+        status: 'connecting',
+        available: false,
+      }));
       setRetry((value) => value + 1);
     },
   };

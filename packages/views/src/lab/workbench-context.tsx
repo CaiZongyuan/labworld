@@ -32,6 +32,8 @@ import type {
 import type { LayoutDraft } from './layout-editor';
 import { useWorldSubscription } from './world-subscription';
 
+export type WorkbenchView = 'space' | 'records' | 'overview' | 'devices';
+
 type LayoutStatus = 'idle' | 'saved' | 'conflict';
 export type WorkbenchProps = {
   apiClient: ApiClient;
@@ -74,9 +76,12 @@ function useWorkbenchController({
   );
   const viewUnavailable =
     search.view !== undefined &&
-    search.view !== 'space' &&
-    search.view !== 'records';
-  const view = search.view === 'records' ? 'records' : 'space';
+    (typeof search.view !== 'string' ||
+      !['space', 'records', 'overview', 'devices'].includes(search.view));
+  const view: WorkbenchView =
+    !viewUnavailable && typeof search.view === 'string'
+      ? (search.view as WorkbenchView)
+      : 'space';
   const labId = invalidLink
     ? ''
     : typeof search.lab === 'string'
@@ -135,16 +140,11 @@ function useWorkbenchController({
       search: {
         lab: nextLab || undefined,
         entity: nextEntity || undefined,
-        view:
-          view === 'records'
-            ? 'records'
-            : search.view === 'space'
-              ? 'space'
-              : undefined,
+        view: search.view === undefined ? undefined : view,
       },
     });
   }
-  function setView(next: 'space' | 'records') {
+  function setView(next: WorkbenchView) {
     navigate({
       path: '/lab',
       search: {
@@ -284,6 +284,8 @@ function useWorkbenchController({
   }
   async function mutation(operation: () => Promise<unknown>) {
     try {
+      if (world.data && connection.status !== 'live')
+        throw new Error('Lab connection is unavailable');
       await operation();
       await Promise.all([
         client.invalidateQueries({ queryKey: [...key, labId], exact: true }),
