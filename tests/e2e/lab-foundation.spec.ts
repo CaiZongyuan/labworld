@@ -9,6 +9,7 @@ import {
   observeBrowserSeam,
 } from './lab-browser-facts';
 import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
+import { observeResourceTiming } from './lab-resource-timing';
 import { expect, test, type CDPSession } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
@@ -120,6 +121,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
   page.on('pageerror', (error) => errors.push(error.name));
   const { agent, secret, headers } = await member(page);
   let second;
+  let resourceTiming: ReturnType<typeof observeResourceTiming> | undefined;
   try {
     await page.getByRole('button', { name: '创建 Lab', exact: true }).click();
     await page
@@ -252,6 +254,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
       locale: 'zh-CN',
     });
     const observer = await second.newPage();
+    resourceTiming = observeResourceTiming(observer);
     observer.on('pageerror', (error) => errors.push(error.name));
     const browserFailure = observeBrowserFailure(observer);
     const frameTrace = await startFrameTrace(
@@ -298,6 +301,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
           });
     });
     await observer.goto('/lab');
+    resourceTiming.capture('post-goto');
     const selectFailure = observeBrowserSeam(observer, 'foundation-lab-select');
     try {
       await observer
@@ -310,6 +314,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     await showObjectDirectory(observer);
     let observerReady = false;
     frameTrace.mark('assertion-start');
+    resourceTiming.capture('assertion-start');
     void frameTrace.captureActiveDocuments();
     try {
       await expect(observer.locator('.world-page')).toHaveAttribute(
@@ -319,6 +324,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
       observerReady = true;
     } finally {
       frameTrace.mark('assertion-end');
+      resourceTiming.mark('assertion-end');
       if (!observerReady)
         await (async () => {
           const assertionEndedAtMs = performance.now() - readinessStart;
@@ -442,6 +448,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
           // Optional diagnostics preserve the original readiness failure.
         });
       await frameTrace.finish(true);
+      await resourceTiming.finish();
     }
     await page.context().setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
@@ -676,6 +683,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
       ),
     );
   } finally {
+    await resourceTiming?.finish();
     await second?.close();
     await agent.dispose();
   }
