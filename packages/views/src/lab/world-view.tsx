@@ -13,6 +13,8 @@ import {
   Activity,
   Box,
   Crosshair,
+  Scan,
+  ArrowDownToLine,
   Grid2X2,
   Layers3,
   ListTree,
@@ -178,6 +180,12 @@ export default function WorldView() {
   const [grid, setGrid] = useState(true);
   const [fit, setFit] = useState(0);
   const [fitNodeId, setFitNodeId] = useState<string | null>(null);
+  const [top, setTop] = useState(false);
+  function locateNode(nodeId: string) {
+    setTop(false);
+    setFitNodeId(nodeId);
+    setFit((value) => value + 1);
+  }
   const [renderVersion, setRenderVersion] = useState(0);
   const [renderBusy, setRenderBusy] = useState(false);
   const [performance, setPerformance] = useState(false);
@@ -945,6 +953,8 @@ export default function WorldView() {
                     grid={grid}
                     fit={fit}
                     fitNodeId={fitNodeId}
+                    top={top}
+                    onLocate={locateNode}
                     label={message('viewer.viewport')}
                     onMetrics={setMetrics}
                     onBusy={setRenderBusy}
@@ -975,7 +985,27 @@ export default function WorldView() {
               icon={Crosshair}
               label={message('viewer.focus')}
               onClick={() => {
+                setTop(false);
                 setFitNodeId(activeNode?.id ?? null);
+                setFit((value) => value + 1);
+              }}
+            />
+            <Tool
+              icon={Scan}
+              label={message('world.panorama')}
+              onClick={() => {
+                setTop(false);
+                setFitNodeId(null);
+                setFit((value) => value + 1);
+              }}
+            />
+            <Tool
+              icon={ArrowDownToLine}
+              label={message('world.top')}
+              active={top}
+              onClick={() => {
+                setTop(true);
+                setFitNodeId(null);
                 setFit((value) => value + 1);
               }}
             />

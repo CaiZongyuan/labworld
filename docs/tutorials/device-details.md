@@ -4,7 +4,7 @@
 
 ## 起始状态与源码
 
-先完成[空间工作台](spatial-workbench.md)。使用包含本章实现的当前 checkout。准备一个持久 Lab、两台模拟照明和两台模拟离心机。普通 Member 需要有效会话；Agent 使用相同公开接口，但需要有效 `lab:full` key。
+先完成[空间表示与主动定位](spatial-representation.md)。使用包含本章实现的当前 checkout。准备一个持久 Lab、两台模拟照明和两台模拟离心机。普通 Member 需要有效会话；Agent 使用相同公开接口，但需要有效 `lab:full` key。
 
 在仓库根目录运行：
 

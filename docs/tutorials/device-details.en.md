@@ -4,7 +4,7 @@ Goal: select an Entity in the 3D space. Separate targets, actual observations, C
 
 ## Starting state and source
 
-Complete [Spatial workbench](spatial-workbench.md) first. Use the current checkout containing this chapter. Prepare a persistent Lab, two simulated lights and two simulated centrifuges. A Member needs a valid session. An Agent uses the same public interfaces with a valid `lab:full` key.
+Complete [Representations and explicit location](spatial-representation.md) first. Use the current checkout containing this chapter. Prepare a persistent Lab, two simulated lights and two simulated centrifuges. A Member needs a valid session. An Agent uses the same public interfaces with a valid `lab:full` key.
 
 Run from the repository root:
 

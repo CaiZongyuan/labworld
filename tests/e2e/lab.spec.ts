@@ -157,7 +157,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   await expect
     .poll(async () => Number((await triangles.innerText()).replaceAll(',', '')))
     .toBeGreaterThanOrEqual(24);
-  await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
+  await page.getByRole('button', { name: '恢复全景', exact: true }).click();
   await expectCanvasPixels(page);
   await page.getByRole('button', { name: '选择 Cube A', exact: true }).click();
   const inspector = page.getByRole('complementary', { name: '对象信息' });

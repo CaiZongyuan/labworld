@@ -432,29 +432,62 @@
   font-size: 12px;
   font-weight: 600;
 }
-.world-sensor-reading {
-  width: 170px;
-  max-width: 45vw;
-  text-align: center;
-  padding: 5px;
-  background: var(--background);
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: 4px;
+.world-priority-labels {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
 }
-.world-sensor-label {
+.world-priority-label {
+  position: absolute;
+  width: 188px;
+  max-width: calc(100% - 16px);
+  padding: 6px;
   display: grid;
   gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 3px 9px color-mix(in oklch, var(--foreground) 10%, transparent);
+  pointer-events: auto;
 }
-.world-sensor-reading strong {
-  display: block;
-  font-size: 12px;
+.world-label-name {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  height: auto;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  justify-content: start;
+  text-align: start;
 }
-.world-sensor-reading small {
-  display: block;
-  min-height: 28px;
-  font-size: 10px;
+.world-label-header {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+.world-label-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.world-label-reading {
+  display: grid;
+  text-align: center;
+}
+.world-label-reading strong {
+  font-variant-numeric: tabular-nums;
+}
+.world-label-reading small,
+.world-priority-label > small {
   color: var(--muted-foreground);
+  font-size: 11px;
+}
+.world-label-actions {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
 }
 .world-node {
   display: flex;
@@ -702,6 +735,11 @@
   .world-transform-tools {
     top: auto;
     bottom: 12px;
+  }
+  .world-canvas-tools {
+    display: grid;
+    grid-template-columns: repeat(2, 44px);
+    gap: 3px;
   }
   .world-page button,
   .world-page [data-slot='toggle-group-item'] {

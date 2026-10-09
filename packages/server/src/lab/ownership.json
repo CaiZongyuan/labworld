@@ -3,6 +3,7 @@
   "viewPath": "packages/views/src/lab",
   "sdkPaths": ["packages/sdk/src/lab-world.ts"],
   "contractSymbols": [
+    "labRepresentationProfiles",
     "LabAsset",
     "AssetRepresentation",
     "AssetPage",

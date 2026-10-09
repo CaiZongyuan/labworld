@@ -22,7 +22,7 @@ pnpm dev
 3. 点击 **打开对象目录**。用名称、类别、未放置或已归档筛选找到对象。目录复选框保留多选入口。
 4. 点击目录中的对象，或点击场景中的表示。对象信息显示同一 Entity 的身份。多个节点仍可以属于同一个 Entity。
 5. 点击 **关闭对象目录** 和 **关闭对象信息**。相机保留当前角度，空间恢复可用面积。可用 **打开对象信息** 再显示当前选择。
-6. 用旋转和缩放检查场景。点击 **聚焦模型** 可重新取景；**网格** 和 **性能** 分别控制辅助显示。
+6. 用旋转和缩放检查场景。点击 **聚焦模型** 定位活动节点；没有活动节点时框入全景。**恢复全景**和**俯视布局**提供整个布局的主动视角。**网格** 和 **性能** 分别控制辅助显示。
 
 目录或详情关闭后，焦点返回打开它的控件或选择来源。Escape 关闭当前面板；正在输入或使用弹窗时，Escape 不放弃布局草稿。手机上的主要触控命令保留至少 44px 命中区。语言与主题使用应用顶部控件。
 
@@ -64,4 +64,4 @@ pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views 测试只用 MSW 替代 HTTP。浏览器使用真实身份、API、数据库、订阅、HDR 和 WebGL。迁移验证使用 desktop web，核对画布外部可见面积、相机像素、深链、面板与焦点。已有产品窄屏与触屏职责保留到 Migration Gate 后继续验证。继续[操作与追溯设备](device-details.md)，在同一对象的操作、记录和详情中区分目标、命令与实际观测。
+Views 测试只用 MSW 替代 HTTP。浏览器使用真实身份、API、数据库、订阅、HDR 和 WebGL。迁移验证使用 desktop web，核对画布外部可见面积、相机像素、深链、面板与焦点。已有产品窄屏与触屏职责保留到 Migration Gate 后继续验证。继续[空间表示与主动定位](spatial-representation.md)，检查相机行为、重点标签和共享表示尺寸。

@@ -22,7 +22,7 @@ Open <http://127.0.0.1:5173/lab>. Sign in as the Member who registered the objec
 3. Click **Open object directory**. Search by name or filter by category, unplaced state, or archived state. Directory checkboxes retain multiple selection.
 4. Select a directory entry or its scene representation. Object info shows the same Entity identity. Multiple nodes can still represent one Entity.
 5. Click **Close object directory** and **Close object details**. The camera retains its angle and the scene regains space. **Open object details** shows the current selection again.
-6. Orbit and zoom to inspect the scene. **Fit model** changes the framing. **Grid** and **Performance** control their respective displays.
+6. Orbit and zoom to inspect the scene. **Fit model** locates the active node or frames the full layout without one. **Frame full layout** and **Top view** provide deliberate views of the whole layout. **Grid** and **Performance** control their respective displays.
 
 Closing a panel returns focus to its opening control or selection source. Escape closes the current panel. It does not discard drafts while you use an input or dialog. Main touch commands retain targets of at least 44px. Use the application topbar to change language or theme.
 
@@ -64,4 +64,4 @@ pnpm exec vitest run apps/web/src/lab-workbench.test.tsx apps/web/src/lab-world.
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-workbench.spec.ts
 ```
 
-Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. Migration validation uses desktop Web and checks external canvas area, camera pixels, deep links, panels and focus. Existing product narrow-screen and touch responsibilities remain for validation after Migration Gate. Continue with [Operate and trace devices](device-details.md). Operations, Records and Details separate targets, Commands and actual observations for the same Entity.
+Views tests use MSW only at the HTTP boundary. Browser tests use real authentication, API, database, subscriptions, HDR, and WebGL. Migration validation uses desktop Web and checks external canvas area, camera pixels, deep links, panels and focus. Existing product narrow-screen and touch responsibilities remain for validation after Migration Gate. Continue with [Representations and explicit location](spatial-representation.md). Check camera behavior, priority labels and shared representation dimensions.

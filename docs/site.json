@@ -124,6 +124,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "persistent-world",
+      "next": "spatial-representation"
+    },
+    {
+      "id": "spatial-representation",
+      "source": "docs/tutorials/spatial-representation.md",
+      "sourceEn": "docs/tutorials/spatial-representation.en.md",
+      "route": "tutorials/spatial-representation.md",
+      "title": "空间表示与主动定位",
+      "titleEn": "Representations and explicit location",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "spatial-workbench",
       "next": "device-details"
     },
     {
@@ -135,7 +147,7 @@
       "titleEn": "Operate and trace devices",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "spatial-workbench",
+      "previous": "spatial-representation",
       "next": "device-trends"
     },
     {

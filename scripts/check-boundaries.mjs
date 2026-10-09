@@ -136,7 +136,7 @@ for (const [name, dependencies] of Object.entries(allowed)) {
               throw new Error(`Core imports Lab Views: ${path}`);
             if (
               ['@labos-threejs/contracts', '@labos-threejs/sdk'].includes(
-                dependency,
+                internal,
               ) &&
               ts.isImportDeclaration(node) &&
               node.importClause?.namedBindings
