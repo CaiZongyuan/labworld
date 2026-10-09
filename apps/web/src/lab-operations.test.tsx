@@ -13,7 +13,7 @@ import { act, render, screen, within, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { readFileSync } from 'node:fs';
 import { http, HttpResponse } from 'msw';
-import { expect, test } from 'vitest';
+import { expect, test, vi } from 'vitest';
 import { server } from '../../../tests/frontend/server';
 import { createAppRouter, navigateExample } from './router';
 
@@ -179,6 +179,7 @@ function open(
   const recordItems: LabRecord[] = [];
   const recordRequests: URL[] = [];
   const trendRequests: URL[] = [];
+  let nextTrendGate: Promise<void> | undefined;
   let worldReads = 0;
   server.use(
     http.get('http://api.test/api/v1/auth/session', () =>
@@ -199,9 +200,12 @@ function open(
     }),
     http.get(
       'http://api.test/api/v1/lab/labs/operations-lab/entities/:entityId/trend',
-      ({ request, params }) => {
+      async ({ request, params }) => {
         const url = new URL(request.url);
         trendRequests.push(url);
+        const gate = nextTrendGate;
+        nextTrendGate = undefined;
+        if (gate) await gate;
         return HttpResponse.json({
           entity_id: params.entityId,
           property: 'temperature',
@@ -287,6 +291,13 @@ function open(
     recordRequests,
     recordItems,
     trendRequests,
+    holdNextTrend() {
+      let release!: () => void;
+      nextTrendGate = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return release;
+    },
     worldReads: () => worldReads,
   };
 }
@@ -690,4 +701,99 @@ test('a live transport with unavailable runtime agrees with the same detail and 
   expect(world.version).toBe('1');
   expect(worldReads()).toBe(reads);
   expect(subscriptions).toHaveLength(1);
+});
+
+test('a stopped device Inspector trend reconnects at the original five-second cadence with an unchanged World', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-10-09T01:00:00Z');
+  vi.setSystemTime(start);
+  try {
+    const { user, world, trendRequests, subscriptions } = open(
+      '/lab?view=space&entity=stopped-sensor',
+      (world) => {
+        const sensor = entity('stopped-sensor', 'sensor');
+        sensor.program_run!.status = 'stopped';
+        world.entities.push(sensor);
+      },
+    );
+    const detail = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await user.click(within(detail).getByRole('button', { name: '查看趋势' }));
+    await within(detail).findByText('此范围没有样本');
+    expect(trendRequests).toHaveLength(1);
+    vi.setSystemTime(new Date(start.getTime() + 1000));
+    await act(() => window.dispatchEvent(new Event('offline')));
+    await act(() => window.dispatchEvent(new Event('online')));
+    await waitFor(() => expect(subscriptions).toHaveLength(2));
+    await screen.findByText('实时同步');
+    await user.tab();
+    expect(trendRequests).toHaveLength(1);
+    vi.setSystemTime(new Date(start.getTime() + 5000));
+    await user.click(screen.getByRole('tab', { name: '设备' }));
+    await waitFor(() => expect(trendRequests).toHaveLength(2));
+    expect(
+      Date.parse(trendRequests[1].searchParams.get('to')!) -
+        Date.parse(trendRequests[0].searchParams.get('to')!),
+    ).toBe(5000);
+    expect(world.version).toBe('1');
+    expect(
+      within(detail).getByRole('button', { name: '1 小时' }),
+    ).toHaveAttribute('aria-pressed', 'true');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
+test('visible overview and Inspector share one reconnect revision and bounded read for the same Entity and range', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-10-09T01:00:00Z');
+  vi.setSystemTime(start);
+  let release = () => {};
+  try {
+    const { user, world, router, trendRequests, subscriptions, holdNextTrend } =
+      open('/lab?view=overview&entity=shared-sensor', (world) =>
+        world.entities.push(entity('shared-sensor', 'sensor')),
+      );
+    const detail = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await screen.findByText('此范围没有样本');
+    expect(trendRequests).toHaveLength(1);
+    await user.click(within(detail).getByRole('button', { name: '查看趋势' }));
+    await within(detail).findByText('此范围没有样本');
+    expect(trendRequests).toHaveLength(1);
+    release = holdNextTrend();
+    vi.setSystemTime(new Date(start.getTime() + 1000));
+    await act(() => window.dispatchEvent(new Event('offline')));
+    await act(() => window.dispatchEvent(new Event('online')));
+    await waitFor(() => expect(subscriptions).toHaveLength(2));
+    await screen.findByText('实时同步');
+    expect(trendRequests).toHaveLength(1);
+    vi.setSystemTime(new Date(start.getTime() + 5000));
+    await act(() =>
+      navigateExample(router, {
+        path: '/lab',
+        search: { lab: lab.id, view: 'overview', entity: 'shared-sensor' },
+      }),
+    );
+    await waitFor(() => expect(trendRequests).toHaveLength(2));
+    const refreshing = screen.getAllByRole('button', { name: '刷新趋势' });
+    expect(refreshing).toHaveLength(2);
+    for (const control of refreshing) expect(control).toBeDisabled();
+    await user.tab();
+    expect(trendRequests).toHaveLength(2);
+    release();
+    await waitFor(() => {
+      for (const control of screen.getAllByRole('button', { name: '刷新趋势' }))
+        expect(control).toBeEnabled();
+    });
+    expect(trendRequests).toHaveLength(2);
+    for (const control of screen.getAllByRole('button', { name: '1 小时' }))
+      expect(control).toHaveAttribute('aria-pressed', 'true');
+    expect(world.version).toBe('1');
+  } finally {
+    release();
+    vi.useRealTimers();
+  }
 });

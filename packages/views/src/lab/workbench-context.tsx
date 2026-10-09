@@ -306,6 +306,7 @@ function useWorkbenchController({
     labId,
     world,
     connection,
+    trendRevision: `${world.data?.version ?? '0'}:${connection.generation ?? 0}`,
     selection,
     setSelection,
     nodeSelection,

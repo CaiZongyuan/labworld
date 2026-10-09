@@ -424,8 +424,15 @@ test('focused narrow overview keeps all four work tabs and device text within th
         width === 390
           ? ['三维空间', '运行总览', '设备', '运行记录']
           : ['3D space', 'Overview', 'Devices', 'Lab records'];
-      for (const name of names)
-        await clickTarget(page.getByRole('tab', { name, exact: true }));
+      const tabHeights = [];
+      for (const name of names) {
+        const tab = page.getByRole('tab', { name, exact: true });
+        await clickTarget(tab);
+        const bounds = await tab.boundingBox();
+        expect(bounds).not.toBeNull();
+        tabHeights.push(bounds!.height);
+        expect(bounds!.height).toBeGreaterThanOrEqual(44);
+      }
       const target = page.getByRole('button', {
         name: width === 390 ? '已登记设备 4' : 'Registered devices 4',
         exact: true,
@@ -445,6 +452,7 @@ test('focused narrow overview keeps all four work tabs and device text within th
           width: innerWidth,
           scrollWidth: document.documentElement.scrollWidth,
         }))),
+        tabHeights,
         tableWidth: tableBox!.width,
         keyHeaderWidth: headerBox!.width,
       };

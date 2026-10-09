@@ -122,6 +122,7 @@ export default function WorldView() {
     labId,
     world,
     connection,
+    trendRevision,
     selection,
     setSelection,
     nodeSelection,
@@ -1062,7 +1063,7 @@ export default function WorldView() {
             view={view}
             connected={connection.status === 'live'}
             runtimeAvailable={connection.available}
-            worldVersion={world.data.version}
+            trendRevision={trendRevision}
             refreshToken={String(connection.generation ?? '')}
             selectedId={selected?.id}
             onSelect={(id) => select(id, false)}
@@ -1102,7 +1103,8 @@ export default function WorldView() {
               apiClient={apiClient}
               editing={spaceView && editing}
               connected={connection.available}
-              visible={inspectorVisible}
+              visible={inspectorVisible && connection.status === 'live'}
+              trendRevision={trendRevision}
               userId={identity.user.id}
               recentMinuteRequest={
                 recentMinute?.labId === labId &&

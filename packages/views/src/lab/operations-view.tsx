@@ -48,7 +48,7 @@ export default function OperationsView({
   connected,
   runtimeAvailable,
   refreshToken,
-  worldVersion,
+  trendRevision,
   selectedId,
   onSelect,
   onDevices,
@@ -64,7 +64,7 @@ export default function OperationsView({
   connected: boolean;
   runtimeAvailable: boolean;
   refreshToken: string;
-  worldVersion: string;
+  trendRevision: string;
   selectedId?: string;
   onSelect: (id: string) => void;
   onDevices: () => void;
@@ -488,7 +488,7 @@ export default function OperationsView({
                     entity={sensor.entity}
                     apiClient={apiClient}
                     userId={userId}
-                    worldVersion={`${worldVersion}:${refreshToken}`}
+                    refreshRevision={trendRevision}
                     visible={view === 'overview' && connected}
                     initialOpen
                   />

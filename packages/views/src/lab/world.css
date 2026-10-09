@@ -963,7 +963,7 @@
   }
   .world-records-navigation [data-slot='tabs-trigger'] {
     min-width: 0;
-    min-height: 32px;
+    min-height: 44px;
     white-space: normal;
   }
 }

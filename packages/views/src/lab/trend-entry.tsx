@@ -11,7 +11,7 @@ export default function TrendEntry(props: {
   entity: LabEntity;
   apiClient: ApiClient;
   userId: string;
-  worldVersion: string;
+  refreshRevision: string;
   visible: boolean;
   initialOpen?: boolean;
   initialRange?: string;

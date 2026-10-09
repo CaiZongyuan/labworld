@@ -39,7 +39,7 @@ type Reading = TrendSample &
 
 type TrendQueryResult = {
   trend: EntityTrend;
-  worldVersion: string;
+  refreshRevision: string;
   startedAt: number;
 };
 
@@ -282,14 +282,14 @@ export default function EntityTrends({
   apiClient,
   userId,
   visible,
-  worldVersion,
+  refreshRevision,
   initialRange = '1',
 }: {
   entity: LabEntity;
   apiClient: ApiClient;
   userId: string;
   visible: boolean;
-  worldVersion: string;
+  refreshRevision: string;
   initialRange?: string;
 }) {
   const message = useAppMessage('lab');
@@ -319,7 +319,7 @@ export default function EntityTrends({
   const latestAttempt = useRef<{
     scope: string;
     entityScope: string;
-    worldVersion: string;
+    refreshRevision: string;
     startedAt: number;
   } | null>(null);
   const query = useQuery({
@@ -334,7 +334,7 @@ export default function EntityTrends({
       const attempt = {
         scope,
         entityScope,
-        worldVersion,
+        refreshRevision,
         startedAt: Date.now(),
       };
       latestAttempt.current = attempt;
@@ -354,7 +354,7 @@ export default function EntityTrends({
         ).data;
         return {
           trend,
-          worldVersion: attempt.worldVersion,
+          refreshRevision: attempt.refreshRevision,
           startedAt: attempt.startedAt,
         };
       } catch (cause) {
@@ -367,8 +367,8 @@ export default function EntityTrends({
   const { refetch, isFetching } = query;
   const queriedVersion =
     latestAttempt.current?.scope === scope
-      ? latestAttempt.current.worldVersion
-      : query.data?.worldVersion;
+      ? latestAttempt.current.refreshRevision
+      : query.data?.refreshRevision;
   const lastStarted = Math.max(
     latestAttempt.current?.entityScope === entityScope
       ? latestAttempt.current.startedAt
@@ -387,16 +387,24 @@ export default function EntityTrends({
       ? Math.max(0, 5000 - (Date.now() - lastStarted))
       : 0;
   useEffect(() => {
-    if (!active || isFetching || queriedVersion === worldVersion) return;
+    if (!active || isFetching || queriedVersion === refreshRevision) return;
     const timer = setTimeout(() => {
       if (
         latestAttempt.current?.scope !== scope ||
-        latestAttempt.current.worldVersion !== worldVersion
+        latestAttempt.current.refreshRevision !== refreshRevision
       )
-        void refetch();
+        void refetch({ cancelRefetch: false });
     }, delay);
     return () => clearTimeout(timer);
-  }, [active, scope, worldVersion, refetch, isFetching, queriedVersion, delay]);
+  }, [
+    active,
+    scope,
+    refreshRevision,
+    refetch,
+    isFetching,
+    queriedVersion,
+    delay,
+  ]);
   return (
     <div className="entity-trends">
       <div className="lab-section-heading">
