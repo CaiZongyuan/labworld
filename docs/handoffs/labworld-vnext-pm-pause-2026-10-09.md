@@ -12,20 +12,20 @@ Web 为主，排除 Electron 专属 CI/build/smoke/soak；Node Windows 检查保
 
 ## 实际交付
 
-main 是 `3b75a1fe29ff5579361080121aec3b9b5c0fcc1c`，tree `2292743c75712aedc724c984e023fbd19574356b`。迁移 #46–#52 / Migration Gate 已完成。产品 12 票已实际集成 4 票：#29 私人进度、#30 同一设备详情/操作、#32 真实趋势、#33 记录/CSV；另外 8 票未完成。
+最后的产品功能基线是 `3b75a1fe29ff5579361080121aec3b9b5c0fcc1c`，tree `2292743c75712aedc724c984e023fbd19574356b`。迁移 #46–#52 / Migration Gate 已完成。产品 12 票已实际集成 4 票：#29 私人进度、#30 同一设备详情/操作、#32 真实趋势、#33 记录/CSV；另外 8 票未完成。
 
-| 票  | 当前完整候选 / PR                                                                                    | 结果与未完成事项                                                                                                                                                                                                                                                    |
-| --- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #31 | `18bfaa81be3f85ab72fa148a88f66f28bb1427d4` / [PR65](https://github.com/CaiZongyuan/labworld/pull/65) | Draft。源码/简化/独立审查与本机关键验收有效。CI [37937739099](https://github.com/CaiZongyuan/labworld/actions/runs/37937739099) verify/Windows 成功、Web 失败；26 profiles 中 17 失败。不可合并或关闭。                                                             |
-| #36 | `cf15edfe385f8bb77f738188b376d871ed26ee29` / [PR60](https://github.com/CaiZongyuan/labworld/pull/60) | Draft。完整 35 路径，tree `813cb93779f500750daa666b65676eaaa3367a7a`。最新一文件 oracle 修复独立双轴通过；真实 owning case 15.290s 通过。新 CI [37946870625](https://github.com/CaiZongyuan/labworld/actions/runs/37946870625) 发布时三项运行中，后任回读最终结果。 |
-| #37 | `b957dd48e7b7d5b83db1e74e344a04929c4de041` / [PR66](https://github.com/CaiZongyuan/labworld/pull/66) | Draft。完整 23 路径，tree `f1b9c203421946cbb767f48cf2f7a6bbb25b9e3b`。简化/独立双轴/28 定向 Views 与真实业务、桌面和窄屏验收通过。CI [37941878977](https://github.com/CaiZongyuan/labworld/actions/runs/37941878977) verify/Windows 成功、Web 两项失败，未集成。    |
+| 票  | 当前完整候选 / PR                                                                                    | 结果与未完成事项                                                                                                                                                                                                                                                                                                                                                    |
+| --- | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #31 | `18bfaa81be3f85ab72fa148a88f66f28bb1427d4` / [PR65](https://github.com/CaiZongyuan/labworld/pull/65) | Draft。源码/简化/独立审查与本机关键验收有效。CI [37937739099](https://github.com/CaiZongyuan/labworld/actions/runs/37937739099) verify/Windows 成功、Web 失败；26 profiles 中 17 失败。不可合并或关闭。                                                                                                                                                             |
+| #36 | `cf15edfe385f8bb77f738188b376d871ed26ee29` / [PR60](https://github.com/CaiZongyuan/labworld/pull/60) | Draft。完整 35 路径，tree `813cb93779f500750daa666b65676eaaa3367a7a`。最新一文件 oracle 修复独立双轴通过；真实 owning case 15.290s 通过。最终 CI [37946870625](https://github.com/CaiZongyuan/labworld/actions/runs/37946870625) verify/Windows 成功、Web 失败：Foundation busy=true/false，lifecycle geometries15>14。修复后的趋势测试通过，两个旧失败原因仍未知。 |
+| #37 | `b957dd48e7b7d5b83db1e74e344a04929c4de041` / [PR66](https://github.com/CaiZongyuan/labworld/pull/66) | Draft。完整 23 路径，tree `f1b9c203421946cbb767f48cf2f7a6bbb25b9e3b`。简化/独立双轴/28 定向 Views 与真实业务、桌面和窄屏验收通过。CI [37941878977](https://github.com/CaiZongyuan/labworld/actions/runs/37941878977) verify/Windows 成功、Web 两项失败，未集成。                                                                                                    |
 
-三条分支均基于上述实际 main，已推送且源码干净。所有原 writer 已停止；名称不是下一任的活跃租约。不要合入保留的旧 Rust #29/#30 staged 补丁。
+三条分支均基于上述实际 main，已推送且源码干净。所有原 writer 已停止；名称不是下一任的活跃租约。旧 Rust #27/#29/#30 未提交改动已提交为 archive/2026-10-09/wip-* 标签，不能合入新的 TypeScript 主线。
 
 ## 后任先做的动作
 
 1. 读取 AGENTS、CONTEXT、相关 ADR、docs/agents/issue-tracker.md、development-flow.md、testing/strategy.md，以及 GitHub #45 / #23 / #24 / #25 和对应实施票全文、评论、原生 blockers。回读 main、PR head/assignee 与资源，重新建立 owner。
-2. 优先回读 #36 的 cf15 最终 CI。它只修复已证明错误的静态标签测试前提。若全部必需检查成功，核对完整候选、审查和资源后实际合入并回读 tree/issue。主线移动时其他候选需检查语义影响，不能只复用旧 head 的绿色。
+2. #36 的 cf15 最终 CI 已失败，先用已有安全证据排查 Foundation readiness 和 lifecycle 15>14，保留原5000ms和资源上界。修复已证明错误的静态标签测试前提不代表这两个失败修复。全部必需检查成功后才能实际合入/关闭。主线移动时其他候选需检查语义影响，不能只复用旧 head 的绿色。
 3. #31 的最佳下一问题是：一个栅格 callback 的五秒消耗在哪个公开 await——canvas screenshot，还是 decode/pixel evaluate。保持原条件/阈值，先按阶段保留安全证据；不要再用相同输入的本机绿色或盲目全 CI 重跑来解释远端失败。
 4. #37 当前两项 Web 失败是 Foundation `.world-page` busy=true 对 false/5000ms；以及 records 窄屏历史面板 `lab-records.spec.ts:383` 预期 20 项，解析到 2 项。前者原因未知；后者需要检查实际页面、查询截止范围和 reader 刷新，不能直接改为接受 2。已完成三项功能审查修复和 44px 触屏修复，复用未变证据。
 5. 实际 #31 CLOSED 后才能领取 #34；随后 #35 正式模板。#38 依赖 #29/#35/#36，#39 依赖 #38，#40 依赖 #37/#39。#34/#35 只有只读准备，没有实施或交付；#38–#40 未启动。
@@ -56,9 +56,9 @@ main-data 位于 `.scratch/vnext-continuation-20261006/runtime/main-data`（本�
 
 Git 只保留代码与本交接；`.scratch`、私有 credentials、演示数据、完整截图和旧 staged 工作树不会出现在新 clone。
 
-- 代码：拉取上述三个 PR 分支和 `docs/pm-pause-20261009`；核对完整 SHA，不从默认 main 推断候选已合入。
-- 证据：携带 `.scratch/vnext-continuation-20261006/` 的报告、review/候选 pin/CI facts，以及 `.scratch/demo-scene-20261008/`；私有目录留在受控本地，不上传 Git。
+- 代码：拉取 main 与上述三个未完成 PR 分支；核对完整 SHA。交接文件合入 main 后删除临时文档分支；产品候选仍未合入。`gh-pages` 保留用于正式文档站发布。
+- 证据：携带 `.scratch/vnext-continuation-20261006/` 的报告、review/候选 pin/CI facts、`.scratch/repo-transfer-20261009/` 清理/存档记录，以及 `.scratch/demo-scene-20261008/`；私有目录留在受控本地，不上传 Git。
 - 持久数据：按[运维备份/恢复](../guides/server-operations.md)使用正式备份。备份需要取得目录排他权，先核实 owner、停止原服务并保留数据；不要热复制运行中的 PGlite。已有 Task/Run 的重启规则继续有效，不能自动续跑旧任务。需要继续演示时只显式恢复自有六个模拟来源。
-- 旧 worktrees：保留 `.worktrees/29-guide-progress`、`30-device-details` 和 `refs/handoffs/20261005T040315Z-pm-pause/*`；不 cherry-pick/apply 旧 Rust补丁。根用户自有 untracked `docs/handoffs/labworld-vnext-continuous-development.md` 未被修改或纳入此次文档提交，应一并保留。
+- 工作树清理：旧工作树先保存独有修改、必要历史 commit 与非构建证据，再移除。旧 Rust WIP 通过 `git fetch origin --tags` 读取 `archive/2026-10-09/wip-27-bounded-trends`、`wip-29-guide-progress`、`wip-30-device-details`，只作历史参考。测试证据移至 `.scratch/repo-transfer-20261009/worktree-evidence/`，按 cleanup manifest 找原路径。原连续开发授权文件已原样提交，原字节SHA保存在清理记录。新环境需要重新建立工作树与 owner。
 
 本机事实投影是 `.scratch/vnext-continuation-20261006/current.md` / `timeline.html`，两者来自同一 report/events。暂停不等于 Product Gate完成。审查记录的可携带摘要见[证据索引](pm-pause-2026-10-09-evidence.md)；原因与改进见[复盘](../reviews/2026-10-09-vnext-development-retrospective.md)。
