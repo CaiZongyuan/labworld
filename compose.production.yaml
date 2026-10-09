@@ -1,0 +1,251 @@
+# Single-host production composition: Caddy entrance, static web assets,
+# API, Worker and the internal dependencies. Mail is an external relay
+# configured through the deployment env file; see docs/tutorials/21.
+name: labos-threejs-production
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+x-application: &application
+  image: labos-threejs-production:local
+  build:
+    context: .
+    dockerfile: deploy/production/Dockerfile
+  env_file:
+    - ${ENV_FILE:?Set ENV_FILE to the deployment environment file (copy deploy/production/env.production.example)}
+  networks:
+    - internal
+  read_only: true
+  tmpfs:
+    - /tmp
+  restart: unless-stopped
+  logging: *logging
+
+services:
+  caddy:
+    image: caddy:2.11.4-alpine@sha256:6aeddd44c3078b0f9a35206472a11420648a79c184603ef95957d0a20044cb2b
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      S3_BUCKET: ${S3_BUCKET:-labos-files}
+    volumes:
+      - ./deploy/production/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./apps/web/dist:/srv/web:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - api
+      - rustfs
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'caddy', 'validate', '--config', '/etc/caddy/Caddyfile']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    stop_grace_period: 10s
+    logging: *logging
+
+  api:
+    <<: *application
+    command: ['labos-threejs-api']
+    # Pinned here so an operator env file cannot bind the listener to a
+    # loopback address inside the container.
+    environment:
+      APP_BIND: 0.0.0.0:3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '--fail',
+          '--silent',
+          'http://127.0.0.1:3000/health/ready',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    # Covers the 3s HTTP drain, 1s pool close and the bounded telemetry flush.
+    stop_grace_period: 30s
+
+  worker:
+    <<: *application
+    command: ['labos-threejs-worker']
+    environment:
+      WORKER_BIND: 0.0.0.0:3001
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rustfs:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '--fail',
+          '--silent',
+          'http://127.0.0.1:3001/health/ready',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 384M
+    # Covers JOB_SHUTDOWN_SECS work drain on top of the api budgets.
+    stop_grace_period: 45s
+
+  migrate:
+    <<: *application
+    profiles:
+      - ops
+    command: ['migrate']
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  storage-init:
+    <<: *application
+    profiles:
+      - ops
+    command: ['bootstrap-storage']
+    depends_on:
+      rustfs:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17.11-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: labos_threejs
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in the deployment env file}
+      POSTGRES_DB: labos_threejs
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'pg_isready -h 127.0.0.1 -U labos_threejs -d labos_threejs',
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    stop_grace_period: 30s
+    logging: *logging
+
+  redis:
+    image: redis:8.10.2-alpine@sha256:3811787313eba226a2ef38658c6ccb91cd5e110edc89c37767de373120a0e5a0
+    restart: unless-stopped
+    command:
+      [
+        'redis-server',
+        '--save',
+        '',
+        '--appendonly',
+        'no',
+        '--maxmemory',
+        '128mb',
+        '--maxmemory-policy',
+        'noeviction',
+      ]
+    networks:
+      - internal
+    healthcheck:
+      test: ['CMD', 'redis-cli', '-e', 'PING']
+      interval: 2s
+      timeout: 3s
+      retries: 20
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    stop_grace_period: 10s
+    logging: *logging
+
+  rustfs:
+    image: rustfs/rustfs:1.0.0@sha256:8cc9801755448b71a786705ce76692c77e14936cccd87cf2fc31842e58f4d1ff
+    restart: unless-stopped
+    command: ['rustfs', '/data']
+    environment:
+      RUSTFS_ACCESS_KEY: ${S3_ACCESS_KEY:?S3_ACCESS_KEY must be set in the deployment env file}
+      RUSTFS_SECRET_KEY: ${S3_SECRET_KEY:?S3_SECRET_KEY must be set in the deployment env file}
+      RUSTFS_VOLUMES: /data
+      RUSTFS_ADDRESS: 0.0.0.0:9000
+      RUSTFS_REGION: ${S3_REGION:-us-east-1}
+      RUSTFS_CONSOLE_ENABLE: 'false'
+    volumes:
+      - rustfs-data:/data
+      - rustfs-logs:/logs
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          'CMD',
+          'curl',
+          '--fail',
+          '--silent',
+          '--head',
+          'http://127.0.0.1:9000/health/ready',
+        ]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+    stop_grace_period: 30s
+    logging: *logging
+
+networks:
+  internal:
+
+volumes:
+  postgres-data:
+  rustfs-data:
+  rustfs-logs:
+  caddy-data:
+  caddy-config:

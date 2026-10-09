@@ -1,0 +1,9 @@
+global: { scrape_interval: 5s }
+storage:
+  tsdb:
+    retention: { time: 24h, size: 512MB }
+scrape_configs:
+  - job_name: labos_threejs
+    honor_labels: true
+    static_configs:
+      - targets: [collector:8889]

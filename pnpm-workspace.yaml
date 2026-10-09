@@ -1,0 +1,16 @@
+packages:
+  - apps/web
+  - apps/docs
+  - apps/desktop
+  - packages/*
+
+allowBuilds:
+  esbuild: true
+  msw: true
+  '@tailwindcss/oxide': true
+  electron: false
+
+minimumReleaseAgeExclude:
+  - '@vitest/mocker@5.0.2'
+  - '@vitest/spy@5.0.2'
+  - vitest@5.0.2

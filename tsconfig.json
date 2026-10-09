@@ -1,0 +1,33 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "verbatimModuleSyntax": true,
+    "resolveJsonModule": true,
+    "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "types": ["node", "vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@labos-threejs/ui/*": ["packages/ui/src/*"]
+    }
+  },
+  "include": [
+    "apps/web/src",
+    "apps/web/vite.config.ts",
+    "apps/desktop/src",
+    "packages/*/src",
+    "tests/frontend",
+    "tests/e2e",
+    "tests/desktop",
+    "vitest.config.ts",
+    "playwright.config.ts"
+  ],
+  "exclude": ["node_modules", "target", "apps/docs/.generated"]
+}

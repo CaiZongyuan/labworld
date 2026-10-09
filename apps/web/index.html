@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Lab Word：实验室数字孪生。" />
+    <title>Lab Word</title>
+    <script>
+      // Applies the stored (or device-default) language and the resolved
+      // theme before first paint; the app's PreferencesProvider repeats the
+      // same resolution idempotently once React mounts. Keys and fallback
+      // rules mirror packages/views/src/shell/preferences.tsx — keep the
+      // two in sync (docs/ui/design.md §6 Q2).
+      (function () {
+        var root = document.documentElement;
+        var stored = function (key, valid) {
+          try {
+            var value = localStorage.getItem(key);
+            return valid.indexOf(value) >= 0 ? value : null;
+          } catch (error) {
+            return null;
+          }
+        };
+        var locale =
+          stored('labos-threejs.locale', ['zh', 'en']) ||
+          (function () {
+            var tags = navigator.languages || [navigator.language || 'en'];
+            for (var i = 0; i < tags.length; i++) {
+              if (/^zh/i.test(tags[i])) return 'zh';
+              if (/^en/i.test(tags[i])) return 'en';
+            }
+            return 'en';
+          })();
+        root.lang = locale === 'zh' ? 'zh-CN' : 'en';
+        var theme =
+          stored('labos-threejs.theme', ['system', 'light', 'dark']) ||
+          'system';
+        var dark =
+          theme === 'dark' ||
+          (theme !== 'light' &&
+            window.matchMedia &&
+            window.matchMedia('(prefers-color-scheme: dark)').matches);
+        root.classList.toggle('dark', dark);
+        root.style.colorScheme = dark ? 'dark' : 'light';
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
