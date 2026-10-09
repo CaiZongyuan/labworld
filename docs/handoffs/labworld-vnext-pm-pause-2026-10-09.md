@@ -59,6 +59,6 @@ Git 只保留代码与本交接；`.scratch`、私有 credentials、演示数据
 - 代码：拉取 main 与上述三个未完成 PR 分支；核对完整 SHA。交接文件合入 main 后删除临时文档分支；产品候选仍未合入。`gh-pages` 保留用于正式文档站发布。
 - 证据：携带 `.scratch/vnext-continuation-20261006/` 的报告、review/候选 pin/CI facts、`.scratch/repo-transfer-20261009/` 清理/存档记录，以及 `.scratch/demo-scene-20261008/`；私有目录留在受控本地，不上传 Git。
 - 持久数据：按[运维备份/恢复](../guides/server-operations.md)使用正式备份。备份需要取得目录排他权，先核实 owner、停止原服务并保留数据；不要热复制运行中的 PGlite。已有 Task/Run 的重启规则继续有效，不能自动续跑旧任务。需要继续演示时只显式恢复自有六个模拟来源。
-- 工作树清理：旧工作树先保存独有修改、必要历史 commit 与非构建证据，再移除。旧 Rust WIP 通过 `git fetch origin --tags` 读取 `archive/2026-10-09/wip-27-bounded-trends`、`wip-29-guide-progress`、`wip-30-device-details`，只作历史参考。测试证据移至 `.scratch/repo-transfer-20261009/worktree-evidence/`，按 cleanup manifest 找原路径。原连续开发授权文件已原样提交，原字节SHA保存在清理记录。新环境需要重新建立工作树与 owner。
+- 工作树清理：旧工作树先保存独有修改、必要历史 commit 与非构建证据，再移除。旧 Rust WIP 通过 `git fetch origin --tags` 读取 `archive/2026-10-09/wip-27-bounded-trends`、`wip-29-guide-progress`、`wip-30-device-details`，只作历史参考。清理时将测试证据移至 `.scratch/repo-transfer-20261009/worktree-evidence/`；完成状态与原路径映射以最终 cleanup manifest 为准。原连续开发授权文件已原样提交，原字节SHA保存在清理记录。新环境需要重新建立工作树与 owner。
 
 本机事实投影是 `.scratch/vnext-continuation-20261006/current.md` / `timeline.html`，两者来自同一 report/events。暂停不等于 Product Gate完成。审查记录的可携带摘要见[证据索引](pm-pause-2026-10-09-evidence.md)；原因与改进见[复盘](../reviews/2026-10-09-vnext-development-retrospective.md)。

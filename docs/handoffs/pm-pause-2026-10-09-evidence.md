@@ -3,7 +3,7 @@
 本文件保存最新候选的正式审查文字，方便新环境读取。它不是新的审查或合并批准。固定候选、原基线、源码变化、实际CI和原始runner证据仍需共同核对。完整早期审查、路径hash pin、PNG和资源JSON在本机 `.scratch/vnext-continuation-20261006/evidence/`，换机器时需要携带；若原输入或原报告缺失，重新建立受影响覆盖，不能只凭 PASS 字样复用。
 
 - #31：base3b75a1f，head18bfaa81，tree6fd2fd16，31 paths。当前WebCI失败17例，尚未集成。
-- #36：base3b75a1f，headcf15edfe，tree813cb937，35 paths。最后一文件测试修复覆盖所有前34个未变hash，独立双轴PASS；最新CI37946870625待最终回读。
+- #36：base3b75a1f，headcf15edfe，tree813cb937，35 paths。最后一文件测试修复覆盖所有前34个未变hash，独立双轴PASS；最终CI37946870625 verify/Windows成功、Web失败（Foundation busy与lifecycle15>14），最新趋势修复通过，仍未集成。
 - #37：base3b75a1f，headb957dd48，treef1b9c203，23 paths，完整patch61cd878d43285755b2e1f24220a2f1b1f4cece6433a4ceb9cf9473288abcb0d4。独立双轴PASS，最终WebCI两例失败。
 
 旧报告中“pending”描述其捕获时点。当前暂停状态以[交接](labworld-vnext-pm-pause-2026-10-09.md)和GitHub当前head结果为准。下文原样保留已保存的审查文字；本机路径不代表GitHub有该scratch文件。
