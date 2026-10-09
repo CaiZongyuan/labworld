@@ -42,23 +42,21 @@ Web 为主，排除 Electron 专属 CI/build/smoke/soak；Node Windows 检查保
 
 #37 的真实修复：Task 不确定结果 wire 值是 `unknown`；runtime availability 与 transport live 分开；所有可见趋势共享 controller 的 refreshRevision，重连且 World 未变也按原 5000ms cadence 刷新，共享请求不会互相取消；四个窄屏 tab 恢复 44px。
 
-## 同机器资源与演示
+## 演示与本地证据的当前状态
 
-正式演示：[打开 Lab](http://127.0.0.1:5173/lab?lab=bb49c4a5-3d44-4227-8793-cc2fe002f09e)。保持这个 origin。既往 localhost 登录问题是 Origin 不匹配，不能据此改弱认证。
+此前正式 main32 演示确实通过：16 Entities /18 Nodes/7详细GLBs/6模拟来源，1376×755暴露canvas、真实TanStack曲线/非空读数、记录/CSV、pageerrors0。这些是历史验证结果，不是当前持久资源声明。
 
-main-data 位于 `.scratch/vnext-continuation-20261006/runtime/main-data`（本次约372MiB，持续运行会增长）。演示为 16 Entities / 18 Nodes / 7 详细独立 GLBs / 14 人工关系 / 6 显式模拟来源，初始无预制 Task；不是 #35 模板已交付。保留所有用户编辑。
+仓库整理期间确认 `.scratch/vnext-continuation-20261006/` 和 `.scratch/demo-scene-20261008/` 从磁盘消失，包含原372MiB演示数据、私有会话、原始review pins/图像/资源报告。该删除不是本PM执行；没有可确认的备份。用户明确回复“演示数据可以丢弃，只保留代码”。因此停止旧Root演示服务，放弃该演示数据；新环境重新初始化数据/会话/演示，不能沿用旧URL的Lab UUID或假称已恢复。
 
-本次实际 main32 演示已通过模型 Fit、暴露 1376×755 canvas、温度/照明普通 UI、真实 TanStack 曲线和非空读数、记录/当前页 CSV；page errors0。首次图表模块500是已安装依赖后的 Vite解析缓存未刷新；触发未改内容的前端配置 reload 后模块200、真实浏览器通过，server/web PID与六个运行来源身份保留。
+正式代码、三条未完成PR、已保存的审查文字与CI结果保留在GitHub。完整旧的本机验证材料已不可用；复制到本仓库的七份审查报告是删除前已捕获并校验的记录，当前不能重新对照消失的原文件。最新CI失败证据可从GitHub下载，过期则由后任重新验证受影响部分。
 
-保留 root 演示 supervisor session42848，3000/5173，ledger `.scratch/vnext-m1/lab-word-dev-5a4714f1-0df2-4d59-abbb-5e87aff9fa58/owned-resources.json`。creator10968/start77797，server10979/start77805，web10999/start77948。后任先核对出生标记和 HTTP，不按 PID 数字直接杀进程。它是保留的用户演示服务，不是继续开发的 agent。临时浏览器/API/测试消费者均已停止；最近作者验证时 Docker 为15containers/19volumes/8networks；最终全局盘点变为2containers/0volumes/6networks，两个剩余容器属于clinmesh。本 PM 没有执行 Docker创建、删除或prune；这次外部变化的原因未核实，不能继续声称旧资源全局仍在。Root的Node持久数据与演示服务仍正常，本轮无task Docker。后任重新核对实际owner，禁止全局prune。
+测试/构建目录与旧工作树按用户要求清理，仅保留源码及Git存档。Docker属于其他项目，最新已核对2containers/0volumes/6networks；本PM未创建/删除/prune Docker资源。旧owned Node/Web只按已确认的creator/server/web出生标记停止，不按名称或年龄清理其他服务。
 
-## 换机器需要携带的内容
+## 新环境接手与仓库清理
 
-Git 只保留代码与本交接；`.scratch`、私有 credentials、演示数据、完整截图和旧 staged 工作树不会出现在新 clone。
+- 代码：拉取main和三个未完成PR分支，核对完整SHA。交接/授权/审查记录/复盘合入main；文档站所需`gh-pages`保留。
+- 存档：`git fetch origin --tags`。旧27/29/30独有WIP在`archive/2026-10-09/wip-27-bounded-trends`、`wip-29-guide-progress`、`wip-30-device-details`。其他未被main包含的旧commit/preview也在归档标签中，按Issue清理manifest读取；不要将旧Rust补丁混入TS主线。
+- 工作树：旧附属工作树和本地临时分支清理后，新PM从必要远端分支新建独立工作树、重新建立owner和测试资源。原连续开发授权文档已原样提交。
+- 数据：用户选择不迁移旧演示数据。按[快速开始](../getting-started/quickstart.md)重新初始化；后续备份/恢复遵循[运维指南](../guides/server-operations.md)。没有Root旧私有cookie可供新环境使用。
 
-- 代码：拉取 main 与上述三个未完成 PR 分支；核对完整 SHA。交接文件合入 main 后删除临时文档分支；产品候选仍未合入。`gh-pages` 保留用于正式文档站发布。
-- 证据：携带 `.scratch/vnext-continuation-20261006/` 的报告、review/候选 pin/CI facts、`.scratch/repo-transfer-20261009/` 清理/存档记录，以及 `.scratch/demo-scene-20261008/`；私有目录留在受控本地，不上传 Git。
-- 持久数据：按[运维备份/恢复](../guides/server-operations.md)使用正式备份。备份需要取得目录排他权，先核实 owner、停止原服务并保留数据；不要热复制运行中的 PGlite。已有 Task/Run 的重启规则继续有效，不能自动续跑旧任务。需要继续演示时只显式恢复自有六个模拟来源。
-- 工作树清理：旧工作树先保存独有修改、必要历史 commit 与非构建证据，再移除。旧 Rust WIP 通过 `git fetch origin --tags` 读取 `archive/2026-10-09/wip-27-bounded-trends`、`wip-29-guide-progress`、`wip-30-device-details`，只作历史参考。清理时将测试证据移至 `.scratch/repo-transfer-20261009/worktree-evidence/`；完成状态与原路径映射以最终 cleanup manifest 为准。原连续开发授权文件已原样提交，原字节SHA保存在清理记录。新环境需要重新建立工作树与 owner。
-
-本机事实投影是 `.scratch/vnext-continuation-20261006/current.md` / `timeline.html`，两者来自同一 report/events。暂停不等于 Product Gate完成。审查记录的可携带摘要见[证据索引](pm-pause-2026-10-09-evidence.md)；原因与改进见[复盘](../reviews/2026-10-09-vnext-development-retrospective.md)。
+最终GitHub交接Issue包含交接和复盘全文、清理结果与新环境入口，可单独作为接手依据。暂停不等于Product Gate完成。可携带审查摘要见[证据索引](pm-pause-2026-10-09-evidence.md)；具体原因和改进见[复盘](../reviews/2026-10-09-vnext-development-retrospective.md)。

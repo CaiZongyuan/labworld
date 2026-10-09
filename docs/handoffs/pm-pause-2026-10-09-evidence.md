@@ -1,6 +1,6 @@
 # 2026-10-09 暂停交接的可携带审查证据
 
-本文件保存最新候选的正式审查文字，方便新环境读取。它不是新的审查或合并批准。固定候选、原基线、源码变化、实际CI和原始runner证据仍需共同核对。完整早期审查、路径hash pin、PNG和资源JSON在本机 `.scratch/vnext-continuation-20261006/evidence/`，换机器时需要携带；若原输入或原报告缺失，重新建立受影响覆盖，不能只凭 PASS 字样复用。
+本文件保存最新候选的正式审查文字，方便新环境读取。它不是新的审查或合并批准。固定候选、原基线、源码变化、实际CI和原始runner证据仍需共同核对。本文件的七份文字在原目录删除前已复制并校验。当前 `.scratch/vnext-continuation-20261006/evidence/` 及旧演示目录已从磁盘消失，原始pins/PNG/资源JSON不能再现场对照。用户选择只保留代码和放弃旧演示数据。若所需原输入或原报告缺失，结合GitHub当前CI与新环境重新建立受影响覆盖，不能只凭PASS字样复用。
 
 - #31：base3b75a1f，head18bfaa81，tree6fd2fd16，31 paths。当前WebCI失败17例，尚未集成。
 - #36：base3b75a1f，headcf15edfe，tree813cb937，35 paths。最后一文件测试修复覆盖所有前34个未变hash，独立双轴PASS；最终CI37946870625 verify/Windows成功、Web失败（Foundation busy与lifecycle15>14），最新趋势修复通过，仍未集成。
