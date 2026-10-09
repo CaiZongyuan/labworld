@@ -280,28 +280,40 @@ test('narrow history queries and pages its records, then restores the selected E
     const { user } = open('/lab?lab=lab-two&entity=bench-two');
     server.use(
       http.get(
-        'http://api.test/api/v1/lab/labs/lab-two/entities/bench-two/history',
+        'http://api.test/api/v1/lab/labs/lab-two/records',
         ({ request }) => {
-          const more = new URL(request.url).searchParams.has('cursor');
+          const query = new URL(request.url).searchParams;
+          const more = query.has('cursor');
           return HttpResponse.json({
-            record_type: 'event',
-            from: '2026-10-03T00:00:00Z',
-            to: '2026-10-05T00:00:00Z',
-            available_since: '2026-10-03T00:00:00Z',
-            gap: false,
+            entity_id: null,
+            record_type: null,
+            from: query.get('from'),
+            to: query.get('to'),
+            queried_at: '2026-10-08T12:30:00.123456Z',
+            query_upper_bound: '2026-10-08T12:30:00.123456Z',
             retention: { observation_seconds: 86400, record_seconds: 2592000 },
+            coverage: [],
             items: [
               {
                 id: more ? 'older-event' : 'recent-event',
+                record_type: 'event',
+                entity_id: 'bench-two',
+                entity_name: 'Second bench',
+                reality: 'simulated',
+                run_id: 'recorded-run',
+                binding_id: 'recorded-binding',
                 recorded_at: '2026-10-04T00:00:00Z',
-                data: {
-                  values: {
-                    message: more ? 'Older event page' : 'Recent event page',
-                  },
-                },
+                state: 'recorded',
+                summary: more ? 'Older event page' : 'Recent event page',
+                source: 'simulated:original-source',
+                actor_id: null,
+                actor_source: 'unknown',
+                actor_role: 'unknown',
+                data: {},
               },
             ],
             next_cursor: more ? null : 'next-page',
+            max_page_items: 100,
             max_range_seconds: 2678400,
             max_response_bytes: 262144,
           });
@@ -314,11 +326,14 @@ test('narrow history queries and pages its records, then restores the selected E
     expect(
       screen.queryByRole('complementary', { name: '对象信息' }),
     ).toBeNull();
-    const history = screen.getByRole('region', { name: '运行历史' });
+    const history = screen.getByRole('region', { name: '运行记录' });
     await within(history).findByText('Recent event page');
-    await user.click(within(history).getByRole('button', { name: '查询历史' }));
-    await user.click(within(history).getByRole('button', { name: '更早记录' }));
+    await user.click(within(history).getByRole('button', { name: '查询记录' }));
+    await user.click(
+      within(history).getByRole('button', { name: '更早运行记录' }),
+    );
     expect(await within(history).findByText('Older event page')).toBeVisible();
+    expect(within(history).queryByText('Recent event page')).toBeNull();
     await user.click(screen.getByRole('button', { name: '关闭运行历史' }));
     expect(
       screen.getByRole('complementary', { name: '对象信息' }),
@@ -662,4 +677,138 @@ test('returning to a Lab retains its conflict recovery and can save the rebased 
     ).toHaveTextContent('已保存'),
   );
   expect(secondWorld.nodes[0].placement.position[0]).toBe(3);
+});
+
+test('an explicit records view returns to the same Entity and keeps its private layout draft', async () => {
+  server.use(
+    http.get(
+      'http://api.test/api/v1/lab/labs/lab-one/records',
+      ({ request }) => {
+        const query = new URL(request.url).searchParams;
+        return HttpResponse.json({
+          from: query.get('from'),
+          to: query.get('to'),
+          queried_at: '2026-10-08T12:30:00.123456Z',
+          query_upper_bound: '2026-10-08T12:30:00.123456Z',
+          entity_id: null,
+          record_type: null,
+          retention: { observation_seconds: 86400, record_seconds: 2592000 },
+          coverage: [],
+          max_page_items: 100,
+          max_range_seconds: 2678400,
+          max_response_bytes: 262144,
+          items: [],
+          next_cursor: null,
+        });
+      },
+    ),
+  );
+  const { user, router } = open('/lab?lab=lab-one&entity=bench-one');
+  await screen.findByRole('heading', { name: 'Spatial lab' });
+  await user.click(screen.getByRole('tab', { name: '编辑布局' }));
+  const x = screen.getByLabelText('X (m)');
+  await user.clear(x);
+  await user.type(x, '7');
+  await user.click(screen.getByRole('tab', { name: '运行记录' }));
+  expect(await screen.findByText('没有保留期内运行记录')).toBeVisible();
+  expect(router.state.location.search).toMatchObject({
+    lab: 'lab-one',
+    entity: 'bench-one',
+    view: 'records',
+  });
+  await user.click(screen.getByRole('button', { name: '关闭运行历史' }));
+  expect(screen.getByRole('tab', { name: '三维空间' })).toHaveFocus();
+  expect(screen.getByRole('tab', { name: '编辑布局' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  expect(screen.getByLabelText('X (m)')).toHaveValue(7);
+  expect(router.state.location.search).toMatchObject({ entity: 'bench-one' });
+});
+
+test('a Lab record opens its original Entity and result instead of that Entity latest result', async () => {
+  server.use(
+    http.get(
+      'http://api.test/api/v1/lab/labs/lab-one/records',
+      ({ request }) => {
+        const q = new URL(request.url).searchParams;
+        return HttpResponse.json({
+          from: q.get('from'),
+          to: q.get('to'),
+          queried_at: '2026-10-08T12:30:00.123456Z',
+          query_upper_bound: '2026-10-08T12:30:00.123456Z',
+          entity_id: null,
+          record_type: null,
+          retention: { observation_seconds: 86400, record_seconds: 2592000 },
+          coverage: [],
+          max_page_items: 100,
+          max_range_seconds: 2678400,
+          max_response_bytes: 262144,
+          items: [
+            {
+              id: 'record-original-task',
+              record_type: 'task',
+              entity_id: 'bench-one',
+              entity_name: 'Earlier device name',
+              reality: 'simulated',
+              run_id: 'original-run',
+              binding_id: 'original-binding',
+              command_id: 'original-command',
+              task_id: 'original-task',
+              result_id: 'original-result',
+              recorded_at: '2026-10-08T12:00:00.123456Z',
+              ended_at: '2026-10-08T12:01:00.654321Z',
+              state: 'completed',
+              summary: 'recorded-task',
+              source: 'simulated:original-source',
+              actor_id: 'original-member',
+              actor_source: 'member',
+              actor_role: 'initiator',
+              data: {
+                result: {
+                  id: 'original-result',
+                  task_id: 'original-task',
+                  status: 'completed',
+                  values: { temperature: 4 },
+                },
+              },
+            },
+          ],
+          next_cursor: null,
+        });
+      },
+    ),
+  );
+  const { user, router, firstWorld } = open(
+    '/lab?lab=lab-one&entity=bench-one&view=records',
+  );
+  Object.assign(firstWorld.entities[0], {
+    task_result: {
+      id: 'current-result',
+      task_id: 'current-task',
+      status: 'completed',
+      values: { temperature: 25 },
+    },
+  });
+  await user.click(
+    await screen.findByRole('button', {
+      name: '打开原对象 Earlier device name',
+    }),
+  );
+  const original = await screen.findByRole('region', { name: '原始记录结果' });
+  expect(original).toHaveTextContent('original-result');
+  expect(original).toHaveTextContent('original-task');
+  expect(original).toHaveTextContent('original-source');
+  expect(original).not.toHaveTextContent('current-result');
+  expect(router.state.location.search).toMatchObject({
+    lab: 'lab-one',
+    entity: 'bench-one',
+    view: 'space',
+  });
+  expect(screen.getByRole('tab', { name: '详情' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  );
+  await user.click(screen.getByRole('tab', { name: '记录' }));
+  expect(await screen.findByRole('tab', { name: '观测' })).toBeVisible();
 });

@@ -409,14 +409,14 @@ test('narrow history keeps filters, real command records and pagination reachabl
     await trigger.click();
     const surface = page.locator('.world-history-surface');
     const history = page.getByRole('region', {
-      name: english ? 'Run history' : '运行历史',
+      name: english ? 'Lab records' : '运行记录',
     });
     const panelRect = await bounds(page, surface);
     await history
-      .getByRole('tab', { name: english ? 'Commands' : '命令', exact: true })
-      .click();
+      .getByLabel(english ? 'Record category' : '记录类别')
+      .selectOption('command');
     const query = history.getByRole('button', {
-      name: english ? 'Query history' : '查询历史',
+      name: english ? 'Query records' : '查询记录',
       exact: true,
     });
     const from = history.getByLabel(english ? 'From' : '开始时间', {
@@ -427,15 +427,15 @@ test('narrow history keeps filters, real command records and pagination reachabl
     await query.scrollIntoViewIfNeeded();
     await bounds(page, query);
     await query.click();
-    await expect(history.locator('.world-history-record')).toHaveCount(20);
+    await expect(history.locator('.lab-records > ol > li')).toHaveCount(20);
     const more = history.getByRole('button', {
-      name: english ? 'Earlier records' : '更早记录',
+      name: english ? 'Earlier Lab records' : '更早运行记录',
       exact: true,
     });
     await more.scrollIntoViewIfNeeded();
     const moreRect = await bounds(page, more);
     await more.click();
-    await expect(history.locator('.world-history-record')).toHaveCount(25);
+    await expect(history.locator('.lab-records > ol > li')).toHaveCount(5);
     const scroll = await surface.evaluate((element) => ({
       top: element.scrollTop,
       height: element.clientHeight,

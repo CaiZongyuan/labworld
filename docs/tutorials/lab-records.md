@@ -2,15 +2,35 @@
 
 当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
 
-目标：用生成 SDK 读取同一 Lab 的 Command、Task、Event 和设备程序 Run。按设备、类别和时间筛选，并稳定读取下一页。
+目标：在工作台查看同一 Lab 的 Command、Task、Event 和设备程序 Run，打开原始记录并导出当前页。生成 SDK 提供相同的有界查询。
 
 ## 起始状态
 
-使用包含 [records.rs](../../packages/server/src/lab/records/use-cases.ts) 的源码版本。先完成[离心任务](centrifuge-tasks.md)或[后端照明控制](backend-lights.md)。Lab 中需要真实的 Run、Command 和事件；离心动作还会建立 Task。
+使用包含[记录查询](../../packages/server/src/lab/records/use-cases.ts)和[运行记录视图](../../packages/views/src/lab/records-panel.tsx)的源码版本。先完成[离心任务](centrifuge-tasks.md)或[后端照明控制](backend-lights.md)。Lab 中需要真实的 Run、Command 和事件；离心动作还会建立 Task。
 
 在仓库根目录执行命令。运行 `pnpm install --frozen-lockfile`，然后运行 `pnpm dev`。普通 Member 使用有效会话。Agent 使用有效的 `lab:full` API key。下列查询不写入 World，不清理记录。
 
-源码：[混合记录投影](../../packages/server/src/lab/records/list.sql)、[分类覆盖范围](../../packages/server/src/lab/records/coverage.sql)、[部署保留策略](../../packages/server/src/lab/history/use-cases.ts)。Node Zod/OpenAPI 提供迁移合同，正式 SDK 来源切换由后续迁移负责。
+源码：[混合记录投影](../../packages/server/src/lab/records/list.sql)、[分类覆盖范围](../../packages/server/src/lab/records/coverage.sql)、[部署保留策略](../../packages/server/src/lab/history/use-cases.ts)。正式 SDK 由 Node Zod/OpenAPI 生成。
+
+## 在工作台查看和下载
+
+1. 打开 `http://127.0.0.1:5173/lab`，使用普通 Member 登录。
+2. 在“打开 Lab”中选择前一章的实验室。默认入口是“三维空间”。
+3. 选择“运行记录”。页面读取最近 24 小时的混合记录，默认每页最多 20 项。
+4. 选择设备和“记录类别”。输入开始、结束时间，再选择“查询记录”。时间使用浏览器当地时区；查询上界显示服务器返回的原始 ISO 时间。
+5. 选择“更早运行记录”。页面替换为下一页，查询上界保持不变。选择“刷新运行记录”会开始新的第一页查询。
+6. 选择“查看原始记录”。检查 Entity、Run、Binding、Command、Task、Result 和操作者来源。缺失事实显示“未知”；已知保留缺口单独列出。
+7. 对已完成的 Task，选择“打开原对象”。Inspector 显示该记录保存的结果。设备后来产生的结果不会替换它。
+8. 在 Inspector 中选择“记录”，再选择“观测”。原始单设备 Observation 历史仍然可达。
+9. 返回“运行记录”，选择“导出当前页 CSV”。下载只包含已读取当前页，最多 100 项；设备、类别和时间筛选保持不变。
+
+CSV 使用 UTF-8，保留原始 ISO 时间。引号、逗号和换行按 CSV 规则转义。可能被表格软件解释为公式的值增加前置单引号。下载不发起历史查询，也不写入 World。完整实现见[当前页下载](../../packages/views/src/lab/records-csv.ts)。
+
+将结束时间改为早于开始时间。“查询记录”变为不可用，已加载页仍可查看。恢复有效范围后重新查询。网络查询失败时，页面保留上次已加载页并标明实际查询范围；选择“重试记录查询”继续失败的请求。新筛选尚未成功时，CSV 下载不可用。
+
+在三维空间选择“打开运行历史”，按需展开同一 Lab 记录。窄屏关闭历史后恢复原对象与打开按钮的焦点。完整记录视图关闭后，焦点返回“三维空间”。切换工作视图会保留选中对象与未保存布局草稿。
+
+[最近活动](../../packages/views/src/lab/recent-activity.tsx)提供最多 5 项的第一页，供后续总览复用。它没有翻页或全历史导出；刷新会建立新查询。当前默认入口仍是三维空间。
 
 ## 取得前两页
 
@@ -84,4 +104,4 @@ Command 使用持久 `actor_source`。Task 从关联 Command 取得发起者；C
 
 未知参数、非法范围、类别或错误游标返回 400。不存在或跨 Lab 的 Entity 返回 404。无效、失效或撤销身份返回 401；缺少 `lab:full` 的 key 返回 403。修正参数或取得有效凭据后，从无游标查询恢复。拒绝后的读取不改变 World、记录或设备任务。
 
-后续工作视图可复用此公开查询。当前教程直接验证 HTTP/SDK，不要求尚未交付的运行记录页面。
+继续使用[单设备历史](run-history.md)检查原始 Observation 和部署保留策略。

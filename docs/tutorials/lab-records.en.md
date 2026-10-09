@@ -2,15 +2,35 @@
 
 The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
 
-Goal: read Command, Task, Event and device program Run records through the generated SDK. Filter records and continue with a stable cursor.
+Goal: read Command, Task, Event and device program Run records in the workbench. Open an original record and export the current page. The generated SDK provides the same bounded query.
 
 ## Starting State
 
-Use a source version that contains [records.rs](../../packages/server/src/lab/records/use-cases.ts). Complete [centrifuge tasks](centrifuge-tasks.en.md) or [backend lighting](backend-lights.en.md) first. The Lab needs real Runs, Commands and events. A centrifuge action also creates a Task.
+Use a source version with the [records query](../../packages/server/src/lab/records/use-cases.ts) and [records view](../../packages/views/src/lab/records-panel.tsx). Complete [centrifuge tasks](centrifuge-tasks.en.md) or [backend lighting](backend-lights.en.md) first. The Lab needs real Runs, Commands and events. A centrifuge action also creates a Task.
 
 Run commands from the repository root. Run `pnpm install --frozen-lockfile`, then `pnpm dev`. Members need an active session. Agents need an active `lab:full` key. These queries do not change World or clean records.
 
-Sources: [mixed records](../../packages/server/src/lab/records/list.sql), [category coverage](../../packages/server/src/lab/records/coverage.sql), and [deployment retention](../../packages/server/src/lab/history/use-cases.ts). Node Zod/OpenAPI supplies the migrated contract. The official SDK source switch follows.
+Sources: [mixed records](../../packages/server/src/lab/records/list.sql), [category coverage](../../packages/server/src/lab/records/coverage.sql), and [deployment retention](../../packages/server/src/lab/history/use-cases.ts). Node Zod/OpenAPI generates the official SDK.
+
+## Read And Download In The Workbench
+
+1. Open `http://127.0.0.1:5173/lab`. Sign in as a Member.
+2. Select the previous chapter's Lab in “Open Lab”. “3D space” is the default view.
+3. Select “Lab records”. The page reads mixed records from the past 24 hours, with at most 20 items per page.
+4. Select a device and “Record category”. Enter start and end times, then select “Query records”. Inputs use local time. The query upper bound keeps the server's original ISO value.
+5. Select “Earlier Lab records”. The next page replaces the current page and keeps the same upper bound. “Refresh Lab records” starts a new first-page query.
+6. Select “View original record”. Check Entity, Run, Binding, Command, Task, Result and actor provenance. Missing facts show “Unknown”. Known retention gaps appear separately.
+7. For a completed Task, select “Open original Entity”. The Inspector shows the result saved with that record. Later device results cannot replace it.
+8. Select “Records” in the Inspector, then “Observations”. The device's raw Observation history remains available.
+9. Return to “Lab records”. Select “Export current page CSV”. The download contains only the loaded page, with at most 100 items. Filters remain unchanged.
+
+The CSV uses UTF-8 and preserves original ISO timestamps. Quotes, commas and line breaks use CSV escaping. Possible spreadsheet formulas receive a leading apostrophe. Downloading sends no history request and does not write World. See [current-page download](../../packages/views/src/lab/records-csv.ts).
+
+Set the end time before the start time. “Query records” becomes unavailable, and the loaded page stays visible. Restore a valid range and query again. A failed network query keeps the last loaded page and identifies its actual scope. Select “Retry records query” to repeat the failed request. CSV is unavailable until a new filter succeeds.
+
+Select “Open run history” in 3D space to expand the same Lab records. On a narrow screen, closing history restores the selected Entity and trigger focus. Closing the full records view focuses “3D space”. Switching views preserves the selected Entity and unsaved layout draft.
+
+[Recent activity](../../packages/views/src/lab/recent-activity.tsx) provides at most five first-page items for a future overview consumer. It has no pagination or history export. Refresh starts a new query. The current default entry remains 3D space.
 
 ## Read Two Pages
 
@@ -90,4 +110,4 @@ Each page permits at most 100 items and 256 KiB. Large records reduce the page s
 
 Unknown parameters, invalid ranges, categories and bad cursors return 400. Unknown or foreign Entities return 404. Invalid, expired or revoked credentials return 401. Keys without `lab:full` return 403. Correct the input or credentials, then start without a cursor. Rejected reads do not change World, records or device Tasks.
 
-Later workbench views can reuse this query. This chapter verifies HTTP and SDK behavior directly. It does not require a future records page.
+Continue with [device history](run-history.en.md) to inspect raw Observations and the deployment's retention policy.
