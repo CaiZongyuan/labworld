@@ -136,6 +136,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "spatial-workbench",
+      "next": "device-trends"
+    },
+    {
+      "id": "device-trends",
+      "source": "docs/tutorials/device-trends.md",
+      "sourceEn": "docs/tutorials/device-trends.en.md",
+      "route": "tutorials/device-trends.md",
+      "title": "设备趋势",
+      "titleEn": "Device trends",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "device-details",
       "next": "backend-lights"
     },
     {
@@ -147,7 +159,7 @@
       "titleEn": "Backend lighting control",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "device-details",
+      "previous": "device-trends",
       "next": "edit-layout"
     },
     {

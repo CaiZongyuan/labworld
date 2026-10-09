@@ -19,6 +19,7 @@ import RecordDetails from './record-details';
 import ObservationReading from './observation-reading';
 import { readEntityObservations } from './observation-state';
 import { Tool } from './view-controls';
+import TrendEntry from './trend-entry';
 
 function locationOf(world: LabWorld, entity: LabEntity) {
   const names: string[] = [];
@@ -54,20 +55,33 @@ export default function EntityDetail({
   connected,
   originalRecord,
   onCloseOriginalRecord,
+  visible,
+  userId,
+  recentMinuteRequest,
 }: {
   entity: LabEntity;
   world: LabWorld;
   apiClient: ApiClient;
-  operations: ReactNode;
+  operations: (readingDetails: ReactNode) => ReactNode;
   children: ReactNode;
   editing: boolean;
   onConfigure: () => void;
   connected: boolean;
   originalRecord?: LabRecord;
   onCloseOriginalRecord?: () => void;
+  visible: boolean;
+  userId: string;
+  recentMinuteRequest?: number;
 }) {
   const message = useAppMessage('lab');
-  const [tab, setTab] = useState('operations');
+  const [view, setView] = useState({ tab: 'operations', recentMinuteRequest });
+  const tab =
+    editing || originalRecord
+      ? 'details'
+      : recentMinuteRequest !== undefined &&
+          recentMinuteRequest !== view.recentMinuteRequest
+        ? 'operations'
+        : view.tab;
   const [recordsOpened, setRecordsOpened] = useState(false);
   const location = locationOf(world, entity);
   return (
@@ -95,9 +109,9 @@ export default function EntityDetail({
         </div>
       </div>
       <Tabs
-        value={editing || originalRecord ? 'details' : tab}
+        value={tab}
         onValueChange={(value) => {
-          setTab(String(value));
+          setView({ tab: String(value), recentMinuteRequest });
           if (value !== 'details') onCloseOriginalRecord?.();
           if (value === 'records') setRecordsOpened(true);
         }}
@@ -119,7 +133,18 @@ export default function EntityDetail({
           </TabsList>
         ) : null}
         <TabsContent value="operations" keepMounted>
-          {operations}
+          {operations(
+            <TrendEntry
+              key={recentMinuteRequest ?? 'ordinary'}
+              entity={entity}
+              apiClient={apiClient}
+              userId={userId}
+              worldVersion={world.version}
+              visible={visible && tab === 'operations'}
+              initialOpen={recentMinuteRequest !== undefined}
+              initialRange={recentMinuteRequest !== undefined ? 'minute' : '1'}
+            />,
+          )}
         </TabsContent>
         <TabsContent value="records" keepMounted>
           {recordsOpened ? (

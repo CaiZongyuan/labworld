@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Check, Play, RefreshCw, Square } from 'lucide-react';
 import {
@@ -75,6 +75,7 @@ export default function DevicePanel({
   onInput,
   sourceAttempt,
   onSourceAttempt,
+  readingDetails,
 }: {
   entity: LabEntity;
   apiClient: ApiClient;
@@ -87,6 +88,7 @@ export default function DevicePanel({
   onInput: (input: DeviceInput) => void;
   sourceAttempt?: SourceAttempt;
   onSourceAttempt: (attempt: SourceAttempt) => void;
+  readingDetails?: ReactNode;
 }) {
   const message = useAppMessage('lab');
   const client = useQueryClient();
@@ -262,6 +264,7 @@ export default function DevicePanel({
           <p>{message('world.unknown')}</p>
         ) : null}
       </section>
+      {readingDetails}
       {entity.binding ? (
         <section
           className="lab-inspector-section device-panel"

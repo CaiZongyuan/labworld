@@ -101,4 +101,4 @@ pnpm exec vitest run apps/web/src/lab-device-details.test.tsx apps/web/src/lab-d
 
 This entry operates actual Lab Views. MSW replaces HTTP only. Actual Node/Web browser acceptance uses separate services and persistent data. It checks desktop and approved narrow screens, actual WebGL pixels, focus and action targets. Tests do not use your active development database.
 
-Continue with [Backend lights](backend-lights.md). Query the same device identities and Commands as a Member and an Agent.
+Continue with [Device trends](device-trends.md). Read the same device’s historical values, gaps and sources.

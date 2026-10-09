@@ -12,6 +12,18 @@ export default defineConfig(({ mode }) => {
   return {
     envDir: workspaceRoot,
     plugins: [react(), tailwindcss()],
+    optimizeDeps: {
+      include: [
+        '@tanstack/charts',
+        '@tanstack/charts/react',
+        '@tanstack/charts/line',
+        '@tanstack/charts/dot',
+        '@tanstack/charts/tooltip',
+        '@tanstack/charts/tooltip/portal',
+        '@tanstack/charts/scales/linear',
+        'd3-scale',
+      ],
+    },
     server: {
       host: '127.0.0.1',
       port: Number(process.env.WEB_PORT ?? 5173),
