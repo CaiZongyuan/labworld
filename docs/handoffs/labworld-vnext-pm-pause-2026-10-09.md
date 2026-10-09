@@ -50,7 +50,7 @@ main-data 位于 `.scratch/vnext-continuation-20261006/runtime/main-data`（本�
 
 本次实际 main32 演示已通过模型 Fit、暴露 1376×755 canvas、温度/照明普通 UI、真实 TanStack 曲线和非空读数、记录/当前页 CSV；page errors0。首次图表模块500是已安装依赖后的 Vite解析缓存未刷新；触发未改内容的前端配置 reload 后模块200、真实浏览器通过，server/web PID与六个运行来源身份保留。
 
-保留 root 演示 supervisor session42848，3000/5173，ledger `.scratch/vnext-m1/lab-word-dev-5a4714f1-0df2-4d59-abbb-5e87aff9fa58/owned-resources.json`。creator10968/start77797，server10979/start77805，web10999/start77948。后任先核对出生标记和 HTTP，不按 PID 数字直接杀进程。它是保留的用户演示服务，不是继续开发的 agent。临时浏览器/API/测试消费者均已停止；现有 Docker15containers/19volumes/8networks 保留，本轮无 task Docker。不得全局 prune。
+保留 root 演示 supervisor session42848，3000/5173，ledger `.scratch/vnext-m1/lab-word-dev-5a4714f1-0df2-4d59-abbb-5e87aff9fa58/owned-resources.json`。creator10968/start77797，server10979/start77805，web10999/start77948。后任先核对出生标记和 HTTP，不按 PID 数字直接杀进程。它是保留的用户演示服务，不是继续开发的 agent。临时浏览器/API/测试消费者均已停止；最近作者验证时 Docker 为15containers/19volumes/8networks；最终全局盘点变为2containers/0volumes/6networks，两个剩余容器属于clinmesh。本 PM 没有执行 Docker创建、删除或prune；这次外部变化的原因未核实，不能继续声称旧资源全局仍在。Root的Node持久数据与演示服务仍正常，本轮无task Docker。后任重新核对实际owner，禁止全局prune。
 
 ## 换机器需要携带的内容
 
