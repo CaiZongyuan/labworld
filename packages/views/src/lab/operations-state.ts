@@ -25,7 +25,7 @@ function operationFacts(entity: LabEntity) {
       time: run.ended_at ?? run.started_at,
     });
   const task = entity.task;
-  if (task && ['failed', 'interrupted', 'uncertain'].includes(task.status))
+  if (task && ['failed', 'interrupted', 'unknown'].includes(task.status))
     attention.push({
       reason: `task_${task.status}`,
       time: task.ended_at ?? task.created_at,
@@ -64,7 +64,7 @@ function operationFacts(entity: LabEntity) {
     }
   }
   const priority = attention.some((fact) =>
-    ['run_interrupted', 'task_interrupted', 'task_uncertain'].includes(
+    ['run_interrupted', 'task_interrupted', 'task_unknown'].includes(
       fact.reason,
     ),
   )

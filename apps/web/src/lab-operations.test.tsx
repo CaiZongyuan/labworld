@@ -339,7 +339,7 @@ test('attention merges retained facts and prioritizes interrupted or uncertain o
     const uncertain = world.entities.find(
       (entry) => entry.id === 'task-centrifuge',
     )!;
-    uncertain.task!.status = 'uncertain';
+    uncertain.task!.status = 'unknown';
     uncertain.task!.ended_at = '2026-10-09T01:30:00Z';
     uncertain.observation!.properties.speed.quality = 'bad';
     uncertain.observation!.properties.temperature.observed_at = null;
