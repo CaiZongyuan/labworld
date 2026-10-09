@@ -5,6 +5,7 @@ mod glb;
 mod history;
 mod layout;
 mod lifecycle;
+mod progress;
 mod records;
 mod relationships;
 mod runtime;
@@ -66,6 +67,7 @@ pub fn router_with_retention(
         .merge(world::routes())
         .merge(layout::routes())
         .merge(lifecycle::routes())
+        .merge(progress::routes())
         .merge(devices::routes())
         .merge(tasks::routes())
         .merge(history::routes())
@@ -87,6 +89,7 @@ pub fn openapi() -> utoipa::openapi::OpenApi {
     document.merge(world::openapi());
     document.merge(layout::openapi());
     document.merge(lifecycle::openapi());
+    document.merge(progress::openapi());
     document.merge(devices::openapi());
     document.merge(tasks::openapi());
     document.merge(history::openapi());
@@ -104,6 +107,9 @@ pub fn api_key_scope() -> api_keys::KeyScope {
 }
 
 enum Failure {
+    GuideNotFound,
+    GuideVersionUnsupported,
+    GuideProgressConflict,
     File(files::Error),
     InvalidInput,
     NotFound,
@@ -150,6 +156,21 @@ impl From<sqlx::Error> for Failure {
 impl Failure {
     fn response(self, id: RequestId) -> Response {
         let (status, code, message) = match self {
+            Self::GuideProgressConflict => (
+                StatusCode::CONFLICT,
+                "lab.guide_progress_conflict",
+                "Guide progress changed; read the current record and retry explicitly",
+            ),
+            Self::GuideNotFound => (
+                StatusCode::NOT_FOUND,
+                "lab.guide_not_found",
+                "Lab guide not found",
+            ),
+            Self::GuideVersionUnsupported => (
+                StatusCode::BAD_REQUEST,
+                "lab.guide_version_unsupported",
+                "Use a supported guide version; existing progress was not changed",
+            ),
             Self::RecordsTooLarge => (
                 StatusCode::PAYLOAD_TOO_LARGE,
                 "lab.records_too_large",

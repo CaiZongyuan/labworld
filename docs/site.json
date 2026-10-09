@@ -234,6 +234,16 @@
       "previous": "entity-lifecycle"
     },
     {
+      "id": "guide-progress",
+      "source": "docs/tutorials/guide-progress.md",
+      "sourceEn": "docs/tutorials/guide-progress.en.md",
+      "route": "tutorials/guide-progress.md",
+      "title": "个人 Lab 引导进度",
+      "titleEn": "Personal Lab Guide Progress",
+      "group": "实验室",
+      "type": "tutorial"
+    },
+    {
       "id": "complete-foundation",
       "source": "docs/tutorials/complete-foundation.md",
       "sourceEn": "docs/tutorials/complete-foundation.en.md",

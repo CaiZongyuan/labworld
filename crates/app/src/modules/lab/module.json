@@ -19,7 +19,8 @@
     "lab.observation_history",
     "lab.device_events",
     "lab.history_bounds",
-    "lab.command_receipts"
+    "lab.command_receipts",
+    "lab.guide_progress"
   ],
   "viewPath": "packages/views/src/lab",
   "sdkPaths": ["packages/sdk/src/lab-world.ts"],
@@ -48,9 +49,11 @@
     "migrations/0025_lab_device_tasks.sql",
     "migrations/0026_lab_history.sql",
     "migrations/0027_lab_command_receipts.sql",
-    "migrations/0028_lab_entity_lifecycle.sql"
+    "migrations/0028_lab_entity_lifecycle.sql",
+    "migrations/0029_lab_guide_progress.sql"
   ],
   "tests": [
+    "apps/api/tests/lab_progress.rs",
     "apps/web/src/lab-workbench.test.tsx",
     "tests/e2e/lab-workbench.spec.ts",
     "tests/e2e/lab-workbench-review.spec.ts",
@@ -89,6 +92,9 @@
     "tests/fixtures/lab"
   ],
   "tutorials": [
+    "docs/tutorials/guide-progress.md",
+    "docs/tutorials/guide-progress.en.md",
+    "examples/lab/guide-progress.mjs",
     "docs/tutorials/spatial-workbench.md",
     "docs/tutorials/spatial-workbench.en.md",
     "apps/docs/public/lab-foundation-v1.png",
@@ -129,6 +135,17 @@
     "examples/lab/manage-entity.mjs"
   ],
   "contractSymbols": [
+    "LabGuideStatus",
+    "LabGuideStep",
+    "GuideBusinessOperation",
+    "GuideBusinessAttempt",
+    "LabGuideContext",
+    "SaveLabGuideProgress",
+    "LabGuideProgress",
+    "LabGuideCompatibility",
+    "LabGuideProgressRead",
+    "getLabGuideProgress",
+    "saveLabGuideProgress",
     "LabAsset",
     "AssetRepresentation",
     "AssetPage",
