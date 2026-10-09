@@ -98,7 +98,23 @@ impl SqlStatementSnapshot {
 async fn a_full_day_with_spikes_duplicates_and_collection_gap_is_bounded_at_one_and_one_hundred_entities(
     pool: PgPool,
 ) {
-    let (clock, runtime, app, member, path) = setup(pool.clone(), "sensor").await;
+    let (clock, runtime, _, member, path) = setup(pool.clone(), "sensor").await;
+    // Preserve the restored day of data throughout this bounded capacity case.
+    let policy = RetentionPolicy::new(172800, RetentionPolicy::default().record_seconds).unwrap();
+    let routes = labos_threejs_app::modules::lab::router_with_retention(
+        pool.clone(),
+        Default::default(),
+        None,
+        None,
+        policy,
+    );
+    let app = labos_threejs_app::compose_routes_with_options(
+        pool.clone(),
+        Default::default(),
+        routes,
+        labos_threejs_api::openapi(),
+        Default::default(),
+    );
     let lab = path.split('/').nth(5).unwrap();
     let entity_id = path.split('/').nth(7).unwrap();
     let run = data(
@@ -237,6 +253,9 @@ async fn a_full_day_with_spikes_duplicates_and_collection_gap_is_bounded_at_one_
             assert!(bytes.len() <= budgets["trendBytes"].as_u64().unwrap() as usize);
             let trend: Value = serde_json::from_slice(&bytes).unwrap();
             assert_eq!(trend["max_points"], 600);
+            assert_eq!(trend["observation_retention_seconds"], 172800);
+            let retained: DateTime<Utc> = trend["retained_since"].as_str().unwrap().parse().unwrap();
+            assert!(retained <= from, "capacity fixture lost its retained prefix");
             assert_eq!(trend["raw_sample_count"], 86380);
             assert!(trend["plot_item_count"].as_u64().unwrap() <= 600);
             assert_eq!(trend["segments"].as_array().unwrap().len(), 2);
@@ -310,6 +329,93 @@ async fn a_full_day_with_spikes_duplicates_and_collection_gap_is_bounded_at_one_
         )
         .unwrap();
     }
+}
+
+#[sqlx::test(migrations = "../../migrations")]
+async fn default_retention_crops_expired_prefix_without_cleanup(pool: PgPool) {
+    let (clock, runtime, app, member, path) = setup(pool, "sensor").await;
+    let run = data(
+        request(
+            &app,
+            &member,
+            "POST",
+            &format!("{path}/program/start"),
+            json!({}),
+        )
+        .await,
+    )
+    .await;
+    clock
+        .0
+        .store(Utc::now().timestamp() - 25 * 3600, Ordering::SeqCst);
+    let expired = clock.now();
+    for sequence in 1..=2 {
+        runtime
+            .observe(
+                run["id"].as_str().unwrap(),
+                ObservationReport {
+                    sequence,
+                    values: json!({"temperature":20 + sequence}),
+                    observed_at: Some(clock.now()),
+                    quality: "good".into(),
+                },
+            )
+            .await
+            .unwrap();
+        if sequence == 1 {
+            clock.advance(23 * 3600);
+        }
+    }
+    let retained_sample = clock.now();
+    let response = request(
+        &app,
+        &member,
+        "GET",
+        &query(
+            &path,
+            "temperature",
+            expired - chrono::Duration::seconds(1),
+            retained_sample + chrono::Duration::seconds(1),
+            "",
+        ),
+        Value::Null,
+    )
+    .await;
+    assert_eq!(response.status(), StatusCode::OK);
+    let trend = data(response).await;
+    assert_eq!(trend["observation_retention_seconds"], 86400);
+    assert_eq!(trend["max_range_seconds"], 86400);
+    assert_eq!(trend["raw_sample_count"], 1);
+    assert_eq!(trend["returned_sample_count"], 1);
+    assert_eq!(trend["segments"][0]["samples"][0]["sequence"], 2);
+    assert_eq!(trend["segments"][0]["samples"][0]["value"], 22);
+    assert_eq!(trend["first_report_at"], json!(retained_sample));
+    let retained: DateTime<Utc> = trend["retained_since"].as_str().unwrap().parse().unwrap();
+    assert!(retained > expired && retained < retained_sample);
+    assert!(trend["gaps"].as_array().unwrap().iter().any(|gap| {
+        gap["reasons"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|reason| reason == "retention")
+    }));
+    let lab = path.split('/').nth(5).unwrap();
+    let policy = data(
+        request(
+            &app,
+            &member,
+            "GET",
+            &format!("/api/v1/lab/labs/{lab}/history/retention"),
+            Value::Null,
+        )
+        .await,
+    )
+    .await;
+    assert_eq!(policy["observation_seconds"], 86400);
+    assert_eq!(
+        policy["record_seconds"],
+        RetentionPolicy::default().record_seconds
+    );
 }
 
 struct Clock(AtomicI64);
