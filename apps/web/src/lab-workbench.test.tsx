@@ -722,7 +722,7 @@ test('an explicit records view returns to the same Entity and keeps its private 
     'aria-selected',
     'true',
   );
-  expect(screen.getByLabelText('X (m)')).toHaveValue(7);
+  expect(screen.getByLabelText('X (m)')).toHaveValue('7');
   expect(router.state.location.search).toMatchObject({ entity: 'bench-one' });
 });
 

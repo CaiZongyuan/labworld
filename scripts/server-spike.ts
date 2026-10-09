@@ -33,6 +33,8 @@ const streams: Array<{
   task: Promise<void>;
 }> = [];
 const injectFinalFailure = process.argv.includes('--inject-final-read-failure');
+const measurementScope =
+  'producer schedule through fully consumed HTTP JSON acknowledgment; committed_ms is client observation, not database transaction commit; startup is excluded and prior evidence I/O can delay the next wake';
 let running = true;
 let background: Promise<void> | undefined;
 let failure: unknown;
@@ -357,6 +359,7 @@ try {
         elapsedMs,
         devices: 20,
         frequencyHz: 1,
+        measurement_scope: measurementScope,
         deviceSamples: duration * 20,
         concurrentReads,
         concurrentWrites,
@@ -397,8 +400,7 @@ try {
         platform: process.platform,
         node: process.version,
         duration_seconds: duration,
-        measurement_scope:
-          'producer wake through HTTP JSON acknowledgment; startup and evidence writes are separate',
+        measurement_scope: measurementScope,
         last_tick: lastTick,
         last_acknowledged: lastAcknowledged ?? null,
         concurrent_reads: concurrentReads,
