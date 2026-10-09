@@ -46,6 +46,7 @@ export default function OperationsView({
   userId,
   view,
   connected,
+  runtimeAvailable,
   refreshToken,
   worldVersion,
   selectedId,
@@ -61,6 +62,7 @@ export default function OperationsView({
   userId: string;
   view: string;
   connected: boolean;
+  runtimeAvailable: boolean;
   refreshToken: string;
   worldVersion: string;
   selectedId?: string;
@@ -71,7 +73,10 @@ export default function OperationsView({
   onOpenRecord: (record: LabRecord) => void;
 }) {
   const message = useAppMessage('lab');
-  const devices = useMemo(() => operatingDevices(entities), [entities]);
+  const devices = useMemo(
+    () => operatingDevices(entities, runtimeAvailable),
+    [entities, runtimeAvailable],
+  );
   const regions = useMemo(() => registeredRegions(world), [world]);
   const placed = useMemo(
     () => new Set(world.nodes.map((node) => node.entity_id)),
@@ -221,12 +226,7 @@ export default function OperationsView({
                           key={name}
                           name={name}
                           compact
-                          reading={{
-                            ...device.readings.properties[name],
-                            ...(connected
-                              ? {}
-                              : { currentValid: false, reason: 'offline' }),
-                          }}
+                          reading={device.readings.properties[name]}
                         />
                       ))
                     : message('world.unknown')}

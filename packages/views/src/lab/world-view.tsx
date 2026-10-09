@@ -1061,6 +1061,7 @@ export default function WorldView() {
             userId={identity.user.id}
             view={view}
             connected={connection.status === 'live'}
+            runtimeAvailable={connection.available}
             worldVersion={world.data.version}
             refreshToken={String(connection.generation ?? '')}
             selectedId={selected?.id}

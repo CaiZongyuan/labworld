@@ -638,3 +638,56 @@ test('full record filters remain valid when visiting the overview and device vie
     ),
   ).toHaveValue('zero-light');
 });
+
+test('a live transport with unavailable runtime agrees with the same detail and recovers without a new World', async () => {
+  const { user, world, subscriptions, worldReads } = open(
+    '/lab?view=devices&entity=zero-light',
+  );
+  const detail = await screen.findByRole('complementary', { name: '对象信息' });
+  const directory = screen.getByRole('region', { name: '设备目录' });
+  await user.selectOptions(screen.getByLabelText('运行状态'), 'valid');
+  await user.type(screen.getByLabelText('搜索名称或身份'), 'zero-light');
+  expect(screen.getByRole('button', { name: '当前有效观测 2' })).toBeVisible();
+  expect(
+    within(directory).getByRole('button', { name: '选择 zero-light' }),
+  ).toBeVisible();
+  const reads = worldReads();
+  const send = (available: boolean) =>
+    subscriptions[0].controller.enqueue(
+      new TextEncoder().encode(
+        `data: ${JSON.stringify({ type: 'runtime_status', available })}\n\n`,
+      ),
+    );
+  await act(() => send(false));
+  expect(
+    await screen.findByRole('button', { name: '当前有效观测 0' }),
+  ).toBeVisible();
+  expect(screen.getByRole('button', { name: '已登记设备 7' })).toBeVisible();
+  expect(screen.getByRole('button', { name: '进行中任务 1' })).toBeVisible();
+  expect(screen.getByText('实时同步')).toBeVisible();
+  expect(
+    within(directory).queryByRole('button', { name: '选择 zero-light' }),
+  ).toBeNull();
+  expect(
+    within(detail).getByRole('region', { name: '观测亮度' }),
+  ).toHaveTextContent('最后报告值');
+  expect(
+    within(detail).getByRole('region', { name: '观测亮度' }),
+  ).toHaveTextContent('0');
+  expect(screen.getByLabelText('搜索名称或身份')).toHaveValue('zero-light');
+  await act(() => send(true));
+  expect(
+    await screen.findByRole('button', { name: '当前有效观测 2' }),
+  ).toBeVisible();
+  expect(
+    within(directory).getByRole('button', { name: '选择 zero-light' }),
+  ).toBeVisible();
+  expect(
+    within(detail).getByRole('region', { name: '观测亮度' }),
+  ).not.toHaveTextContent('最后报告值');
+  expect(screen.getByLabelText('运行状态')).toHaveValue('valid');
+  expect(screen.getByLabelText('搜索名称或身份')).toHaveValue('zero-light');
+  expect(world.version).toBe('1');
+  expect(worldReads()).toBe(reads);
+  expect(subscriptions).toHaveLength(1);
+});

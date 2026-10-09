@@ -15,8 +15,8 @@ export type AttentionFact = {
 };
 
 /** Overview facts use persisted Entity identities and individual property provenance. */
-function operationFacts(entity: LabEntity) {
-  const readings = readEntityObservations(entity);
+function operationFacts(entity: LabEntity, runtimeAvailable: boolean) {
+  const readings = readEntityObservations(entity, runtimeAvailable);
   const attention: AttentionFact[] = [];
   const run = entity.program_run;
   if (run?.status === 'interrupted')
@@ -87,14 +87,17 @@ function operationFacts(entity: LabEntity) {
 }
 export type DeviceFacts = ReturnType<typeof operationFacts>;
 
-export function operatingDevices(entities: LabEntity[]) {
+export function operatingDevices(
+  entities: LabEntity[],
+  runtimeAvailable: boolean,
+) {
   return [
     ...new Map(
       entities
         .filter((entity) => !entity.archived_at && deviceKinds.has(entity.kind))
         .map((entity) => [entity.id, entity]),
     ).values(),
-  ].map(operationFacts);
+  ].map((entity) => operationFacts(entity, runtimeAvailable));
 }
 
 /** Follow manual containment outward breadth first; the first Location is the registered region. */
