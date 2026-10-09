@@ -1,0 +1,115 @@
+.world-body[hidden],
+.world-layout-toolbar[hidden] {
+  display: none;
+}
+.world-records-navigation {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.world-records-view {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+.world-records-view > button {
+  float: right;
+  position: sticky;
+  top: 4px;
+  margin: 4px;
+  z-index: 1;
+  background: var(--background);
+}
+.lab-records {
+  min-width: 0;
+  padding: 12px;
+}
+.lab-records > ol {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0;
+  list-style: none;
+}
+.lab-records > ol > li {
+  display: grid;
+  grid-template-columns:
+    minmax(150px, 1.2fr) minmax(120px, 1fr) minmax(180px, 1.2fr)
+    minmax(140px, 1fr) auto;
+  align-items: start;
+  gap: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  overflow-wrap: anywhere;
+}
+.lab-records .world-history-filters {
+  grid-template-columns:
+    repeat(2, minmax(140px, 1fr)) repeat(2, minmax(180px, 1fr))
+    auto;
+}
+.record-entry-heading,
+.record-entry-entity,
+.record-entry-provenance {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  gap: 6px;
+  min-width: 0;
+}
+.record-entry-provenance,
+.lab-records > ol > li > time {
+  font-size: 12px;
+  color: var(--muted-foreground);
+}
+.lab-records > ol > li > button {
+  max-width: 100%;
+  height: auto;
+  min-height: 36px;
+  white-space: normal;
+  text-align: left;
+}
+.lab-records p {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 900px) {
+  .lab-records > ol > li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .lab-records .world-history-filters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 560px) {
+  .world-page:has(> .world-history-surface) .world-body {
+    flex: 0 0 180px;
+    height: 180px;
+  }
+  .lab-records > ol > li,
+  .lab-records .world-history-filters {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .lab-records button,
+  .lab-records input,
+  .lab-records select {
+    min-height: 44px;
+  }
+  .world-records-view {
+    min-height: 360px;
+  }
+}
+
+.records-original {
+  grid-column: 1 / -1;
+  min-width: 0;
+}
+.record-details {
+  min-width: 0;
+  border-top: 1px solid var(--border);
+  padding: 12px 0;
+}
+.record-details pre {
+  max-width: 100%;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

@@ -41,6 +41,7 @@ import {
   saveLabLayout,
   copyLabEntity,
   type LabEntity,
+  type LabRecord,
   type Placement,
 } from '@labos-threejs/sdk';
 import { Button } from '@labos-threejs/ui/components/button';
@@ -77,7 +78,7 @@ import WorldDialog, {
 import DevicePanel, { defaultDeviceInput } from './device-panel';
 import EntityDetail from './entity-detail';
 import { entityWithConfirmedRun } from './source-state';
-import HistoryPanel from './history-panel';
+import RecordsPanel from './records-panel';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
 import { useLabWorkbench } from './workbench-context';
@@ -138,7 +139,20 @@ export default function WorldView() {
     setDeviceInput,
     setActiveLab,
     mutation,
+    view,
+    setView,
+    selectedRecord,
+    openRecord,
+    clearRecord,
   } = useLabWorkbench();
+  const recordsView = view === 'records';
+  function openOriginalRecord(record: LabRecord) {
+    openRecord(record);
+    setEditing(false);
+    setHistoryOpen(false);
+    setDirectoryOpen(false);
+    setInspectorOpen(true);
+  }
   const message = useAppMessage('lab');
   const { locale, resolvedTheme } = usePreferences();
   const client = useQueryClient();
@@ -178,6 +192,7 @@ export default function WorldView() {
   const directoryTrigger = useRef<HTMLButtonElement>(null);
   const inspectorTrigger = useRef<HTMLButtonElement>(null);
   const historyTrigger = useRef<HTMLButtonElement>(null);
+  const spaceTrigger = useRef<HTMLButtonElement>(null);
   const selectionTrigger = useRef<HTMLElement | null>(null);
   function closeDirectory() {
     setDirectoryOpen(false);
@@ -193,6 +208,11 @@ export default function WorldView() {
     setHistoryOpen(false);
     if (narrow) setInspectorOpen(selection.length > 0);
     historyTrigger.current?.focus();
+  }
+  function closeRecords() {
+    setHistoryOpen(false);
+    setView('space');
+    spaceTrigger.current?.focus();
   }
   const draft = drafts[labId];
   const nodes = useMemo(
@@ -225,7 +245,10 @@ export default function WorldView() {
   );
   const selected = entities.find((entity) => entity.id === selection.at(-1));
   const inspectorVisible =
-    !!selected && inspectorOpen && !(narrow && (directoryOpen || historyOpen));
+    !recordsView &&
+    !!selected &&
+    inspectorOpen &&
+    !(narrow && (directoryOpen || historyOpen));
   const activeNode =
     nodes.find(
       (node) => node.id === nodeSelection && node.entity_id === selected?.id,
@@ -636,7 +659,22 @@ export default function WorldView() {
           />
         </div>
       </header>
-      <div className="world-layout-toolbar">
+      <Tabs
+        className="world-records-navigation"
+        value={view}
+        onValueChange={(value) => {
+          setHistoryOpen(false);
+          setView(value as 'space' | 'records');
+        }}
+      >
+        <TabsList aria-label={message('records.views')}>
+          <TabsTrigger ref={spaceTrigger} value="space">
+            {message('records.space')}
+          </TabsTrigger>
+          <TabsTrigger value="records">{message('records.title')}</TabsTrigger>
+        </TabsList>
+      </Tabs>
+      <div className="world-layout-toolbar" hidden={recordsView}>
         <Tabs
           value={editing ? 'layout' : 'runtime'}
           onValueChange={(value) => setEditing(value === 'layout')}
@@ -720,6 +758,7 @@ export default function WorldView() {
       ) : null}
       <div
         className="world-body"
+        hidden={recordsView}
         data-directory-open={directoryOpen || undefined}
         data-inspector-open={inspectorVisible || undefined}
       >
@@ -985,6 +1024,8 @@ export default function WorldView() {
             <EntityDetail
               key={`${labId}-${selected.id}`}
               entity={selected}
+              originalRecord={selectedRecord ?? undefined}
+              onCloseOriginalRecord={clearRecord}
               world={world.data}
               apiClient={apiClient}
               editing={editing}
@@ -1247,22 +1288,26 @@ export default function WorldView() {
           )}
         </aside>
       </div>
-      {labId && historyOpen ? (
-        <div className="world-history-surface">
+      {labId && (historyOpen || recordsView) ? (
+        <div
+          className={
+            recordsView ? 'world-records-view' : 'world-history-surface'
+          }
+        >
           <Button
             variant="ghost"
             size="icon-sm"
             title={message('workbench.closeHistory')}
             aria-label={message('workbench.closeHistory')}
-            onClick={closeHistory}
+            onClick={recordsView ? closeRecords : closeHistory}
           >
             <X aria-hidden="true" />
           </Button>
-          <HistoryPanel
-            key={`${labId}-${selected?.id ?? ''}`}
+          <RecordsPanel
             labId={labId}
+            userId={identity.user.id}
+            onOpenRecord={openOriginalRecord}
             entities={entities}
-            selectedId={selected?.id}
             apiClient={apiClient}
           />
         </div>

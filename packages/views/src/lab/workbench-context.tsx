@@ -18,6 +18,7 @@ import {
   listLabs,
   type ApiClient,
   type CurrentSession,
+  type LabRecord,
 } from '@labos-threejs/sdk';
 import { errorCodeOf } from '@labos-threejs/core';
 import { sessionKey } from '../identity/session';
@@ -71,7 +72,11 @@ function useWorkbenchController({
       search[field] !== undefined &&
       (typeof search[field] !== 'string' || !String(search[field]).trim()),
   );
-  const viewUnavailable = search.view !== undefined && search.view !== 'space';
+  const viewUnavailable =
+    search.view !== undefined &&
+    search.view !== 'space' &&
+    search.view !== 'records';
+  const view = search.view === 'records' ? 'records' : 'space';
   const labId = invalidLink
     ? ''
     : typeof search.lab === 'string'
@@ -130,7 +135,22 @@ function useWorkbenchController({
       search: {
         lab: nextLab || undefined,
         entity: nextEntity || undefined,
-        view: search.view === 'space' ? 'space' : undefined,
+        view:
+          view === 'records'
+            ? 'records'
+            : search.view === 'space'
+              ? 'space'
+              : undefined,
+      },
+    });
+  }
+  function setView(next: 'space' | 'records') {
+    navigate({
+      path: '/lab',
+      search: {
+        lab: labId || undefined,
+        entity: entityId || undefined,
+        view: next,
       },
     });
   }
@@ -155,6 +175,7 @@ function useWorkbenchController({
   }
   function setSelection(change: SetStateAction<string[]>) {
     if (!isCurrentLab(labId)) return;
+    setRecordChoice(null);
     const ids = typeof change === 'function' ? change(selection) : change;
     const nextEntity = ids.at(-1) ?? '';
     setMultipleSelection({ labId, entityId: nextEntity, ids });
@@ -166,6 +187,31 @@ function useWorkbenchController({
   const nodeSelection = node?.labId === labId ? node.id : null;
   function setNodeSelection(id: string | null) {
     if (isCurrentLab(labId)) setNode({ labId, id });
+  }
+  const [recordChoice, setRecordChoice] = useState<{
+    labId: string;
+    record: LabRecord;
+  } | null>(null);
+  const selectedRecord =
+    recordChoice?.labId === labId && recordChoice.record.entity_id === entityId
+      ? recordChoice.record
+      : null;
+  function clearRecord() {
+    setRecordChoice(null);
+  }
+  function openRecord(record: LabRecord) {
+    if (!isCurrentLab(labId)) return;
+    setMultipleSelection({
+      labId,
+      entityId: record.entity_id,
+      ids: [record.entity_id],
+    });
+    setNode({ labId, id: null });
+    setRecordChoice({ labId, record });
+    navigate({
+      path: '/lab',
+      search: { lab: labId, entity: record.entity_id, view: 'space' },
+    });
   }
   const [drafts, setDrafts] = useState<Record<string, LayoutDraft>>({});
   const [statuses, setStatuses] = useState<Record<string, LayoutStatus>>({});
@@ -278,6 +324,11 @@ function useWorkbenchController({
     mutation,
     invalidLink,
     viewUnavailable,
+    view,
+    setView,
+    selectedRecord,
+    openRecord,
+    clearRecord,
     openSpace,
   };
 }

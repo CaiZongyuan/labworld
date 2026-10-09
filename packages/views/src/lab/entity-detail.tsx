@@ -1,6 +1,11 @@
 import { useState, type ReactNode } from 'react';
-import { MapPin, Pencil } from 'lucide-react';
-import type { ApiClient, LabEntity, LabWorld } from '@labos-threejs/sdk';
+import { MapPin, Pencil, X } from 'lucide-react';
+import type {
+  ApiClient,
+  LabEntity,
+  LabWorld,
+  LabRecord,
+} from '@labos-threejs/sdk';
 import { Badge } from '@labos-threejs/ui/components/badge';
 import {
   Tabs,
@@ -10,6 +15,7 @@ import {
 } from '@labos-threejs/ui/components/tabs';
 import { useAppMessage } from '../shell/messages';
 import HistoryPanel from './history-panel';
+import RecordDetails from './record-details';
 import ObservationReading from './observation-reading';
 import { readEntityObservations } from './observation-state';
 import { Tool } from './view-controls';
@@ -46,6 +52,8 @@ export default function EntityDetail({
   editing,
   onConfigure,
   connected,
+  originalRecord,
+  onCloseOriginalRecord,
 }: {
   entity: LabEntity;
   world: LabWorld;
@@ -55,6 +63,8 @@ export default function EntityDetail({
   editing: boolean;
   onConfigure: () => void;
   connected: boolean;
+  originalRecord?: LabRecord;
+  onCloseOriginalRecord?: () => void;
 }) {
   const message = useAppMessage('lab');
   const [tab, setTab] = useState('operations');
@@ -85,9 +95,10 @@ export default function EntityDetail({
         </div>
       </div>
       <Tabs
-        value={editing ? 'details' : tab}
+        value={editing || originalRecord ? 'details' : tab}
         onValueChange={(value) => {
           setTab(String(value));
+          if (value !== 'details') onCloseOriginalRecord?.();
           if (value === 'records') setRecordsOpened(true);
         }}
       >
@@ -121,6 +132,18 @@ export default function EntityDetail({
           ) : null}
         </TabsContent>
         <TabsContent value="details" keepMounted>
+          {originalRecord ? (
+            <section className="lab-inspector-section">
+              {onCloseOriginalRecord ? (
+                <Tool
+                  icon={X}
+                  label={message('records.closeOriginal')}
+                  onClick={onCloseOriginalRecord}
+                />
+              ) : null}
+              <RecordDetails record={originalRecord} />
+            </section>
+          ) : null}
           {entity.task || entity.task_result ? (
             <section
               className="lab-inspector-section"

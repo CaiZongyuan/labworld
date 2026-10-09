@@ -16,29 +16,30 @@ Source: [history HTTP](../../packages/server/src/lab/history/use-cases.ts), [ret
 
 1. Complete one centrifuge task from the previous chapter.
 2. Select its Entity in Lab.
-3. Open **Tasks** in **Run history** below the scene.
+3. Select **Records** in the Entity Inspector.
+4. Open **Tasks** in its **Run history** panel.
 
    The task shows fixed parameters, status and its separate result identity.
 
-4. Open **Record details**.
+5. Open **Record details**.
 
    The panel shows the Task and Run identities. The result contains its status and end reason.
 
-5. Open **Observations**.
+6. Open **Observations**.
 
    Temperature reports show `degC`. Each raw report contains only properties that the source reported at that time.
 
-6. Set **From** to the task's preparation time.
-7. Set **To** to a time after the task ended.
-8. Select **Query history**.
+7. Set **From** to the task's preparation time.
+8. Set **To** to a time after the task ended.
+9. Select **Query history**.
 
    Inputs use local time. The browser sends UTC timestamps. Source time and received time appear separately in the details.
 
-9. If **Earlier records** appears, select it.
+10. If **Earlier records** appears, select it.
 
-   The panel adds the next page. A later-page error keeps the records already loaded.
+The panel adds the next page. A later-page error keeps the records already loaded.
 
-10. Open **Events**.
+11. Open **Events**.
 
     Events record program, command and task status changes. They retain the related identity and actor when available.
 

@@ -5,7 +5,6 @@ import {
   type Page,
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
-import { showRunHistory } from './lab-desktop';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -124,7 +123,7 @@ test('members and Agents query real history, recover a failed page and clean exp
     const originalCommand = await get(
       `${path}/commands/${completed.task.command_id}`,
     );
-    await showRunHistory(page);
+    await inspector.getByRole('tab', { name: '记录', exact: true }).click();
     const history = page.getByRole('region', { name: '运行历史' });
     await history.getByRole('tab', { name: '任务', exact: true }).click();
     await expect(history.getByText('已完成', { exact: true })).toBeVisible();
@@ -168,6 +167,7 @@ test('members and Agents query real history, recover a failed page and clean exp
     await expect(
       history.getByRole('button', { name: '重试历史查询' }),
     ).toHaveCount(0);
+    await inspector.getByRole('tab', { name: '操作', exact: true }).click();
     await inspector
       .getByRole('button', { name: '停止程序', exact: true })
       .click();
@@ -199,6 +199,7 @@ test('members and Agents query real history, recover a failed page and clean exp
     });
     expect(active.status()).toBe(202);
     const activeCommand = await active.json();
+    await inspector.getByRole('tab', { name: '记录', exact: true }).click();
     if (!desktopMigration)
       await page.setViewportSize({ width: 320, height: 850 });
     await page.getByRole('button', { name: 'English', exact: true }).click();
