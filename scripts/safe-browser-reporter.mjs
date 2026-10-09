@@ -12,7 +12,14 @@ const errorClasses = new Set([
   'TypeError',
   'ReferenceError',
 ]);
-const matchers = new Set(['toHaveAttribute', 'toBeVisible', 'toHaveCount']);
+const matchers = new Set([
+  'toHaveAttribute',
+  'toBeVisible',
+  'toHaveCount',
+  'toBe',
+  'toBeGreaterThan',
+  'toBeLessThanOrEqual',
+]);
 const protocolMethods = new Set([
   'Runtime.callFunctionOn',
   'Runtime.evaluate',
@@ -28,15 +35,39 @@ export function publicFailure(error) {
   if (!error) return null;
   const message = stripVTControlCharacters(error.message ?? '');
   const named = /^([A-Za-z]*Error):/.exec(message)?.[1];
-  const matcher = /\b(toHaveAttribute|toBeVisible|toHaveCount)\b/.exec(
-    message,
-  )?.[1];
+  const matcher =
+    /\b(toHaveAttribute|toBeVisible|toHaveCount|toBeGreaterThan|toBeLessThanOrEqual|toBe)\b/.exec(
+      message,
+    )?.[1];
   const busy =
     message.includes("locator('.world-page')") && matcher === 'toHaveAttribute';
   const expected = /Expected(?: string)?:\s*"(true|false)"/.exec(message)?.[1];
   const received = /Received(?: string)?:\s*"(true|false)"/.exec(message)?.[1];
   const timeout = /Timeout:\s*(\d+)ms/.exec(message)?.[1];
   const count = /resolved to (\d+) elements/.exec(message)?.[1];
+  const numericExpected =
+    /^Expected:\s*(<=|>|=)?\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*$/im.exec(
+      message,
+    );
+  const numericReceived =
+    /^Received:\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*$/im.exec(message);
+  const numericMatcher = [
+    'toBe',
+    'toBeGreaterThan',
+    'toBeLessThanOrEqual',
+  ].includes(matcher);
+  const numeric =
+    numericMatcher &&
+    numericExpected &&
+    numericReceived &&
+    Math.abs(Number(numericExpected[2])) <= 1e9 &&
+    Math.abs(Number(numericReceived[1])) <= 1e9
+      ? {
+          expected: Number(numericExpected[2]),
+          received: Number(numericReceived[1]),
+          operator: numericExpected[1] ?? '=',
+        }
+      : null;
   const callLog = [];
   let inCallLog = false;
   for (const line of message.split('\n')) {
@@ -71,6 +102,7 @@ export function publicFailure(error) {
     busy: busy
       ? { expected: expected ?? null, received: received ?? null }
       : null,
+    numeric,
     timeoutMs: timeout ? Number(timeout) : null,
     locatorMissing: /element\(s\) not found|No element matches/.test(message),
     strictLocatorMatches: count ? Number(count) : null,

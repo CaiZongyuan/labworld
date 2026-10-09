@@ -758,6 +758,105 @@ test('returning to a fresh cached range reads its own World version while respec
   }
 });
 
+test('explicit Records and an original record keep the mounted device trend hidden until Operations is visible again', async () => {
+  vi.useFakeTimers({ toFake: ['Date'] });
+  const start = new Date('2026-03-09T00:00:00Z');
+  vi.setSystemTime(start);
+  try {
+    const { user, queries, publish } = openTrends();
+    server.use(
+      http.get(
+        'http://api.test/api/v1/lab/labs/trend-lab/records',
+        ({ request }) => {
+          const q = new URL(request.url).searchParams;
+          return HttpResponse.json({
+            from: q.get('from'),
+            to: q.get('to'),
+            queried_at: start.toISOString(),
+            query_upper_bound: start.toISOString(),
+            entity_id: null,
+            record_type: null,
+            retention: { observation_seconds: 86400, record_seconds: 2592000 },
+            coverage: [],
+            max_page_items: 100,
+            max_range_seconds: 2678400,
+            max_response_bytes: 262144,
+            items: [
+              {
+                id: 'original-task-record',
+                record_type: 'task',
+                entity_id: 'trend-sensor',
+                entity_name: 'Original sensor',
+                reality: 'simulated',
+                run_id: 'original-run',
+                binding_id: 'original-binding',
+                command_id: 'original-command',
+                task_id: 'original-task',
+                result_id: 'original-result',
+                recorded_at: start.toISOString(),
+                ended_at: start.toISOString(),
+                state: 'completed',
+                summary: 'Original task',
+                source: 'original-source',
+                actor_id: 'original-member',
+                actor_source: 'member',
+                actor_role: 'initiator',
+                data: {
+                  result: {
+                    id: 'original-result',
+                    task_id: 'original-task',
+                    status: 'completed',
+                    values: { temperature: 4 },
+                  },
+                },
+              },
+            ],
+            next_cursor: null,
+          });
+        },
+      ),
+    );
+    const inspector = await screen.findByRole('complementary', {
+      name: '对象信息',
+    });
+    await user.click(
+      within(inspector).getByRole('button', { name: '查看趋势' }),
+    );
+    await within(inspector).findByRole('table', { name: '趋势读数' });
+    expect(queries).toHaveLength(1);
+    await user.click(screen.getByRole('tab', { name: '运行记录' }));
+    expect(inspector).not.toBeVisible();
+    vi.setSystemTime(new Date(start.getTime() + 5000));
+    const version = publish();
+    await waitFor(() =>
+      expect(screen.getByLabelText('世界版本')).toHaveTextContent(
+        `W${version}`,
+      ),
+    );
+    expect(queries).toHaveLength(1);
+    await user.click(
+      await screen.findByRole('button', { name: '打开原对象 Original sensor' }),
+    );
+    expect(
+      await screen.findByRole('region', { name: '原始记录结果' }),
+    ).toHaveTextContent('original-result');
+    expect(
+      within(inspector).getByRole('tab', { name: '详情' }),
+    ).toHaveAttribute('aria-selected', 'true');
+    expect(queries).toHaveLength(1);
+    await user.click(within(inspector).getByRole('tab', { name: '操作' }));
+    await waitFor(() => expect(queries).toHaveLength(2));
+    expect(
+      within(inspector).queryByRole('region', { name: '原始记录结果' }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(inspector).getByRole('table', { name: '趋势读数' }),
+    ).toHaveTextContent('1000 degC');
+  } finally {
+    vi.useRealTimers();
+  }
+});
+
 test('loading and an empty bounded response remain distinct from known history gaps', async () => {
   const { user } = openTrends();
   let release!: (response: Response) => void;

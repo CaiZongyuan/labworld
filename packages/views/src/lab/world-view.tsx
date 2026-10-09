@@ -147,6 +147,7 @@ export default function WorldView() {
   } = useLabWorkbench();
   const recordsView = view === 'records';
   function openOriginalRecord(record: LabRecord) {
+    setRecentMinute(null);
     openRecord(record);
     setEditing(false);
     setHistoryOpen(false);

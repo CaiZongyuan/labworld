@@ -76,10 +76,12 @@ export default function EntityDetail({
   const message = useAppMessage('lab');
   const [view, setView] = useState({ tab: 'operations', recentMinuteRequest });
   const tab =
-    recentMinuteRequest !== undefined &&
-    recentMinuteRequest !== view.recentMinuteRequest
-      ? 'operations'
-      : view.tab;
+    editing || originalRecord
+      ? 'details'
+      : recentMinuteRequest !== undefined &&
+          recentMinuteRequest !== view.recentMinuteRequest
+        ? 'operations'
+        : view.tab;
   const [recordsOpened, setRecordsOpened] = useState(false);
   const location = locationOf(world, entity);
   return (
@@ -107,7 +109,7 @@ export default function EntityDetail({
         </div>
       </div>
       <Tabs
-        value={editing || originalRecord ? 'details' : tab}
+        value={tab}
         onValueChange={(value) => {
           setView({ tab: String(value), recentMinuteRequest });
           if (value !== 'details') onCloseOriginalRecord?.();
@@ -138,7 +140,7 @@ export default function EntityDetail({
               apiClient={apiClient}
               userId={userId}
               worldVersion={world.version}
-              visible={visible && !editing && tab === 'operations'}
+              visible={visible && tab === 'operations'}
               initialOpen={recentMinuteRequest !== undefined}
               initialRange={recentMinuteRequest !== undefined ? 'minute' : '1'}
             />,
