@@ -1,0 +1,3 @@
+interface:
+  display_name: "Reduce Complexity"
+  short_description: "Reduce complexity in tickets and finished epics"

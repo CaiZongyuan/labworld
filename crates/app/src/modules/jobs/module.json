@@ -1,0 +1,8 @@
+{
+  "kind": "core",
+  "tables": [
+    "labos_threejs_core.jobs",
+    "labos_threejs_core.job_batches",
+    "labos_threejs_core.job_attempts"
+  ]
+}

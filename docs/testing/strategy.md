@@ -1,0 +1,35 @@
+# Lab Word 测试策略
+
+测试从可观察的公开行为进入。已有平台和正式查看器测试保留其职责；Foundation V1 按已发布实施票建立新行为验收，预览证据不代替产品验证。
+
+| 接口 | 工具与依赖 | 验证责任 |
+| --- | --- | --- |
+| 后端 HTTP | Rust、真实 Axum Router、隔离 PostgreSQL | 身份、成员、权限、CRUD、错误与持久化 |
+| 公开任务/存储 | PostgreSQL/Redis/RustFS 与 Worker | 租约、重试、对象清理、缓存与事务恢复 |
+| React Views | Vitest、Testing Library、user-event；MSW 仅替代 HTTP | 表单、选择、导入反馈、拒绝、冲突与恢复 |
+| 真实应用浏览器 | Playwright 与真实应用栈 | Cookie/CSRF、SDK、权限、文件、任务及关键旅程 |
+| Lab 三维浏览器 | Playwright、真实 GLB/HDR 和 WebGL | 实际像素、取景、相机、点选、快速切换与资源释放 |
+| 文档浏览器 | Playwright 与静态 dist | 导航、搜索、同页语言、主题、窄屏和自定义 base |
+| 工程合同 | 合同生成、边界检查、文档构建与性能预算 | 协议漂移、依赖、来源链接和确定性计量 |
+
+## 公开接口与风险
+
+优先从 HTTP、可操作组件和浏览器验证。只有不能从这些入口可靠区分的事务适配、纯规则或任务恢复，才增加相应公开能力测试；新增接口先说明必要性。低风险文案与样式变更使用已有检查，不新增镜像测试。
+
+保留失败与随后可观察结果，例如无权限写入后内容不变、409 后草稿仍在、无效 GLB 后前一个模型仍可用。测试不固定 hooks 内部状态、私有 Repository 调用或大型 DOM 快照。
+
+## Lab 当前与后续
+
+正式 Lab Viewer 与会话资产库已有渲染、导入、相机、选择、失败恢复、响应式和重复导入资源计数证据，记录在[体验文件](../ui/lab-viewer-experience.md)与[实现验证](../reviews/2026-10-02-lab-viewer-implementation.md)。主导航为 Lab 与资产库，登录后的默认业务入口为 Lab。
+
+当前模型文件仍在浏览器会话处理。Foundation V1 的持久资产、对象、布局、后端虚拟程序、用户/Agent 共用接口和恢复行为按[已发布规格](https://github.com/CaiZongyuan/labworld/issues/1)逐票验证；入口见[开发交接](../handoffs/digital-twin-foundation-v1.md)。正式实现同时保持既有登录入口、导航、按需加载、包体与资源释放合同。
+
+FPS 和内存趋势附场景、资产、浏览器与硬件；软件渲染及单次采样不构成跨机器性能门槛或泄漏结论。
+
+## 隔离与节奏
+
+数据库、缓存、对象存储和浏览器状态按测试隔离，清理只作用于本次资源。并发使用 barrier/显式条件，不依赖任意 sleep。失败证据脱敏，认证旅程不默认保存凭据、token 或完整签名 URL。
+
+编辑循环跑定向检查；交付前运行受影响检查及 `just check`。E2E 在新的关键旅程、浏览器回归或里程碑验收时运行，并记录实际提交与未提交范围。简化和独立双轴评审按[开发流程](../agents/development-flow.md)完成。
+
+命令与前提见[开发与验证](t01-feedback-loop.md)。
