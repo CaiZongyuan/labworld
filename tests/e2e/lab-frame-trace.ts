@@ -8,6 +8,7 @@ const categories =
   'toplevel,devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-v8.cpu_profiler';
 type MarkName =
   | 'start-response'
+  | 'assertion-start'
   | 'world-parsed'
   | 'hdr-response'
   | 'assertion-end'
@@ -42,6 +43,16 @@ class FrameTrace {
   private complete?: Promise<Complete>;
   private targetFrame?: string;
   private otherFrames: (string | undefined)[] = [];
+  private pageSessions = new Map<Page, Promise<CDPSession>>();
+  private activeDocuments?: {
+    status: 'ack' | 'unavailable';
+    frames: ({
+      frame: string;
+      loaderId?: string;
+      path: string;
+      nodeMs: number;
+    } | null)[];
+  };
   private closed = false;
   private finishPromise?: Promise<void>;
   private armed = false;
@@ -74,6 +85,48 @@ class FrameTrace {
     return session;
   }
 
+  private pageSession(page: Page) {
+    let pending = this.pageSessions.get(page);
+    if (!pending) {
+      pending = this.session(() => page.context().newCDPSession(page));
+      this.pageSessions.set(page, pending);
+    }
+    return pending;
+  }
+
+  async captureActiveDocuments() {
+    const frames = await Promise.all(
+      [this.page, ...this.otherPages].map(async (page) => {
+        try {
+          const tree = await deadline(
+            this.pageSession(page).then((session) =>
+              session.send('Page.getFrameTree'),
+            ),
+            250,
+          );
+          const frame = tree.frameTree.frame;
+          const pathname = new URL(frame.url).pathname;
+          return {
+            frame: frame.id as string,
+            loaderId: frame.loaderId as string | undefined,
+            path: ['/lab', '/register', '/login'].includes(pathname)
+              ? pathname
+              : '<REDACTED>',
+            nodeMs: performance.now(),
+          };
+        } catch {
+          return null;
+        }
+      }),
+    );
+    this.activeDocuments = {
+      status: frames[0] ? 'ack' : 'unavailable',
+      frames,
+    };
+    if (frames[0]) this.targetFrame = frames[0].frame;
+    this.otherFrames = frames.slice(1).map((frame) => frame?.frame);
+  }
+
   async arm() {
     try {
       await deadline(
@@ -92,24 +145,8 @@ class FrameTrace {
               resolve(terminal);
             });
           });
-          const roots = await Promise.all(
-            [this.page, ...this.otherPages].map(async (page) => {
-              try {
-                const target = await this.session(() =>
-                  page.context().newCDPSession(page),
-                );
-                const tree = await deadline(
-                  target.send('Page.getFrameTree'),
-                  250,
-                );
-                return tree.frameTree.frame.id as string;
-              } catch {
-                return undefined;
-              }
-            }),
-          );
+          await this.captureActiveDocuments();
           if (this.closed) return;
-          [this.targetFrame, ...this.otherFrames] = roots;
           this.startIssued = true;
           this.startPromise = session.send('Tracing.start', {
             categories,
@@ -291,6 +328,7 @@ class FrameTrace {
       targetFrame: this.targetFrame,
       otherFrames: this.otherFrames,
       otherPageCount: this.otherPages.length,
+      activeDocuments: this.activeDocuments,
       repoRoot: process.cwd(),
     };
     const worker = new Worker(

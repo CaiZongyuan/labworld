@@ -309,6 +309,8 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     }
     await showObjectDirectory(observer);
     let observerReady = false;
+    frameTrace.mark('assertion-start');
+    void frameTrace.captureActiveDocuments();
     try {
       await expect(observer.locator('.world-page')).toHaveAttribute(
         'aria-busy',
@@ -439,7 +441,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
         })().catch(() => {
           // Optional diagnostics preserve the original readiness failure.
         });
-      await frameTrace.finish(!observerReady);
+      await frameTrace.finish(true);
     }
     await page.context().setOffline(true);
     await page.evaluate(() => window.dispatchEvent(new Event('offline')));
