@@ -2,8 +2,17 @@ import { expect, test, type Page } from '@playwright/test';
 import { showEntityOperations, showObjectDirectory } from './lab-desktop';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { observeRasterPhases } from './lab-raster-phases';
 
 test.use({ locale: 'zh-CN', colorScheme: 'light' });
+
+const rasterObservers = new WeakMap<
+  Page,
+  ReturnType<typeof observeRasterPhases>
+>();
+test.beforeEach(({ page }) => {
+  rasterObservers.set(page, observeRasterPhases(process.env.LAB_NODE_EVIDENCE));
+});
 
 async function registerObject(page: Page, name: string, kind = 'sensor') {
   await page.getByRole('button', { name: '登记对象', exact: true }).click();
@@ -25,21 +34,25 @@ async function staticCanvasRegion(page: Page) {
   const canvas = await page.locator('.world-viewport canvas').boundingBox();
   expect(canvas).not.toBeNull();
   // The selected sensor's lower body and grid are below its changing reading.
-  return page.screenshot({
-    clip: {
-      x: canvas!.x,
-      y: canvas!.y + canvas!.height * 0.55,
-      width: canvas!.width,
-      height: canvas!.height * 0.45,
-    },
-  });
+  return rasterObservers.get(page)!('region-screenshot', () =>
+    page.screenshot({
+      clip: {
+        x: canvas!.x,
+        y: canvas!.y + canvas!.height * 0.55,
+        width: canvas!.width,
+        height: canvas!.height * 0.45,
+      },
+    }),
+  );
 }
 
 async function cameraSceneFrame(page: Page) {
-  return page.locator('.world-viewport canvas').screenshot({
-    style:
-      '.world-priority-label,.world-priority-labels,.world-canvas-tools,.world-transform-tools { visibility: hidden !important; }',
-  });
+  return rasterObservers.get(page)!('canvas-screenshot', () =>
+    page.locator('.world-viewport canvas').screenshot({
+      style:
+        '.world-priority-label,.world-priority-labels,.world-canvas-tools,.world-transform-tools { visibility: hidden !important; }',
+    }),
+  );
 }
 
 function saveRasterEvidence(
@@ -63,33 +76,35 @@ function saveRasterEvidence(
 }
 
 async function changedRegionPixels(page: Page, before: Buffer, after: Buffer) {
-  return page.evaluate(
-    async (encoded) => {
-      const frames = await Promise.all(
-        encoded.map(async (value) => {
-          const image = new Image();
-          image.src = `data:image/png;base64,${value}`;
-          await image.decode();
-          const canvas = document.createElement('canvas');
-          canvas.width = image.width;
-          canvas.height = image.height;
-          const context = canvas.getContext('2d')!;
-          context.drawImage(image, 0, 0);
-          return context.getImageData(0, 0, canvas.width, canvas.height).data;
-        }),
-      );
-      let changed = 0;
-      for (let i = 0; i < frames[0].length; i += 4)
-        if (
-          Math.abs(frames[0][i] - frames[1][i]) +
-            Math.abs(frames[0][i + 1] - frames[1][i + 1]) +
-            Math.abs(frames[0][i + 2] - frames[1][i + 2]) >
-          30
-        )
-          changed++;
-      return changed;
-    },
-    [before.toString('base64'), after.toString('base64')],
+  return rasterObservers.get(page)!('pixel-evaluate', () =>
+    page.evaluate(
+      async (encoded) => {
+        const frames = await Promise.all(
+          encoded.map(async (value) => {
+            const image = new Image();
+            image.src = `data:image/png;base64,${value}`;
+            await image.decode();
+            const canvas = document.createElement('canvas');
+            canvas.width = image.width;
+            canvas.height = image.height;
+            const context = canvas.getContext('2d')!;
+            context.drawImage(image, 0, 0);
+            return context.getImageData(0, 0, canvas.width, canvas.height).data;
+          }),
+        );
+        let changed = 0;
+        for (let i = 0; i < frames[0].length; i += 4)
+          if (
+            Math.abs(frames[0][i] - frames[1][i]) +
+              Math.abs(frames[0][i + 1] - frames[1][i + 1]) +
+              Math.abs(frames[0][i + 2] - frames[1][i + 2]) >
+            30
+          )
+            changed++;
+        return changed;
+      },
+      [before.toString('base64'), after.toString('base64')],
+    ),
   );
 }
 
