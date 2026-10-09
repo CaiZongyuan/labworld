@@ -1,0 +1,27 @@
+.agents/
+.claude/
+.scratch/
+target/
+node_modules/
+**/dist/
+apps/docs/.generated/
+apps/docs/.vitepress/cache/
+packages/contracts/openapi.json
+packages/contracts/src/generated/
+packages/sdk/src/generated/
+AGENTS.md
+CONTEXT.md
+skills-lock.json
+docs/agents/
+docs/adr/
+docs/plans/
+docs/research/
+# Original research exports retain their source formatting and examples.
+docs/draft/
+docs/testing/strategy.md
+docs/labos-threejs-template-*.md
+Cargo.lock
+pnpm-lock.yaml
+# Upstream decoders and original asset files retain their published bytes.
+apps/web/public/lab-assets/decoders/
+assets/source/

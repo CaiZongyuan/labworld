@@ -1,0 +1,23 @@
+{
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "name": "@labos-threejs/web",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build && node ../../scripts/check-theme-tokens.mjs"
+  },
+  "dependencies": {
+    "@labos-threejs/views": "workspace:*",
+    "@labos-threejs/ui": "workspace:*",
+    "@labos-threejs/sdk": "workspace:*",
+    "@tanstack/react-query": "5.103.2",
+    "@tanstack/react-router": "1.170.39",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "4.3.3",
+    "tailwindcss": "4.3.3"
+  }
+}

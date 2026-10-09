@@ -1,0 +1,143 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_e2e:
+        description: Run the complete browser journey at a milestone
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: '4'
+      DOCS_SOURCE_REF: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.17.0
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+      - name: Prepare Rust and just
+        run: |
+          rustup show
+          cargo install just --version 1.58.0 --locked
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+        if: github.event_name == 'workflow_dispatch' && inputs.run_e2e
+      - run: just check
+      - name: Keep the performance report
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: perf-report
+          path: .scratch/perf
+          if-no-files-found: ignore
+          retention-days: 7
+      - run: just e2e
+        if: github.event_name == 'workflow_dispatch' && inputs.run_e2e
+      - run: just e2e-docs
+        if: github.event_name == 'workflow_dispatch' && inputs.run_e2e
+      - name: Keep browser evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: browser-evidence
+          path: |
+            test-results/summary.json
+            test-results/status-ready.png
+            test-results/status-*/trace.zip
+            test-results/status-*/test-failed-*.png
+            test-results/docs/summary.json
+            test-results/docs/landing-*.png
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Keep verified documentation
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: docs-site
+          path: apps/docs/.vitepress/dist
+          retention-days: 7
+  desktop-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CARGO_BUILD_JOBS: '4'
+      # The runner container cannot grant the Chromium user-namespace sandbox.
+      DESKTOP_ELECTRON_ARGS: '--no-sandbox --disable-gpu --disable-dev-shm-usage'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.17.0
+      - uses: actions/cache@caa296126883cff596d87d8935842f9db880ef25 # v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-rust-${{ hashFiles('Cargo.lock', 'rust-toolchain.toml') }}
+      - name: Prepare Rust, just and the X server for the shell
+        run: |
+          rustup show
+          cargo install just --version 1.58.0 --locked
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends xvfb
+      - run: pnpm install --frozen-lockfile
+      - name: Shell smoke (window lifecycle, shared views, IPC, navigation limits)
+        run: just desktop-smoke
+      - name: Keep shell smoke logs on failure
+        if: failure()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: desktop-smoke-logs
+          path: test-results/desktop/
+          if-no-files-found: ignore
+          retention-days: 7
+  publish-docs:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      pages: write
+    concurrency:
+      group: github-pages-publication
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: docs-site
+          path: apps/docs/.vitepress/dist
+      - name: Publish artifact and verify the matching Pages build
+        env:
+          DOCS_SOURCE_REF: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/publish-docs.mjs --request-build
