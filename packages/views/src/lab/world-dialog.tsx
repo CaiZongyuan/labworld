@@ -41,6 +41,7 @@ export default function WorldDialog({
   assets,
   onClose,
   onSubmit,
+  disabled = false,
   hasMoreAssets,
   loadingAssets,
   onMoreAssets,
@@ -50,6 +51,7 @@ export default function WorldDialog({
   assets: LabAsset[];
   onClose: () => void;
   onSubmit: (submission: WorldSubmission) => Promise<void>;
+  disabled?: boolean;
   hasMoreAssets: boolean;
   loadingAssets: boolean;
   onMoreAssets: () => void;
@@ -90,6 +92,7 @@ export default function WorldDialog({
         <form
           onSubmit={(event) => {
             event.preventDefault();
+            if (disabled || pending) return;
             const selected = definitions.find(
               (entry) => `${entry.id}@${entry.version}` === definition,
             );
@@ -245,6 +248,7 @@ export default function WorldDialog({
               <Button
                 type="submit"
                 disabled={
+                  disabled ||
                   pending ||
                   !name.trim() ||
                   (mode === 'register' && !definitions.length)

@@ -30,7 +30,7 @@ Set the end time before the start time. “Query records” becomes unavailable,
 
 Select “Open run history” in 3D space to expand the same Lab records. On a narrow screen, closing history restores the selected Entity and trigger focus. Closing the full records view focuses “3D space”. Switching views preserves the selected Entity and unsaved layout draft.
 
-[Recent activity](../../packages/views/src/lab/recent-activity.tsx) provides at most five first-page items for a future overview consumer. It has no pagination or history export. Refresh starts a new query. The current default entry remains 3D space.
+[Recent activity](../../packages/views/src/lab/recent-activity.tsx) provides at most five first-page items in the [operations overview](operations-overview.md). It has no pagination or history export. Refresh starts a new query. The current default entry remains 3D space.
 
 ## Read Two Pages
 

@@ -267,7 +267,19 @@
       "titleEn": "Lab Records and Current-page CSV",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "entity-lifecycle"
+      "previous": "entity-lifecycle",
+      "next": "operations-overview"
+    },
+    {
+      "id": "operations-overview",
+      "source": "docs/tutorials/operations-overview.md",
+      "sourceEn": "docs/tutorials/operations-overview.en.md",
+      "route": "tutorials/operations-overview.md",
+      "title": "运行总览与设备筛选",
+      "titleEn": "Operations Overview and Device Filters",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "lab-records"
     },
     {
       "id": "complete-foundation",

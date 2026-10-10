@@ -1,3 +1,4 @@
+import { cn } from 'cn';
 import type { ObservationProperty } from '@labos-threejs/sdk';
 import { useAppMessage } from '../shell/messages';
 import { usePreferences } from '../shell/preferences';
@@ -10,10 +11,12 @@ export default function ObservationReading({
   name,
   reading,
   expanded = false,
+  compact = false,
 }: {
   name: string;
   reading: PropertyReading;
   expanded?: boolean;
+  compact?: boolean;
 }) {
   const { property } = reading;
   const message = useAppMessage('lab');
@@ -65,12 +68,15 @@ export default function ObservationReading({
     return (
       <section
         aria-label={label}
-        className="observation-reading observation-summary"
+        className={cn(
+          'observation-reading observation-summary',
+          compact && 'observation-compact',
+        )}
       >
         <h4>{label}</h4>
         <strong className="observation-value">{value}</strong>
         <div className="observation-status">{status}</div>
-        {property ? (
+        {property && !compact ? (
           <div className="observation-provenance-summary">
             <span>{property.source}</span>
             <span>

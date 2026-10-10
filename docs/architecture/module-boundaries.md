@@ -8,6 +8,8 @@ Lab 拥有实验室业务。Platform Core 拥有身份、成员、凭据、文�
 
 [Node schema 声明](../../packages/server/src/lab/world/schema.ts)拥有限定表。[Lab ownership](../../packages/server/src/lab/ownership.json)记录 Views 路径、准确 SDK helper 路径与合同符号。[边界检查](../../scripts/check-boundaries.mjs)检查包依赖、Node 表声明/迁移和 SDK/Core 限制；[服务检查](../../scripts/lib/server-boundaries.mjs)追踪 Core/纯领域的间接依赖。静态检查不能证明授权、动态 SQL 或恢复。
 
+运行总览的[汇总与登记区域](../../packages/views/src/lab/operations-state.ts)和[设备视图](../../packages/views/src/lab/operations-view.tsx)由 Lab Views 拥有。它们读取现有 World、逐属性观测、趋势和运行记录，不引入第二套身份或服务。共享工作台持有一个世界订阅、布局草稿和设备操作尝试；Core 与通用壳不计算这些业务事实。
+
 ```bash
 pnpm boundaries:check
 pnpm typecheck
