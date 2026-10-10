@@ -14,6 +14,7 @@ import {
 import { execFileSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { setTimeout as wait } from 'node:timers/promises';
 import { labRepresentationProfiles } from '../../packages/contracts/src/lab-representations';
 import type {
   DeviceProgramRun,
@@ -25,6 +26,14 @@ const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
 test.afterEach(releaseFrameTraces);
+const lightRefreshOwners = new WeakMap<Page, () => Promise<void>>();
+test.afterEach(async ({ page }) => {
+  try {
+    await lightRefreshOwners.get(page)?.();
+  } finally {
+    lightRefreshOwners.delete(page);
+  }
+});
 async function pixelChange(page: Page, before: Buffer, after: Buffer) {
   return page.evaluate(
     async (images) => {
@@ -336,7 +345,9 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       data: { capability, parameters },
     });
     expect((await retry.json()).id).toBe(command.id);
+    return command.id as string;
   }
+  let drainRefresh = async () => {};
   try {
     const pixelEvidence = process.env.LAB_NODE_EVIDENCE
       ? join(process.env.LAB_NODE_EVIDENCE, 'light-pixels')
@@ -432,6 +443,122 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     await expect(
       inspector.getByRole('switch', { name: '电源' }),
     ).not.toBeChecked();
+    // Same-value brightness Commands refresh both properties without undoing power.
+    const refreshAbort = new AbortController();
+    const refreshEvidence: {
+      cadenceMs: number;
+      commands: { entityId: string; commandId: string; completedAt: string }[];
+      rounds: { version: string; completedAt: string }[];
+      stoppedAt: string | null;
+      drainedAt: string | null;
+      failed: boolean;
+    } = {
+      cadenceMs: 2000,
+      commands: [],
+      rounds: [],
+      stoppedAt: null,
+      drainedAt: null,
+      failed: false,
+    };
+    let refreshFailure: unknown;
+    let refreshFailureReported = false;
+    let refreshWork: Promise<void> = Promise.resolve();
+    drainRefresh = async () => {
+      if (!refreshAbort.signal.aborted) {
+        refreshEvidence.stoppedAt = new Date().toISOString();
+        refreshAbort.abort();
+      }
+      await refreshWork;
+      refreshEvidence.drainedAt ??= new Date().toISOString();
+      await retainPixels('-freshness.json', JSON.stringify(refreshEvidence));
+    };
+    const throwRefreshFailure = () => {
+      if (refreshFailure && !refreshFailureReported) {
+        refreshFailureReported = true;
+        throw refreshFailure;
+      }
+    };
+    lightRefreshOwners.set(page, async () => {
+      await drainRefresh();
+      // A secondary refresh failure is reported after an original raster failure.
+      throwRefreshFailure();
+    });
+    const refreshRound = async () => {
+      for (const id of ids) {
+        if (refreshAbort.signal.aborted) return;
+        const commandId = await apply(id, 'light.set_brightness', {
+          brightness: 100,
+        });
+        if (refreshEvidence.commands.length < 256)
+          refreshEvidence.commands.push({
+            entityId: id,
+            commandId,
+            completedAt: new Date().toISOString(),
+          });
+      }
+      if (refreshAbort.signal.aborted) return;
+      const response = await agent.get(`/api/v1/lab/labs/${lab}/world`);
+      expect(response.status()).toBe(200);
+      const current = (await response.json()) as LabWorld;
+      for (const id of ids) {
+        const entity = current.entities.find((entry) => entry.id === id);
+        const original = fixtureWorld.entities.find((entry) => entry.id === id);
+        expect(entity?.program_run?.status).toBe('running');
+        expect(entity?.binding?.id).toBe(original?.binding?.id);
+        expect(entity?.program_run?.id).toBe(original?.program_run?.id);
+        for (const name of ['on', 'brightness']) {
+          const property = entity?.observation?.properties[name];
+          expect(property).toEqual(
+            expect.objectContaining({
+              quality: 'good',
+              freshness: 'current',
+              binding_id: entity?.binding?.id,
+              run_id: entity?.program_run?.id,
+            }),
+          );
+          expect(property?.observed_at).toBeTruthy();
+        }
+        expect(entity?.observation?.properties.brightness.value).toBe(100);
+        expect(typeof entity?.observation?.properties.on.value).toBe('boolean');
+      }
+      if (refreshEvidence.rounds.length < 128)
+        refreshEvidence.rounds.push({
+          version: current.version,
+          completedAt: new Date().toISOString(),
+        });
+    };
+    const retainRefreshFailure = (error: unknown) => {
+      refreshFailure = error;
+      refreshEvidence.failed = true;
+    };
+    refreshWork = refreshRound().catch(retainRefreshFailure);
+    await refreshWork;
+    throwRefreshFailure();
+    refreshWork = (async () => {
+      while (!refreshAbort.signal.aborted) {
+        // Completion-paced and serial: never queue another round behind a stall.
+        try {
+          await wait(refreshEvidence.cadenceMs, undefined, {
+            signal: refreshAbort.signal,
+          });
+        } catch (error) {
+          if (refreshAbort.signal.aborted) return;
+          throw error;
+        }
+        if (!refreshAbort.signal.aborted) await refreshRound();
+      }
+    })().catch(retainRefreshFailure);
+    const lightLabels = ['Light A', 'Light B'].map((name) =>
+      page
+        .locator('.world-priority-label')
+        .filter({ has: page.getByRole('button', { name, exact: true }) })
+        .locator('.world-label-reading small'),
+    );
+    const expectCurrentLightLabels = async () => {
+      throwRefreshFailure();
+      for (const label of lightLabels)
+        expect(await label.allTextContents()).toEqual(['当前观测']);
+    };
     let baselineWorld!: LabWorld;
     await expect
       .poll(async () => {
@@ -505,6 +632,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
           .catch(() => null),
       }),
     );
+    for (const label of lightLabels) await expect(label).toHaveText('当前观测');
     let off!: Buffer;
     let lastOffPair:
       { before: Buffer; after: Buffer; change?: unknown } | undefined;
@@ -512,6 +640,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     try {
       await expect
         .poll(async () => {
+          await expectCurrentLightLabels();
           const before = await page.locator('canvas').screenshot();
           await page.evaluate(async () => {
             await new Promise<void>((resolve) =>
@@ -521,6 +650,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
             );
           });
           off = await page.locator('canvas').screenshot();
+          await expectCurrentLightLabels();
           lastOffPair = { before, after: off };
           const change = await pixelChange(page, before, off);
           lastOffPair.change = change;
@@ -543,14 +673,18 @@ test('two backend lights report independent pixels to a Member and an Agent afte
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
     });
+    await expectCurrentLightLabels();
     const offAgain = await page.locator('canvas').screenshot();
+    await expectCurrentLightLabels();
     await retainPixels('-off-again.png', offAgain);
     await inspector.getByRole('switch', { name: '电源' }).click();
     await expect(inspector.getByRole('switch', { name: '电源' })).toBeChecked();
     await expect(
       inspector.getByText('执行完成', { exact: true }),
     ).toBeVisible();
+    await expectCurrentLightLabels();
     const aOn = await page.locator('canvas').screenshot();
+    await expectCurrentLightLabels();
     await retainPixels('-a-on.png', aOn);
     const changedA = await pixelChange(page, off, aOn);
     await retainPixels('-a-change.json', JSON.stringify(changedA));
@@ -561,7 +695,9 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     try {
       await expect
         .poll(async () => {
+          await expectCurrentLightLabels();
           const before = await page.locator('canvas').screenshot();
+          await expectCurrentLightLabels();
           bCandidate = before;
           lastChangedB = undefined;
           const change = await pixelChange(page, aOn, before);
@@ -573,9 +709,14 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       if (bCandidate) await retainPixels('-b-candidate.png', bCandidate);
       await retainPixels('-b-change.json', JSON.stringify({ lastChangedB }));
     }
+    await expectCurrentLightLabels();
     const bothOn = await page.locator('canvas').screenshot();
+    await expectCurrentLightLabels();
     await retainPixels('-both-on.png', bothOn);
     const changedB = await pixelChange(page, aOn, bothOn);
+    await drainRefresh();
+    throwRefreshFailure();
+    lightRefreshOwners.delete(page);
     const pixelWorld = (await (
       await agent.get(`/api/v1/lab/labs/${lab}/world`)
     ).json()) as LabWorld;
@@ -789,6 +930,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     expect(errors).toEqual([]);
     await reopened.close();
   } finally {
+    await drainRefresh();
     await agent.dispose();
   }
 });
