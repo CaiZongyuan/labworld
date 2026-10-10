@@ -5,7 +5,12 @@ import type { MotionBuffer, Placement } from '@labos-threejs/sdk';
 export class MotionSceneController {
   private nodes = new Map<
     string,
-    { entityId: string; object: Object3D; placement: Placement }
+    {
+      entityId: string;
+      object: Object3D;
+      placement: Placement;
+      displayed?: { sequence: string; sim_time_ns: string };
+    }
   >();
   private position = new Vector3();
   private quaternion = new Quaternion();
@@ -21,11 +26,13 @@ export class MotionSceneController {
     object: Object3D,
     placement: Placement,
   ) {
-    this.nodes.set(nodeId, { entityId, object, placement });
+    if (this.active.has(nodeId)) this.restore(nodeId);
+    const association = { entityId, object, placement };
+    this.nodes.set(nodeId, association);
     this.restore(nodeId);
     return () => {
       const entry = this.nodes.get(nodeId);
-      if (entry?.object !== object) return;
+      if (entry !== association) return;
       if (this.active.has(nodeId)) this.restore(nodeId);
       this.nodes.delete(nodeId);
     };
@@ -65,13 +72,12 @@ export class MotionSceneController {
       object.updateMatrix();
       object.updateWorldMatrix(false, true);
       // Provenance describes the pose actually displayed, rather than frame arrival rate.
-      const provenance = (object.userData.motion ??= {});
-      provenance.session_id = welcome.session_id;
-      provenance.epoch = welcome.epoch;
-      provenance.mapping_revision = welcome.mapping_revision;
+      const provenance = (entry.displayed ??= {
+        sequence,
+        sim_time_ns: simTime,
+      });
       provenance.sequence = sequence;
       provenance.sim_time_ns = simTime;
-      provenance.pose_key = target.pose_key;
       this.active.add(target.node_id);
     }
   }
@@ -95,7 +101,7 @@ export class MotionSceneController {
       rendered_at_ms: this.renderedAt,
       nodes: welcome.targets.flatMap((target) => {
         const entry = this.nodes.get(target.node_id);
-        if (!entry || !this.active.has(target.node_id)) return [];
+        if (!entry?.displayed) return [];
         return [
           {
             node_id: target.node_id,
@@ -105,8 +111,8 @@ export class MotionSceneController {
             quaternion: entry.object
               .getWorldQuaternion(new Quaternion())
               .toArray(),
-            sequence: entry.object.userData.motion.sequence as string,
-            sim_time_ns: entry.object.userData.motion.sim_time_ns as string,
+            sequence: entry.displayed.sequence,
+            sim_time_ns: entry.displayed.sim_time_ns,
           },
         ];
       }),
@@ -128,7 +134,7 @@ export class MotionSceneController {
     object.scale.fromArray(placement.scale);
     object.updateMatrix();
     object.updateWorldMatrix(false, true);
-    delete object.userData.motion;
+    delete entry.displayed;
     this.active.delete(id);
   }
 }

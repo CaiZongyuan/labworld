@@ -1,4 +1,6 @@
 import { expect, type Page } from '@playwright/test';
+import { appendFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export type Diagnostic = {
   session_id: string;
@@ -33,12 +35,73 @@ export function expectedBody(index: number, timeNs: string) {
   };
 }
 export async function displayed(page: Page): Promise<Diagnostic | null> {
-  return page.locator('canvas').evaluate((canvas) => {
-    const target = canvas as HTMLCanvasElement & {
-      getMotionDiagnostics?: () => unknown;
-    };
-    return target.getMotionDiagnostics?.() ?? null;
-  }) as Promise<Diagnostic | null>;
+  try {
+    return (await page.locator('canvas').evaluate((canvas) => {
+      const target = canvas as HTMLCanvasElement & {
+        getMotionDiagnostics?: () => unknown;
+      };
+      return target.getMotionDiagnostics?.() ?? null;
+    })) as Diagnostic | null;
+  } catch (error) {
+    // This read-only seam contains no credential form or auth operation. Keep
+    // its failure distinguishable without swallowing it or advancing motion.
+    const sanitize = (value: string) =>
+      value
+        .replace(/https?:\/\/[^\s)]+/g, '<url>')
+        .replace(/[0-9a-f]{8}-[0-9a-f-]{27}/gi, '<uuid>')
+        .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, '<email>')
+        .replace(/[A-Za-z0-9_-]{40,}/g, '<redacted>')
+        .slice(0, 500);
+    const canvases = await page
+      .locator('canvas')
+      .evaluateAll((nodes) =>
+        nodes.map((canvas) => {
+          const box = canvas.getBoundingClientRect();
+          return {
+            connected: canvas.isConnected,
+            worldCanvas: !!canvas.closest('.world-page'),
+            width: box.width,
+            height: box.height,
+            getterType: typeof (
+              canvas as HTMLCanvasElement & { getMotionDiagnostics?: unknown }
+            ).getMotionDiagnostics,
+          };
+        }),
+      )
+      .catch(() => null);
+    const evidence = process.env.LAB_NODE_EVIDENCE;
+    if (evidence) {
+      try {
+        appendFileSync(
+          join(evidence, 'motion-renderer-read-errors.jsonl'),
+          JSON.stringify({
+            boundary:
+              'canvas locator/evaluation or actual getter; original error rethrown',
+            at: new Date().toISOString(),
+            name: error instanceof Error ? error.name : 'UnknownError',
+            message: sanitize(
+              error instanceof Error ? error.message : String(error),
+            ),
+            locations:
+              error instanceof Error
+                ? [
+                    ...(error.stack ?? '').matchAll(
+                      /([A-Za-z0-9_.-]+\.(?:ts|js):\d+:\d+)/g,
+                    ),
+                  ]
+                    .map((match) => match[1])
+                    .slice(0, 8)
+                : [],
+            canvases,
+          }) + '\n',
+          { mode: 0o600 },
+        );
+      } catch {
+        /* Evidence failure must not replace the original failure. */
+      }
+    }
+    throw error;
+  }
 }
 export function assertTrajectory(value: Diagnostic, session: string) {
   expect(value.session_id).toBe(session);
