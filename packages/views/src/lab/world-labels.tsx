@@ -280,13 +280,36 @@ export function WorldLabels({
                 >
                   <strong>{value ?? '-'}</strong>
                   <small>
-                    {reading.currentValid
-                      ? phase?.currentValid && phase.property
-                        ? message(`task.${phase.property.value}`)
-                        : message('device.freshness.current')
-                      : reading.hasValue
-                        ? message('device.lastReported')
-                        : message('world.unknown')}
+                    {reading.currentValid ? (
+                      phase?.currentValid && phase.property ? (
+                        message(`task.${phase.property.value}`)
+                      ) : (
+                        message('device.freshness.current')
+                      )
+                    ) : reading.hasValue ? (
+                      <>
+                        {message('device.lastReported')}
+                        {reading.reason !== 'unknown' ? (
+                          <>
+                            {' '}
+                            · {message(`device.freshness.${reading.reason}`)}
+                          </>
+                        ) : null}
+                        {reading.property &&
+                        reading.property.freshness !== 'current' &&
+                        reading.property.freshness !== reading.reason ? (
+                          <>
+                            {' '}
+                            ·{' '}
+                            {message(
+                              `device.freshness.${reading.property.freshness}`,
+                            )}
+                          </>
+                        ) : null}
+                      </>
+                    ) : (
+                      message('world.unknown')
+                    )}
                   </small>
                 </div>
               ) : (
