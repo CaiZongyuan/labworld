@@ -14,9 +14,11 @@ import {
 import { execFileSync } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { labRepresentationProfiles } from '../../packages/contracts/src/lab-representations';
 import type {
   DeviceProgramRun,
   LabEntity,
+  LabLayout,
   LabWorld,
 } from '../../packages/contracts/src/generated/types.gen';
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
@@ -291,11 +293,12 @@ test('two backend lights report independent pixels to a Member and an Agent afte
   }
   await frameTrace.finish(false);
   const session = await (await page.request.get('/api/v1/auth/session')).json();
+  const headers = {
+    origin: process.env.E2E_WEB_URL!,
+    'x-csrf-token': session.csrf_token,
+  };
   const credential = await page.request.post('/api/v1/api-keys', {
-    headers: {
-      origin: process.env.E2E_WEB_URL!,
-      'x-csrf-token': session.csrf_token,
-    },
+    headers,
     data: {
       name: 'Browser lighting Agent',
       scopes: ['lab:full'],
@@ -335,6 +338,93 @@ test('two backend lights report independent pixels to a Member and an Agent afte
     expect((await retry.json()).id).toBe(command.id);
   }
   try {
+    const pixelEvidence = process.env.LAB_NODE_EVIDENCE
+      ? join(process.env.LAB_NODE_EVIDENCE, 'light-pixels')
+      : test.info().outputPath('light-pixels');
+    const retainPixels = (suffix: string, bytes: Buffer | string) =>
+      writeFile(pixelEvidence + suffix, bytes).catch(() => {
+        // Optional evidence must preserve the original assertion failure.
+      });
+    const fixtureResponse = await page.request.get(
+      `/api/v1/lab/labs/${lab}/world`,
+    );
+    expect(fixtureResponse.status()).toBe(200);
+    const fixtureWorld = (await fixtureResponse.json()) as LabWorld;
+    for (const id of ids) {
+      const nodes = fixtureWorld.nodes.filter((node) => node.entity_id === id);
+      expect(nodes).toHaveLength(1);
+      expect(nodes[0].representation_id).toBeNull();
+      expect(nodes[0].placement.scale).toEqual([1, 1, 1]);
+    }
+    // The native point-light cutoff is 4.2m in world-viewport.tsx.
+    const pointLightDistance = 4.2;
+    const spacing =
+      2 * pointLightDistance +
+      labRepresentationProfiles.profiles.light.bounds.size[0];
+    const nodes = fixtureWorld.nodes.map(
+      ({ id, entity_id, representation_id, placement }) => {
+        const lamp = ids.indexOf(entity_id);
+        return {
+          id,
+          entity_id,
+          representation_id,
+          placement:
+            lamp < 0
+              ? placement
+              : {
+                  ...placement,
+                  position: [
+                    lamp === 0 ? -spacing / 2 : spacing / 2,
+                    placement.position[1],
+                    placement.position[2],
+                  ],
+                },
+        };
+      },
+    );
+    const layoutResponse = await page.request.put(
+      `/api/v1/lab/labs/${lab}/layout`,
+      {
+        headers,
+        data: { expected_version: fixtureWorld.lab.layout_version, nodes },
+      },
+    );
+    expect(layoutResponse.status()).toBe(200);
+    const savedLayout = (await layoutResponse.json()) as LabLayout;
+    expect(savedLayout.layout_version).toBe(
+      fixtureWorld.lab.layout_version + 1,
+    );
+    const placedResponse = await page.request.get(
+      `/api/v1/lab/labs/${lab}/world`,
+    );
+    expect(placedResponse.status()).toBe(200);
+    const placedWorld = (await placedResponse.json()) as LabWorld;
+    expect(placedWorld.lab.layout_version).toBe(savedLayout.layout_version);
+    expect(placedWorld.nodes).toHaveLength(nodes.length);
+    expect(placedWorld.nodes).toEqual(
+      expect.arrayContaining(
+        nodes.map((node) => expect.objectContaining(node)),
+      ),
+    );
+    expect(placedWorld.relationships).toEqual(fixtureWorld.relationships);
+    await expect(
+      page
+        .locator('.lab-heading')
+        .getByText(`v${savedLayout.layout_version}`, { exact: true }),
+    ).toBeVisible();
+    await expect(page.locator('.world-page')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    );
+    await showObjectDirectory(page);
+    await page
+      .getByRole('checkbox', { name: '多选 Light B', exact: true })
+      .uncheck();
+    for (const name of ['Light A', 'Light B'])
+      await expect(
+        page.getByRole('button', { name: `选择 ${name}`, exact: true }),
+      ).toHaveAttribute('aria-pressed', 'false');
+    await expect(page).toHaveURL((url) => !url.searchParams.has('entity'));
     await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
     for (const id of ids) {
       await apply(id, 'light.set_power', { on: true });
@@ -387,46 +477,101 @@ test('two backend lights report independent pixels to a Member and an Agent afte
           ) >= BigInt(baselineWorld.version),
       )
       .toBe(true);
+    await retainPixels(
+      '-fixture.json',
+      JSON.stringify({
+        spacing,
+        source: 'native light cutoff4.2 + published light width',
+        beforeLayoutVersion: fixtureWorld.lab.layout_version,
+        savedLayoutVersion: savedLayout.layout_version,
+        beforeNodes: fixtureWorld.nodes,
+        placedNodes: placedWorld.nodes,
+        baselineVersion: baselineWorld.version,
+        baselineProperties: baselineWorld.entities.map((entity) => ({
+          id: entity.id,
+          run: entity.program_run
+            ? { id: entity.program_run.id, status: entity.program_run.status }
+            : null,
+          properties: entity.observation?.properties,
+        })),
+        viewport: page.viewportSize(),
+        canvas: await page
+          .locator('canvas')
+          .boundingBox()
+          .catch(() => null),
+      }),
+    );
     let off!: Buffer;
+    let lastOffPair:
+      { before: Buffer; after: Buffer; change?: unknown } | undefined;
     const stableFrames: unknown[] = [];
-    await expect
-      .poll(async () => {
-        const before = await page.locator('canvas').screenshot();
-        await page.evaluate(async () => {
-          await new Promise<void>((resolve) =>
-            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
-          );
-        });
-        off = await page.locator('canvas').screenshot();
-        const change = await pixelChange(page, before, off);
-        stableFrames.push(change);
-        return change.count;
-      })
-      .toBe(0);
+    try {
+      await expect
+        .poll(async () => {
+          const before = await page.locator('canvas').screenshot();
+          await page.evaluate(async () => {
+            await new Promise<void>((resolve) =>
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => resolve()),
+              ),
+            );
+          });
+          off = await page.locator('canvas').screenshot();
+          lastOffPair = { before, after: off };
+          const change = await pixelChange(page, before, off);
+          lastOffPair.change = change;
+          stableFrames.push(change);
+          return change.count;
+        })
+        .toBe(0);
+    } finally {
+      if (lastOffPair) {
+        await retainPixels('-off-before.png', lastOffPair.before);
+        await retainPixels('-off.png', lastOffPair.after);
+      }
+      await retainPixels(
+        '-quiet.json',
+        JSON.stringify({ stableFrames, lastPair: lastOffPair?.change ?? null }),
+      );
+    }
     await page.evaluate(async () => {
       await new Promise<void>((resolve) =>
         requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
       );
     });
     const offAgain = await page.locator('canvas').screenshot();
+    await retainPixels('-off-again.png', offAgain);
     await inspector.getByRole('switch', { name: '电源' }).click();
     await expect(inspector.getByRole('switch', { name: '电源' })).toBeChecked();
     await expect(
       inspector.getByText('执行完成', { exact: true }),
     ).toBeVisible();
     const aOn = await page.locator('canvas').screenshot();
+    await retainPixels('-a-on.png', aOn);
     const changedA = await pixelChange(page, off, aOn);
+    await retainPixels('-a-change.json', JSON.stringify(changedA));
     expect(changedA.count).toBeGreaterThan(30);
     await apply(ids[1], 'light.set_power', { on: true });
-    await expect
-      .poll(async () => {
-        const before = await page.locator('canvas').screenshot();
-        return (await pixelChange(page, aOn, before)).count;
-      })
-      .toBeGreaterThan(30);
+    let bCandidate: Buffer | undefined;
+    let lastChangedB: unknown;
+    try {
+      await expect
+        .poll(async () => {
+          const before = await page.locator('canvas').screenshot();
+          bCandidate = before;
+          lastChangedB = undefined;
+          const change = await pixelChange(page, aOn, before);
+          lastChangedB = change;
+          return change.count;
+        })
+        .toBeGreaterThan(30);
+    } finally {
+      if (bCandidate) await retainPixels('-b-candidate.png', bCandidate);
+      await retainPixels('-b-change.json', JSON.stringify({ lastChangedB }));
+    }
     const bothOn = await page.locator('canvas').screenshot();
+    await retainPixels('-both-on.png', bothOn);
     const changedB = await pixelChange(page, aOn, bothOn);
-    const pixelEvidence = test.info().outputPath('light-pixels');
     const pixelWorld = (await (
       await agent.get(`/api/v1/lab/labs/${lab}/world`)
     ).json()) as LabWorld;
