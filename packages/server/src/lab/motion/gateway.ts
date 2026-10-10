@@ -126,6 +126,11 @@ export class MotionGateway {
       for (const viewer of session.viewers) {
         viewer.pending = undefined;
         this.control(viewer.transport, this.welcome(session, viewer.rate));
+        this.control(viewer.transport, {
+          type: 'motion.status',
+          state: session.state,
+          rate_hz: viewer.rate,
+        });
       }
       this.control(transport, this.welcome(session, 30));
       return {
@@ -160,7 +165,7 @@ export class MotionGateway {
       state: session.state,
       rate_hz: rate,
     });
-    this.flushViewer(viewer, performance.now());
+    this.flushViewer(session, viewer, performance.now());
     return {
       receive: () =>
         this.reject(transport, 'unauthorized', 'Viewers cannot publish motion'),
@@ -239,7 +244,7 @@ export class MotionGateway {
     }
     for (const viewer of session.viewers) viewer.pending = session.latest;
   }
-  private flushViewer(viewer: Viewer, now: number) {
+  private flushViewer(session: Session, viewer: Viewer, now: number) {
     if (!viewer.transport.open) {
       viewer.pending = undefined;
       return;
@@ -266,7 +271,7 @@ export class MotionGateway {
       viewer.blockedAt = undefined;
       this.control(viewer.transport, {
         type: 'motion.status',
-        state: 'live',
+        state: session.state,
         rate_hz: viewer.rate,
       });
     }
@@ -290,7 +295,8 @@ export class MotionGateway {
             rate_hz: viewer.rate,
           });
       }
-      for (const viewer of session.viewers) this.flushViewer(viewer, now);
+      for (const viewer of session.viewers)
+        this.flushViewer(session, viewer, now);
     }
   }
   stop() {

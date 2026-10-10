@@ -86,6 +86,7 @@ export function useMotion({
         rateHz: preferredRate,
         onWelcome: (welcome) => {
           buffer.configure(welcome);
+          buffer.setSourceState('waiting');
           setRate(welcome.rate_hz);
           setState('waiting');
         },
@@ -96,11 +97,8 @@ export function useMotion({
         onStatus: (status) => {
           if (status.type !== 'motion.status') return;
           setRate(status.rate_hz);
-          // Receive freshness owns live/stale; control can only make it less trusted.
-          if (status.state !== 'live') {
-            if (status.state !== 'waiting') buffer.freeze();
-            setState(status.state);
-          }
+          buffer.setSourceState(status.state);
+          setState(buffer.freshness(performance.now()));
         },
       });
     } catch (cause) {

@@ -116,3 +116,96 @@ test('time rollback and long receive/simulation gaps start new segments; metadat
     false,
   );
 });
+
+test.each(['waiting', 'stale', 'interrupted'] as const)(
+  'late cached and pending snapshots preserve authoritative %s until a live source resumes',
+  (state) => {
+    const buffer = new MotionBuffer();
+    buffer.configure(motionWelcome);
+    buffer.setSourceState(state);
+    const cached = motionSnapshot({
+      poses: [{ position: [7, 0, 0], quaternion: [0, 0, 0, 1] }],
+    });
+    expect(buffer.push(cached, 1000)).toBe(true);
+    expect(buffer.freshness(1250)).toBe(state);
+    expect(buffer.sample(1250)?.poses[0].position).toEqual([7, 0, 0]);
+    const pending = motionSnapshot({
+      sequence: cached.sequence + 1n,
+      sim_time_ns: cached.sim_time_ns + 100_000_000n,
+      poses: [{ position: [8, 0, 0], quaternion: [0, 0, 0, 1] }],
+    });
+    expect(buffer.push(pending, 1100)).toBe(true);
+    expect(buffer.freshness(1350)).toBe(state);
+    expect(buffer.sample(1350)?.poses[0].position).toEqual([7, 0, 0]);
+    buffer.setSourceState('live');
+    expect(buffer.freshness(1350)).toBe('stale');
+    expect(buffer.sample(1350)?.poses[0].position).toEqual([7, 0, 0]);
+    expect(
+      buffer.push(
+        {
+          ...pending,
+          sequence: pending.sequence + 1n,
+          sim_time_ns: pending.sim_time_ns + 100_000_000n,
+          poses: [{ position: [20, 0, 0], quaternion: [0, 0, 0, 1] }],
+        },
+        1400,
+      ),
+    ).toBe(true);
+    expect(buffer.freshness(1400)).toBe('live');
+    expect(buffer.sample(1400)?.poses[0].position).toEqual([20, 0, 0]);
+  },
+);
+
+test('interruption preserves the displayed interpolated pose and a new epoch begins from a complete new segment', () => {
+  const buffer = new MotionBuffer();
+  buffer.configure(motionWelcome);
+  buffer.setSourceState('live');
+  const a = motionSnapshot();
+  buffer.push(a, 1000);
+  buffer.push(
+    {
+      ...a,
+      sequence: a.sequence + 1n,
+      sim_time_ns: a.sim_time_ns + 100_000_000n,
+      poses: [{ position: [10, 0, 0], quaternion: [0, 0, 0, 1] }],
+    },
+    1100,
+  );
+  expect(buffer.sample(1150)?.poses[0].position[0]).toBe(5);
+  buffer.setSourceState('interrupted');
+  buffer.push(
+    {
+      ...a,
+      sequence: a.sequence + 2n,
+      sim_time_ns: a.sim_time_ns + 200_000_000n,
+      poses: [{ position: [20, 0, 0], quaternion: [0, 0, 0, 1] }],
+    },
+    1200,
+  );
+  expect(buffer.sample(1300)?.poses[0].position[0]).toBe(5);
+  expect(buffer.freshness(1300)).toBe('interrupted');
+  const epoch = a.epoch + 1n;
+  buffer.configure({ ...motionWelcome, epoch: epoch.toString() });
+  buffer.setSourceState('waiting');
+  expect(buffer.sample(1350)).toBeNull();
+  expect(
+    buffer.push({ ...a, epoch: a.epoch, sequence: a.sequence + 3n }, 1400),
+  ).toBe(false);
+  buffer.setSourceState('live');
+  buffer.push(
+    {
+      ...a,
+      epoch,
+      sequence: 0n,
+      sim_time_ns: 0n,
+      poses: [{ position: [-20, 0, 0], quaternion: [0, 0, 0, 1] }],
+    },
+    1400,
+  );
+  expect(buffer.sample(1400)?.poses[0].position[0]).toBe(-20);
+  expect(buffer.freshness(2000)).toBe('stale');
+  expect(buffer.sample(2000)?.poses[0].position[0]).toBe(-20);
+  buffer.clear();
+  expect(buffer.freshness(2000)).toBe('waiting');
+  expect(buffer.sample(2000)).toBeNull();
+});

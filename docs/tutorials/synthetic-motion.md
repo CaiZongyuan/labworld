@@ -2,7 +2,7 @@
 
 目标：让一个 Python Synthetic Publisher 驱动两个浏览器中的真实 GLB 对象。两个 Viewer 共用运动数据，分别操作相机和 Inspector。
 
-先完成[持久 Lab 与对象](persistent-world.md)与[持久数字资产](persistent-assets.md)。需要仓库指定的 Node、pnpm、Python 3.10+ 和桌面浏览器。从仓库根目录执行命令。此教程使用本机 loopback fixture，不需要 GPU、Newton 或 Docker。
+先完成[持久 Lab 与对象](persistent-world.md)与[持久数字资产](persistent-assets.md)。需要仓库指定的 Node、pnpm、Python 3.10+（包含 venv 与 pip）和桌面浏览器。从仓库根目录执行命令。本文的 Bash 与浏览器验证命令使用 Linux 或 WSL Ubuntu。此教程使用本机 loopback fixture，不需要 GPU、Newton 或 Docker。
 
 ## 启动独立测试数据
 
@@ -87,6 +87,24 @@ Gateway 在内存保留当前帧。每 Viewer 只有一个 pending latest slot�
 fixture 仅在 `LAB_WORD_MOTION_FIXTURE=true` 且服务监听 loopback 时开放。HTTP 与 WS 都检查真实连接来源，并拒绝带代理转发头的请求。Viewer 使用 30 秒有效的一次性 ticket；WS 准入前没有场景映射。Publisher 身份由独立 ticket 与固定路由确定。
 
 HTTP DTO 来自 [Node 路由](../../packages/server/src/lab/motion/routes.ts)的 OpenAPI 生成。高频 pose 不写数据库、`world_clock` 或 SSE。现有 HTTP 与业务 SSE 保留各自职责。fixture 的绑定随服务停止而结束；已登记对象、资产和初始布局继续保存在测试目录。
+
+## 验证源码
+
+安装一次 Chromium，再分别执行短验证与完整验收：
+
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion smoke:'
+pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion full:'
+```
+
+这两个命令使用上面创建的 `.scratch/motion-python/bin/python`。已有其他独立 Python 环境时，用 `MOTION_E2E_PYTHON=/绝对路径/python` 指定解释器。运行器会核对已安装的 websockets 与 tracked requirements 中的固定版本。
+
+[motion profile](../../scripts/e2e-server.mjs)自动构建同源应用，为所属测试后端启用 fixture，并创建独立数据目录、监听端口和 observer 目录。后台 preload 只记录实际 Gateway/WS 计数，不替换值或阻塞目标。浏览器、Publisher 与慢 TCP reader 的 owner 会记录并清理资源；证据保存在 `.scratch/vnext-m1/` 的本次 run 目录中。
+
+短验证覆盖真实 Python、两个 GLB Viewer、认证拒绝、原始 wire、Object3D 轨迹、画面曝光及 socket 释放。默认 `pnpm test:e2e` 与 `web-journeys` CI 对 motion profile 执行这一项短验证，并保留其他 profile。
+
+`motion full:` 额外覆盖两个 Viewer 共同 ready 后至少 600 秒、真实慢 TCP 连接、陈旧冻结、独立相机与选择、晚加入、重复切换与资源收敛。它是单独执行的完整验收；默认 suite 的短验证不覆盖这些长测断言。需要记录完整命令、source commit、环境、样本与清理凭据。
 
 ## 一次失败与恢复
 

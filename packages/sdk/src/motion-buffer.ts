@@ -1,5 +1,6 @@
 import type {
   MotionSnapshot,
+  MotionStatus,
   MotionWelcome,
 } from '@labos-threejs/contracts/motion';
 
@@ -26,6 +27,7 @@ export class MotionBuffer {
   private output: MotionSample | null = null;
   private metadata: MotionWelcome | null = null;
   private stopped = false;
+  private sourceState: MotionStatus['state'] | null = null;
 
   get welcome() {
     return this.metadata;
@@ -36,6 +38,12 @@ export class MotionBuffer {
 
   freeze() {
     this.stopped = true;
+  }
+
+  /** Receipt of cached or queued data cannot overrule authoritative source status. */
+  setSourceState(state: MotionStatus['state']) {
+    if (state !== this.sourceState) this.stopped = true;
+    this.sourceState = state;
   }
 
   configure(welcome: MotionWelcome) {
@@ -60,6 +68,7 @@ export class MotionBuffer {
     this.lastSequence = -1n;
     this.lastReceived = -Infinity;
     this.stopped = false;
+    this.sourceState = null;
   }
 
   push(snapshot: MotionSnapshot, received: number): boolean {
@@ -76,6 +85,18 @@ export class MotionBuffer {
     )
       return false;
     const previous = this.frames.at(-1);
+    if (this.sourceState !== null && this.sourceState !== 'live') {
+      // A late join may initialize its display from the complete cache. Later queued
+      // frames preserve the last displayed pose until the source explicitly resumes.
+      if (!previous) {
+        this.anchor = { received, time: snapshot.sim_time_ns };
+        this.copy(snapshot);
+      }
+      this.frames = [snapshot];
+      this.lastSequence = snapshot.sequence;
+      this.lastReceived = received;
+      return true;
+    }
     // A new segment starts at the new trusted frame, never between old and new data.
     if (
       this.stopped ||
@@ -97,8 +118,11 @@ export class MotionBuffer {
     return true;
   }
 
-  freshness(now: number): 'waiting' | 'live' | 'stale' {
+  freshness(now: number): MotionStatus['state'] {
+    if (this.sourceState !== null && this.sourceState !== 'live')
+      return this.sourceState;
     if (!this.frames.length) return 'waiting';
+    if (this.sourceState === 'live' && this.stopped) return 'stale';
     return now - this.lastReceived > this.staleMs ? 'stale' : 'live';
   }
 

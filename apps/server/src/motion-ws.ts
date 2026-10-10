@@ -97,10 +97,11 @@ export class MotionWebSockets {
       },
       close: (code, reason) => {
         if (
-          ws.readyState === WebSocket.OPEN ||
-          ws.readyState === WebSocket.CONNECTING
+          ws.readyState !== WebSocket.OPEN &&
+          ws.readyState !== WebSocket.CONNECTING
         )
-          ws.close(code, reason);
+          return;
+        ws.close(code, reason);
         if (!this.deadlines.has(ws))
           this.deadlines.set(
             ws,
@@ -128,14 +129,13 @@ export class MotionWebSockets {
       clearTimeout(this.deadlines.get(ws));
       this.deadlines.delete(ws);
       joined?.leave();
-      ws.removeAllListeners();
+      // ws owns its client-tracking close listener. Remove only our callbacks.
+      ws.off('message', receive);
+      ws.off('error', terminate);
+      ws.off('close', cleanup);
     };
-    ws.on('error', () => {
-      ws.terminate();
-      cleanup();
-    });
-    ws.on('close', cleanup);
-    ws.on('message', (raw, binary) => {
+    const terminate = () => ws.terminate();
+    const receive = (raw: RawData, binary: boolean) => {
       const data = bytes(raw);
       if (!admitted) {
         if (admitting || binary || data.byteLength > 4096) {
@@ -205,7 +205,10 @@ export class MotionWebSockets {
           'Motion message was rejected',
         );
       }
-    });
+    };
+    ws.on('error', terminate);
+    ws.on('close', cleanup);
+    ws.on('message', receive);
   }
   async stop() {
     if (this.stopping) return;

@@ -2,7 +2,7 @@
 
 Goal: use one Python Synthetic Publisher to move real GLB objects in two browsers. Each Viewer keeps its own camera and Inspector selection.
 
-Complete [Persistent Labs and objects](persistent-world.en.md) and [Persistent digital assets](persistent-assets.en.md) first. Use the repository Node and pnpm versions, Python 3.10+, and a desktop browser. Run commands from the repository root. This local loopback fixture needs no GPU, Newton, or Docker.
+Complete [Persistent Labs and objects](persistent-world.en.md) and [Persistent digital assets](persistent-assets.en.md) first. Use the repository Node and pnpm versions, Python 3.10+ with venv and pip, and a desktop browser. Run commands from the repository root. Use Linux or WSL Ubuntu for these Bash and browser verification commands. This local loopback fixture needs no GPU, Newton, or Docker.
 
 ## Start isolated test data
 
@@ -87,6 +87,24 @@ The Gateway keeps the current frame in memory. Each Viewer has one pending lates
 The fixture requires `LAB_WORD_MOTION_FIXTURE=true` and a loopback server bind. HTTP and WS check the actual connection source and reject proxy forwarding headers. Viewer admission uses a one-use ticket valid for 30 seconds. Scene mapping starts after admission. A separate ticket and fixed route determine Publisher authority.
 
 HTTP DTOs are generated from the [Node routes](../../packages/server/src/lab/motion/routes.ts) through OpenAPI. High-frequency poses do not write the database, `world_clock`, or SSE. Existing HTTP and business SSE keep their responsibilities. Fixture bindings end when the server stops. Registered objects, assets, and initial layouts remain in the test directory.
+
+## Verify the source
+
+Install Chromium once. Run the short check and full acceptance separately:
+
+```bash
+pnpm exec playwright install chromium
+pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion smoke:'
+pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion full:'
+```
+
+Both commands use `.scratch/motion-python/bin/python` from the setup above. Set `MOTION_E2E_PYTHON=/absolute/path/python` to use another isolated environment. The runner checks installed websockets against the exact version in tracked requirements.
+
+The [motion profile](../../scripts/e2e-server.mjs) builds the same-origin application and enables the fixture only in its owned backend. It creates isolated data, listener ports, and an observer directory. The backend preload records actual Gateway/WS counters. It does not replace values or block the target. Browser, Publisher, and slow TCP reader owners record and clean their resources. Evidence stays in this run's directory under `.scratch/vnext-m1/`.
+
+The short check covers real Python, two GLB Viewers, admission refusal, raw wire, Object3D trajectories, visible pixels, and socket release. Default `pnpm test:e2e` and `web-journeys` CI select this short motion check. They retain all other profiles.
+
+`motion full:` also covers at least 600 seconds after both Viewers are ready, real slow TCP, stale freeze, independent cameras and selection. It verifies late joins, repeated switches, and resource convergence. This separate full acceptance is mandatory for delivery. The default suite's short check does not cover its long-run assertions. Record the command, source commit, environment, samples, and cleanup receipts.
 
 ## Fail once and recover
 
