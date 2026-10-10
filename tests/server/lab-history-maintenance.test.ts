@@ -295,7 +295,6 @@ test(
             'lab.world_not_found',
           );
         await assertRetained(fixture);
-        await client.json('POST', fixture.active.path + '/program/stop');
       }
     } finally {
       const cleaned = await Promise.allSettled(
