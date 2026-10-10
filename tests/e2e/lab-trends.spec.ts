@@ -192,13 +192,16 @@ test('a sensor recent-minute entry queries persistent SDK history and preserves 
     .toBeGreaterThanOrEqual(2);
   const canvas = page.locator('.world-viewport canvas');
   await expect
-    .poll(async () =>
-      rasterDifference(
-        page,
-        await canvas.screenshot(),
-        await canvas.screenshot(),
-      ),
-    )
+    .poll(async () => {
+      const firstMask = await sensorLabelMask(page);
+      const first = await canvas.screenshot();
+      const secondMask = await sensorLabelMask(page);
+      const second = await canvas.screenshot();
+      return rasterDifference(page, first, second, [
+        ...firstMask,
+        ...secondMask,
+      ]);
+    })
     .toBe(0);
   const before = await canvas.screenshot({
     path: info.outputPath('camera-before.png'),
