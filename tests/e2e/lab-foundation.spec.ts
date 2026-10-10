@@ -3,7 +3,11 @@ import {
   showEntityDetails,
   showEntityOperations,
 } from './lab-desktop';
-import { boundedBrowserFact, observeBrowserFailure } from './lab-browser-facts';
+import {
+  boundedBrowserFact,
+  observeBrowserFailure,
+  observeBrowserSeam,
+} from './lab-browser-facts';
 import { releaseFrameTraces, startFrameTrace } from './lab-frame-trace';
 import { observeResourceTiming } from './lab-resource-timing';
 import { expect, test, type CDPSession } from '@playwright/test';
@@ -298,9 +302,15 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     });
     await observer.goto('/lab');
     resourceTiming.capture('post-goto');
-    await observer
-      .getByRole('combobox', { name: '打开 Lab' })
-      .selectOption(lab);
+    const selectFailure = observeBrowserSeam(observer, 'foundation-lab-select');
+    try {
+      await observer
+        .getByRole('combobox', { name: '打开 Lab' })
+        .selectOption(lab);
+    } catch (error) {
+      await selectFailure().catch(() => {});
+      throw error;
+    }
     await showObjectDirectory(observer);
     let observerReady = false;
     frameTrace.mark('assertion-start');
