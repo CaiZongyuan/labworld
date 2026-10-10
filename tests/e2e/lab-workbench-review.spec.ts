@@ -374,8 +374,8 @@ test('real World structural updates preserve an orbited camera until explicit Fi
     await selectRobot();
     await page
       .locator('.world-priority-label')
-      .getByRole('button', { name: 'Original Robot', exact: true })
-      .dblclick();
+      .getByRole('button', { name: '定位 Original Robot', exact: true })
+      .click();
     await selectRobot();
     const initial = await steadyRobot(page);
     expect(initial.pixels.count).toBeGreaterThan(100);
