@@ -1,4 +1,9 @@
-import { expect, type Page, type Browser } from '@playwright/test';
+import {
+  expect,
+  type Page,
+  type Browser,
+  type Response,
+} from '@playwright/test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -623,7 +628,197 @@ export async function observeSession(page: Page) {
   await value.getByRole('button', { name: '观察会话', exact: true }).click();
   await value.getByRole('button', { name: '关闭', exact: true }).click();
 }
-export async function openLab(page: Page, lab: { id: string; name: string }) {
+type LabReturnWitness = {
+  targetLab: string;
+  renderer: 'fresh' | 'retained' | 'unknown';
+  initializationBudgetMs: number;
+  responseLimit: number;
+  responses: { category: string; status: number; elapsedMs: number }[];
+  snapshots: {
+    stage: string;
+    elapsedMs: number;
+    oldCanvasConnected: boolean;
+    canvasPresent: boolean;
+    sameCanvas: boolean | null;
+    targetHeading: boolean;
+    busy: string | null;
+    renderErrors: number;
+    pageErrors: number;
+    sampledAt: number | null;
+    browserAt: number;
+  }[];
+};
+let labReturnWitnessId = 0;
+function sceneResponseCategory(response: Response) {
+  const pathname = new URL(response.url()).pathname;
+  if (/^\/api\/v1\/lab\/labs\/[^/]+\/world$/.test(pathname)) return 'world';
+  if (/^\/api\/v1\/lab\/assets\/[^/]+\/download$/.test(pathname))
+    return 'asset-download';
+  if (/^\/api\/v1\/lab\/labs\/[^/]+\/sessions(?:\/|$)/.test(pathname))
+    return 'session';
+  if (/^\/api\/v1\/files\//.test(pathname)) return 'file-data';
+  if (/^\/lab-assets\//.test(pathname)) return 'scene-assets';
+  const contentType = response.headers()['content-type'] ?? '';
+  if (/model\/gltf|application\/octet-stream/.test(contentType))
+    return 'asset-bytes';
+  return null;
+}
+async function initializeReturnedLab(
+  page: Page,
+  lab: { id: string; name: string },
+) {
+  const label = `session-lab-return-${++labReturnWitnessId}-witness`;
+  const startedAt = performance.now();
+  let deadline = startedAt + 15000;
+  const remaining = () => {
+    const milliseconds = deadline - performance.now();
+    assert(milliseconds > 0, 'Lab scene initialization deadline expired');
+    return milliseconds;
+  };
+  const oldCanvas = await page
+    .locator('canvas')
+    .elementHandle({ timeout: remaining() });
+  assert(oldCanvas);
+  const witness: LabReturnWitness = {
+    targetLab: lab.id,
+    renderer: 'unknown',
+    initializationBudgetMs: 5000,
+    responseLimit: 100,
+    responses: [],
+    snapshots: [],
+  };
+  let pageErrors = 0;
+  const onPageError = () => {
+    pageErrors++;
+  };
+  const onResponse = (response: Response) => {
+    const category = sceneResponseCategory(response);
+    if (category && witness.responses.length < witness.responseLimit)
+      witness.responses.push({
+        category,
+        status: response.status(),
+        elapsedMs: performance.now() - startedAt,
+      });
+  };
+  const capture = async (stage: string) => {
+    const facts = await oldCanvas.evaluate((old, targetName) => {
+      const world = document.querySelector('.world-page');
+      const canvas = world?.querySelector('canvas');
+      const panel = world?.querySelector<HTMLElement>('.lab-perf');
+      return {
+        oldCanvasConnected: old.isConnected,
+        canvasPresent: !!canvas,
+        sameCanvas: canvas ? old === canvas : null,
+        targetHeading:
+          world?.querySelector('h1')?.textContent?.trim() === targetName,
+        busy: world?.getAttribute('aria-busy') ?? null,
+        renderErrors:
+          world?.querySelectorAll('.world-render-error').length ?? 0,
+        sampledAt: Number(panel?.dataset.sampledAt) || null,
+        browserAt: performance.now(),
+      };
+    }, lab.name);
+    witness.snapshots.push({
+      stage,
+      elapsedMs: performance.now() - startedAt,
+      pageErrors,
+      ...facts,
+    });
+    receipt(label, witness);
+    return facts;
+  };
+  page.on('response', onResponse);
+  page.on('pageerror', onPageError);
+  let fifthSecond: ReturnType<typeof setTimeout> | undefined;
+  let fifthCapture: ReturnType<typeof capture> | undefined;
+  try {
+    await capture('before');
+    fifthSecond = setTimeout(
+      () => {
+        fifthCapture = capture('five-seconds');
+        void fifthCapture.catch(() => {});
+      },
+      Math.max(0, startedAt + 5000 - performance.now()),
+    );
+    await page
+      .getByLabel('打开 Lab', { exact: true })
+      .selectOption(lab.id, { timeout: remaining() });
+    await expect(
+      page.getByRole('heading', { name: lab.name, exact: true }),
+    ).toBeVisible({ timeout: Math.min(5000, remaining()) });
+    await page
+      .locator('canvas')
+      .waitFor({ state: 'attached', timeout: remaining() });
+    const identity = await capture('renderer');
+    witness.renderer =
+      !identity.oldCanvasConnected && identity.sameCanvas === false
+        ? 'fresh'
+        : identity.oldCanvasConnected && identity.sameCanvas
+          ? 'retained'
+          : 'unknown';
+    witness.initializationBudgetMs =
+      witness.renderer === 'fresh' ? 15000 : 5000;
+    if (witness.renderer !== 'fresh')
+      deadline = Math.min(deadline, performance.now() + 5000);
+    // Every awaited operation consumes the same initialization deadline.
+    if (witness.renderer === 'fresh')
+      await expectInitialSceneReady(page.locator('.world-page'), remaining());
+    else
+      await expect(page.locator('.world-page')).toHaveAttribute(
+        'aria-busy',
+        'false',
+        { timeout: remaining() },
+      );
+    const performanceButton = page.getByRole('button', {
+      name: '性能',
+      exact: true,
+    });
+    if (
+      (await performanceButton.getAttribute('aria-pressed', {
+        timeout: remaining(),
+      })) === 'false'
+    )
+      await performanceButton.click({ timeout: remaining() });
+    await expect
+      .poll(
+        async () =>
+          page
+            .locator('.lab-perf')
+            .evaluateAll((nodes) =>
+              nodes.length
+                ? Number((nodes[0] as HTMLElement).dataset.sampledAt)
+                : 0,
+            ),
+        { timeout: remaining() },
+      )
+      .toBeGreaterThan(identity.browserAt);
+    await capture('ready');
+    assert.equal(witness.snapshots.at(-1)!.renderErrors, 0);
+    assert.equal(pageErrors, 0);
+    return { label, witness };
+  } catch (error) {
+    await capture(
+      performance.now() >= deadline
+        ? witness.initializationBudgetMs === 15000
+          ? 'fifteen-seconds'
+          : 'five-seconds-timeout'
+        : 'failure',
+    ).catch(() => {});
+    throw error;
+  } finally {
+    clearTimeout(fifthSecond);
+    await fifthCapture?.catch(() => {});
+    page.off('response', onResponse);
+    page.off('pageerror', onPageError);
+    await oldCanvas.dispose().catch(() => {});
+  }
+}
+export async function openLab(
+  page: Page,
+  lab: { id: string; name: string },
+  options?: { sceneInitialization: true },
+) {
+  if (options?.sceneInitialization) return initializeReturnedLab(page, lab);
   await page.getByLabel('打开 Lab', { exact: true }).selectOption(lab.id);
   await expect(
     page.getByRole('heading', { name: lab.name, exact: true }),

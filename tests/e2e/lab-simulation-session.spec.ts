@@ -262,8 +262,25 @@ test('session lifecycle: real Python and two frozen GLB views follow authoritati
           value.geometries < selectedResources.geometries &&
           value.textures <= selectedResources.textures,
       );
-      await openLab(f.second, f.lab);
-      await pose(f.second, paused.id, boundary);
+      const returnedScene = await openLab(f.second, f.lab, {
+        sceneInitialization: true,
+      });
+      const returnedPose = await pose(f.second, paused.id, boundary);
+      const returnGeometry = assertSessionGeometry(
+        returnedPose,
+        paused,
+        boundary,
+      );
+      const returnedPixels = await pixels(
+        f.second,
+        `session-lab-return-${iteration}-pixels`,
+      );
+      receipt(`session-lab-return-${iteration}-result`, {
+        witness: returnedScene,
+        geometry: returnGeometry,
+        pixels: returnedPixels,
+        sourceNodes: returnedPose.nodes.length,
+      });
       await select(f.second, secondEntity.name);
       const returningControls = await dialog(f.second);
       await returningControls
