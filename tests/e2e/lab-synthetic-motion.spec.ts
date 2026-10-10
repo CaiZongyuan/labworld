@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
 import { bindMotionPeer, type MotionPeer } from '../support/motion-socket';
 import { WebSocket } from 'ws';
+import { assertResourceConvergence } from './motion-resources';
 import {
   assertTrajectory,
   assertAdvanced,
@@ -531,54 +532,8 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
       await joinViewer(world.second, 30);
       assertTrajectory(await ready(world.second), world.fixture.session_id);
     }
-    const loadedMetrics = await metrics(world.second);
-    const empty = await world.api.json<{ id: string }>(
-      'POST',
-      '/api/v1/lab/labs',
-      { name: 'Empty motion resource Lab' },
-      201,
-    );
-    const resources = [];
-    for (let i = 0; i < 3; i++) {
-      await world.second.goto(`/lab?lab=${empty.id}`);
-      await expect(world.second.locator('.world-page')).toHaveAttribute(
-        'aria-busy',
-        'false',
-      );
-      await expect.poll(() => displayed(world.second)).toBeNull();
-      await world.second
-        .getByRole('button', { name: '性能', exact: true })
-        .click();
-      const emptyMetrics = await eventually(
-        () => metrics(world.second),
-        (value) =>
-          Number(value.stats.Geometries) <
-          Number(loadedMetrics.stats.Geometries),
-      );
-      resources.push({ state: 'empty', metrics: emptyMetrics });
-      await world.second.goto(`/lab?lab=${world.fixture.lab_id}`);
-      await expect(world.second.locator('.world-page')).toHaveAttribute(
-        'aria-busy',
-        'false',
-      );
-      await world.second
-        .getByRole('button', { name: '性能', exact: true })
-        .click();
-      await joinViewer(world.second, 30);
-      await ready(world.second);
-      const nextLoadedMetrics = await eventually(
-        () => metrics(world.second),
-        (value) =>
-          value.stats.Geometries === loadedMetrics.stats.Geometries &&
-          value.stats.Textures === loadedMetrics.stats.Textures,
-      );
-      resources.push({ state: 'loaded', metrics: nextLoadedMetrics });
-    }
-    const restoredMetrics = await metrics(world.second);
-    expect(restoredMetrics.stats.Geometries).toBe(
-      loadedMetrics.stats.Geometries,
-    );
-    expect(restoredMetrics.stats.Textures).toBe(loadedMetrics.stats.Textures);
+    const { loadedMetrics, restoredMetrics, resources } =
+      await assertResourceConvergence(world);
     await actors.stop(replacement);
     await leaveViewer(page);
     await leaveViewer(world.second);
@@ -616,6 +571,91 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
     } finally {
       phase('cleanup', 'exit');
     }
+  }
+});
+
+test('motion resources: three matching selected scene returns and final leave converge', async ({
+  page,
+  browser,
+}) => {
+  test.setTimeout(150000);
+  stage('motion-resources-start', {
+    product: process.env.MOTION_E2E_PRODUCT_COMMIT,
+    baselineReuse: '603.470 seconds; only resource tail inputs changed',
+  });
+  const actors = await Actors.create('motion-resources');
+  let context;
+  try {
+    const world = await prepare(page, browser);
+    context = world.secondContext;
+    const wireA = wireObserver(page),
+      wireB = wireObserver(world.second);
+    await joinViewer(page, 30);
+    await joinViewer(world.second, 30);
+    const source = actors.publisher(
+      world.fixture,
+      await ticket(world.api, world.fixture, 'publisher'),
+      150,
+    );
+    const first = await ready(page),
+      second = await ready(world.second);
+    assertTrajectory(first, world.fixture.session_id);
+    assertTrajectory(second, world.fixture.session_id);
+    for (const [viewer, name] of [
+      [page, 'Synthetic body 00'],
+      [world.second, 'Synthetic body 01'],
+    ] as const) {
+      const directory = viewer.getByRole('button', {
+        name: '打开对象目录',
+        exact: true,
+      });
+      if ((await directory.getAttribute('aria-expanded')) === 'false')
+        await directory.click();
+      await viewer
+        .getByRole('button', { name: `选择 ${name}`, exact: true })
+        .click();
+      await expect(
+        viewer.getByRole('complementary', { name: '对象信息' }),
+      ).toContainText(name);
+    }
+    // Establish the same already-rendered selection state as the full tail,
+    // using actual source advancement across the public metrics interval.
+    const selectedPose = await ready(world.second);
+    await eventually(
+      () => displayed(world.second),
+      (value) =>
+        value !== null &&
+        BigInt(value.nodes[0].sim_time_ns) -
+          BigInt(selectedPose.nodes[0].sim_time_ns) >=
+          1_000_000_000n,
+    );
+    const convergence = await assertResourceConvergence(world);
+    assertTrajectory(await ready(world.second), world.fixture.session_id);
+    const exposures = [
+      await pixels(page, 'resources-viewer-a'),
+      await pixels(world.second, 'resources-viewer-b'),
+    ];
+    expect(wireA.errors).toEqual([]);
+    expect(wireB.errors).toEqual([]);
+    await actors.stop(source);
+    await leaveViewer(page);
+    await leaveViewer(world.second);
+    await eventually(
+      async () => observer().liveSockets,
+      (value) => value === 0,
+    );
+    receipt('motion-resources', {
+      ...convergence,
+      exposures,
+      wireA,
+      wireB,
+      observer: observer(),
+    });
+    stage('motion-resources-pass');
+  } finally {
+    await context?.close();
+    await actors.cleanup();
+    stage('motion-resources-cleaned');
   }
 });
 
