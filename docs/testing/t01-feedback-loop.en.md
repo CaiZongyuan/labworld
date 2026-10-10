@@ -28,6 +28,8 @@ The production Viewer and persistent World use the accepted [Lab experience](../
 
 Production component checks will observe import controls, selection, loading/error and recovery. Browser checks will observe real GLB/HDR, canvas pixels, camera and resource disposal. DOM success does not prove visible 3D rendering; one memory sample does not establish a leak.
 
+On the first load of a World with models or an asset viewer, browser checks use `expectInitialSceneReady` to wait up to 15 seconds, then retain the actual model, pixel and error checks. The [actual GitHub Ubuntu/SwiftShader diagnosis](https://github.com/CaiZongyuan/labworld/actions/runs/38074047499) observed the correct 20-model scene after 9.269 seconds; the original five-second failure remains recorded. This test-environment wait applies only to the initial scene. Product performance promises, later action and recovery waits, the 600-second motion acceptance and count budgets remain unchanged.
+
 ## Failure And Evidence
 
 Record commands, missing prerequisites and unverified scope when Docker, Chromium or dependencies are unavailable. Skipped checks are not passes. Backend checks use isolated resources and do not clean development or production data.

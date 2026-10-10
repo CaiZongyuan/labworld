@@ -1,3 +1,4 @@
+import { expectInitialSceneReady } from './initial-scene-ready';
 import {
   expect,
   type Page,
@@ -217,10 +218,7 @@ export async function prepare(page: Page, browser: Browser) {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(viewer.locator('.world-page')).toHaveAttribute(
-      'aria-busy',
-      'false',
-    );
+    await expectInitialSceneReady(viewer.locator('.world-page'));
     await viewer.getByRole('button', { name: '性能', exact: true }).click();
   }
   return {

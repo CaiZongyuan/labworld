@@ -1,3 +1,4 @@
+import { expectInitialSceneReady } from './initial-scene-ready';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -47,6 +48,7 @@ async function register(page: Page, definition: string, name: string) {
   await dialog.getByLabel('名称', { exact: true }).fill(name);
   await dialog.getByRole('button', { name: '登记', exact: true }).click();
   await expect(dialog).toBeHidden();
+  await expectInitialSceneReady(page.locator('.world-page'));
 }
 async function rectangle(locator: Locator) {
   const box = await locator.boundingBox();
