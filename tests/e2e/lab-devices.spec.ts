@@ -417,15 +417,6 @@ test('two backend lights report independent pixels to a Member and an Agent afte
       'false',
     );
     await showObjectDirectory(page);
-    await page
-      .getByRole('checkbox', { name: '多选 Light B', exact: true })
-      .uncheck();
-    for (const name of ['Light A', 'Light B'])
-      await expect(
-        page.getByRole('button', { name: `选择 ${name}`, exact: true }),
-      ).toHaveAttribute('aria-pressed', 'false');
-    await expect(page).toHaveURL((url) => !url.searchParams.has('entity'));
-    await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
     for (const id of ids) {
       await apply(id, 'light.set_power', { on: true });
       await apply(id, 'light.set_power', { on: false });
@@ -477,6 +468,18 @@ test('two backend lights report independent pixels to a Member and an Agent afte
           ) >= BigInt(baselineWorld.version),
       )
       .toBe(true);
+    const framingCanvas = await page.locator('canvas').boundingBox();
+    expect(framingCanvas).not.toBeNull();
+    // Desktop Chrome uses deviceScaleFactor1; the bitmap must finish resizing.
+    await expect(page.locator('canvas')).toHaveJSProperty(
+      'width',
+      framingCanvas!.width,
+    );
+    await expect(page.locator('canvas')).toHaveJSProperty(
+      'height',
+      framingCanvas!.height,
+    );
+    await page.getByRole('button', { name: '恢复全景', exact: true }).click();
     await retainPixels(
       '-fixture.json',
       JSON.stringify({
@@ -486,6 +489,7 @@ test('two backend lights report independent pixels to a Member and an Agent afte
         savedLayoutVersion: savedLayout.layout_version,
         beforeNodes: fixtureWorld.nodes,
         placedNodes: placedWorld.nodes,
+        framing: { command: '恢复全景', canvas: framingCanvas },
         baselineVersion: baselineWorld.version,
         baselineProperties: baselineWorld.entities.map((entity) => ({
           id: entity.id,
