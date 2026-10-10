@@ -142,6 +142,8 @@ try {
   if (statusControl || reference) {
     backend.entry = 'tests/support/server-status-control.ts';
     backend.ipc = true;
+  } else if (history) {
+    backend.entry = 'tests/support/history-manual-cleanup-process.ts';
   }
   if (production) {
     web.entry = 'node_modules/vite/bin/vite.js';
