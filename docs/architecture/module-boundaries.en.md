@@ -8,6 +8,8 @@ The [runtime](../../apps/server/src/runtime.ts) composes service owners. Databas
 
 [Node schema declarations](../../packages/server/src/lab/world/schema.ts) own qualified tables. [Lab ownership](../../packages/server/src/lab/ownership.json) records its Views path, exact SDK helper paths and contract symbols. [Boundary checks](../../scripts/check-boundaries.mjs) validate package imports, Node table declarations/migrations and the SDK/Core restrictions. [Server checks](../../scripts/lib/server-boundaries.mjs) follow transitive Core/domain dependencies. Static checks do not prove authorization, dynamic SQL or recovery.
 
+Lab Views own overview [summaries and registered regions](../../packages/views/src/lab/operations-state.ts) and the [device view](../../packages/views/src/lab/operations-view.tsx). They read existing World, property observations, trends, and records. They add no identity or service. The shared workbench owns one World subscription, layout drafts, and device operation attempts. Core and the general shell do not calculate these business facts.
+
 ```bash
 pnpm boundaries:check
 pnpm typecheck

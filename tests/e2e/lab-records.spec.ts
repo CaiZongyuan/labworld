@@ -380,6 +380,36 @@ test('real Lab records retain failed pages, export the current page and open the
       await trigger.click();
       const history = page.locator('.world-history-surface');
       await expect(history).toBeVisible();
+      if (scenario.locale === 'zh') {
+        await expect(history.getByLabel('设备', { exact: true })).toHaveValue(
+          entity.id,
+        );
+        await expect(history.getByLabel('记录类别')).toHaveValue('task');
+        await expect(history.getByLabel('开始时间')).toHaveValue(localStart);
+        await expect(history.getByLabel('结束时间')).toHaveValue(localEnd);
+        await expect(history.locator('.lab-records > ol > li')).toHaveCount(2);
+        // The shared reader retains filters when opening an original result.
+        // Reset them explicitly before checking the all-records narrow layout.
+        const allRecordsResponse = page.waitForResponse((response) => {
+          const url = new URL(response.url());
+          return (
+            url.pathname.endsWith('/records') &&
+            !url.searchParams.has('entity_id') &&
+            !url.searchParams.has('record_type') &&
+            !url.searchParams.has('cursor') &&
+            url.searchParams.get('from') === new Date(localStart).toISOString()
+          );
+        });
+        await history.getByLabel('设备', { exact: true }).selectOption('');
+        await history.getByLabel('记录类别').selectOption('');
+        const allRecords: LabRecordsPage = await (
+          await allRecordsResponse
+        ).json();
+        expect(allRecords.entity_id).toBeNull();
+        expect(allRecords.record_type).toBeNull();
+        expect(allRecords.items).toHaveLength(20);
+        expect(allRecords.to).toBe(new Date(localEnd).toISOString());
+      }
       await expect(history.locator('.lab-records > ol > li')).toHaveCount(20);
       const exposure = await sceneExposure(page, history);
       expect(

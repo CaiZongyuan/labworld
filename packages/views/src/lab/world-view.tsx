@@ -79,6 +79,7 @@ import DevicePanel, { defaultDeviceInput } from './device-panel';
 import EntityDetail from './entity-detail';
 import { entityWithConfirmedRun } from './source-state';
 import RecordsPanel from './records-panel';
+import OperationsView from './operations-view';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
 import { useLabWorkbench } from './workbench-context';
@@ -123,6 +124,7 @@ export default function WorldView() {
     labId,
     world,
     connection,
+    trendRevision,
     selection,
     setSelection,
     nodeSelection,
@@ -151,6 +153,8 @@ export default function WorldView() {
     clearRecord,
   } = useLabWorkbench();
   const recordsView = view === 'records';
+  const spaceView = view === 'space';
+  const readOnly = !!world.data && connection.status !== 'live';
   function openOriginalRecord(record: LabRecord) {
     setRecentMinute(null);
     openRecord(record);
@@ -195,6 +199,9 @@ export default function WorldView() {
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [inspectorOpen, setInspectorOpen] = useState(selection.length > 0);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const recordsVisible = historyOpen || recordsView;
+  const [recordsOpened, setRecordsOpened] = useState(recordsVisible);
+  if (!recordsOpened && recordsVisible) setRecordsOpened(true);
   const [recentMinute, setRecentMinute] = useState<{
     labId: string;
     entityId: string;
@@ -642,12 +649,14 @@ export default function WorldView() {
           <Tool
             icon={Plus}
             label={message('world.createLab')}
+            disabled={readOnly}
             onClick={() => setDialog('lab')}
           />
           <Button
             size="sm"
             onClick={() => setDialog('register')}
             disabled={
+              readOnly ||
               !world.data ||
               !!draft ||
               !definitions.data ||
@@ -675,17 +684,23 @@ export default function WorldView() {
         value={view}
         onValueChange={(value) => {
           setHistoryOpen(false);
-          setView(value as 'space' | 'records');
+          setView(value as 'space' | 'records' | 'overview' | 'devices');
         }}
       >
         <TabsList aria-label={message('records.views')}>
           <TabsTrigger ref={spaceTrigger} value="space">
             {message('records.space')}
           </TabsTrigger>
+          <TabsTrigger value="overview">
+            {message('operations.overview')}
+          </TabsTrigger>
+          <TabsTrigger value="devices">
+            {message('operations.devices')}
+          </TabsTrigger>
           <TabsTrigger value="records">{message('records.title')}</TabsTrigger>
         </TabsList>
       </Tabs>
-      <div className="world-layout-toolbar" hidden={recordsView}>
+      <div className="world-layout-toolbar" hidden={!spaceView}>
         <Tabs
           value={editing ? 'layout' : 'runtime'}
           onValueChange={(value) => setEditing(value === 'layout')}
@@ -695,7 +710,7 @@ export default function WorldView() {
               <Play data-icon="inline-start" />
               {message('layout.runtime')}
             </TabsTrigger>
-            <TabsTrigger value="layout">
+            <TabsTrigger value="layout" disabled={readOnly}>
               <Pencil data-icon="inline-start" />
               {message('layout.edit')}
             </TabsTrigger>
@@ -720,14 +735,17 @@ export default function WorldView() {
                   : 'layout.save',
               )}
               disabled={
-                !draft || layoutPending || hasInvalidCoordinateText(draft)
+                readOnly ||
+                !draft ||
+                layoutPending ||
+                hasInvalidCoordinateText(draft)
               }
               onClick={() => void saveLayout()}
             />
             <Tool
               icon={Undo2}
               label={message('layout.discard')}
-              disabled={!draft || layoutPending}
+              disabled={readOnly || !draft || layoutPending}
               onClick={() => void reloadLayout(false)}
             />
           </div>
@@ -752,12 +770,28 @@ export default function WorldView() {
           <Button
             variant="outline"
             size="sm"
-            disabled={layoutPending}
+            disabled={readOnly || layoutPending}
             onClick={() => void reloadLayout(true)}
           >
             <RefreshCw data-icon="inline-start" />
             {message('layout.reloadKeep')}
           </Button>
+        </Alert>
+      ) : null}
+      {readOnly ? (
+        <Alert className="world-link-alert">
+          <AlertDescription>
+            {message('operations.offline')} · {message('operations.lastSync')}:{' '}
+            <time
+              dateTime={new Date(
+                connection.lastSyncAt ?? world.dataUpdatedAt,
+              ).toISOString()}
+            >
+              {new Date(
+                connection.lastSyncAt ?? world.dataUpdatedAt,
+              ).toISOString()}
+            </time>
+          </AlertDescription>
         </Alert>
       ) : null}
       {failure ? (
@@ -785,14 +819,14 @@ export default function WorldView() {
       <div
         className="world-body"
         hidden={recordsView}
-        data-directory-open={directoryOpen || undefined}
+        data-directory-open={(spaceView && directoryOpen) || undefined}
         data-inspector-open={inspectorVisible || undefined}
       >
         <aside
           id="world-directory"
           className="world-directory"
           aria-label={message('world.directory')}
-          hidden={!directoryOpen}
+          hidden={!spaceView || !directoryOpen}
         >
           <header>
             <ListTree />
@@ -915,7 +949,7 @@ export default function WorldView() {
             </Empty>
           ) : null}
         </aside>
-        <div className="lab-viewport world-viewport">
+        <div className="lab-viewport world-viewport" hidden={!spaceView}>
           {world.data ? (
             typeof WebGL2RenderingContext !== 'undefined' ? (
               <ViewportBoundary
@@ -1041,6 +1075,29 @@ export default function WorldView() {
           ) : null}
           {performance ? <PerformancePanel metrics={metrics} /> : null}
         </div>
+        {world.data ? (
+          <OperationsView
+            world={world.data}
+            entities={entities}
+            apiClient={apiClient}
+            userId={identity.user.id}
+            view={view}
+            connected={connection.status === 'live'}
+            runtimeAvailable={connection.available}
+            trendRevision={trendRevision}
+            refreshToken={String(connection.generation ?? '')}
+            selectedId={selected?.id}
+            onSelect={(id) => select(id, false)}
+            onDevices={() => setView('devices')}
+            onDirectory={(archived) => {
+              setArchivedOnly(archived);
+              setDirectoryOpen(true);
+              setView('space');
+            }}
+            onRecords={() => setView('records')}
+            onOpenRecord={openOriginalRecord}
+          />
+        ) : null}
         <aside
           id="world-inspector"
           className="lab-inspector world-inspector"
@@ -1065,9 +1122,10 @@ export default function WorldView() {
               onCloseOriginalRecord={clearRecord}
               world={world.data}
               apiClient={apiClient}
-              editing={editing}
+              editing={spaceView && editing}
               connected={connection.available}
-              visible={inspectorVisible}
+              visible={inspectorVisible && connection.status === 'live'}
+              trendRevision={trendRevision}
               userId={identity.user.id}
               recentMinuteRequest={
                 recentMinute?.labId === labId &&
@@ -1152,7 +1210,7 @@ export default function WorldView() {
                 )}
                 apiClient={apiClient}
                 identity={identity}
-                disabled={!!draft || layoutPending}
+                disabled={readOnly || !!draft || layoutPending}
                 onRefresh={world.refetch}
                 onArchived={() => setArchivedOnly(true)}
                 hasMoreAssets={catalog.query.hasNextPage}
@@ -1168,8 +1226,8 @@ export default function WorldView() {
                     draft?.relationships ??
                     layoutDraft(world.data).relationships
                   }
-                  editing={editing}
-                  disabled={layoutPending}
+                  editing={spaceView && editing}
+                  disabled={readOnly || layoutPending}
                   onChange={(relationships) =>
                     changeDraft((current) => ({ ...current, relationships }))
                   }
@@ -1182,19 +1240,19 @@ export default function WorldView() {
                   .map((node) => (
                     <div className="world-node" key={node.id}>
                       <code>{node.id}</code>
-                      {editing ? (
+                      {spaceView && editing ? (
                         <div className="world-node-actions">
                           <Tool
                             icon={Pencil}
                             label={message('layout.selectNode')}
                             active={node.id === activeNode?.id}
-                            disabled={layoutPending}
+                            disabled={readOnly || layoutPending}
                             onClick={() => setNodeSelection(node.id)}
                           />
                           <Tool
                             icon={Minus}
                             label={message('layout.removeNode')}
-                            disabled={layoutPending}
+                            disabled={readOnly || layoutPending}
                             onClick={() =>
                               changeDraft((current) => ({
                                 ...current,
@@ -1213,10 +1271,10 @@ export default function WorldView() {
                       </small>
                     </div>
                   ))}
-                {editing && activeNode ? (
+                {spaceView && editing && activeNode ? (
                   <PlacementEditor
                     node={activeNode}
-                    disabled={layoutPending}
+                    disabled={readOnly || layoutPending}
                     coordinateText={draft?.coordinateText}
                     onTextChange={(id, text) => {
                       if (
@@ -1240,19 +1298,24 @@ export default function WorldView() {
                   variant="outline"
                   size="sm"
                   disabled={
-                    nodePending || layoutPending || (!editing && !!draft)
+                    readOnly ||
+                    nodePending ||
+                    layoutPending ||
+                    (!editing && !!draft)
                   }
                   onClick={() => void addRepresentation(selected)}
                 >
                   <Plus data-icon="inline-start" />
                   {message('world.addRepresentation')}
                 </Button>
-                {editing ? (
+                {spaceView && editing ? (
                   <Button
                     variant="outline"
                     size="sm"
                     className="world-copy"
-                    disabled={!!draft || nodePending || layoutPending}
+                    disabled={
+                      readOnly || !!draft || nodePending || layoutPending
+                    }
                     onClick={() => void copyEntity(selected)}
                   >
                     <Copy data-icon="inline-start" />
@@ -1348,11 +1411,12 @@ export default function WorldView() {
           )}
         </aside>
       </div>
-      {labId && (historyOpen || recordsView) ? (
+      {labId && recordsOpened ? (
         <div
           className={
             recordsView ? 'world-records-view' : 'world-history-surface'
           }
+          hidden={!recordsVisible}
         >
           <Button
             variant="ghost"
@@ -1369,6 +1433,9 @@ export default function WorldView() {
             onOpenRecord={openOriginalRecord}
             entities={entities}
             apiClient={apiClient}
+            visible={recordsVisible}
+            connected={connection.status === 'live'}
+            refreshToken={String(connection.generation ?? '')}
           />
         </div>
       ) : null}
@@ -1394,6 +1461,7 @@ export default function WorldView() {
           )}
           onClose={() => setDialog(null)}
           onSubmit={submit}
+          disabled={readOnly}
           hasMoreAssets={!!catalog.query.hasNextPage}
           loadingAssets={catalog.query.isFetchingNextPage}
           onMoreAssets={() => void catalog.query.fetchNextPage()}

@@ -452,7 +452,7 @@ test('an unknown Lab does not fall back to another world and can be explicitly r
 });
 
 test('an undelivered work view stays explicit and can return to the same Lab space', async () => {
-  const { user, router } = open('/lab?lab=lab-two&view=overview');
+  const { user, router } = open('/lab?lab=lab-two&view=unknown');
   expect(await screen.findByText('此工作视图尚不可用。')).toBeVisible();
   expect(screen.queryByRole('heading', { name: 'Second lab' })).toBeNull();
   await user.click(screen.getByRole('button', { name: '打开三维空间' }));
