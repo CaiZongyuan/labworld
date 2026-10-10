@@ -10,8 +10,68 @@ const rasterObservers = new WeakMap<
   Page,
   ReturnType<typeof observeRasterPhases>
 >();
+type RasterReceipt = {
+  width: number;
+  height: number;
+  changedPixels: number | null;
+};
+type RasterEvidence = {
+  fullCaptureAttempts: number;
+  latestCapture?: {
+    attempt: number;
+    png: Buffer;
+    clip: { x: number; y: number; width: number; height: number };
+  };
+  lastComparedPair?: { before: Buffer; after: Buffer; receipt: RasterReceipt };
+  comparisons: RasterReceipt[];
+};
+const rasterEvidence = new WeakMap<Page, RasterEvidence>();
 test.beforeEach(({ page }) => {
   rasterObservers.set(page, observeRasterPhases(process.env.LAB_NODE_EVIDENCE));
+  if (process.env.LAB_NODE_EVIDENCE)
+    rasterEvidence.set(page, { fullCaptureAttempts: 0, comparisons: [] });
+});
+test.afterEach(({ page }) => {
+  const evidence = rasterEvidence.get(page);
+  const directory = process.env.LAB_NODE_EVIDENCE;
+  if (!evidence || !directory) return;
+  try {
+    if (evidence.latestCapture)
+      writeFileSync(
+        join(directory, 'spatial-latest-completed-full-capture.png'),
+        evidence.latestCapture.png,
+      );
+    if (evidence.lastComparedPair) {
+      writeFileSync(
+        join(directory, 'spatial-last-compared-before.png'),
+        evidence.lastComparedPair.before,
+      );
+      writeFileSync(
+        join(directory, 'spatial-last-compared-after.png'),
+        evidence.lastComparedPair.after,
+      );
+    }
+    writeFileSync(
+      join(directory, 'spatial-raster-receipt.json'),
+      JSON.stringify({
+        fullCaptureAttempts: evidence.fullCaptureAttempts,
+        latestCompletedFullCapture: evidence.latestCapture
+          ? {
+              attempt: evidence.latestCapture.attempt,
+              clip: evidence.latestCapture.clip,
+            }
+          : null,
+        // This pair may precede a failed capture that never reached comparison.
+        lastEnteredComparison: evidence.lastComparedPair?.receipt ?? null,
+        comparisons: evidence.comparisons,
+      }) + '\n',
+    );
+  } catch {
+    // Optional retention outside the acceptance clock preserves the primary result.
+  } finally {
+    rasterEvidence.delete(page);
+    rasterObservers.delete(page);
+  }
 });
 
 async function registerObject(page: Page, name: string, kind = 'sensor') {
@@ -47,6 +107,8 @@ async function staticCanvasRegion(page: Page) {
 }
 
 async function cameraSceneFrame(page: Page) {
+  const evidence = rasterEvidence.get(page);
+  const attempt = evidence ? ++evidence.fullCaptureAttempts : 0;
   const area = await rasterObservers.get(page)!('canvas-geometry', () =>
     page.locator('.world-viewport canvas').evaluate((canvas) => {
       const rect = canvas.getBoundingClientRect();
@@ -81,6 +143,7 @@ async function cameraSceneFrame(page: Page) {
         '.world-priority-label,.world-priority-labels,.world-canvas-tools,.world-transform-tools { visibility: hidden !important; }',
     }),
   );
+  if (evidence) evidence.latestCapture = { attempt, png, clip };
   expect(png.readUInt32BE(16)).toBe(clip.width);
   expect(png.readUInt32BE(20)).toBe(clip.height);
   return png;
@@ -107,9 +170,19 @@ function saveRasterEvidence(
 }
 
 async function changedRegionPixels(page: Page, before: Buffer, after: Buffer) {
+  const evidence = rasterEvidence.get(page);
+  const receipt: RasterReceipt = {
+    width: before.readUInt32BE(16),
+    height: before.readUInt32BE(20),
+    changedPixels: null,
+  };
+  if (evidence) {
+    evidence.lastComparedPair = { before, after, receipt };
+    if (evidence.comparisons.length < 256) evidence.comparisons.push(receipt);
+  }
   expect(after.readUInt32BE(16)).toBe(before.readUInt32BE(16));
   expect(after.readUInt32BE(20)).toBe(before.readUInt32BE(20));
-  return rasterObservers.get(page)!('pixel-evaluate', () =>
+  const changedPixels = await rasterObservers.get(page)!('pixel-evaluate', () =>
     page.evaluate(
       async (encoded) => {
         const frames = await Promise.all(
@@ -139,6 +212,8 @@ async function changedRegionPixels(page: Page, before: Buffer, after: Buffer) {
       [before.toString('base64'), after.toString('base64')],
     ),
   );
+  receipt.changedPixels = changedPixels;
+  return changedPixels;
 }
 
 async function pickCentredEntity(page: Page, name: string, entityId: string) {

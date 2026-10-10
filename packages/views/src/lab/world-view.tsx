@@ -199,6 +199,7 @@ export default function WorldView() {
   const [renderBusy, setRenderBusy] = useState(false);
   const [performance, setPerformance] = useState(false);
   const [metrics, setMetrics] = useState<RenderMetrics | null>(null);
+  if (metrics !== null && (!performance || !spaceView)) setMetrics(null);
   const [error, setError] = useState<unknown>(null);
   const [nodePending, setNodePending] = useState(false);
   const [editing, setEditing] = useState(false);
