@@ -261,23 +261,6 @@ test('backend temperatures stay independent across browser closure, source expir
       const second = (await (await agent.get(paths[1])).json()).observation;
       expect(second.values.temperature).toBeGreaterThan(24);
       expect(second.source).not.toBe(property.source);
-      const script = JSON.parse(
-        execFileSync(
-          process.execPath,
-          ['examples/lab/observe-temperature.mjs'],
-          {
-            encoding: 'utf8',
-            env: {
-              ...process.env,
-              LAB_API_BASE: process.env.E2E_API_URL,
-              LAB_ID: lab,
-              LAB_API_KEY: credential.secret,
-            },
-          },
-        ),
-      );
-      expect(script.retained.freshness).toBe('stale');
-      expect(script.recovered.freshness).toBe('current');
       if (!desktopMigration)
         await reopened.setViewportSize({ width: 320, height: 900 });
       await reopened
@@ -315,6 +298,23 @@ test('backend temperatures stay independent across browser closure, source expir
           () => document.documentElement.scrollWidth <= window.innerWidth,
         ),
       ).toBe(true);
+      const script = JSON.parse(
+        execFileSync(
+          process.execPath,
+          ['examples/lab/observe-temperature.mjs'],
+          {
+            encoding: 'utf8',
+            env: {
+              ...process.env,
+              LAB_API_BASE: process.env.E2E_API_URL,
+              LAB_ID: lab,
+              LAB_API_KEY: credential.secret,
+            },
+          },
+        ),
+      );
+      expect(script.retained.freshness).toBe('stale');
+      expect(script.recovered.freshness).toBe('current');
       expect(errors).toEqual([]);
     } finally {
       await context.close();
