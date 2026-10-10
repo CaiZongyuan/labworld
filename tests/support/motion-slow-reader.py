@@ -9,7 +9,8 @@ import sys
 from urllib.parse import urlsplit
 from websockets.asyncio.client import connect
 
-ctypes.CDLL(None).prctl(1, signal.SIGTERM)
+if ctypes.CDLL(None).prctl(1, signal.SIGKILL) != 0:
+    sys.exit(1)
 if os.getppid() != int(os.environ['MOTION_E2E_PARENT_PID']):
     sys.exit(1)
 
@@ -28,9 +29,14 @@ async def main():
                                  'session_id': session, 'ticket': ticket,
                                  'preferred_rate_hz': 30}))
         hello = json.loads(await ws.recv())
-        if hello.get('type') != 'motion.welcome':
+        if hello.get('type') != 'motion.welcome' or hello.get('session_id') != session:
             raise RuntimeError('admission_failed')
-        print(json.dumps({'event': 'slow.admitted', 'receive_buffer_bytes': peer.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)}), flush=True)
+        local = ws.transport.get_extra_info('sockname')
+        remote = ws.transport.get_extra_info('peername')
+        print(json.dumps({'event': 'slow.admitted',
+                          'local_address': local[0], 'local_port': local[1],
+                          'server_address': remote[0], 'server_port': remote[1],
+                          'receive_buffer_bytes': peer.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)}), flush=True)
         await asyncio.sleep(2)
         print(json.dumps({'event': 'slow.pressure', 'transport_reading': ws.transport.is_reading()}), flush=True)
         # Do not consume queued snapshots. The real TCP receive window will close.

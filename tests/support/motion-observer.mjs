@@ -54,6 +54,11 @@ if (
       const row = {
         id: ++stats.socketCount,
         role: request.url?.split('/').at(-1),
+        admitted: false,
+        remoteAddress: request.socket.remoteAddress,
+        remotePort: request.socket.remotePort,
+        localAddress: request.socket.localAddress,
+        localPort: request.socket.localPort,
         maxBufferBytes: 0,
         bufferReads: 0,
         sends: 0,
@@ -92,6 +97,13 @@ if (
   WebSocket.prototype.send = function (data, ...args) {
     const row = sockets.get(this);
     if (row) {
+      if (typeof data === 'string') {
+        try {
+          if (JSON.parse(data).type === 'motion.welcome') row.admitted = true;
+        } catch {
+          // Non-JSON traffic is not an authenticated WELCOME.
+        }
+      }
       row.sends++;
       row.sentBytes +=
         typeof data === 'string'

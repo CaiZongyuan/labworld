@@ -4,7 +4,7 @@ import {
   type Browser,
   type BrowserContext,
 } from '@playwright/test';
-import { spawn, type ChildProcess } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import {
   readFileSync,
@@ -19,6 +19,8 @@ import { WebSocket } from 'ws';
 import { CoreHttp } from '../support/core-http';
 import { publishAsset } from '../support/lab-assets-http';
 import { displayed, rawHeader, type Diagnostic } from './motion-oracle';
+import { launchMotionActor } from '../support/motion-actor';
+import type { MotionSocketFact } from '../support/motion-socket';
 
 type Fixture = {
   lab_id: string;
@@ -87,13 +89,7 @@ export function observer() {
     liveSockets: number;
     rssBytes: number;
     observerMs: number;
-    sockets: {
-      id: number;
-      role: string;
-      open: boolean;
-      maxBufferBytes: number;
-      closeReason: string | null;
-    }[];
+    sockets: MotionSocketFact[];
   };
 }
 export class Actors {
@@ -118,22 +114,14 @@ export class Actors {
     const intent = this.ledger.planConsumer(
       'motion-python-' + script.split('/').at(-1),
     );
-    // Linux parent-death signal closes a detached actor after abrupt worker loss.
-    const wrapper =
-      'import ctypes,os,signal,sys,runpy; ctypes.CDLL(None).prctl(1,signal.SIGTERM); assert os.getppid()==int(os.environ["MOTION_E2E_PARENT_PID"]); p=sys.argv.pop(1); sys.argv[0]=p; sys.path.insert(0,os.path.dirname(p)); runpy.run_path(p,run_name="__main__")';
-    const child = spawn(
+    const child = launchMotionActor(
       process.env.MOTION_E2E_PYTHON!,
-      ['-c', wrapper, script, ...args],
+      script,
+      args,
       {
-        cwd: process.cwd(),
-        detached: true,
-        stdio: ['pipe', 'pipe', 'pipe'],
-        env: {
-          ...process.env,
-          CONTRACT_RUN_ID: this.ledger.data.runId,
-          CONTRACT_CONSUMER_MARKER: intent.marker,
-          MOTION_E2E_PARENT_PID: String(process.pid),
-        },
+        ...process.env,
+        CONTRACT_RUN_ID: this.ledger.data.runId,
+        CONTRACT_CONSUMER_MARKER: intent.marker,
       },
     );
     if (!child.pid) throw new Error('Owned Python process did not launch');

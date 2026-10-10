@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { createHash } from 'node:crypto';
+import { bindMotionPeer, type MotionPeer } from '../support/motion-socket';
 import { WebSocket } from 'ws';
 import {
   assertTrajectory,
@@ -263,7 +264,6 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
     await leaveViewer(world.second);
     await joinViewer(world.second, 30);
     await ready(world.second);
-    const slowId = Math.max(...observer().sockets.map((entry) => entry.id));
     const slowTicket = await ticket(world.api, world.fixture, 'viewer');
     const slow = actors.start(
       process.env.MOTION_E2E_SLOW_READER!,
@@ -280,6 +280,21 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
       (value) => value.includes('slow.pressure'),
     );
     expect(slow.stdout).toContain('"transport_reading": false');
+    const slowPeer = JSON.parse(
+      slow.stdout.split('\n').find((line) => line.includes('slow.admitted'))!,
+    ) as MotionPeer;
+    const slowSocket = await eventually(
+      async () => bindMotionPeer(observer().sockets, slowPeer),
+      (value) => value !== undefined,
+    );
+    expect(slowSocket?.admitted).toBe(true);
+    const slowSocketId = slowSocket!.id;
+    receipt('slow-reader-binding', {
+      peer: slowPeer,
+      socket: slowSocket,
+      boundary:
+        'actual reader TCP tuple to uniquely admitted live server socket; snapshot order irrelevant',
+    });
     const start = performance.now(),
       startStats = observer(),
       startCounts = [wireA.frames, wireB.frames];
@@ -316,9 +331,10 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
       expect(observed.directPoseDbCalls).toBe(0);
       expect(observed.pendingMaxSlots).toBeLessThanOrEqual(1);
       expect(observed.pendingMaxBytes).toBeLessThanOrEqual(632);
-      pressure = observed.sockets.find(
-        (entry) => entry.id > slowId && entry.role === 'viewer',
-      );
+      pressure = observed.sockets.find((entry) => entry.id === slowSocketId);
+      expect(pressure?.remotePort).toBe(slowPeer.local_port);
+      expect(pressure?.localPort).toBe(slowPeer.server_port);
+      expect(pressure?.admitted).toBe(true);
       samples.push({
         elapsedMs: performance.now() - start,
         checks,
