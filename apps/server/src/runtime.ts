@@ -58,7 +58,7 @@ export async function run(
     context: FoundationContext,
     control: RuntimeControl,
   ) => Promise<Prepared>,
-) {
+): Promise<RuntimeControl | undefined> {
   const config = configuration();
   const log = (entry: Record<string, unknown>) =>
     console.log(JSON.stringify(entry));
@@ -288,6 +288,7 @@ export async function run(
           process.exitCode = 1;
         });
     });
+    return { stop: close, ownStop };
   } catch (error) {
     log({
       event: 'server.start_failed',

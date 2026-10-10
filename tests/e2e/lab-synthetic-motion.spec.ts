@@ -199,6 +199,37 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
   const samples: Record<string, unknown>[] = [];
   const contexts = [];
   const errors: string[] = [];
+  let cycle = 0;
+  const phase = (
+    name: string,
+    boundary: 'enter' | 'exit' | 'error',
+    elapsedMs?: number,
+  ) => {
+    try {
+      stage('full-phase', {
+        phase: name,
+        boundary,
+        cycle,
+        count: samples.length,
+        ...(elapsedMs === undefined ? {} : { elapsedMs }),
+      });
+    } catch {
+      /* Instrumentation must not replace the original verification error. */
+    }
+  };
+  const measured = async <T>(name: string, read: () => Promise<T>) => {
+    const start = performance.now();
+    phase(name, 'enter');
+    try {
+      return await read();
+    } catch (error) {
+      phase(name, 'error', performance.now() - start);
+      throw error;
+    } finally {
+      phase(name, 'exit', performance.now() - start);
+    }
+  };
+  phase('case', 'enter');
   try {
     const world = await prepare(page, browser);
     contexts.push(world.secondContext);
@@ -307,10 +338,12 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
     let pressure;
     let previous: [Diagnostic, Diagnostic] | null = null;
     while (performance.now() - start < 600000) {
+      cycle++;
       expect(source.child.exitCode).toBeNull();
       expect(errors).toEqual([]);
-      const a = await ready(page),
-        b = await ready(world.second);
+      const a = await measured('geometry-a', () => ready(page)),
+        b = await measured('geometry-b', () => ready(world.second));
+      phase('geometry-assertions', 'enter');
       const checks = [
         assertTrajectory(a, world.fixture.session_id),
         assertTrajectory(b, world.fixture.session_id),
@@ -321,10 +354,13 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
         assertAdvanced(previous[1], b);
       }
       previous = [a, b];
-      for (const viewer of [page, world.second])
-        await expect(
-          viewer.getByRole('button', { name: /^合成运动/ }),
-        ).toContainText('运动已连接');
+      phase('geometry-assertions', 'exit');
+      for (const [index, viewer] of [page, world.second].entries())
+        await measured(`connected-${index}`, () =>
+          expect(
+            viewer.getByRole('button', { name: /^合成运动/ }),
+          ).toContainText('运动已连接'),
+        );
       expect(wireA.errors).toEqual([]);
       expect(wireB.errors).toEqual([]);
       const observed = observer();
@@ -340,7 +376,10 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
         checks,
         sequence: [a.nodes[0].sequence, b.nodes[0].sequence],
         timeNs: [a.nodes[0].sim_time_ns, b.nodes[0].sim_time_ns],
-        render: [await metrics(page), await metrics(world.second)],
+        render: [
+          await measured('metrics-a', () => metrics(page)),
+          await measured('metrics-b', () => metrics(world.second)),
+        ],
         rssBytes: observed.rssBytes,
         receiveFrames: [wireA.frames, wireB.frames],
         slow: pressure,
@@ -355,7 +394,10 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
           slowClosed: pressure?.open === false,
         });
       }
-      await new Promise((done) => setTimeout(done, 5000));
+      await measured(
+        'sample-interval',
+        () => new Promise((done) => setTimeout(done, 5000)),
+      );
     }
     const elapsedSeconds = (performance.now() - start) / 1000;
     const finalStats = observer();
@@ -560,11 +602,20 @@ test('motion full: 600 seconds common-ready source, rate isolation, late join, r
       observer: observer(),
     });
     stage('full-pass');
+  } catch (error) {
+    phase('case', 'error');
+    throw error;
   } finally {
-    for (const context of contexts) await context.close();
-    await actors.cleanup();
-    receipt('full-last-samples', samples);
-    stage('full-actors-cleaned');
+    phase('cleanup', 'enter');
+    try {
+      for (const context of contexts)
+        await measured('context-close', () => context.close());
+      await measured('actors-cleanup', () => actors.cleanup());
+      receipt('full-last-samples', samples);
+      stage('full-actors-cleaned');
+    } finally {
+      phase('cleanup', 'exit');
+    }
   }
 });
 

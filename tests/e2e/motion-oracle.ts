@@ -1,4 +1,5 @@
 import { expect, type Page } from '@playwright/test';
+import assert from 'node:assert/strict';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -174,32 +175,32 @@ export function assertAdvanced(
   };
 }
 export function rawHeader(bytes: Buffer) {
-  expect(bytes.length).toBe(632);
-  expect(bytes.subarray(0, 4).toString('ascii')).toBe('LWM1');
-  expect(bytes[4]).toBe(1);
-  expect(bytes[5]).toBe(1);
-  expect(bytes.readUInt16LE(6)).toBe(0);
-  expect(bytes.readUInt32LE(36)).toBe(20);
-  expect(bytes.readUInt32LE(40)).toBe(6);
-  expect(bytes.readUInt32LE(44)).toBe(584);
+  // These synchronous sampled frame checks must not accumulate Playwright
+  // reporter steps for every component during the 600-second observation.
+  assert.equal(bytes.length, 632);
+  assert.equal(bytes.subarray(0, 4).toString('ascii'), 'LWM1');
+  assert.equal(bytes[4], 1);
+  assert.equal(bytes[5], 1);
+  assert.equal(bytes.readUInt16LE(6), 0);
+  assert.equal(bytes.readUInt32LE(36), 20);
+  assert.equal(bytes.readUInt32LE(40), 6);
+  assert.equal(bytes.readUInt32LE(44), 584);
   const epoch = bytes.readBigUInt64LE(8).toString();
   const sequence = bytes.readBigUInt64LE(16);
   const time = bytes.readBigUInt64LE(24);
-  expect(time).toBe(((sequence - 1n) * 1_000_000_000n) / 30n);
+  assert.equal(time, ((sequence - 1n) * 1_000_000_000n) / 30n);
   for (let i = 0; i < 20; i++) {
     const expected = expectedBody(i, time.toString());
     const values = [...expected.position, ...expected.quaternion];
     values.forEach((value, axis) => {
-      expect(
-        Math.abs(bytes.readFloatLE(48 + i * 28 + axis * 4) - value),
-      ).toBeLessThanOrEqual(0.000001);
+      assert(
+        Math.abs(bytes.readFloatLE(48 + i * 28 + axis * 4) - value) <= 0.000001,
+      );
     });
   }
   for (let i = 0; i < 6; i++) {
     const expected = 0.5 * Math.sin(Number(time) / 1e9 + i * 0.2);
-    expect(
-      Math.abs(bytes.readFloatLE(608 + i * 4) - expected),
-    ).toBeLessThanOrEqual(0.000001);
+    assert(Math.abs(bytes.readFloatLE(608 + i * 4) - expected) <= 0.000001);
   }
   return { epoch, sequence: sequence.toString(), time: time.toString() };
 }

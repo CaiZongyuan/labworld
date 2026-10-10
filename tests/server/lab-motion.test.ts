@@ -24,6 +24,32 @@ import { MotionBuffer } from '../../packages/sdk/src/motion-buffer.ts';
 import { parseMotionControl } from '../../packages/contracts/src/motion/index.ts';
 
 type Ticket = { ticket: string; websocket_path: string };
+async function normalRuntime() {
+  const target = await new ServerProcess().create();
+  if (process.platform === 'win32') {
+    target.entry = 'tests/support/runtime-normal-stop.ts';
+    target.ipc = true;
+  }
+  return target;
+}
+async function stopNormally(target: ServerProcess) {
+  if (process.platform === 'win32') {
+    const child = target.child!;
+    let stopped = false;
+    child.on('message', (message) => {
+      if ((message as { event?: string }).event === 'runtime-stopped')
+        stopped = true;
+    });
+    child.send('runtime-stop');
+    await until(
+      async () => child.exitCode,
+      (code) => code !== null,
+      5000,
+    );
+    assert.equal(stopped, true, 'The real runtime shutdown owner completed');
+  }
+  await target.stop();
+}
 class Peer {
   ws: WebSocket;
   controls: Record<string, unknown>[] = [];
@@ -98,7 +124,7 @@ test(
   'real authenticated same-port admission, two Viewers, late snapshot, fencing and shutdown preserve persistent World',
   { timeout: 60000 },
   async () => {
-    const target = await new ServerProcess().create();
+    const target = await normalRuntime();
     target.env = {
       APP_ORIGIN: target.url,
       FILE_PUBLIC_ORIGIN: target.url,
@@ -271,8 +297,9 @@ test(
         before,
       );
       const child = target.child!;
-      await target.stop();
+      await stopNormally(target);
       assert.equal(child.exitCode, 0, target.logs);
+      assert.equal(child.signalCode, null);
       assert.equal(a.ws.readyState, WebSocket.CLOSED);
       assert.equal(b.ws.readyState, WebSocket.CLOSED);
     } finally {
@@ -374,7 +401,7 @@ test(
   'malformed actual WebSockets do not exhaust admission and normal shutdown releases the data lease',
   { timeout: 60000 },
   async () => {
-    const target = await new ServerProcess().create();
+    const target = await normalRuntime();
     target.env = {
       APP_ORIGIN: target.url,
       FILE_PUBLIC_ORIGIN: target.url,
@@ -460,7 +487,7 @@ test(
       await viewer.hello(fixture, 'viewer', ticket);
       assert.equal((await viewer.welcome()).session_id, fixture.session_id);
       const child = target.child!;
-      await target.stop();
+      await stopNormally(target);
       assert.equal(child.exitCode, 0, target.logs);
       assert.equal(
         child.signalCode,
