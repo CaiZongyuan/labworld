@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import type {
   PersistentLab,
   LabEntity,
@@ -12,8 +13,25 @@ import type {
   HistoryPage,
   RetentionPolicy,
 } from '../../packages/contracts/src/generated/types.gen.ts';
-import { ServerProcess, until } from '../support/server-process.ts';
+import { ServerProcess } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
+
+// Keep public observation below the normal request budget. Unexpected HTTP
+// failures propagate immediately rather than becoming a condition timeout.
+async function poll<T>(
+  read: () => Promise<T>,
+  accept: (value: T) => boolean,
+  timeout = 30_000,
+  intervalMs = 250,
+) {
+  const deadline = Date.now() + timeout;
+  do {
+    const value = await read();
+    if (accept(value)) return value;
+    await delay(intervalMs);
+  } while (Date.now() < deadline);
+  throw new Error('Public history condition timed out');
+}
 
 async function prepareHistory(target: ServerProcess, owner: string) {
   const client = new CoreHttp(target.url);
@@ -73,14 +91,14 @@ async function prepareHistory(target: ServerProcess, owner: string) {
       202,
       { 'idempotency-key': randomUUID() },
     );
-  const completed = await until(
+  const completed = await poll(
     () => client.json<LabEntity>('GET', short.path),
     (entity) => entity.task_result?.status === 'completed',
     20_000,
   );
   assert.ok(completed.task_result?.ended_at);
   await client.json('POST', short.path + '/program/stop');
-  const retained = await until(
+  const retained = await poll(
     () => client.json<LabEntity>('GET', short.path),
     (entity) =>
       Object.values(entity.observation?.properties ?? {}).every(
@@ -216,19 +234,23 @@ test(
         manual = await prepareHistory(targets[1], 'manual-owner');
       // No cleanup or archive request precedes this observation. Use the real
       // production scheduler and public persisted-record responses, not a test tick.
-      const gone = await until(
+      const gone = await poll(
         async () => {
           const statuses = [];
           for (const path of automatic.paths) {
             const response = await automatic.client.response('GET', path);
             statuses.push(response.status);
             await response.arrayBuffer();
-            assert.ok([200, 404].includes(response.status));
+            if (![200, 404].includes(response.status))
+              assert.fail(
+                `GET ${path} returned unexpected HTTP ${response.status}`,
+              );
           }
           return statuses;
         },
         (statuses) => statuses.every((status) => status === 404),
         125_000,
+        1000,
       );
       console.log(
         JSON.stringify({
