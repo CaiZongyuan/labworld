@@ -312,7 +312,7 @@ test('real World structural updates preserve an orbited camera until explicit Fi
     const separation =
       labRepresentationProfiles.profiles.bench.bounds.max[0] -
       labRepresentationProfiles.profiles.robot.bounds.min[0] +
-      labRepresentationProfiles.profiles.bench.bounds.size[0];
+      labRepresentationProfiles.profiles.bench.bounds.size[0] * 2;
     const prepared = await savePlacement('separated-fixture', (node) => {
       const x =
         node.entity_id === bench.id
