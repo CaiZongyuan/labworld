@@ -18,6 +18,8 @@ export const labMessages = {
     'session.reset': '旧会话已重置',
     'session.installation': '场景安装',
     'session.model': 'GLB 模型',
+    'session.assetsLoading': '正在读取已保存的 GLB 模型',
+    'session.retryAssets': '重试 GLB 模型列表',
     'session.empty': '尚未安装固定场景',
     'session.installHint':
       '安装固定版本 development-synthetic@1，并登记 20 个独立对象。',
@@ -570,6 +572,8 @@ export const labMessages = {
     'session.reset': 'Previous Session reset',
     'session.installation': 'Scene Installation',
     'session.model': 'GLB model',
+    'session.assetsLoading': 'Loading saved GLB models',
+    'session.retryAssets': 'Retry GLB models',
     'session.empty': 'No fixed scene installed',
     'session.installHint':
       'Install development-synthetic@1 and register 20 independent objects.',

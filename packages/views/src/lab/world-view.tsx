@@ -769,6 +769,10 @@ export default function WorldView() {
           key={`session-${labId}`}
           simulation={simulation}
           world={world.data}
+          assets={catalog.assets.flatMap((asset) =>
+            asset.source === 'remote' ? [asset.asset] : [],
+          )}
+          assetQuery={catalog.query}
           disabled={readOnly}
           startDisabled={readOnly || !!draft || layoutPending}
         />

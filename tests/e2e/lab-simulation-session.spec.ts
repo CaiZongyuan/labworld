@@ -99,10 +99,8 @@ test('session lifecycle: real Python and two frozen GLB views follow authoritati
     );
     assert.equal(active.active_session_id, running.id);
     const controls = await dialog(f.second);
-    await controls
-      .getByLabel('Receive rate', { exact: true })
-      .selectOption('15');
-    await controls.getByRole('button', { name: 'Close', exact: true }).click();
+    await controls.getByLabel('接收频率', { exact: true }).selectOption('15');
+    await controls.getByRole('button', { name: '关闭', exact: true }).click();
     const initialA = await pose(page, running.id),
       initialB = await pose(f.second, running.id);
     const initialAppearance = [
@@ -269,10 +267,10 @@ test('session lifecycle: real Python and two frozen GLB views follow authoritati
       await select(f.second, secondEntity.name);
       const returningControls = await dialog(f.second);
       await returningControls
-        .getByLabel('Receive rate', { exact: true })
+        .getByLabel('接收频率', { exact: true })
         .selectOption('15');
       await returningControls
-        .getByRole('button', { name: 'Close', exact: true })
+        .getByRole('button', { name: '关闭', exact: true })
         .click();
       const returned = await eventually(
         () => resourceCounts(f.second),
@@ -511,12 +509,10 @@ test('session lifecycle: real Python and two frozen GLB views follow authoritati
       const terminal = await dialog(viewer);
       await expect(
         terminal.getByRole('button', {
-          name: /^(Leave observation|Observe Session)$/,
+          name: /^(离开观察|观察会话)$/,
         }),
       ).toBeDisabled();
-      await terminal
-        .getByRole('button', { name: 'Close', exact: true })
-        .click();
+      await terminal.getByRole('button', { name: '关闭', exact: true }).click();
       const terminalPose = await displayed(viewer);
       if (terminalPose) assertSessionGeometry(terminalPose, nextRunning);
       const stillAt = performance.now();

@@ -15,7 +15,7 @@ python3 -m venv .scratch/session-python
 LAB_WORD_SYNTHETIC_SESSION=true LAB_WORD_SYNTHETIC_PYTHON="$PWD/.scratch/session-python/bin/python" LAB_WORD_DATA_DIR=.scratch/session-tutorial-data pnpm dev
 ```
 
-打开 <http://127.0.0.1:5173/lab>。注册或以普通 Member 登录。创建名为 `Shared Session` 的 Lab。在资产库导入 `tests/fixtures/lab/cube.glb`，填写来源、许可与版本。为这个 Lab 的一个对象选择此资产，使它出现在 Lab 资产列表中。
+打开 <http://127.0.0.1:5173/lab>。注册或以普通 Member 登录。创建名为 `Shared Session` 的空 Lab。在资产库导入 `tests/fixtures/lab/cube.glb`，填写来源、许可与版本，再返回 Lab。安装选项来自已保存的资产库，不需要已有 Lab 对象。
 
 普通 Node/Web 启动和构建不需要 Python。这个显式设置启用 loopback 开发来源。服务仅在 Start 后启动 Python。[来源监管器](../../apps/server/src/synthetic-source.ts)持有进程、stdin 管道和清理 ledger。它只发送一次固定启动条件，并保持管道打开。不要手动运行 `publisher.py --startup-stdin`。独立的[合成 fixture 教程](synthetic-motion.md)仍使用自己的显式启动合同。
 
@@ -23,6 +23,7 @@ LAB_WORD_SYNTHETIC_SESSION=true LAB_WORD_SYNTHETIC_PYTHON="$PWD/.scratch/session
 
 1. 打开**仿真会话**。
 2. 在 **GLB 模型**中选择导入的资产。
+   如果它在后续页，点击**加载更多**。列表读取失败时，点击**重试 GLB 模型列表**。
 3. 点击**安装固定场景**。
 4. 选择生成的**场景安装**，保留 `30 Hz`。
 5. 点击 **Start**。

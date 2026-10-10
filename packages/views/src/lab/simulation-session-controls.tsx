@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { LabWorld } from '@labos-threejs/sdk';
+import type { LabAsset, LabWorld } from '@labos-threejs/sdk';
 import { errorCodeOf } from '@labos-threejs/core';
 import { Button } from '@labos-threejs/ui/components/button';
 import { Badge } from '@labos-threejs/ui/components/badge';
@@ -23,15 +23,30 @@ import {
 import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
 import { useAppMessage } from '../shell/messages';
 import type { useSimulationSession } from './use-simulation-session';
+import type { useCatalog } from './catalog';
+import { AssetFailure } from './asset-dialogs';
 
 export function SimulationSessionControls({
   simulation,
   world,
+  assets,
+  assetQuery,
   disabled,
   startDisabled,
 }: {
   simulation: ReturnType<typeof useSimulationSession>;
   world?: LabWorld;
+  assets: LabAsset[];
+  assetQuery: Pick<
+    ReturnType<typeof useCatalog>['query'],
+    | 'isPending'
+    | 'isError'
+    | 'error'
+    | 'hasNextPage'
+    | 'isFetchingNextPage'
+    | 'fetchNextPage'
+    | 'refetch'
+  >;
   disabled: boolean;
   startDisabled: boolean;
 }) {
@@ -46,11 +61,12 @@ export function SimulationSessionControls({
   )
     ? installationId
     : (installations[0]?.id ?? '');
-  const selectedRepresentation = world?.assets.some(
+  const selectedRepresentation = assets.some(
     (asset) => asset.representation.id === representationId,
   )
     ? representationId
-    : (world?.assets[0]?.representation.id ?? '');
+    : (assets[0]?.representation.id ?? '');
+  const assetsUnavailable = assetQuery.isPending || assetQuery.isError;
   const session = simulation.session;
   const active = !!session && !session.ended_at;
   const status = session?.status ?? 'idle';
@@ -163,15 +179,21 @@ export function SimulationSessionControls({
               <NativeSelect
                 id="session-model"
                 value={selectedRepresentation}
-                disabled={disabled || busy || !world?.assets.length}
+                disabled={
+                  disabled || busy || assetsUnavailable || !assets.length
+                }
                 onChange={(event) => setRepresentationId(event.target.value)}
               >
-                {!world?.assets.length ? (
+                {!assets.length ? (
                   <NativeSelectOption value="">
-                    {message('motion.noModel')}
+                    {message(
+                      assetQuery.isPending
+                        ? 'session.assetsLoading'
+                        : 'motion.noModel',
+                    )}
                   </NativeSelectOption>
                 ) : null}
-                {world?.assets.map((asset) => (
+                {assets.map((asset) => (
                   <NativeSelectOption
                     key={asset.representation.id}
                     value={asset.representation.id}
@@ -183,6 +205,33 @@ export function SimulationSessionControls({
               <FieldDescription>
                 {message('session.installHint')}
               </FieldDescription>
+              {assetQuery.error ? (
+                <>
+                  <AssetFailure error={assetQuery.error} />
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={
+                      busy ||
+                      assetQuery.isPending ||
+                      assetQuery.isFetchingNextPage
+                    }
+                    onClick={() => void assetQuery.refetch()}
+                  >
+                    {message('session.retryAssets')}
+                  </Button>
+                </>
+              ) : null}
+              {assetQuery.hasNextPage ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || assetQuery.isFetchingNextPage}
+                  onClick={() => void assetQuery.fetchNextPage()}
+                >
+                  {message('assets.loadMore')}
+                </Button>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="session-rate">
@@ -233,7 +282,13 @@ export function SimulationSessionControls({
           <div className="flex flex-wrap gap-2">
             <Button
               variant="outline"
-              disabled={disabled || busy || loading || !selectedRepresentation}
+              disabled={
+                disabled ||
+                busy ||
+                loading ||
+                assetsUnavailable ||
+                !selectedRepresentation
+              }
               onClick={() =>
                 void simulation.write('install', selectedRepresentation)
               }

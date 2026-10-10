@@ -42,33 +42,43 @@ export const sessionsPath = (lab: string) => `/api/v1/lab/labs/${lab}/sessions`;
 export const sessionPath = (lab: string, id: string) =>
   `${sessionsPath(lab)}/${id}`;
 export const lifecycleLabel: Record<string, string> = {
-  running: 'Running',
-  paused: 'Paused',
-  stopped: 'Stopped',
-  interrupted: 'Session interrupted',
-  starting: 'Starting',
-  pausing: 'Pausing',
-  resuming: 'Resuming',
+  running: '正在运行',
+  paused: '已暂停 · 仿真时间和位姿已冻结',
+  stopped: '已停止',
+  interrupted: '会话已中断',
+  starting: '正在启动 · 等待来源初始帧',
+  pausing: '正在暂停 · 等待来源边界',
+  resuming: '正在恢复 · 等待来源边界',
 };
 export async function dialog(page: Page) {
   const current = page.getByRole('dialog', {
-    name: 'Simulation Session',
+    name: '仿真会话',
     exact: true,
   });
-  if (!(await current.isVisible()))
-    await page.getByRole('button', { name: /^Simulation Session/ }).click();
+  if (!(await current.isVisible())) {
+    const toolbar = page.getByRole('button', { name: /^仿真会话/ });
+    const deadline = performance.now() + 5000;
+    const remaining = () => {
+      const milliseconds = deadline - performance.now();
+      assert(milliseconds > 0, 'Session toolbar readiness deadline expired');
+      return milliseconds;
+    };
+    await expect(toolbar).toBeVisible({ timeout: remaining() });
+    await expect(toolbar).toBeEnabled({ timeout: remaining() });
+    await toolbar.click({ timeout: remaining() });
+  }
   return current;
 }
 export async function closeDialog(page: Page) {
   const value = await dialog(page);
-  await value.getByRole('button', { name: 'Close', exact: true }).click();
+  await value.getByRole('button', { name: '关闭', exact: true }).click();
 }
 export async function lifecycle(page: Page, state: string) {
   const value = await dialog(page);
   await expect(
-    value.getByRole('status', { name: 'Session lifecycle' }),
+    value.getByRole('status', { name: '会话生命周期' }),
   ).toContainText(lifecycleLabel[state]);
-  await value.getByRole('button', { name: 'Close', exact: true }).click();
+  await value.getByRole('button', { name: '关闭', exact: true }).click();
 }
 export async function action(
   page: Page,
@@ -89,7 +99,7 @@ export async function action(
   ]);
   expect(response.status()).toBe(name === 'Start' ? 201 : 200);
   const session = (await response.json()) as SimulationSession;
-  await value.getByRole('button', { name: 'Close', exact: true }).click();
+  await value.getByRole('button', { name: '关闭', exact: true }).click();
   return session;
 }
 export async function authority(
@@ -210,7 +220,7 @@ export async function prepareSession(page: Page, browser: Browser) {
   await expectInitialSceneReady(page.locator('.world-page'));
   const value = await dialog(page);
   await value
-    .getByLabel('GLB model', { exact: true })
+    .getByLabel('GLB 模型', { exact: true })
     .selectOption(firstAsset.representation.id);
   const installPath = `/api/v1/lab/labs/${lab.id}/installations`;
   const [response] = await Promise.all([
@@ -219,13 +229,11 @@ export async function prepareSession(page: Page, browser: Browser) {
         new URL(r.url()).pathname === installPath &&
         r.request().method() === 'POST',
     ),
-    value
-      .getByRole('button', { name: 'Install fixed scene', exact: true })
-      .click(),
+    value.getByRole('button', { name: '安装固定场景', exact: true }).click(),
   ]);
   expect(response.status()).toBe(201);
   const installation = (await response.json()) as SceneInstallation;
-  await value.getByRole('button', { name: 'Close', exact: true }).click();
+  await value.getByRole('button', { name: '关闭', exact: true }).click();
   const independent = await api.json<SceneInstallation>(
     'POST',
     `/api/v1/lab/labs/${otherLab.id}/installations`,
@@ -300,11 +308,9 @@ export async function prepareSession(page: Page, browser: Browser) {
       await expectInitialSceneReady(viewer.locator('.world-page'));
       const controls = await dialog(viewer);
       await controls
-        .getByLabel('Scene Installation', { exact: true })
+        .getByLabel('场景安装', { exact: true })
         .selectOption(installation.id);
-      await controls
-        .getByRole('button', { name: 'Close', exact: true })
-        .click();
+      await controls.getByRole('button', { name: '关闭', exact: true }).click();
       await viewer.getByRole('button', { name: '性能', exact: true }).click();
     }
     const enabled = await api.json<SimulationSessionPage>(
@@ -608,18 +614,14 @@ export async function appearancePixels(page: Page, label: string) {
 }
 export async function leaveSession(page: Page) {
   const value = await dialog(page);
-  await value
-    .getByRole('button', { name: 'Leave observation', exact: true })
-    .click();
-  await value.getByRole('button', { name: 'Close', exact: true }).click();
+  await value.getByRole('button', { name: '离开观察', exact: true }).click();
+  await value.getByRole('button', { name: '关闭', exact: true }).click();
   await expect.poll(() => displayed(page)).toBeNull();
 }
 export async function observeSession(page: Page) {
   const value = await dialog(page);
-  await value
-    .getByRole('button', { name: 'Observe Session', exact: true })
-    .click();
-  await value.getByRole('button', { name: 'Close', exact: true }).click();
+  await value.getByRole('button', { name: '观察会话', exact: true }).click();
+  await value.getByRole('button', { name: '关闭', exact: true }).click();
 }
 export async function openLab(page: Page, lab: { id: string; name: string }) {
   await page.getByLabel('打开 Lab', { exact: true }).selectOption(lab.id);

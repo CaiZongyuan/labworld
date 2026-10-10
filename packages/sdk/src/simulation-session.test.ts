@@ -185,7 +185,10 @@ test('a successor Session obtains a fresh scoped ticket and obsolete transport c
     ).buffer,
   );
   expect(snapshots).toHaveBeenCalledOnce();
-  expect(admitted).toEqual([motionWelcome.session_id, '10000000-0000-0000-0000-000000000002']);
+  expect(admitted).toEqual([
+    motionWelcome.session_id,
+    '10000000-0000-0000-0000-000000000002',
+  ]);
   successor.abort();
   await second;
   expect(dispose).toHaveBeenCalledTimes(2);

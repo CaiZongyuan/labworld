@@ -15,7 +15,7 @@ python3 -m venv .scratch/session-python
 LAB_WORD_SYNTHETIC_SESSION=true LAB_WORD_SYNTHETIC_PYTHON="$PWD/.scratch/session-python/bin/python" LAB_WORD_DATA_DIR=.scratch/session-tutorial-data pnpm dev
 ```
 
-Open <http://127.0.0.1:5173/lab>. Register or sign in as an ordinary Member. Create a Lab named `Shared Session`. Import `tests/fixtures/lab/cube.glb` in the asset library, with its source, license, and version. Use that asset for an object in this Lab so it appears in the Lab asset list.
+Open <http://127.0.0.1:5173/lab>. Register or sign in as an ordinary Member. Create an empty Lab named `Shared Session`. Import `tests/fixtures/lab/cube.glb` in the asset library, with its source, license, and version. Return to the Lab. The installation picker uses the saved asset library and needs no existing Lab object.
 
 Normal Node/Web startup and builds need no Python. The explicit setting enables the loopback development source. The server starts Python only after Start. Its [source supervisor](../../apps/server/src/synthetic-source.ts) owns the process, stdin pipe, and cleanup ledger. It sends the fixed startup conditions once and holds the pipe open. Do not run `publisher.py --startup-stdin` manually. The separate [synthetic fixture tutorial](synthetic-motion.en.md) keeps its own explicit launch contract.
 
@@ -23,6 +23,7 @@ Normal Node/Web startup and builds need no Python. The explicit setting enables 
 
 1. Open **Simulation Session**.
 2. Select your imported asset under **GLB model**.
+   Use **Load more** if it is on a later page. If the list fails, use **Retry GLB models**.
 3. Click **Install fixed scene**.
 4. Select the resulting **Scene Installation** and keep `30 Hz`.
 5. Click **Start**.

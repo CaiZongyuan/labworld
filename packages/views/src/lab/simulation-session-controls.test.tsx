@@ -9,6 +9,7 @@ import {
   createApiClient,
   type SimulationSession,
   type SceneInstallation,
+  type LabAsset,
 } from '@labos-threejs/sdk';
 import { encodeMotionSnapshot } from '@labos-threejs/contracts/motion';
 import { server } from '../../../../tests/frontend/server';
@@ -26,11 +27,23 @@ import { AppMessagesProvider } from '../shell/messages';
 import { labApp } from './app';
 import { useSimulationSession } from './use-simulation-session';
 import { SimulationSessionControls } from './simulation-session-controls';
+import { useCatalog } from './catalog';
 
 async function openSession({
   installed = true,
   enabled = true,
-}: { installed?: boolean; enabled?: boolean } = {}) {
+  assets = sessionWorld.assets,
+  moreAssets = [],
+  waitForAssets,
+  assetFailure = null,
+}: {
+  installed?: boolean;
+  enabled?: boolean;
+  assets?: LabAsset[];
+  moreAssets?: LabAsset[];
+  waitForAssets?: Promise<void>;
+  assetFailure?: { code: string; status: number } | null;
+} = {}) {
   const sockets = new WebSocketServer({ host: '127.0.0.1', port: 0 });
   let unmount = () => {};
   const peers: WebSocket[] = [];
@@ -128,6 +141,9 @@ async function openSession({
     : [];
   const requests: { action: string; body: unknown }[] = [];
   let rejection: { code: string; status: number } | null = null;
+  let catalogRejection = assetFailure;
+  const assetPages: (string | null)[] = [];
+  const installedRepresentations: string[] = [];
   const emit = (next: SimulationSession) => {
     current = next;
     for (const subscription of subscriptions) {
@@ -165,6 +181,24 @@ async function openSession({
     });
   });
   server.use(
+    http.get('http://api.test/api/v1/lab/assets', async ({ request }) => {
+      const cursor = new URL(request.url).searchParams.get('cursor');
+      expect(new URL(request.url).searchParams.get('limit')).toBe('50');
+      assetPages.push(cursor);
+      await waitForAssets;
+      if (catalogRejection)
+        return HttpResponse.json(
+          { error: { code: catalogRejection.code } },
+          { status: catalogRejection.status },
+        );
+      return HttpResponse.json({
+        data: cursor ? moreAssets : assets,
+        has_more: !cursor && moreAssets.length > 0,
+        next_cursor: !cursor && moreAssets.length ? 'second-page' : null,
+        max_upload_bytes: 20_000_000,
+        max_decoded_resource_bytes: 100_000_000,
+      });
+    }),
     http.get(websocketPath, () => passthrough()),
     http.get('http://api.test/api/v1/lab/labs/shared/installations', () =>
       HttpResponse.json({ data: installations }),
@@ -173,9 +207,13 @@ async function openSession({
       'http://api.test/api/v1/lab/labs/shared/installations',
       async ({ request }) => {
         expect(request.headers.get('x-csrf-token')).toBe('csrf-session');
-        expect(await request.json()).toEqual({
-          representation_id: 'fixed-representation',
-        });
+        const body = (await request.json()) as { representation_id: string };
+        expect(
+          [...assets, ...moreAssets].some(
+            (asset) => asset.representation.id === body.representation_id,
+          ),
+        ).toBe(true);
+        installedRepresentations.push(body.representation_id);
         installations.push(sessionInstallation);
         return HttpResponse.json(sessionInstallation, { status: 201 });
       },
@@ -265,6 +303,15 @@ async function openSession({
   });
   const onInstalled = vi.fn();
   function ConnectedControls() {
+    const catalog = useCatalog(client, {
+      user: {
+        id: 'operator',
+        email: 'operator@example.test',
+        display_name: 'Operator',
+        role: 'member',
+      },
+      csrf_token: 'csrf-session',
+    });
     const simulation = useSimulationSession({
       apiClient: client,
       userId: 'operator',
@@ -275,7 +322,11 @@ async function openSession({
     return (
       <SimulationSessionControls
         simulation={simulation}
-        world={sessionWorld}
+        world={{ ...sessionWorld, entities: [], nodes: [], assets: [] }}
+        assets={catalog.assets.flatMap((asset) =>
+          asset.source === 'remote' ? [asset.asset] : [],
+        )}
+        assetQuery={catalog.query}
         disabled={false}
         startDisabled={false}
       />
@@ -311,6 +362,11 @@ async function openSession({
     setRejection(value: typeof rejection) {
       rejection = value;
     },
+    setAssetFailure(value: typeof catalogRejection) {
+      catalogRejection = value;
+    },
+    assetPages,
+    installedRepresentations,
     current: () => current,
   };
 }
@@ -325,6 +381,7 @@ test('fixed installation and real HTTP controls distinguish accepted transitions
     screen.getByRole('button', { name: 'Install fixed scene' }),
   );
   await waitFor(() => expect(fixture.onInstalled).toHaveBeenCalledOnce());
+  expect(fixture.installedRepresentations).toEqual(['fixed-representation']);
   await waitFor(() =>
     expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled(),
   );
@@ -441,5 +498,114 @@ test('a disabled source exposes its recovery instruction and keeps installation 
   expect(screen.getByLabelText('Session lifecycle')).toHaveTextContent(
     'Not started',
   );
+  await fixture.cleanup();
+});
+
+test('an empty global library excludes the local preset and exposes import guidance without an artificial Lab Entity', async () => {
+  const fixture = await openSession({ installed: false, assets: [] });
+  await waitFor(() =>
+    expect(screen.getByLabelText('GLB model')).toHaveTextContent(
+      'Import a GLB asset first',
+    ),
+  );
+  expect(
+    screen.queryByRole('option', { name: 'Industrial Microscope' }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole('button', { name: 'Install fixed scene' }),
+  ).toBeDisabled();
+  expect(fixture.installedRepresentations).toEqual([]);
+  await fixture.cleanup();
+});
+
+test('catalog loading disables only installation and becomes usable after the real global list resolves', async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const fixture = await openSession({ waitForAssets: gate });
+  try {
+    expect(screen.getByLabelText('GLB model')).toHaveTextContent(
+      'Loading saved GLB models',
+    );
+    expect(
+      screen.getByRole('button', { name: 'Install fixed scene' }),
+    ).toBeDisabled();
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled(),
+    );
+    release();
+    await waitFor(() =>
+      expect(
+        screen.getByRole('button', { name: 'Install fixed scene' }),
+      ).toBeEnabled(),
+    );
+    expect(screen.getByLabelText('GLB model')).toHaveValue(
+      'fixed-representation',
+    );
+  } finally {
+    release();
+    await fixture.cleanup();
+  }
+});
+
+test('a denied catalog can be retried in the picker without disabling an already installed Session Start', async () => {
+  const fixture = await openSession({
+    assetFailure: { code: 'api_keys.scope_forbidden', status: 403 },
+  });
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Retry GLB models' }),
+    ).toBeEnabled(),
+  );
+  expect(
+    screen.getByRole('button', { name: 'Install fixed scene' }),
+  ).toBeDisabled();
+  expect(screen.getByRole('alert')).toHaveTextContent('Action did not finish');
+  expect(screen.getByRole('button', { name: 'Start' })).toBeEnabled();
+  fixture.setAssetFailure(null);
+  await fixture.user.click(
+    screen.getByRole('button', { name: 'Retry GLB models' }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole('button', { name: 'Install fixed scene' }),
+    ).toBeEnabled(),
+  );
+  expect(screen.getByLabelText('GLB model')).toHaveValue(
+    'fixed-representation',
+  );
+  expect(fixture.assetPages).toEqual([null, null]);
+  await fixture.cleanup();
+});
+
+test('Load more exposes later global assets and installation submits the selected representation', async () => {
+  const later: LabAsset = {
+    ...sessionWorld.assets[0],
+    id: 'later-asset',
+    name: 'Later GLB',
+    representation: {
+      ...sessionWorld.assets[0].representation,
+      id: 'later-representation',
+    },
+  };
+  const fixture = await openSession({ installed: false, moreAssets: [later] });
+  await fixture.user.click(screen.getByRole('button', { name: 'Load more' }));
+  await waitFor(() =>
+    expect(
+      screen.getByRole('option', { name: 'Later GLB' }),
+    ).toBeInTheDocument(),
+  );
+  await fixture.user.selectOptions(
+    screen.getByLabelText('GLB model'),
+    'later-representation',
+  );
+  await fixture.user.click(
+    screen.getByRole('button', { name: 'Install fixed scene' }),
+  );
+  await waitFor(() =>
+    expect(fixture.installedRepresentations).toEqual(['later-representation']),
+  );
+  expect(fixture.assetPages).toEqual([null, 'second-page']);
   await fixture.cleanup();
 });
