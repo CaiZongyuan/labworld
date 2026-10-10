@@ -47,12 +47,43 @@ async function staticCanvasRegion(page: Page) {
 }
 
 async function cameraSceneFrame(page: Page) {
-  return rasterObservers.get(page)!('canvas-screenshot', () =>
-    page.locator('.world-viewport canvas').screenshot({
+  const area = await rasterObservers.get(page)!('canvas-geometry', () =>
+    page.locator('.world-viewport canvas').evaluate((canvas) => {
+      const rect = canvas.getBoundingClientRect();
+      return {
+        x: rect.x,
+        y: rect.y,
+        right: rect.right,
+        bottom: rect.bottom,
+        viewportWidth: innerWidth,
+        viewportHeight: innerHeight,
+      };
+    }),
+  );
+  // Element capture additionally waits for stable animation frames and scrolls.
+  // Capture the entire current canvas after guarding against page-clip trimming.
+  const clip = {
+    x: Math.floor(area.x),
+    y: Math.floor(area.y),
+    width: Math.ceil(area.right) - Math.floor(area.x),
+    height: Math.ceil(area.bottom) - Math.floor(area.y),
+  };
+  expect(clip.x).toBeGreaterThanOrEqual(0);
+  expect(clip.y).toBeGreaterThanOrEqual(0);
+  expect(clip.width).toBeGreaterThan(0);
+  expect(clip.height).toBeGreaterThan(0);
+  expect(clip.x + clip.width).toBeLessThanOrEqual(area.viewportWidth);
+  expect(clip.y + clip.height).toBeLessThanOrEqual(area.viewportHeight);
+  const png = await rasterObservers.get(page)!('canvas-screenshot', () =>
+    page.screenshot({
+      clip,
       style:
         '.world-priority-label,.world-priority-labels,.world-canvas-tools,.world-transform-tools { visibility: hidden !important; }',
     }),
   );
+  expect(png.readUInt32BE(16)).toBe(clip.width);
+  expect(png.readUInt32BE(20)).toBe(clip.height);
+  return png;
 }
 
 function saveRasterEvidence(
@@ -76,6 +107,8 @@ function saveRasterEvidence(
 }
 
 async function changedRegionPixels(page: Page, before: Buffer, after: Buffer) {
+  expect(after.readUInt32BE(16)).toBe(before.readUInt32BE(16));
+  expect(after.readUInt32BE(20)).toBe(before.readUInt32BE(20));
   return rasterObservers.get(page)!('pixel-evaluate', () =>
     page.evaluate(
       async (encoded) => {

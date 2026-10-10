@@ -2,7 +2,11 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
-type Phase = 'canvas-screenshot' | 'region-screenshot' | 'pixel-evaluate';
+type Phase =
+  | 'canvas-geometry'
+  | 'canvas-screenshot'
+  | 'region-screenshot'
+  | 'pixel-evaluate';
 type Event = {
   order: number;
   phase: Phase;
