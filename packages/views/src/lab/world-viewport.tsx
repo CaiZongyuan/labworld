@@ -31,6 +31,7 @@ import type {
   LabWorld,
   SceneNode,
   Placement,
+  MotionBuffer,
 } from '@labos-threejs/sdk';
 import type { ModelAsset } from './catalog';
 import { useLoadedModel } from './model-loader';
@@ -41,6 +42,10 @@ import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
 import { Button } from '@labos-threejs/ui/components/button';
 import { observationValue } from './observation-reading';
 import { readEntityObservations } from './observation-state';
+import {
+  MotionSceneController,
+  type MotionDiagnosticCanvas,
+} from './motion-scene';
 
 type Tuple = [number, number, number];
 function Block({
@@ -485,6 +490,7 @@ const NodeModel = memo(function NodeModel({
   onError,
   active,
   onTarget,
+  motionScene,
 }: {
   node: SceneNode;
   entity: LabEntity;
@@ -499,9 +505,19 @@ const NodeModel = memo(function NodeModel({
   onError: (id: string, appearance: string, error: boolean) => void;
   active: boolean;
   onTarget: (id: string, object: Group | null) => void;
+  motionScene: MotionSceneController;
 }) {
   const group = useRef<Group>(null);
   const outer = useRef<Group>(null);
+  useEffect(() => {
+    if (!outer.current) return;
+    return motionScene.register(
+      node.id,
+      entity.id,
+      outer.current,
+      node.placement,
+    );
+  }, [motionScene, node.id, entity.id, node.placement]);
   const appearance = appearanceKey(node, entity);
   useEffect(() => {
     if (!active || !outer.current) return;
@@ -527,6 +543,8 @@ const NodeModel = memo(function NodeModel({
   return (
     <group
       ref={outer}
+      name={`scene-node:${node.id}`}
+      userData={{ nodeId: node.id, entityId: entity.id }}
       position={node.placement.position as Tuple}
       rotation={node.placement.rotation as Tuple}
       scale={node.placement.scale as Tuple}
@@ -612,6 +630,7 @@ function Scene({
   transformMode,
   onPlacement,
   onOpenRecentMinute,
+  motion,
 }: {
   world: LabWorld;
   connected: boolean;
@@ -629,10 +648,24 @@ function Scene({
   transformMode: 'translate' | 'rotate' | 'scale' | null;
   onPlacement: (id: string, placement: Placement) => void;
   onOpenRecentMinute?: (entityId: string) => void;
+  motion?: MotionBuffer | null;
 }) {
+  const motionScene = useMemo(() => new MotionSceneController(), []);
+  useFrame(() => motionScene.update(motion ?? null, performance.now()));
+  useEffect(() => () => motionScene.reset(), [motionScene]);
   const root = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
-  const { camera, size } = useThree();
+  const { camera, size, gl } = useThree();
+  useEffect(() => {
+    if (!motion) return;
+    const canvas = gl.domElement as MotionDiagnosticCanvas;
+    const inspect = () => (motion.welcome ? motionScene.inspect() : null);
+    canvas.getMotionDiagnostics = inspect;
+    return () => {
+      if (canvas.getMotionDiagnostics === inspect)
+        delete canvas.getMotionDiagnostics;
+    };
+  }, [gl, motion, motionScene]);
   const [loaded, setLoaded] = useState(0);
   const framing = useRef<{
     framed: boolean;
@@ -777,6 +810,7 @@ function Scene({
               onError={onError}
               active={!!transformMode && node.id === activeNodeId}
               onTarget={targetReady}
+              motionScene={motionScene}
             />
           );
         })}
@@ -830,6 +864,7 @@ export default function WorldViewport(props: {
   label: string;
   onMetrics: (metrics: RenderMetrics) => void;
   onBusy: (busy: boolean) => void;
+  motion?: MotionBuffer | null;
 }) {
   const message = useAppMessage('lab');
   const [renderer, setRenderer] = useState<WebGLRenderer | null>(null);

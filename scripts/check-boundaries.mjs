@@ -129,6 +129,8 @@ for (const [name, dependencies] of Object.entries(allowed)) {
                 (owned) => path === resolve(root, owned),
               ));
           if (!isReference && !path.includes(`${sep}generated${sep}`)) {
+            if ((reference.contractSubpaths ?? []).includes(dependency))
+              throw new Error(`Core imports a Lab contract subpath: ${path}`);
             const target = dependency.startsWith('.')
               ? resolve(dirname(path), dependency)
               : '';

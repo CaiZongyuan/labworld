@@ -32,7 +32,7 @@ export default defineConfig(({ mode }) => {
       // owns sibling routes like /api-keys, and a prefix proxy turns a
       // refresh or deep link to them into the API's 404.
       proxy: {
-        '/api/v1': { target },
+        '/api/v1': { target, ws: true },
         '/api/openapi.json': { target },
         '/health': { target },
         '/objects': { target },
