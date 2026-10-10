@@ -56,6 +56,7 @@ export default function EntityDetail({
   originalRecord,
   onCloseOriginalRecord,
   visible,
+  trendRevision,
   userId,
   recentMinuteRequest,
 }: {
@@ -70,6 +71,7 @@ export default function EntityDetail({
   originalRecord?: LabRecord;
   onCloseOriginalRecord?: () => void;
   visible: boolean;
+  trendRevision: string;
   userId: string;
   recentMinuteRequest?: number;
 }) {
@@ -139,7 +141,7 @@ export default function EntityDetail({
               entity={entity}
               apiClient={apiClient}
               userId={userId}
-              worldVersion={world.version}
+              refreshRevision={trendRevision}
               visible={visible && tab === 'operations'}
               initialOpen={recentMinuteRequest !== undefined}
               initialRange={recentMinuteRequest !== undefined ? 'minute' : '1'}

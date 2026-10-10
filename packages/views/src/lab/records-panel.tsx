@@ -1,4 +1,4 @@
-import { useId, useState } from 'react';
+import { useId, useState, useEffect, useRef } from 'react';
 import { useInfiniteQuery } from '@tanstack/react-query';
 import { ArrowDown, RefreshCw } from 'lucide-react';
 import {
@@ -40,6 +40,9 @@ export type RecordsPanelProps = {
   entities: LabEntity[];
   onOpenRecord?: (record: LabRecord) => void;
   variant?: 'full' | 'recent';
+  visible?: boolean;
+  connected?: boolean;
+  refreshToken?: string;
   onOpenRecords?: () => void;
 };
 function localTime(time: number) {
@@ -71,6 +74,9 @@ function RecordsQuery({
   labId,
   entities,
   variant = 'full',
+  visible = true,
+  connected = true,
+  refreshToken,
   onOpenRecords,
   onOpenRecord,
 }: RecordsPanelProps) {
@@ -106,7 +112,7 @@ function RecordsQuery({
       to,
       generation,
     ],
-    enabled: !!labId,
+    enabled: !!labId && visible && connected,
     initialPageParam: undefined as string | undefined,
     maxPages: 1,
     queryFn: async ({ pageParam, signal }) =>
@@ -132,6 +138,26 @@ function RecordsQuery({
     refetchOnWindowFocus: false,
     refetchOnReconnect: false,
   });
+  const { refetch } = records;
+  const loadedPage = records.data?.pages[0];
+  const lastRefresh = useRef(refreshToken);
+  useEffect(() => {
+    if (
+      !visible ||
+      !connected ||
+      refreshToken === undefined ||
+      refreshToken === lastRefresh.current
+    )
+      return;
+    lastRefresh.current = refreshToken;
+    if (recent) {
+      if (loadedPage) setRetainedPage(loadedPage);
+      const next = initialRange();
+      setRange(next);
+      setDraft(next);
+      setGeneration((value) => value + 1);
+    } else void refetch();
+  }, [visible, connected, refreshToken, recent, loadedPage, refetch]);
   const page = records.data?.pages[0] ?? retainedPage;
   const showingRetained = !!page && !records.data;
   const remember = () => {
@@ -143,6 +169,23 @@ function RecordsQuery({
     (page.record_type ?? '') === kind &&
     page.from === from &&
     page.to === to;
+  const gapNotice = page?.coverage.some(
+    (coverage) => coverage.gaps.length > 0,
+  ) ? (
+    <Alert role="status" aria-label={message('records.gap')}>
+      <AlertDescription>
+        {page.coverage.flatMap((coverage) =>
+          coverage.gaps.map((gap) => (
+            <p key={`${coverage.record_type}:${gap.from}:${gap.reason}`}>
+              {message(`records.${coverage.record_type}`)} · {gap.reason} ·{' '}
+              <time dateTime={gap.from}>{gap.from}</time> —{' '}
+              <time dateTime={gap.to}>{gap.to}</time>
+            </p>
+          )),
+        )}
+      </AlertDescription>
+    </Alert>
+  ) : null;
   return (
     <section
       className="lab-records"
@@ -152,7 +195,7 @@ function RecordsQuery({
         <h2>{message(recent ? 'records.recentTitle' : 'records.title')}</h2>
         <Button
           variant="outline"
-          disabled={records.isFetching}
+          disabled={records.isFetching || !connected}
           onClick={() => {
             remember();
             if (recent) {
@@ -289,7 +332,7 @@ function RecordsQuery({
             <Button
               type="submit"
               variant="outline"
-              disabled={!valid || records.isFetching}
+              disabled={!valid || records.isFetching || !connected}
             >
               {message('records.query')}
             </Button>
@@ -326,21 +369,14 @@ function RecordsQuery({
           </EmptyHeader>
         </Empty>
       ) : null}
-      {page?.coverage.some((coverage) => coverage.gaps.length > 0) ? (
-        <Alert role="status" aria-label={message('records.gap')}>
-          <AlertDescription>
-            {page.coverage.flatMap((coverage) =>
-              coverage.gaps.map((gap) => (
-                <p key={`${coverage.record_type}:${gap.from}:${gap.reason}`}>
-                  {message(`records.${coverage.record_type}`)} · {gap.reason} ·{' '}
-                  <time dateTime={gap.from}>{gap.from}</time> —{' '}
-                  <time dateTime={gap.to}>{gap.to}</time>
-                </p>
-              )),
-            )}
-          </AlertDescription>
-        </Alert>
-      ) : null}
+      {recent && gapNotice ? (
+        <details>
+          <summary>{message('records.gap')}</summary>
+          {gapNotice}
+        </details>
+      ) : (
+        gapNotice
+      )}
       <ol>
         {page?.items.slice(0, 100).map((record) => (
           <li key={`${record.record_type}:${record.id}`}>
@@ -383,7 +419,7 @@ function RecordsQuery({
       {!recent && records.hasNextPage ? (
         <Button
           variant="outline"
-          disabled={records.isFetching}
+          disabled={records.isFetching || !connected}
           onClick={() => void records.fetchNextPage()}
         >
           <ArrowDown data-icon="inline-start" />
