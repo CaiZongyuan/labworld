@@ -8,6 +8,7 @@ export const MOTION_LIMITS = Object.freeze({
   binary_bytes: 64 * 1024,
   control_bytes: 256 * 1024,
   hello_bytes: 4096,
+  session_control_bytes: 4096,
   coordinate_abs: 10_000,
   joint_abs: 10_000,
   quaternion_norm_tolerance: 0.001,
@@ -55,6 +56,8 @@ export interface MotionTarget {
   node_id: string;
   /** World pose of the Scene Node root; centered GLB offsets remain child local. */
   visual_target: 'node-root';
+  /** Normalized body world pose × this correction = visual node-root world pose. */
+  body_to_visual?: MotionPose;
 }
 export interface MotionWelcome {
   type: 'motion.welcome';
@@ -98,10 +101,31 @@ export interface MotionErrorMessage {
 }
 export interface MotionStatus {
   type: 'motion.status';
-  state: 'waiting' | 'live' | 'stale' | 'interrupted' | 'closed';
+  state: 'waiting' | 'live' | 'stale' | 'paused' | 'interrupted' | 'closed';
   rate_hz: MotionRate;
 }
 export type MotionControl = MotionWelcome | MotionErrorMessage | MotionStatus;
+
+export type MotionSessionAction = 'pause' | 'resume' | 'stop';
+interface MotionSessionBoundary {
+  session_id: string;
+  /** Canonical decimal u64 allocated by the Session authority. */
+  epoch: string;
+  transition_id: string;
+  revision: number;
+  action: MotionSessionAction;
+}
+/** Publisher-only request; viewers never receive or execute this message. */
+export interface MotionSessionControl extends MotionSessionBoundary {
+  type: 'motion.session_control';
+}
+/** Sent after its complete boundary frame on the same ordered connection. */
+export interface MotionSessionAck extends MotionSessionBoundary {
+  type: 'motion.session_ack';
+  result: 'applied';
+  last_sequence: string;
+  sim_time_ns: string;
+}
 
 export class MotionProtocolError extends Error {
   readonly code: MotionErrorCode;

@@ -5,6 +5,7 @@ export type { Client as ApiClient } from './generated/client';
 export type * from '@labos-threejs/contracts';
 export type * from '@labos-threejs/contracts/motion';
 export * from './motion';
+export * from './simulation-session';
 export { MotionBuffer, type MotionSample } from './motion-buffer';
 export {
   subscribeLabWorld,

@@ -1,5 +1,6 @@
 import { defaultRetention } from '../../../packages/server/src/lab/history/domain.ts';
 import { relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { defaultRateOptions } from '../../../packages/server/src/core/rate-limit/domain.ts';
 import { defaultFilePolicy } from '../../../packages/server/src/core/files/domain.ts';
 const rateFields = [
@@ -28,6 +29,33 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     throw new Error('LAB_WORD_MOTION_FIXTURE must be true or false');
   if (motionFixture && !['127.0.0.1', '::1', 'localhost'].includes(hostname))
     throw new Error('Motion fixture requires a loopback LAB_WORD_HOST');
+  const syntheticSession = env.LAB_WORD_SYNTHETIC_SESSION === 'true';
+  if (
+    env.LAB_WORD_SYNTHETIC_SESSION !== undefined &&
+    !['true', 'false'].includes(env.LAB_WORD_SYNTHETIC_SESSION)
+  )
+    throw new Error('LAB_WORD_SYNTHETIC_SESSION must be true or false');
+  if (syntheticSession && !['127.0.0.1', '::1', 'localhost'].includes(hostname))
+    throw new Error(
+      'Development synthetic Sessions require a loopback LAB_WORD_HOST',
+    );
+  const motionGraceMillis = Number(env.LAB_WORD_MOTION_GRACE_MS ?? 5000);
+  const motionAckMillis = Number(env.LAB_WORD_MOTION_ACK_MS ?? 3000);
+  for (const [name, value] of [
+    ['LAB_WORD_MOTION_GRACE_MS', motionGraceMillis],
+    ['LAB_WORD_MOTION_ACK_MS', motionAckMillis],
+  ] as const)
+    if (!Number.isSafeInteger(value) || value < 1000 || value > 60000)
+      throw new Error(name + ' must be an integer from 1000 to 60000');
+  const syntheticPython = env.LAB_WORD_SYNTHETIC_PYTHON ?? 'python3';
+  const syntheticPublisher = env.LAB_WORD_SYNTHETIC_PUBLISHER
+    ? resolve(env.LAB_WORD_SYNTHETIC_PUBLISHER)
+    : fileURLToPath(
+        new URL(
+          '../../../tools/synthetic-motion/publisher.py',
+          import.meta.url,
+        ),
+      );
   const port = Number(env.SERVER_PORT ?? bind?.[2] ?? 3000);
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535)
     throw new Error('SERVER_PORT must be an integer from 1 to 65535');
@@ -118,6 +146,11 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
       : undefined,
     retention,
     motionFixture,
+    syntheticSession,
+    syntheticPython,
+    syntheticPublisher,
+    motionGraceMillis,
+    motionAckMillis,
     hostname,
     port,
     rate,
@@ -151,6 +184,36 @@ export function configurationFields() {
     descriptionZh,
   });
   return [
+    field(
+      'LAB_WORD_SYNTHETIC_SESSION',
+      value.syntheticSession,
+      'Enable owned development synthetic Sessions; requires loopback and an optional configured Python source.',
+      '启用开发合成会话；需要 loopback 和配置的可选 Python 来源。',
+    ),
+    field(
+      'LAB_WORD_SYNTHETIC_PYTHON',
+      value.syntheticPython,
+      'Python executable used only for an explicit development synthetic Start.',
+      '仅在显式 Start 开发合成会话时使用的 Python 可执行文件。',
+    ),
+    field(
+      'LAB_WORD_SYNTHETIC_PUBLISHER',
+      '',
+      'Optional absolute publisher.py path; default is the bundled development source.',
+      '可选 publisher.py 绝对路径；默认使用随服务提供的开发来源。',
+    ),
+    field(
+      'LAB_WORD_MOTION_GRACE_MS',
+      value.motionGraceMillis,
+      'Publisher heartbeat/source progress grace in milliseconds, 1000–60000.',
+      'Publisher 心跳和来源进度宽限毫秒数，1000–60000。',
+    ),
+    field(
+      'LAB_WORD_MOTION_ACK_MS',
+      value.motionAckMillis,
+      'Correlated source lifecycle ACK deadline in milliseconds, 1000–60000.',
+      '来源生命周期确认期限毫秒数，1000–60000。',
+    ),
     field(
       'LAB_WORD_MOTION_FIXTURE',
       value.motionFixture,

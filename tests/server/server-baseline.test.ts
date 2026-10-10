@@ -59,7 +59,7 @@ test(
       );
       assert.deepEqual(JSON.parse(target.logs.trim()), {
         status: 'migrated',
-        schemaVersion: 2,
+        schemaVersion: 3,
       });
       await target.stop();
       target.entry = 'apps/server/src/main.ts';
@@ -71,10 +71,10 @@ test(
         'GET',
         '/api/v1/system/status',
       );
-      assert.equal(status.schema_version, 2);
+      assert.equal(status.schema_version, 3);
       await target.stop();
       const first = await history('baseline.first-history');
-      assert.equal(first.length, 2);
+      assert.equal(first.length, 3);
       await target.start();
       assert.equal(
         (await new CoreHttp(target.url).login('baseline@example.test')).user.id,

@@ -11,6 +11,13 @@ import {
 } from '../../packages/server/src/platform/db/index.ts';
 import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 const retained = [
+  'labos_threejs_core.machines',
+  'lab.scene_installations',
+  'lab.publisher_epoch',
+  'lab.publisher_leases',
+  'lab.session_assets',
+  'lab.session_objects',
+  'lab.simulation_sessions',
   'labos_threejs_core.api_keys',
   'labos_threejs_core.audit_events',
   'labos_threejs_core.credentials',

@@ -209,3 +209,68 @@ test('interruption preserves the displayed interpolated pose and a new epoch beg
   expect(buffer.freshness(2000)).toBe('waiting');
   expect(buffer.sample(2000)).toBeNull();
 });
+
+test('Pause commits the complete accepted boundary instead of the delayed interpolated sample; Resume anchors its new frame', () => {
+  const buffer = new MotionBuffer();
+  buffer.configure(motionWelcome);
+  buffer.setSourceState('live');
+  const first = motionSnapshot();
+  const boundary = motionSnapshot({
+    sequence: first.sequence + 1n,
+    sim_time_ns: first.sim_time_ns + 100_000_000n,
+    poses: [{ position: [10, 2, 4], quaternion: [0, 0, 0, 1] }],
+  });
+  buffer.push(first, 1000);
+  buffer.push(boundary, 1100);
+  expect(buffer.sample(1150)?.poses[0].position[0]).toBe(5);
+  buffer.setSourceState('paused');
+  expect(buffer.sample(1150)?.poses[0].position).toEqual([10, 2, 4]);
+  expect(buffer.sample(90_000)?.sim_time_ns).toBe(boundary.sim_time_ns);
+  expect(buffer.freshness(90_000)).toBe('paused');
+  const resume = {
+    ...boundary,
+    sequence: boundary.sequence + 1n,
+    poses: [
+      { position: [12, 2, 4] as const, quaternion: [0, 0, 0, 1] as const },
+    ],
+  };
+  buffer.push(resume, 90_000);
+  expect(buffer.sample(90_000)?.poses[0].position[0]).toBe(10);
+  buffer.setSourceState('live');
+  expect(buffer.sample(90_000)?.poses[0].position[0]).toBe(12);
+  expect(buffer.sample(90_000)?.sim_time_ns).toBe(boundary.sim_time_ns);
+  buffer.push(
+    {
+      ...resume,
+      sequence: resume.sequence + 1n,
+      sim_time_ns: resume.sim_time_ns + 100_000_000n,
+      poses: [{ position: [22, 2, 4], quaternion: [0, 0, 0, 1] }],
+    },
+    90_100,
+  );
+  expect(buffer.sample(90_150)?.poses[0].position[0]).toBe(17);
+});
+
+test('a paused late join commits its exact complete cache and cannot advance before a trusted Resume frame', () => {
+  const buffer = new MotionBuffer();
+  buffer.configure(motionWelcome);
+  buffer.setSourceState('paused');
+  const cached = motionSnapshot({
+    poses: [{ position: [7, 3, 2], quaternion: [0, 0, 0, 1] }],
+  });
+  buffer.push(cached, 10_000);
+  expect(buffer.sample(60_000)?.poses[0].position).toEqual([7, 3, 2]);
+  expect(buffer.sample(60_000)?.sim_time_ns).toBe(cached.sim_time_ns);
+  buffer.setSourceState('live');
+  expect(buffer.sample(60_000)?.sim_time_ns).toBe(cached.sim_time_ns);
+  buffer.push(
+    {
+      ...cached,
+      sequence: cached.sequence + 1n,
+      sim_time_ns: cached.sim_time_ns + 1n,
+      poses: [{ position: [8, 3, 2], quaternion: [0, 0, 0, 1] }],
+    },
+    60_000,
+  );
+  expect(buffer.sample(60_000)?.poses[0].position[0]).toBe(8);
+});

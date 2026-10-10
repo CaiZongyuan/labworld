@@ -125,6 +125,18 @@
       "type": "tutorial"
     },
     {
+      "id": "simulation-session",
+      "source": "docs/tutorials/simulation-session.md",
+      "sourceEn": "docs/tutorials/simulation-session.en.md",
+      "route": "tutorials/simulation-session.md",
+      "title": "安装固定场景并管理仿真会话",
+      "titleEn": "Install a fixed scene and manage a Simulation Session",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "synthetic-motion",
+      "next": "spatial-workbench"
+    },
+    {
       "id": "spatial-workbench",
       "source": "docs/tutorials/spatial-workbench.md",
       "sourceEn": "docs/tutorials/spatial-workbench.en.md",

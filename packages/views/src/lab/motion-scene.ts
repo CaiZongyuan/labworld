@@ -15,6 +15,8 @@ export class MotionSceneController {
   private position = new Vector3();
   private quaternion = new Quaternion();
   private parentQuaternion = new Quaternion();
+  private correctionPosition = new Vector3();
+  private correctionQuaternion = new Quaternion();
   private euler = new Euler();
   private active = new Set<string>();
   private welcome: MotionBuffer['welcome'] = null;
@@ -61,6 +63,14 @@ export class MotionSceneController {
       const object = entry.object;
       this.position.fromArray(sample.poses[i].position);
       this.quaternion.fromArray(sample.poses[i].quaternion).normalize();
+      if (target.body_to_visual) {
+        this.correctionPosition
+          .fromArray(target.body_to_visual.position)
+          .applyQuaternion(this.quaternion);
+        this.position.add(this.correctionPosition);
+        this.correctionQuaternion.fromArray(target.body_to_visual.quaternion);
+        this.quaternion.multiply(this.correctionQuaternion).normalize();
+      }
       if (object.parent) {
         object.parent.updateWorldMatrix(true, false);
         object.parent.worldToLocal(this.position);

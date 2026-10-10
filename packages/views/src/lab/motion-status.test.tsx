@@ -16,7 +16,7 @@ import { PreferencesProvider } from '../shell/preferences';
 import { AppMessagesProvider } from '../shell/messages';
 import { labApp } from './app';
 
-test.each(['waiting', 'stale', 'interrupted'] as const)(
+test.each(['waiting', 'stale', 'paused', 'interrupted'] as const)(
   'public controls keep %s after a cached late join and status ticks, then resume only with live source data',
   async (sourceState) => {
     const sockets = new WebSocketServer({ host: '127.0.0.1', port: 0 });
@@ -135,7 +135,9 @@ test.each(['waiting', 'stale', 'interrupted'] as const)(
           ? 'Waiting for publisher'
           : sourceState === 'stale'
             ? 'Motion stale · pose frozen'
-            : 'Motion interrupted';
+            : sourceState === 'paused'
+              ? 'Motion paused · pose frozen'
+              : 'Motion interrupted';
       await waitFor(() =>
         expect(screen.getByRole('status')).toHaveTextContent(
           `${label} · 15 Hz`,

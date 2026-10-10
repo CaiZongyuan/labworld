@@ -15,6 +15,13 @@
       "when": 1791436317560,
       "tag": "0001_guide_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791665433443,
+      "tag": "0002_authoritative_session",
+      "breakpoints": true
     }
   ]
 }

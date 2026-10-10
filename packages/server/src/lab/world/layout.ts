@@ -151,6 +151,19 @@ export async function saveLayout(
     );
   } catch (error) {
     if (error instanceof PublicFailure) throw error;
+    let cause: unknown = error;
+    while (cause && typeof cause === 'object') {
+      if (
+        'constraint' in cause &&
+        cause.constraint === 'session_objects_node_id_scene_nodes_id_fk'
+      )
+        throw new PublicFailure(
+          409,
+          'lab.session_in_use',
+          'An active Session owns this Scene Node',
+        );
+      cause = 'cause' in cause ? cause.cause : undefined;
+    }
     throw new PublicFailure(
       503,
       'lab.unavailable',

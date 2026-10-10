@@ -7,6 +7,7 @@ import {
   canonical,
   semanticDifferences,
 } from './lib/contract-openapi.ts';
+import { sessionApiParts } from './lib/session-api.ts';
 import { motionApiParts } from './lib/motion-api.ts';
 import { guideProgressApiParts } from './lib/guide-progress-api.ts';
 const { values } = parseArgs({
@@ -23,7 +24,8 @@ if (values.write) {
   writeFileSync(baseline, JSON.stringify(canonical(actual), null, 2) + '\n');
   console.log('Retained Rust API baseline written');
 } else {
-  const motion = motionApiParts(actual);
+  const sessions = sessionApiParts(actual);
+  const motion = motionApiParts(sessions.existing);
   const parts = guideProgressApiParts(motion.existing);
   const diff = semanticDifferences(
     JSON.parse(readFileSync(baseline, 'utf8')),
@@ -51,4 +53,13 @@ if (values.write) {
   if (motionDiff.length)
     throw new Error('Approved motion API drift:\n' + motionDiff.join('\n'));
   console.log('Approved motion API semantic difference is empty');
+  const sessionDiff = semanticDifferences(
+    JSON.parse(
+      readFileSync(resolve(root, 'tests/contract/session-api.json'), 'utf8'),
+    ),
+    sessions.addition,
+  );
+  if (sessionDiff.length)
+    throw new Error('Approved Session API drift:\n' + sessionDiff.join('\n'));
+  console.log('Approved Session API semantic difference is empty');
 }
