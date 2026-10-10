@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { motionApiParts } from '../../scripts/lib/motion-api.ts';
 import { guideProgressApiParts } from '../../scripts/lib/guide-progress-api.ts';
 import { semanticDifferences } from '../../scripts/lib/contract-openapi.ts';
 const source = JSON.parse(
@@ -14,7 +15,7 @@ const addition = JSON.parse(
 );
 const path = '/api/v1/lab/guides/{guide_id}/{guide_version}/progress';
 function differences(document) {
-  const parts = guideProgressApiParts(document);
+  const parts = guideProgressApiParts(motionApiParts(document).existing);
   return [
     ...semanticDifferences(baseline, parts.existing),
     ...semanticDifferences(addition, parts.addition),

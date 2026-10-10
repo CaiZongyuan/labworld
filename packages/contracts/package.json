@@ -4,6 +4,7 @@
   "type": "module",
   "name": "@labos-threejs/contracts",
   "exports": {
-    ".": "./src/generated/types.gen.ts"
+    ".": "./src/generated/types.gen.ts",
+    "./motion": "./src/motion/index.ts"
   }
 }

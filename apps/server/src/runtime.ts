@@ -1,4 +1,9 @@
 import { serve } from '@hono/node-server';
+import { getConnInfo } from '@hono/node-server/conninfo';
+import type { Server } from 'node:http';
+import { MotionWebSockets } from './motion-ws.ts';
+import { MotionFixtures } from '../../../packages/server/src/lab/motion/fixture.ts';
+import { motionRoutes } from '../../../packages/server/src/lab/motion/routes.ts';
 export { serve };
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -42,6 +47,7 @@ export const version = (
 type Prepared = {
   app: ReturnType<typeof createApp>;
   stop?: () => Promise<void>;
+  motion?: MotionWebSockets;
 };
 export type RuntimeControl = {
   stop: () => Promise<void>;
@@ -52,7 +58,7 @@ export async function run(
     context: FoundationContext,
     control: RuntimeControl,
   ) => Promise<Prepared>,
-) {
+): Promise<RuntimeControl | undefined> {
   const config = configuration();
   const log = (entry: Record<string, unknown>) =>
     console.log(JSON.stringify(entry));
@@ -185,6 +191,12 @@ export async function run(
       await devices.initialize();
       const world = new WorldService(context, config.auth);
       worldRoutes(app, world, () => devices.ready);
+      const fixtures = new MotionFixtures(world, config.motionFixture);
+      motionRoutes(app, fixtures, (c) => getConnInfo(c).remote.address);
+      const motion = config.motionFixture
+        ? new MotionWebSockets(fixtures, config.auth.origin)
+        : undefined;
+      if (motion) ownStop(() => motion.stop());
       progressRoutes(app, new ProgressService(context, config.auth));
       lifecycleRoutes(app, world);
       const subscriptions = new WorldSubscriptions(world, () => devices.ready);
@@ -208,6 +220,7 @@ export async function run(
       if (config.webDirectory) await hostWeb(app, config.webDirectory);
       return {
         app,
+        motion,
       };
     };
     preparing = Promise.resolve().then(() =>
@@ -264,6 +277,7 @@ export async function run(
           schema_version: schemaVersion,
         }),
     );
+    prepared.motion?.attach(server as Server);
     server.on('error', (error) => {
       log({ event: 'server.start_failed', message: error.message });
       void close()
@@ -274,6 +288,7 @@ export async function run(
           process.exitCode = 1;
         });
     });
+    return { stop: close, ownStop };
   } catch (error) {
     log({
       event: 'server.start_failed',

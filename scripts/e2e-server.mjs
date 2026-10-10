@@ -1,4 +1,6 @@
 import { once } from 'node:events';
+import { spawnSync, execFileSync } from 'node:child_process';
+import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { basename, dirname, join } from 'node:path';
 import { watch } from 'node:fs';
@@ -6,7 +8,7 @@ import { appendFile, readFile, rename, writeFile } from 'node:fs/promises';
 import { ServerProcess } from '../tests/support/server-process.ts';
 import { CoreHttp } from '../tests/support/core-http.ts';
 import { ContractResources } from './lib/contract-resources.mjs';
-import { launch } from './lib/process.mjs';
+import { launch, resolveRoot } from './lib/process.mjs';
 
 // Linux browser supplement; the server's Linux/Windows gate remains independent.
 if (process.platform !== 'linux')
@@ -14,7 +16,10 @@ if (process.platform !== 'linux')
 const backend = new ServerProcess(),
   web = new ServerProcess();
 const args = process.argv.slice(2),
-  production = process.env.E2E_WEB_MODE === 'production',
+  motion = args.some((argument) =>
+    argument.includes('lab-synthetic-motion.spec.ts'),
+  ),
+  production = motion || process.env.E2E_WEB_MODE === 'production',
   statusControl = args.some((argument) => argument.includes('status.spec.ts')),
   reference = args.some((argument) =>
     argument.includes('lab-reference-load.spec.ts'),
@@ -24,6 +29,7 @@ const args = process.argv.slice(2),
   ownerEmail = 'bootstrap-owner@example.test',
   ownerPassword = 'browser-test-owner-password';
 let resources, browser, closing, restarting, watcher;
+let motionEnv = {};
 let closed = false,
   failed = false;
 async function startBackend() {
@@ -115,6 +121,42 @@ for (const signal of ['SIGINT', 'SIGTERM'])
     void close();
   });
 try {
+  if (motion) {
+    const python = resolveRoot(
+      process.env.MOTION_E2E_PYTHON ?? '.scratch/motion-python/bin/python',
+    );
+    const requirements = await readFile(
+      resolveRoot('tools/synthetic-motion/requirements.txt'),
+      'utf8',
+    );
+    const pinned = requirements.match(/^websockets==([^\s]+)$/m)?.[1];
+    if (!pinned)
+      throw new Error(
+        'Synthetic Publisher requirements must pin websockets exactly',
+      );
+    const dependency = spawnSync(
+      python,
+      [
+        '-c',
+        "from importlib.metadata import version; import sys; assert version('websockets') == sys.argv[1]",
+        pinned,
+      ],
+      { encoding: 'utf8', timeout: 10000 },
+    );
+    if (dependency.error || dependency.status !== 0)
+      throw new Error(
+        'Motion browser checks require an isolated Python environment with tools/synthetic-motion/requirements.txt. Set MOTION_E2E_PYTHON to its executable path.',
+      );
+    motionEnv = {
+      MOTION_E2E_PYTHON: python,
+      MOTION_E2E_SLOW_READER: resolveRoot(
+        'tests/support/motion-slow-reader.py',
+      ),
+      MOTION_E2E_PRODUCT_COMMIT: execFileSync('git', ['rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim(),
+    };
+  }
   await backend.create();
   await web.create();
   resources = new ContractResources(
@@ -130,11 +172,30 @@ try {
   resources.save();
   resources.snapshot('start');
   const origin = production ? backend.url : web.url;
+  if (motion)
+    motionEnv.MOTION_E2E_OBSERVER_DIR = join(
+      backend.evidence,
+      'motion-observer',
+    );
   backend.env = {
     APP_ORIGIN: origin,
     FILE_PUBLIC_ORIGIN: origin,
     LAB_WORD_WEB_DIR: '',
     RATE_LIMIT_ENABLED: rate ? 'true' : 'false',
+    LAB_WORD_MOTION_FIXTURE: motion ? 'true' : 'false',
+    ...(motion
+      ? {
+          MOTION_E2E_OBSERVER_DIR: motionEnv.MOTION_E2E_OBSERVER_DIR,
+          NODE_OPTIONS: [
+            process.env.NODE_OPTIONS,
+            '--import=' +
+              pathToFileURL(resolveRoot('tests/support/motion-observer.mjs'))
+                .href,
+          ]
+            .filter(Boolean)
+            .join(' '),
+        }
+      : {}),
     ...(history
       ? { LAB_OBSERVATION_RETENTION_SECS: '2', LAB_RECORD_RETENTION_SECS: '20' }
       : {}),
@@ -247,6 +308,7 @@ try {
   const intent = resources.planConsumer('playwright-desktop-process-group');
   browser = launch('pnpm', ['exec', 'playwright', 'test', ...args], {
     ...process.env,
+    ...motionEnv,
     E2E_API_URL: backend.url,
     E2E_WEB_URL: origin,
     E2E_OWNER_EMAIL: ownerEmail,
@@ -280,5 +342,6 @@ try {
 } finally {
   await close();
   await recordProfileClosure();
-  console.log(`Node browser evidence: ${backend.evidence}`);
+  if (backend.evidence)
+    console.log(`Node browser evidence: ${backend.evidence}`);
 }

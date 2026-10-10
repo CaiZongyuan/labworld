@@ -152,6 +152,53 @@ test('members and Agents query real history, recover a failed page and clean exp
       fullPage: true,
     });
     await history.getByRole('tab', { name: '观测', exact: true }).click();
+    // The panel's default end is fixed at opening; choose current bounds after render captures.
+    const observationRange = await page.evaluate(() => {
+      const now = Date.now();
+      const localTime = (time: number) =>
+        new Date(time - new Date(time).getTimezoneOffset() * 60000)
+          .toISOString()
+          .slice(0, 16);
+      const from = localTime(now - 3600000);
+      const to = localTime(now + 5 * 60000);
+      return {
+        from,
+        to,
+        fromUtc: new Date(from).toISOString(),
+        toUtc: new Date(to).toISOString(),
+      };
+    });
+    await history.getByLabel('开始时间').fill(observationRange.from);
+    await history.getByLabel('结束时间').fill(observationRange.to);
+    const [currentHistory] = await Promise.all([
+      page.waitForResponse((response) => {
+        const url = new URL(response.url());
+        return (
+          url.pathname === `${path}/history` &&
+          url.searchParams.get('record_type') === 'observation' &&
+          url.searchParams.get('from') === observationRange.fromUtc &&
+          url.searchParams.get('to') === observationRange.toUtc
+        );
+      }),
+      history.getByRole('button', { name: '查询历史', exact: true }).click(),
+    ]);
+    expect(currentHistory.status()).toBe(200);
+    const currentHistoryPage = await currentHistory.json();
+    expect(currentHistoryPage).toMatchObject({
+      record_type: 'observation',
+      from: observationRange.fromUtc,
+      to: observationRange.toUtc,
+      retention: policy,
+    });
+    expect(currentHistoryPage.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          data: expect.objectContaining({
+            values: expect.objectContaining({ temperature: 22 }),
+          }),
+        }),
+      ]),
+    );
     await expect(
       history.getByText('22 degC', { exact: true }).first(),
     ).toBeVisible();

@@ -1,3 +1,4 @@
+import { expectInitialSceneReady } from './initial-scene-ready';
 import {
   showObjectDirectory,
   showEntityDetails,
@@ -317,10 +318,7 @@ test('the bilingual teaching chapters continue one empty Lab with a Member and A
     resourceTiming.capture('assertion-start');
     void frameTrace.captureActiveDocuments();
     try {
-      await expect(observer.locator('.world-page')).toHaveAttribute(
-        'aria-busy',
-        'false',
-      );
+      await expectInitialSceneReady(observer.locator('.world-page'));
       observerReady = true;
     } finally {
       frameTrace.mark('assertion-end');

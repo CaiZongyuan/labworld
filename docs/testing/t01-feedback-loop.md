@@ -4,17 +4,19 @@
 
 ## 选择入口
 
-| 变更              | 命令                                      | 观察结果与前提                                       |
-| ----------------- | ----------------------------------------- | ---------------------------------------------------- |
-| Web 行为          | `pnpm test:frontend`                      | 真实组件操作；HTTP 使用 MSW                          |
-| TypeScript 与边界 | `pnpm typecheck`、`pnpm boundaries:check` | 类型、包依赖、Node 模块、限定表与 SDK 归属           |
-| 后端行为          | `pnpm test:server`                        | 真实 Node HTTP/CLI 与隔离嵌入数据                    |
-| 合同              | `pnpm generate`、`pnpm contracts:check`   | Node OpenAPI、正式生成类型与 SDK 一致                |
-| 文档              | `pnpm docs:check`、`pnpm docs:build`      | 来源、双语、Node 生成参考与构建链接                  |
-| 文档浏览器旅程    | `pnpm test:e2e:docs`                      | 语言、主题、搜索、约定视口与自定义 base；需 Chromium |
-| 应用关键旅程      | `pnpm test:e2e`                           | 所属 Node/Web 与真实 Chromium/WebGL                  |
+| 变更              | 命令                                      | 观察结果与前提                                                       |
+| ----------------- | ----------------------------------------- | -------------------------------------------------------------------- |
+| Web 行为          | `pnpm test:frontend`                      | 真实组件操作；HTTP 使用 MSW；motion golden 需 Python 3               |
+| TypeScript 与边界 | `pnpm typecheck`、`pnpm boundaries:check` | 类型、包依赖、Node 模块、限定表与 SDK 归属                           |
+| 后端行为          | `pnpm test:server`                        | 真实 Node HTTP/CLI 与隔离嵌入数据                                    |
+| 合同              | `pnpm generate`、`pnpm contracts:check`   | Node OpenAPI、正式生成类型与 SDK 一致                                |
+| 文档              | `pnpm docs:check`、`pnpm docs:build`      | 来源、双语、Node 生成参考与构建链接                                  |
+| 文档浏览器旅程    | `pnpm test:e2e:docs`                      | 语言、主题、搜索、约定视口与自定义 base；需 Chromium                 |
+| 应用关键旅程      | `pnpm test:e2e`                           | 所属 Node/Web 与真实 Chromium/WebGL；motion smoke 需固定 Python 环境 |
 
-首次浏览器验证执行 `pnpm exec playwright install chromium`。`pnpm check` 包含当前 Node、格式、静态、行为、性能预算与构建检查，不含浏览器 E2E。`pnpm test:e2e` 运行所属真实应用浏览器旅程。
+首次浏览器验证执行 `pnpm exec playwright install chromium`。默认 `pnpm test:e2e` 还需要独立 Python 环境，按[合成运动教程](../tutorials/synthetic-motion.md#启动-python-publisher)安装 tracked requirements 的固定版本。运行器默认读取 `.scratch/motion-python/bin/python`，也可用 `MOTION_E2E_PYTHON` 指定解释器路径。
+
+默认 suite 执行 motion smoke，不执行至少 600 秒的完整运动验收。完整命令与两者覆盖范围见[验证源码](../tutorials/synthetic-motion.md#验证源码)。`pnpm check` 包含当前 Node、格式、静态、行为、性能预算与构建检查，不含浏览器 E2E；其中 TS/Python golden 检查需要 Python 3，可用 `PYTHON` 指定解释器。正常 Node/Web 启动与构建不需要 Python。
 
 命令能力不扩大任务范围。默认验证 desktop web；移动适配、窄屏、触屏或真机只按明确批准的范围加入。heavy browser 前先核对 discovery 与前提；已有关键旅程复用，CSS/布局变更选择受影响的 focused case。
 
@@ -25,6 +27,8 @@
 正式 Viewer 与持久 World 沿用已接受的 [Lab 体验](../guides/lab-viewer.md)。保留浏览器旅程验证真实 GLB/HDR/WebGL、选择、草稿、设备和恢复。
 
 正式接入时，组件测试观察导入控件、选择、loading/error 与恢复，浏览器观察真实 GLB/HDR、画布像素、相机和资源释放。DOM 成功不能证明三维模型可见；一次内存采样不能证明泄漏。
+
+首次进入含模型的 World 或资产查看器时，浏览器检查通过 `expectInitialSceneReady` 最多等待 15 秒，并继续检查实际模型、像素与错误状态。[实际 GitHub Ubuntu/SwiftShader 诊断](https://github.com/CaiZongyuan/labworld/actions/runs/38074047499) 在 9.269 秒观察到正确的 20 模型场景；原 5 秒失败仍保留。这个测试环境等待只用于初始场景，不改变产品性能承诺、后续操作或恢复等待、600 秒运动验收及计数预算。
 
 ## 失败与证据
 

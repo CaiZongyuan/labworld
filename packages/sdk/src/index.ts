@@ -3,6 +3,9 @@ import { createClient, createConfig } from './generated/client';
 export * from './generated/sdk.gen';
 export type { Client as ApiClient } from './generated/client';
 export type * from '@labos-threejs/contracts';
+export type * from '@labos-threejs/contracts/motion';
+export * from './motion';
+export { MotionBuffer, type MotionSample } from './motion-buffer';
 export {
   subscribeLabWorld,
   applyLabWorldEvent,
