@@ -182,6 +182,11 @@ async function changedRegionPixels(page: Page, before: Buffer, after: Buffer) {
   }
   expect(after.readUInt32BE(16)).toBe(before.readUInt32BE(16));
   expect(after.readUInt32BE(20)).toBe(before.readUInt32BE(20));
+  // Identical screenshot PNG bytes imply zero changed RGB pixels.
+  if (before.equals(after)) {
+    receipt.changedPixels = 0;
+    return 0;
+  }
   const changedPixels = await rasterObservers.get(page)!('pixel-evaluate', () =>
     page.evaluate(
       async (encoded) => {
