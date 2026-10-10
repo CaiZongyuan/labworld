@@ -631,6 +631,7 @@ export default function WorldViewport(props: {
   onLocate: (nodeId: string) => void;
   onOpenRecentMinute?: (entityId: string) => void;
   label: string;
+  performance: boolean;
   onMetrics: (metrics: RenderMetrics) => void;
   onBusy: (busy: boolean) => void;
 }) {
@@ -725,7 +726,9 @@ export default function WorldViewport(props: {
           onError={onError}
           onReady={onReady}
         />
-        <MetricSampler onMetrics={props.onMetrics} />
+        {props.performance ? (
+          <MetricSampler onMetrics={props.onMetrics} />
+        ) : null}
       </Canvas>
       {hasFailure ? (
         <Alert className="world-render-error">

@@ -1008,6 +1008,7 @@ export default function WorldView() {
                     top={top}
                     onLocate={locateNode}
                     label={message('viewer.viewport')}
+                    performance={performance && spaceView}
                     onMetrics={setMetrics}
                     onBusy={setRenderBusy}
                   />
@@ -1071,7 +1072,10 @@ export default function WorldView() {
               icon={Activity}
               label={message('viewer.performance')}
               active={performance}
-              onClick={() => setPerformance(!performance)}
+              onClick={() => {
+                if (!performance) setMetrics(null);
+                setPerformance(!performance);
+              }}
             />
           </div>
           {editing ? (
