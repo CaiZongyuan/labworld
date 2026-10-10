@@ -30,6 +30,36 @@ const protocolMethods = new Set([
   'DOM.resolveNode',
   'DOM.getDocument',
 ]);
+const timeoutPatterns = [
+  ['case', /Test timeout of (\d+)ms exceeded/],
+  ['predicate', /Timeout (\d+)ms exceeded while waiting on the predicate/],
+  [
+    'action',
+    /(?:locator|page|mouse)\.(?:click|dblclick|fill|check|uncheck|selectOption|press|hover|screenshot|goto|move|waitForFunction): Timeout (\d+)ms exceeded/,
+  ],
+  ['expect', /Timeout:\s*(\d+)ms/],
+];
+const actionabilityPatterns = [
+  [/element is not stable/, 'unstable'],
+  [/element is not visible/, 'not-visible'],
+  [/element is outside of the viewport/, 'outside-viewport'],
+  [/element (?:was|is) detached/, 'detached'],
+  [/intercepts pointer events/, 'pointer-intercepted'],
+];
+
+function boundedCount(value) {
+  const count = Number(value);
+  return value !== undefined && Number.isSafeInteger(count) && count <= 1e9
+    ? count
+    : null;
+}
+function timeoutFacts(message) {
+  for (const [kind, pattern] of timeoutPatterns) {
+    const milliseconds = boundedCount(pattern.exec(message)?.[1]);
+    if (milliseconds !== null) return { kind, milliseconds };
+  }
+  return { kind: null, milliseconds: null };
+}
 
 export function publicFailure(error) {
   if (!error) return null;
@@ -43,7 +73,7 @@ export function publicFailure(error) {
     message.includes("locator('.world-page')") && matcher === 'toHaveAttribute';
   const expected = /Expected(?: string)?:\s*"(true|false)"/.exec(message)?.[1];
   const received = /Received(?: string)?:\s*"(true|false)"/.exec(message)?.[1];
-  const timeout = /Timeout:\s*(\d+)ms/.exec(message)?.[1];
+  const timeout = timeoutFacts(message);
   const count = /resolved to (\d+) elements/.exec(message)?.[1];
   const numericExpected =
     /^Expected:\s*(<=|>|=)?\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*$/im.exec(
@@ -71,19 +101,31 @@ export function publicFailure(error) {
   const callLog = [];
   let inCallLog = false;
   for (const line of message.split('\n')) {
-    if (line.startsWith('Call log:')) {
+    if (/^Call log:/i.test(line.trim())) {
       inCallLog = true;
       continue;
     }
-    if (!inCallLog || callLog.length >= 12) continue;
+    if (!inCallLog) continue;
+    if (callLog.length >= 12) break;
     const expectation = /Expect "([A-Za-z]+)" with timeout (\d+)ms/.exec(line);
     const unexpected = /unexpected value "(true|false)"/.exec(line);
+    const predicateTimeout = timeoutFacts(line);
+    const actionability = actionabilityPatterns.find(([pattern]) =>
+      pattern.test(line),
+    )?.[1];
     if (expectation && matchers.has(expectation[1]))
       callLog.push({
         event: 'expect',
         matcher: expectation[1],
-        timeoutMs: Number(expectation[2]),
+        timeoutMs: boundedCount(expectation[2]),
       });
+    else if (predicateTimeout.kind === 'predicate')
+      callLog.push({
+        event: 'predicate-timeout',
+        timeoutMs: predicateTimeout.milliseconds,
+      });
+    else if (actionability)
+      callLog.push({ event: 'actionability', state: actionability });
     else if (line.includes("waiting for locator('.world-page')"))
       callLog.push({ event: 'waiting', locator: "locator('.world-page')" });
     else if (unexpected)
@@ -103,9 +145,10 @@ export function publicFailure(error) {
       ? { expected: expected ?? null, received: received ?? null }
       : null,
     numeric,
-    timeoutMs: timeout ? Number(timeout) : null,
+    timeoutKind: timeout.kind,
+    timeoutMs: timeout.milliseconds,
     locatorMissing: /element\(s\) not found|No element matches/.test(message),
-    strictLocatorMatches: count ? Number(count) : null,
+    strictLocatorMatches: boundedCount(count),
     protocolMethod: method && protocolMethods.has(method) ? method : null,
     targetClosed:
       /Target page, context or browser has been closed|Target closed/.test(

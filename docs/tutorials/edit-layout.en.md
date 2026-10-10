@@ -1,6 +1,6 @@
 # Edit Layout and Register Location
 
-The Node server supports the static layouts and relationships in this chapter without starting a light. See [Node World](../guides/server-world.en.md) for sources and checks. Runtime journeys remain in migration.
+The Node server supports the static layouts and relationships in this chapter without starting a light. See [Node World](../guides/server-world.en.md) for sources and checks.
 
 Place a beaker, explicitly register it on a bench, and keep a draft after another browser saves first. Copying an object, adding another representation, and removing a representation verify identity and recovery separately.
 
@@ -42,7 +42,7 @@ Furniture, locations, and Labware can be spatial containers. Self-references, cr
 3. Choose **Reload and keep draft** to read the latest comparable version and merge local changes. Unchanged nodes and nodes added by the other editor remain. If both editors changed the same node, an explicit retry uses your local node draft.
 4. Choose **Retry save**. Refresh the other browser to see both changes. Another conflict retains the draft again. You can explicitly **Discard draft and reload** to adopt the server layout.
 
-Switching Labs or runtime view retains each Lab's draft in this page. Unsaved drafts are kept only in the current page; save before leaving or refreshing. Cross-browser restoration uses server-saved results.
+Switching Labs or runtime view retains each Lab's draft in this page. The same browser retains private drafts by deployment, user, and Lab, including after refresh. Cross-browser restoration uses server-saved results. See [This Browser’s Layout Draft](layout-drafts.en.md).
 
 Start a light, change its coordinates in edit mode, then toggle power. Subscriptions update the device snapshot while keeping the coordinate draft. Saving retains the Run and observation. Layout saves do not submit runtime data, and observations do not increment `layout_version`.
 
@@ -70,9 +70,8 @@ Complete requests:
 ## Verify and Continue
 
 ```bash
-node scripts/test-backend.mjs --test lab_world --test lab_devices
-pnpm test:frontend apps/web/src/lab-world.test.tsx
+pnpm exec vitest run apps/web/src/lab-world.test.tsx apps/web/src/lab-layout-drafts.test.tsx
 node --experimental-strip-types scripts/e2e-server.mjs tests/e2e/lab-layout.spec.ts
 ```
 
-HTTP checks use the real Router and isolated PostgreSQL. Page tests replace only HTTP with MSW. Browser checks use real application services, independent contexts, and WebGL pointers. Continue with [reliable synchronization and recovery](reliable-sync.md) to observe one world from two browsers and an Agent and verify connection recovery and revocation.
+HTTP checks use the real Node server and owned temporary database. Page tests replace only HTTP with MSW. Browser checks use real application services, independent contexts, and WebGL pointers. Continue with [reliable synchronization and recovery](reliable-sync.md) to observe one world from two browsers and an Agent and verify connection recovery and revocation.

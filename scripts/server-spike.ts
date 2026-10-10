@@ -33,17 +33,30 @@ const streams: Array<{
   task: Promise<void>;
 }> = [];
 const injectFinalFailure = process.argv.includes('--inject-final-read-failure');
+const measurementScope =
+  'producer schedule through fully consumed HTTP JSON acknowledgment; committed_ms is client observation, not database transaction commit; startup is excluded and prior evidence I/O can delay the next wake';
 let running = true;
 let background: Promise<void> | undefined;
 let failure: unknown;
 let started: number;
-const ticks: Array<{
+type TickReceipt = {
   tick: number;
   scheduled_ms: number;
   started_ms: number;
+  request_started_ms: number;
+  headers_received_ms: number;
   committed_ms: number;
   drift_ms: number;
-}> = [];
+  producer_lateness_ms: number;
+  request_wait_ms: number;
+  acknowledgment_ms: number;
+  request_id: string | null;
+  acknowledged_rows: number | null;
+  evidence_write_ms?: number;
+};
+const ticks: TickReceipt[] = [];
+let lastTick: Partial<TickReceipt> | null = null;
+let lastAcknowledged: unknown;
 const metadata: Array<unknown> = [];
 let concurrentReads = 0;
 let concurrentWrites = 0;
@@ -181,6 +194,13 @@ try {
     if (failure) throw failure;
     assert.equal(streams.filter((s) => s.active).length, 2);
     const begin = performance.now() - started;
+    lastTick = {
+      tick,
+      scheduled_ms: scheduled,
+      started_ms: begin,
+      producer_lateness_ms: begin - scheduled,
+    };
+    lastAcknowledged = undefined;
     const samples = devices.map((device, index) => ({
       id: randomUUID(),
       entity_id: device.entity_id,
@@ -188,26 +208,48 @@ try {
       value: 20 + index + tick / 1000,
       sequence: tick,
     }));
+    const requestStarted = performance.now() - started;
+    lastTick.request_started_ms = requestStarted;
     const response = await fetch(`${target.url}/proof/samples`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(samples),
     });
+    const headersReceived = performance.now() - started;
+    lastTick.headers_received_ms = headersReceived;
+    lastTick.request_wait_ms = headersReceived - requestStarted;
+    lastTick.request_id = response.headers.get('x-request-id');
     assert.equal(response.status, 201);
     const acknowledged = await response.json();
     const commit = performance.now() - started;
     const drift = commit - scheduled;
+    const committedRows = (acknowledged as { committed?: unknown[] } | null)
+      ?.committed;
+    const receipt: TickReceipt = {
+      tick,
+      scheduled_ms: scheduled,
+      started_ms: begin,
+      request_started_ms: requestStarted,
+      headers_received_ms: headersReceived,
+      committed_ms: commit,
+      drift_ms: drift,
+      producer_lateness_ms: begin - scheduled,
+      request_wait_ms: headersReceived - requestStarted,
+      acknowledgment_ms: commit - headersReceived,
+      request_id: response.headers.get('x-request-id'),
+      acknowledged_rows: Array.isArray(committedRows)
+        ? committedRows.length
+        : null,
+    };
+    // Freeze the real acknowledged attempt before the original timing assertion.
+    lastTick = receipt;
+    lastAcknowledged = acknowledged;
     assert.ok(
       drift <= 1000,
       `Tick${tick}: commit drift ${drift}ms exceeds one 1Hz cycle`,
     );
-    ticks.push({
-      tick,
-      scheduled_ms: scheduled,
-      started_ms: begin,
-      committed_ms: commit,
-      drift_ms: drift,
-    });
+    ticks.push(receipt);
+    const evidenceStarted = performance.now();
     await appendFile(
       join(output, 'samples.jsonl'),
       JSON.stringify({
@@ -217,6 +259,7 @@ try {
         acknowledged,
       }) + '\n',
     );
+    receipt.evidence_write_ms = performance.now() - evidenceStarted;
     if (tick % 60 === 0) {
       metadata.push(await (await fetch(`${target.url}/proof/metadata`)).json());
       console.log(
@@ -316,6 +359,7 @@ try {
         elapsedMs,
         devices: 20,
         frequencyHz: 1,
+        measurement_scope: measurementScope,
         deviceSamples: duration * 20,
         concurrentReads,
         concurrentWrites,
@@ -338,17 +382,43 @@ try {
     ),
   );
 } catch (error) {
+  const attempted =
+    lastTick && !ticks.some((tick) => tick.tick === lastTick?.tick)
+      ? [...ticks, lastTick]
+      : ticks;
+  await writeFile(
+    join(output, 'timeseries.json'),
+    JSON.stringify(attempted, null, 2),
+  ).catch(() => {});
   await writeFile(
     join(output, 'failure.json'),
     JSON.stringify(
       {
         message: error instanceof Error ? error.message : String(error),
         ticks: ticks.length,
+        captured_at: new Date().toISOString(),
+        platform: process.platform,
+        node: process.version,
+        duration_seconds: duration,
+        measurement_scope: measurementScope,
+        last_tick: lastTick,
+        last_acknowledged: lastAcknowledged ?? null,
+        concurrent_reads: concurrentReads,
+        concurrent_writes: concurrentWrites,
+        subscribers: streams.map(
+          ({ updates, samples, snapshots, maximumBytes, active }) => ({
+            updates,
+            samples,
+            snapshots,
+            maximumBytes,
+            active,
+          }),
+        ),
       },
       null,
       2,
     ),
-  );
+  ).catch(() => {});
   throw error;
 } finally {
   running = false;

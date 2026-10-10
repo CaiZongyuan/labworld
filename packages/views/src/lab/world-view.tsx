@@ -85,6 +85,8 @@ import RelationshipPanel from './relationship-panel';
 import { useLabWorkbench } from './workbench-context';
 import {
   layoutDraft,
+  hasInvalidCoordinateText,
+  withPlacement,
   rebaseLayout,
   PlacementEditor,
   type LayoutDraft,
@@ -129,6 +131,9 @@ export default function WorldView() {
     setNodeSelection,
     drafts,
     setDrafts,
+    clearLayoutDraft,
+    layoutStorageProblem,
+    layoutRestored,
     layoutStatus,
     setLayoutStatus,
     layoutPending,
@@ -310,16 +315,17 @@ export default function WorldView() {
       previous === 'conflict' ? 'conflict' : 'idle',
     );
   }
-  function changePlacement(id: string, placement: Placement) {
-    changeDraft((current) => ({
-      ...current,
-      nodes: current.nodes.map((node) =>
-        node.id === id ? { ...node, placement } : node,
-      ),
-    }));
+  function changePlacement(
+    id: string,
+    placement: Placement,
+    preserveText = false,
+  ) {
+    changeDraft((current) =>
+      withPlacement(current, id, placement, preserveText),
+    );
   }
   async function saveLayout() {
-    if (!draft || layoutPending) return;
+    if (!draft || layoutPending || hasInvalidCoordinateText(draft)) return;
     setLayoutPending(true);
     setError(null);
     try {
@@ -343,11 +349,7 @@ export default function WorldView() {
           throwOnError: true,
         }),
       );
-      setDrafts((previous) => {
-        const next = { ...previous };
-        delete next[labId];
-        return next;
-      });
+      clearLayoutDraft(labId);
       setLayoutStatus('saved');
     } catch (cause) {
       if (errorCodeOf(cause) === 'lab.layout_conflict')
@@ -365,13 +367,14 @@ export default function WorldView() {
       if (latest.error) throw latest.error;
       if (latest.data) {
         const snapshot = latest.data;
-        setDrafts((previous) => {
-          const next = { ...previous };
-          if (keep && previous[labId])
-            next[labId] = rebaseLayout(previous[labId], snapshot);
-          else delete next[labId];
-          return next;
-        });
+        if (keep)
+          setDrafts((previous) => ({
+            ...previous,
+            ...(previous[labId]
+              ? { [labId]: rebaseLayout(previous[labId], snapshot) }
+              : {}),
+          }));
+        else clearLayoutDraft(labId);
         if (!keep) setLayoutStatus('idle');
       }
     } catch (cause) {
@@ -731,7 +734,12 @@ export default function WorldView() {
                   ? 'layout.retrySave'
                   : 'layout.save',
               )}
-              disabled={readOnly || !draft || layoutPending}
+              disabled={
+                readOnly ||
+                !draft ||
+                layoutPending ||
+                hasInvalidCoordinateText(draft)
+              }
               onClick={() => void saveLayout()}
             />
             <Tool
@@ -743,6 +751,19 @@ export default function WorldView() {
           </div>
         ) : null}
       </div>
+      {layoutStorageProblem || (layoutRestored && draft) ? (
+        <Alert>
+          <AlertDescription>
+            {message(
+              layoutStorageProblem === 'unavailable'
+                ? 'layout.storageUnavailable'
+                : layoutStorageProblem === 'invalid'
+                  ? 'layout.storageInvalid'
+                  : 'layout.restored',
+            )}
+          </AlertDescription>
+        </Alert>
+      ) : null}
       {layoutStatus === 'conflict' && draft ? (
         <Alert className="world-layout-conflict">
           <AlertDescription>{message('layout.conflict')}</AlertDescription>
@@ -1254,8 +1275,22 @@ export default function WorldView() {
                   <PlacementEditor
                     node={activeNode}
                     disabled={readOnly || layoutPending}
+                    coordinateText={draft?.coordinateText}
+                    onTextChange={(id, text) => {
+                      if (
+                        text === null &&
+                        draft?.coordinateText?.[id] === undefined
+                      )
+                        return;
+                      changeDraft((current) => {
+                        const coordinateText = { ...current.coordinateText };
+                        if (text === null) delete coordinateText[id];
+                        else coordinateText[id] = text;
+                        return { ...current, coordinateText };
+                      });
+                    }}
                     onChange={(placement) =>
-                      changePlacement(activeNode.id, placement)
+                      changePlacement(activeNode.id, placement, true)
                     }
                   />
                 ) : null}

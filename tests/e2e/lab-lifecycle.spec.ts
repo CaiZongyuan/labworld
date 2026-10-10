@@ -7,14 +7,22 @@ import {
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
 import { showEntityDetails, showEntityOperations } from './lab-desktop';
+import { observeBrowserSeam } from './lab-browser-facts';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
 async function pixels(page: Page, filename: string) {
-  const png = await page
-    .locator('canvas')
-    .screenshot({ path: `test-results/lab-foundation/${filename}` });
+  const failure = observeBrowserSeam(page, 'lifecycle-canvas-capture');
+  let png: Buffer;
+  try {
+    png = await page
+      .locator('canvas')
+      .screenshot({ path: `test-results/lab-foundation/${filename}` });
+  } catch (error) {
+    await failure().catch(() => {});
+    throw error;
+  }
   const colors = await page.evaluate(async (encoded) => {
     const image = new Image();
     image.src = `data:image/png;base64,${encoded}`;
@@ -31,6 +39,15 @@ async function pixels(page: Page, filename: string) {
     return colors.size;
   }, png.toString('base64'));
   expect(colors).toBeGreaterThan(20);
+}
+async function lifecycleDetails(page: Page) {
+  const failure = observeBrowserSeam(page, 'lifecycle-details-switch');
+  try {
+    return await showEntityDetails(page);
+  } catch (error) {
+    await failure().catch(() => {});
+    throw error;
+  }
 }
 test('real Entity lifecycle retains Tasks and sources across GLB replacement, node recovery and archive', async ({
   page,
@@ -122,7 +139,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
         exact: true,
       }),
     ).toBeVisible();
-    await showEntityDetails(page);
+    await lifecycleDetails(page);
     const entity = await inspector
       .locator('dt')
       .filter({ hasText: /^Entity$/ })
@@ -193,7 +210,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       return reading;
     }
     async function appearance(representation: string) {
-      await showEntityDetails(page);
+      await lifecycleDetails(page);
       await inspector
         .getByRole('button', { name: '更换外观', exact: true })
         .click();
@@ -338,7 +355,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       .getByRole('button', { name: '停止程序', exact: true })
       .click();
     const stopped = await get(`${path}/runs/${before.program_run.id}`);
-    await showEntityDetails(page);
+    await lifecycleDetails(page);
     await inspector.getByRole('button', { name: '更换定义与程序' }).click();
     await page
       .getByRole('dialog')
@@ -375,7 +392,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       },
     });
     expect(bench.status()).toBe(201);
-    await showEntityDetails(page);
+    await lifecycleDetails(page);
     await inspector
       .getByRole('button', { name: '归档对象', exact: true })
       .click();
@@ -408,7 +425,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       await page.setViewportSize({ width: 320, height: 900 });
     await page.getByRole('button', { name: 'English', exact: true }).click();
     await page.getByRole('button', { name: 'Dark', exact: true }).click();
-    await showEntityDetails(page);
+    await lifecycleDetails(page);
     await pixels(
       page,
       `t09-archive-${desktopMigration ? 'desktop' : 'mobile'}-canvas.png`,

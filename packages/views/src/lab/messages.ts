@@ -228,6 +228,11 @@ export const labMessages = {
     'layout.retrySave': '重试保存',
     'layout.discard': '放弃草稿并重新载入',
     'layout.conflict': '布局已改变，草稿已保留',
+    'layout.restored': '已恢复本浏览器的私人布局草稿；恢复不会提交共享布局。',
+    'layout.storageUnavailable':
+      '浏览器存储不可用。离开前请核对保存结果；未保存输入仍在本页。',
+    'layout.storageInvalid':
+      '本浏览器的布局草稿格式无效，未恢复。已保存的共享布局未改变。',
     'layout.reloadKeep': '重新载入并保留草稿',
     'layout.unsaved': '未保存',
     'layout.saved': '已保存',
@@ -718,6 +723,12 @@ export const labMessages = {
     'layout.retrySave': 'Retry save',
     'layout.discard': 'Discard draft and reload',
     'layout.conflict': 'Layout changed; draft retained',
+    'layout.restored':
+      'This browser’s private layout draft was restored. Recovery does not save the shared layout.',
+    'layout.storageUnavailable':
+      'Browser storage is unavailable. Check the saved World before leaving; unsaved input remains on this page.',
+    'layout.storageInvalid':
+      'This browser’s layout draft has an invalid format and was not restored. The saved shared layout is unchanged.',
     'layout.reloadKeep': 'Reload and keep draft',
     'layout.unsaved': 'Unsaved',
     'layout.saved': 'Saved',

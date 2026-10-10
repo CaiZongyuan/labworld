@@ -29,7 +29,7 @@ The script submits an invalid definition version and confirms that World stays u
 
 Register a bench with `bench · 1.0` and a beaker with `labware · 1.0`. Select the beaker, enter **Edit layout**, change position, rotation or scale, then select **Save layout**. Position uses meters; rotation uses radians. Register **Located in** the bench and save again. The relationship has manual source, actor and time. A coordinate change alone does not establish physical movement.
 
-Sign in as another Member in an independent browser. Open the same Lab and enter layout editing on both pages. Save the second page first. Saving the first returns `409 lab.layout_conflict` and retains its draft. Select **Reload and keep draft**, compare the new layout, then **Retry save**. You can explicitly discard the draft. Conflict preserves page drafts; save before reloading the page.
+Sign in as another Member in an independent browser. Open the same Lab and enter layout editing on both pages. Save the second page first. Saving the first returns `409 lab.layout_conflict` and retains its draft. Select **Reload and keep draft**, compare the new layout, then **Retry save**. You can explicitly discard the draft. This browser retains its private draft and original baseline across refresh. Confirmed saving or explicit discard clears it. See [Layout draft recovery](../tutorials/layout-drafts.en.md).
 
 The Agent script verifies save, conflict, invalid-cycle rollback, copying, multiple representations and removing/restoring nodes:
 

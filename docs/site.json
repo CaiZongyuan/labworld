@@ -172,6 +172,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "backend-lights",
+      "next": "layout-drafts"
+    },
+    {
+      "id": "layout-drafts",
+      "source": "docs/tutorials/layout-drafts.md",
+      "sourceEn": "docs/tutorials/layout-drafts.en.md",
+      "route": "tutorials/layout-drafts.md",
+      "title": "本浏览器布局草稿",
+      "titleEn": "This Browser’s Layout Draft",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "edit-layout",
       "next": "reliable-sync"
     },
     {
@@ -183,7 +195,7 @@
       "titleEn": "Reliable Synchronization and Recovery",
       "group": "实验室",
       "type": "tutorial",
-      "previous": "edit-layout",
+      "previous": "layout-drafts",
       "next": "continuous-temperature"
     },
     {

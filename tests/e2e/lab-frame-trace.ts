@@ -37,6 +37,7 @@ async function deadline<T>(promise: Promise<T>, milliseconds: number) {
 const owned = new WeakMap<TestInfo, Set<FrameTrace>>();
 
 class FrameTrace {
+  private enabled = process.env.LAB_WORD_FRAME_TRACE === 'true';
   private worker?: Worker;
   private sessions = new Set<CDPSession>();
   private browserSession?: CDPSession;
@@ -95,6 +96,7 @@ class FrameTrace {
   }
 
   async captureActiveDocuments() {
+    if (!this.enabled) return;
     const frames = await Promise.all(
       [this.page, ...this.otherPages].map(async (page) => {
         try {
@@ -128,6 +130,7 @@ class FrameTrace {
   }
 
   async arm() {
+    if (!this.enabled) return;
     try {
       await deadline(
         (async () => {
@@ -228,7 +231,9 @@ class FrameTrace {
   }
 
   private async stop(save: boolean) {
-    let facts: Record<string, unknown> = { status: 'not-armed' };
+    let facts: Record<string, unknown> = this.enabled
+      ? { status: 'not-armed' }
+      : { status: 'disabled', marks: this.marks };
     let live = true;
     try {
       if (this.armed && this.browserSession && this.complete) {
