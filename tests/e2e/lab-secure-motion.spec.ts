@@ -39,6 +39,7 @@ import { readSessionFrame } from './simulation-session-oracle';
 import { OwnedMotionActor } from './secure-motion-source';
 import { assertPrivateDenial } from './secure-motion-oracle';
 import { assertSourceWitness } from './secure-source-witness';
+import { offlineCloseProbe } from './secure-offline-probe';
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 
@@ -214,7 +215,7 @@ async function sourcePairClosed(
 test('trusted WSS journey: two real WebGL views recover with fresh tickets, paused late join and successor Recording', async ({
   page,
   browser,
-}) => {
+}, testInfo) => {
   test.setTimeout(240000);
   assert(process.env.E2E_API_URL?.startsWith('https://'));
   let f: Awaited<ReturnType<typeof prepareSession>> | undefined;
@@ -233,6 +234,10 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     )
       signed++;
   });
+  const probe = await offlineCloseProbe(
+    page,
+    testInfo.outputPath('offline-close-probe.json'),
+  );
   try {
     f = await prepareSession(page, browser);
     active = await action(page, f.lab.id, null, 'Start');
@@ -246,8 +251,23 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       firstTickets = signed,
       closedBefore = closedViewerSockets;
     const recoveryDialog = await dialog(page);
+    await probe.begin(active.id);
     await page.context().setOffline(true);
-    await expect.poll(() => closedViewerSockets).toBeGreaterThan(closedBefore);
+    probe.startPredicate();
+    let predicateOutcome: 'passed' | 'failed' = 'failed';
+    try {
+      await expect
+        .poll(() => closedViewerSockets)
+        .toBeGreaterThan(closedBefore);
+      predicateOutcome = 'passed';
+    } finally {
+      await probe.capture({
+        outcome: predicateOutcome,
+        expectedGreaterThan: closedBefore,
+        actual: closedViewerSockets,
+        budgetMs: 5000,
+      });
+    }
     await expect(
       recoveryDialog.getByRole('status', { name: '运动接收' }),
     ).toContainText('运动过期');
@@ -374,13 +394,17 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     });
     active = undefined;
   } finally {
-    await page
-      .context()
-      .setOffline(false)
-      .catch(() => {});
-    await cleanupPeers();
-    for (const context of contexts) await context.close();
-    await f?.secondContext.close();
+    try {
+      await probe.dispose();
+    } finally {
+      await page
+        .context()
+        .setOffline(false)
+        .catch(() => {});
+      await cleanupPeers();
+      for (const context of contexts) await context.close();
+      await f?.secondContext.close();
+    }
   }
 });
 

@@ -1,4 +1,5 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -37,6 +38,7 @@ if (
   const gateways = new Set();
   const stats = {
     pid: process.pid,
+    clockTimeOriginMs: performance.timeOrigin,
     boundary:
       'read-only actual production ws/gateway observer; no target-side blocking or value substitution',
     sockets: [],
@@ -59,6 +61,13 @@ if (
     return originalUpgrade.call(this, request, socket, head, (ws, ...args) => {
       const row = {
         id: ++stats.socketCount,
+        handshakeKeySha256:
+          typeof request.headers['sec-websocket-key'] === 'string' &&
+          request.headers['sec-websocket-key'].length <= 64
+            ? createHash('sha256')
+                .update(request.headers['sec-websocket-key'])
+                .digest('hex')
+            : null,
         role: request.url?.split('/').at(-1),
         scopeId: request.url?.match(
           /[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/,
@@ -85,6 +94,9 @@ if (
         row.open = false;
         row.closedAt = performance.now();
         sockets.delete(ws);
+        // Publish actual closure before a diagnostic window's final read;
+        // the timestamp is taken before this observation-only file write.
+        if (row.role === 'viewer') save();
       });
       return callback(ws, ...args);
     });
