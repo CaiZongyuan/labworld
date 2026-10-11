@@ -50,10 +50,37 @@ export type RecordingSegment = {
 export const recordingPath = (lab: string, id?: string) =>
   `/api/v1/lab/labs/${lab}/recordings${id ? '/' + id : ''}`;
 
-async function pages<T>(api: CoreHttp, path: string) {
+const maximumEventPages =
+  (Math.floor((1024 * 1024 * 1024) / 36) + 1) * (1024 + 1) +
+  Math.ceil((1024 * 1024 * 1024) / 2 / 100);
+function eventProgress(cursor: string) {
+  const envelope = JSON.parse(
+    Buffer.from(cursor, 'base64url').toString('utf8'),
+  );
+  const position =
+    envelope.v === 1
+      ? JSON.parse(Buffer.from(envelope.p, 'base64url').toString('utf8'))
+      : envelope;
+  return [
+    BigInt(position.scan ?? '0'),
+    BigInt(position.ordinal),
+    BigInt(position.index),
+    BigInt(position.lookup ? 1 : 0),
+    BigInt(position.lookup?.scan ?? '0'),
+  ];
+}
+function later(a: bigint[], b: bigint[]) {
+  for (let i = 0; i < a.length; i++) {
+    if (a[i] !== b[i]) return a[i] > b[i];
+  }
+  return false;
+}
+async function pages<T>(api: CoreHttp, path: string, scanEvents = false) {
   const result: T[] = [],
     seen = new Set<string>();
   let cursor: string | null = null;
+  let previous: bigint[] | undefined,
+    steps = 0;
   do {
     const response: { data: T[]; next_cursor: string | null } = await api.json(
       'GET',
@@ -65,13 +92,26 @@ async function pages<T>(api: CoreHttp, path: string) {
     result.push(...response.data);
     cursor = response.next_cursor;
     if (cursor) {
-      assert(!seen.has(cursor));
-      assert(seen.size < 64);
-      seen.add(cursor);
+      if (scanEvents) {
+        const progress = eventProgress(cursor);
+        assert(
+          !previous || later(progress, previous),
+          'Event scan cursor must make progress',
+        );
+        previous = progress;
+        // Finite physical capacity and at most one lookback per commit; no cursor cache.
+        assert(++steps <= maximumEventPages);
+      } else {
+        assert(!seen.has(cursor));
+        assert(seen.size < 64);
+        seen.add(cursor);
+      }
     }
   } while (cursor);
   return result;
 }
+export const recordingEvents = (api: CoreHttp, path: string) =>
+  pages<RecordingEvent>(api, path + '/events', true);
 
 export async function recordingForSession(
   api: CoreHttp,
@@ -131,7 +171,7 @@ export async function publicRecording(api: CoreHttp, lab: string, id: string) {
   records.forEach((record, index) =>
     assert.equal(record.ordinal, String(index + 1)),
   );
-  const events = await pages<RecordingEvent>(api, path + '/events');
+  const events = await recordingEvents(api, path);
   assert.equal(
     new Set(events.map((event) => event.event_id)).size,
     events.length,

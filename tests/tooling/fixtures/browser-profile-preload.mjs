@@ -8,7 +8,8 @@ import {
 } from 'node:fs';
 import { join } from 'node:path';
 
-if (process.argv[1]?.endsWith('/scripts/e2e-server.mjs')) {
+const secureProfile = process.argv[1]?.endsWith('/scripts/e2e-wss.mjs');
+if (secureProfile || process.argv[1]?.endsWith('/scripts/e2e-server.mjs')) {
   const events = process.env.LAB_BROWSER_FIXTURE_EVENTS;
   const index = Number(
     process.env.LAB_NODE_BROWSER_PROFILE_INDEX ??
@@ -57,6 +58,12 @@ if (process.argv[1]?.endsWith('/scripts/e2e-server.mjs')) {
       JSON.stringify({
         cleanupCompleted:
           process.env.LAB_BROWSER_FIXTURE_CLEANUP_FAILURE !== 'true',
+        ...(secureProfile
+          ? {
+              tlsCleanupCompleted:
+                process.env.LAB_BROWSER_FIXTURE_CLEANUP_FAILURE !== 'true',
+            }
+          : {}),
         browserLedger: null,
         serviceLedgers: [],
       }) + '\n',

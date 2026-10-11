@@ -5,6 +5,7 @@ import json
 import os
 import signal
 import socket
+import ssl
 import sys
 from urllib.parse import urlsplit
 from websockets.asyncio.client import connect
@@ -15,7 +16,7 @@ if os.getppid() != int(os.environ['MOTION_E2E_PARENT_PID']):
     sys.exit(1)
 
 async def main():
-    url, origin, session = sys.argv[1:]
+    url, origin, session, *scene = sys.argv[1:]
     ticket = sys.stdin.readline(513).strip()
     address = urlsplit(url)
     peer = socket.create_connection((address.hostname, address.port))
@@ -23,11 +24,13 @@ async def main():
     peer.setblocking(False)
     async with connect(url, sock=peer, origin=origin, compression=None,
                        ping_interval=None, max_queue=1, proxy=None,
-                       close_timeout=1) as ws:
+                       close_timeout=1,
+                       **({'ssl': ssl.create_default_context()} if address.scheme == 'wss' else {})) as ws:
         await ws.send(json.dumps({'type': 'motion.hello', 'version': 1,
                                  'codec': 'pose-f32-v1', 'role': 'viewer',
                                  'session_id': session, 'ticket': ticket,
-                                 'preferred_rate_hz': 30}))
+                                 'preferred_rate_hz': 30,
+                                 **({'scene_hash': scene[0]} if scene else {})}))
         hello = json.loads(await ws.recv())
         if hello.get('type') != 'motion.welcome' or hello.get('session_id') != session:
             raise RuntimeError('admission_failed')

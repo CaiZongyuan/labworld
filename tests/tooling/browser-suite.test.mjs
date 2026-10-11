@@ -71,9 +71,11 @@ const defaultProfiles = readdirSync(new URL('../e2e', import.meta.url))
   .filter((name) => name.endsWith('.spec.ts'))
   .sort()
   .map((name) =>
-    name === 'lab-synthetic-motion.spec.ts'
-      ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
-      : ['tests/e2e/' + name],
+    name === 'lab-secure-motion.spec.ts'
+      ? ['tests/e2e/' + name, '--grep', 'trusted WSS|external trusted source']
+      : name === 'lab-synthetic-motion.spec.ts'
+        ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
+        : ['tests/e2e/' + name],
   );
 
 for (const shard of [null, 1, 2])

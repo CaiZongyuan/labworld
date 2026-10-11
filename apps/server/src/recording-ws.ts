@@ -8,7 +8,7 @@ import {
   recordingU64,
   RECORDING_WIRE_LIMITS,
 } from '../../../packages/contracts/src/recording/index.ts';
-import { loopback } from '../../../packages/server/src/lab/motion/fixture.ts';
+import { motionTransportAllowed } from './transport.ts';
 import type {
   RecordingSourceAuthority,
   RecordingSourceConnection,
@@ -62,10 +62,7 @@ export class RecordingWebSockets {
     if (!match) return false;
     if (
       this.stopping ||
-      !loopback(request.socket.remoteAddress) ||
-      ['forwarded', 'x-forwarded-for', 'x-real-ip'].some(
-        (name) => request.headers[name] !== undefined,
-      ) ||
+      !motionTransportAllowed(request) ||
       (request.headers.origin !== undefined &&
         request.headers.origin !== this.origin) ||
       this.ws.clients.size >= 128 ||

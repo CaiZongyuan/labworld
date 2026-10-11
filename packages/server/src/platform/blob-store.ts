@@ -125,12 +125,16 @@ export class LocalBlobStore implements BlobStore {
       }
     });
   }
-  async inspect(key: string, maximumBytes: number): Promise<BlobDigest> {
+  async inspect(
+    key: string,
+    maximumBytes: number,
+    expectedSize?: number,
+  ): Promise<BlobDigest> {
     const hash = createHash('sha256');
     let size = 0;
     let prefix = Buffer.alloc(0);
     try {
-      for await (const chunk of this.read(key)) {
+      for await (const chunk of this.read(key, expectedSize)) {
         size += chunk.byteLength;
         if (size > maximumBytes)
           throw new BlobTooLarge('Content exceeds the maximum size');
@@ -178,8 +182,30 @@ export class LocalBlobStore implements BlobStore {
     }
     return key;
   }
-  async *read(key: string): AsyncIterable<Uint8Array> {
-    yield* createReadStream(this.path(key));
+  async *read(key: string, expectedSize?: number): AsyncIterable<Uint8Array> {
+    if (expectedSize === undefined) {
+      yield* createReadStream(this.path(key));
+      return;
+    }
+    if (!Number.isSafeInteger(expectedSize) || expectedSize < 0)
+      throw new BlobChanged('Invalid expected content size');
+    const handle = await open(this.path(key), 'r');
+    try {
+      const before = await handle.stat();
+      if (!before.isFile() || before.size !== expectedSize)
+        throw new BlobChanged('Stored content size changed');
+      // Bound actual reads too, even if the file grows after the first stat.
+      if (expectedSize)
+        yield* handle.createReadStream({
+          start: 0,
+          end: expectedSize - 1,
+          autoClose: false,
+        });
+      if ((await handle.stat()).size !== expectedSize)
+        throw new BlobChanged('Stored content size changed');
+    } finally {
+      await handle.close();
+    }
   }
   async remove(key: string) {
     await this.withLock(key, async () => {

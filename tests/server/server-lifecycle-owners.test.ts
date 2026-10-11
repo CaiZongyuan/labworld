@@ -70,6 +70,16 @@ for (const mode of ['partial', 'stop'] as const)
             10000,
           );
           target.child!.send('owned-stop');
+        } else {
+          stage = 'wait-for-actual-owners';
+          await until(
+            () => actualReceipt(ledger),
+            (facts) =>
+              facts !== null &&
+              facts.pid === target.child!.pid &&
+              facts.resources.length === 2,
+            10000,
+          );
         }
         stage = 'wait-for-exit';
         await until(

@@ -95,6 +95,8 @@ test('scoped admission precedes WELCOME and full snapshots; cancellation release
   expect(connection.dispose).toHaveBeenCalledOnce();
   events.message(binary());
   expect(connection.onSnapshot).toHaveBeenCalledOnce();
+  events.open();
+  expect(connection.sent).toHaveLength(1);
 });
 
 test('binary before WELCOME is refused without exposing a snapshot', async () => {

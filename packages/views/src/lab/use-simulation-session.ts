@@ -12,6 +12,7 @@ import {
   subscribeSimulationSessions,
   subscribeSessionMotion,
   MotionBuffer,
+  MotionConnectionError,
   type ApiClient,
   type SimulationSession,
   type SimulationSessionPage,
@@ -166,43 +167,115 @@ export function useSimulationSession({
       ? session.id
       : null;
   const sceneHash = session?.snapshot.installation.scene_hash;
+  const lease = session?.lease_id ?? null;
+  const epoch = session?.epoch ?? null;
+  const terminal = session?.ended_at ? session.status : null;
   useEffect(() => {
+    if (terminal === 'interrupted' && observing && labId) {
+      buffer.freeze();
+      buffer.setSourceState('interrupted');
+      setMotionState('interrupted');
+      setMotionError(null);
+      return;
+    }
     buffer.clear();
     setMotionError(null);
     if (!observing || !observeId || !labId || !sceneHash) {
       setMotionState('disconnected');
       return;
     }
+    if (lease === null || epoch === null) {
+      setMotionState('waiting');
+      return;
+    }
     const controller = new AbortController();
-    setMotionState('connecting');
-    void subscribeSessionMotion({
-      client: apiClient,
-      labId,
-      sessionId: observeId,
-      sceneHash,
-      rateHz: rate,
-      headers: { 'x-csrf-token': csrfToken },
-      signal: controller.signal,
-      onWelcome(welcome) {
-        buffer.configure(welcome);
-        buffer.setSourceState('waiting');
-        setMotionState('waiting');
-      },
-      onSnapshot(snapshot, receivedAt) {
-        if (!buffer.push(snapshot, receivedAt))
-          throw new Error('Untrusted Session snapshot');
-      },
-      onStatus(status) {
-        if (status.type !== 'motion.status') return;
-        buffer.setSourceState(status.state);
-        setMotionState(status.state);
-      },
-    }).catch((error: unknown) => {
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    const delays = [250, 500, 1000, 2000, 4000, 4000];
+    let failures = 0;
+    let stopped = false,
+      offline = false;
+    function wentOffline() {
+      if (stopped || controller.signal.aborted) return;
+      offline = true;
+      controller.abort();
+      clearTimeout(reconnectTimer);
+      buffer.disconnect();
+      setMotionState('stale');
+      setMotionError(null);
+    }
+    function wentOnline() {
+      if (!offline) return;
+      offline = false;
+      setMotionRetry((value) => value + 1);
+    }
+    async function connect() {
       if (controller.signal.aborted) return;
-      buffer.freeze();
-      setMotionError(error);
-      setMotionState('error');
-    });
+      setMotionState('connecting');
+      try {
+        await subscribeSessionMotion({
+          client: apiClient,
+          labId: labId!,
+          sessionId: observeId!,
+          sceneHash: sceneHash!,
+          rateHz: rate,
+          headers: { 'x-csrf-token': csrfToken },
+          signal: controller.signal,
+          onWelcome(welcome) {
+            if (controller.signal.aborted) return;
+            buffer.configure(welcome);
+            setMotionError(null);
+            buffer.setSourceState('waiting');
+            setMotionState('waiting');
+          },
+          onSnapshot(snapshot, receivedAt) {
+            if (controller.signal.aborted) return;
+            if (!buffer.push(snapshot, receivedAt))
+              throw new Error('Untrusted Session snapshot');
+            failures = 0;
+          },
+          onStatus(status) {
+            if (controller.signal.aborted) return;
+            if (status.type !== 'motion.status') return;
+            buffer.setSourceState(status.state);
+            setMotionState(status.state);
+          },
+        });
+      } catch (error: unknown) {
+        if (controller.signal.aborted) return;
+        buffer.disconnect();
+        setMotionError(error);
+        const reason =
+          error instanceof MotionConnectionError
+            ? error.reason
+            : errorCodeOf(error);
+        const denied = [
+          'auth.unauthorized',
+          'auth.csrf',
+          'api_keys.scope_forbidden',
+          'lab.session_closed',
+          'lab.session_not_found',
+          'lab.publisher_unauthorized',
+          'session_closed',
+          'unauthorized',
+          'mapping_mismatch',
+          'epoch_mismatch',
+          'wrong_session',
+          'metadata_regression',
+          'sequence_regression',
+        ].includes(reason ?? '');
+        if (denied || failures >= delays.length) {
+          stopped = true;
+          setMotionState('error');
+          return;
+        }
+        setMotionState('stale');
+        reconnectTimer = setTimeout(() => void connect(), delays[failures++]);
+      }
+    }
+    window.addEventListener('offline', wentOffline);
+    window.addEventListener('online', wentOnline);
+    if (!navigator.onLine) wentOffline();
+    else void connect();
     const timer = setInterval(
       () =>
         setMotionState((previous) =>
@@ -214,6 +287,9 @@ export function useSimulationSession({
     );
     return () => {
       controller.abort();
+      window.removeEventListener('offline', wentOffline);
+      window.removeEventListener('online', wentOnline);
+      clearTimeout(reconnectTimer);
       clearInterval(timer);
       buffer.freeze();
     };
@@ -227,6 +303,9 @@ export function useSimulationSession({
     rate,
     motionRetry,
     observing,
+    terminal,
+    lease,
+    epoch,
   ]);
   async function write(
     action: 'install' | 'start' | 'pause' | 'resume' | 'reset' | 'stop',

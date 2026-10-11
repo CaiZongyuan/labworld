@@ -265,6 +265,7 @@ export function SimulationSessionControls({
             </Alert>
           ) : null}
           {!loading &&
+          !active &&
           !simulation.sessions.data?.development_synthetic_enabled ? (
             <Alert>
               <AlertDescription>
