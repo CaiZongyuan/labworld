@@ -6,7 +6,12 @@ import {
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { writeFileSync } from 'node:fs';
-import { showEntityDetails, showEntityOperations } from './lab-desktop';
+import { join } from 'node:path';
+import {
+  showEntityDetails,
+  showEntityOperations,
+  showObjectDirectory,
+} from './lab-desktop';
 import { observeBrowserSeam } from './lab-browser-facts';
 import {
   freshRenderMetrics,
@@ -311,6 +316,80 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
     const completed = await get(path);
     const task = await get(`${path}/tasks/${completed.task.id}`);
     const result = await get(`${path}/results/${completed.task.result_id}`);
+    const scene = page.locator('.world-viewport canvas');
+    const staticScene = () =>
+      scene.screenshot({
+        style:
+          '.world-priority-label,.world-priority-labels,.world-render-error,.world-canvas-tools,.lab-perf { visibility: hidden !important; }',
+      });
+    const usableDraco = await staticScene();
+    const usableDeadline = performance.now() + 5000;
+    const usableMark = await markRenderMetrics(page);
+    const usableResources = await freshRenderMetrics(
+      page,
+      usableMark,
+      usableDeadline,
+    );
+    await page.route(`**/assets/${basis.id}/download`, (route) =>
+      route.fulfill({ status: 503, body: '' }),
+    );
+    await appearance(basis.representation.id);
+    await expect(page.locator('.world-render-error')).toBeVisible();
+    await expect(page.locator('.world-page')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    );
+    const failedFrame = await staticScene();
+    if (process.env.LAB_NODE_EVIDENCE) {
+      const directory = process.env.LAB_NODE_EVIDENCE;
+      writeFileSync(join(directory, 'failed-glb-before.png'), usableDraco);
+      writeFileSync(join(directory, 'failed-glb-after.png'), failedFrame);
+    }
+    const failureDeadline = performance.now() + 5000;
+    const failureMark = await markRenderMetrics(page);
+    let failedResources: RenderMetricSample | undefined;
+    try {
+      expect(failedFrame).toEqual(usableDraco);
+      await expect
+        .poll(
+          async () => {
+            failedResources = await freshRenderMetrics(
+              page,
+              failureMark,
+              failureDeadline,
+            );
+            return failedResources.geometries;
+          },
+          { timeout: remainingMetricBudget(failureDeadline) },
+        )
+        .toBe(usableResources.geometries);
+      expect(failedResources!.textures).toBe(usableResources.textures);
+    } finally {
+      if (process.env.LAB_NODE_EVIDENCE)
+        writeFileSync(
+          join(process.env.LAB_NODE_EVIDENCE, 'failed-glb-resources.json'),
+          JSON.stringify({
+            atInitialReady: { geometries: dracoCount, textures: dracoTextures },
+            beforeFailure: usableResources,
+            beforeMark: usableMark,
+            afterFailure: failedResources ?? null,
+            afterMark: failureMark,
+            retainedPixels: failedFrame.equals(usableDraco),
+          }),
+        );
+    }
+    const afterFailure = await get(path);
+    expect(afterFailure.id).toBe(entity);
+    expect(afterFailure.program_run.id).toBe(before.program_run.id);
+    expect(afterFailure.task.id).toBe(task.id);
+    sample('failed-basis-retains-draco', failedResources!, failureMark);
+    await page.unrouteAll({ behavior: 'wait' });
+    await appearance(draco.representation.id);
+    await expect(page.locator('.world-page')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    );
+    await expect(page.locator('.world-render-error')).toBeHidden();
     await appearance(basis.representation.id);
     await expect(page.locator('.world-page')).toHaveAttribute(
       'aria-busy',
@@ -334,7 +413,7 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       )
       .toBeGreaterThan(dracoTextures);
     const basisTextures = basisSample.textures;
-    let previousDraco = { geometries: dracoCount, textures: dracoTextures };
+    let previousDraco = { ...usableResources };
     let previousBasis = {
       geometries: basisSample.geometries,
       textures: basisTextures,
@@ -552,6 +631,70 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
     );
     expect(output.entity).toBe(example.id);
     expect(output.archived_at).toBeTruthy();
+    const genericResponse = await agent.post(
+      `/api/v1/lab/labs/${lab}/entities`,
+      {
+        data: {
+          name: 'Generic model fallback',
+          definition_id: 'model',
+          definition_version: '1.0',
+          reality: 'simulated',
+          configuration: {},
+          representation_id: null,
+        },
+      },
+    );
+    expect(genericResponse.status()).toBe(201);
+    const generic = await genericResponse.json();
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await showObjectDirectory(page);
+    await page
+      .getByRole('button', { name: 'Active objects', exact: true })
+      .click();
+    await page
+      .getByRole('button', {
+        name: 'Select Generic model fallback',
+        exact: true,
+      })
+      .click();
+    await page.getByRole('button', { name: 'Fit model', exact: true }).click();
+    await page
+      .getByRole('checkbox', {
+        name: 'Multi-select Generic model fallback',
+        exact: true,
+      })
+      .uncheck();
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('entity'))
+      .toBeNull();
+    await expect
+      .poll(async () => (await staticScene()).equals(await staticScene()))
+      .toBe(true);
+    const genericCanvas = await scene.boundingBox();
+    expect(genericCanvas).not.toBeNull();
+    const centre = {
+      x: genericCanvas!.x + genericCanvas!.width / 2,
+      y: genericCanvas!.y + genericCanvas!.height / 2,
+    };
+    await expect
+      .poll(() =>
+        page.evaluate(
+          ({ x, y }) => document.elementFromPoint(x, y)?.tagName,
+          centre,
+        ),
+      )
+      .toBe('CANVAS');
+    await page.mouse.click(centre.x, centre.y);
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('entity'))
+      .toBe(generic.id);
+    await expect(
+      mobileInspector.getByRole('heading', {
+        name: 'Generic model fallback',
+        exact: true,
+      }),
+    ).toBeVisible();
+    await pixels(page, 't09-generic-fallback-canvas.png');
     expect(errors).toEqual([]);
   } finally {
     await agent.dispose();

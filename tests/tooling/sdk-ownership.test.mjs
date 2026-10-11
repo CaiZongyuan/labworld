@@ -79,3 +79,18 @@ test('the public boundary checker refuses an unowned qualified table in Node mig
       /unowned table lab.unowned_probe/.test(error.stderr),
   );
 });
+
+test('the public boundary checker reserves representation profiles for Lab consumers across contract subpaths', (t) => {
+  const fixture = project(t);
+  const probe = join(fixture, 'packages/core/src/unowned-representation.ts');
+  writeFileSync(
+    probe,
+    "import { labRepresentationProfiles } from '@labos-threejs/contracts/lab-representations';\nexport const unownedProfiles = labRepresentationProfiles;\n",
+  );
+  assert.throws(
+    () => check(fixture),
+    (error) =>
+      error.status !== 0 &&
+      /Core imports a Lab contract/.test(error.stderr.toString()),
+  );
+});

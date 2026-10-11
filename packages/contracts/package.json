@@ -5,6 +5,7 @@
   "name": "@labos-threejs/contracts",
   "exports": {
     ".": "./src/generated/types.gen.ts",
+    "./lab-representations": "./src/lab-representations.ts",
     "./motion": "./src/motion/index.ts"
   }
 }

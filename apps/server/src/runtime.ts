@@ -58,11 +58,17 @@ export type RuntimeControl = {
   stop: () => Promise<void>;
   ownStop: (stop: () => Promise<void>) => void;
 };
+type RuntimeOptions = {
+  // Applies only to the default composition, before HTTP admission. A custom
+  // application factory continues to own its own services through RuntimeControl.
+  ownHistoryMaintenance?: (stop: () => Promise<void>) => Promise<void>;
+};
 export async function run(
   factory?: (
     context: FoundationContext,
     control: RuntimeControl,
   ) => Promise<Prepared>,
+  options: RuntimeOptions = {},
 ): Promise<RuntimeControl | undefined> {
   const config = configuration();
   const log = (entry: Record<string, unknown>) =>
@@ -253,8 +259,13 @@ export async function run(
       historyRoutes(app, history);
       recordsRoutes(app, new RecordsService(history));
       trendRoutes(app, history);
-      const maintenance = historyScheduler(history, log);
-      ownStop(() => maintenance.stop());
+      const maintenance = historyScheduler(history, log),
+        stopMaintenance = () => maintenance.stop();
+      ownStop(stopMaintenance);
+      if (options.ownHistoryMaintenance) {
+        await options.ownHistoryMaintenance(stopMaintenance);
+        if (closing) return undefined;
+      }
       const scheduler = fileScheduler(context, files, log);
       ownStop(() => scheduler.stop());
       devices.start();

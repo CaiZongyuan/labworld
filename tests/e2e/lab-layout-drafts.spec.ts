@@ -389,14 +389,49 @@ test('one browser recovers private layout input while other users and browsers s
       await expect(saveButton).toBeFocused();
       const geometry = await page.locator('canvas').evaluate((canvas) => {
         const rect = canvas.getBoundingClientRect();
-        const hit = document.elementFromPoint(
-          rect.x + rect.width / 2,
-          rect.y + Math.min(60, rect.height / 2),
-        );
+        const originalPoint = {
+          x: rect.x + rect.width / 2,
+          y: rect.y + Math.min(60, rect.height / 2),
+        };
+        const hit = document.elementFromPoint(originalPoint.x, originalPoint.y);
+        const viewportOwner = canvas.closest('.world-viewport');
+        const label = hit?.closest('.world-priority-label');
+        const labelRect = label?.getBoundingClientRect();
+        const visibleBottom = Math.min(rect.bottom, window.innerHeight);
+        let chosenPoint = originalPoint;
+        let chosenHit = hit;
+        if (
+          label &&
+          viewportOwner &&
+          label.closest('.world-viewport') === viewportOwner &&
+          labelRect &&
+          labelRect.width > 0 &&
+          labelRect.width < rect.width &&
+          labelRect.height > 0 &&
+          labelRect.height < rect.height &&
+          labelRect.left <= originalPoint.x &&
+          originalPoint.x < labelRect.right &&
+          labelRect.top <= originalPoint.y &&
+          originalPoint.y < labelRect.bottom &&
+          labelRect.bottom < visibleBottom
+        ) {
+          chosenPoint = {
+            x: originalPoint.x,
+            y: (labelRect.bottom + visibleBottom) / 2,
+          };
+          chosenHit = document.elementFromPoint(chosenPoint.x, chosenPoint.y);
+        }
         return {
           width: rect.width,
           height: rect.height,
-          exposed: hit === canvas,
+          exposed: chosenHit === canvas,
+          exposure: {
+            originalPoint,
+            originalHitCanvas: hit === canvas,
+            chosenPoint,
+            chosenHitCanvas: chosenHit === canvas,
+            priorityLabelRect: labelRect?.toJSON() ?? null,
+          },
           overflow: document.documentElement.scrollWidth > window.innerWidth,
           toolbars: Array.from(
             canvas

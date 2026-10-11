@@ -1,6 +1,13 @@
 import { expect, test, type Page, type Locator } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { showEntityDetails, showObjectDirectory } from './lab-desktop';
+import { labRepresentationProfiles } from '../../packages/contracts/src/lab-representations';
+import type {
+  LabLayout,
+  LabWorld,
+  Placement,
+} from '../../packages/contracts/src/generated/types.gen';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -88,13 +95,26 @@ async function bounds(page: Page, locator: Locator) {
   return rect;
 }
 
-// The unchanged teal Robot is a visible landmark; no camera or scene internals are read.
+function retainRobotEvidence(name: string, bytes: Buffer | string) {
+  try {
+    const directory = process.env.LAB_NODE_EVIDENCE ?? evidence;
+    writeFileSync(join(directory, name), bytes);
+  } catch {
+    // Optional evidence must preserve the original public assertion result.
+  }
+}
+let robotCapture = 0;
+
+// The native teal pixels need the same-Entity controls in the owning case.
+// No camera or scene internals are read.
 async function robotPixels(
   page: Page,
   region?: { x: number; y: number; width: number; height: number },
 ) {
   const png = await page.locator('canvas').screenshot();
-  const pixels = await page.evaluate(
+  const capture = `robot-frame-${String(++robotCapture).padStart(3, '0')}`;
+  retainRobotEvidence(`${capture}.png`, png);
+  const sampled = await page.evaluate(
     async ({ encoded, region }) => {
       const image = new Image();
       image.src = `data:image/png;base64,${encoded}`;
@@ -132,11 +152,17 @@ async function robotPixels(
         y: points.length ? Math.min(...ys) : 0,
         width: points.length ? Math.max(...xs) - Math.min(...xs) : 0,
         height: points.length ? Math.max(...ys) - Math.min(...ys) : 0,
+        landmark: points.length ? points[Math.floor(points.length / 2)] : null,
       };
     },
     { encoded: png.toString('base64'), region },
   );
-  return { png, pixels };
+  const { landmark, ...pixels } = sampled;
+  retainRobotEvidence(
+    `${capture}.json`,
+    JSON.stringify({ region: region ?? null, pixels, landmark }),
+  );
+  return { png, pixels, landmark };
 }
 async function steadyRobot(page: Page) {
   let previous = (await robotPixels(page)).pixels;
@@ -173,7 +199,13 @@ test('real World structural updates preserve an orbited camera until explicit Fi
     'bench',
     'Original bench',
   );
-  await register(page, headers, worldLab.id, 'robot', 'Original Robot');
+  const robot = await register(
+    page,
+    headers,
+    worldLab.id,
+    'robot',
+    'Original Robot',
+  );
   const otherContext = await browser.newContext({ locale: 'zh-CN' });
   try {
     const other = await otherContext.newPage(),
@@ -198,6 +230,153 @@ test('real World structural updates preserve an orbited camera until explicit Fi
       'aria-busy',
       'false',
     );
+    const worldPath = `/api/v1/lab/labs/${worldLab.id}/world`;
+    const readWorld = async () => {
+      const response = await page.request.get(worldPath);
+      expect(response.status()).toBe(200);
+      return (await response.json()) as LabWorld;
+    };
+    const savePlacement = async (
+      operation: string,
+      update: (node: LabWorld['nodes'][number]) => Placement,
+    ) => {
+      const before = await readWorld();
+      expect(
+        before.nodes.filter((node) => node.entity_id === robot.id),
+      ).toHaveLength(1);
+      const nodes = before.nodes.map((node) => ({
+        id: node.id,
+        entity_id: node.entity_id,
+        representation_id: node.representation_id,
+        placement: update(node),
+      }));
+      const response = await page.request.put(
+        `/api/v1/lab/labs/${worldLab.id}/layout`,
+        {
+          headers,
+          data: { expected_version: before.lab.layout_version, nodes },
+        },
+      );
+      expect(response.status()).toBe(200);
+      const saved = (await response.json()) as LabLayout;
+      expect(saved.layout_version).toBe(before.lab.layout_version + 1);
+      const after = await readWorld();
+      expect(after.lab.layout_version).toBe(saved.layout_version);
+      expect(after.nodes).toHaveLength(nodes.length);
+      expect(after.nodes).toEqual(
+        expect.arrayContaining(
+          nodes.map((node) => expect.objectContaining(node)),
+        ),
+      );
+      expect(after.relationships).toEqual(before.relationships);
+      const previousRobot = before.entities.find(
+        (entity) => entity.id === robot.id,
+      )!;
+      const currentRobot = after.entities.find(
+        (entity) => entity.id === robot.id,
+      )!;
+      expect(previousRobot).toBeDefined();
+      expect(currentRobot).toBeDefined();
+      expect(currentRobot.id).toBe(previousRobot.id);
+      expect(currentRobot.representation_id).toBe(
+        previousRobot.representation_id,
+      );
+      expect(currentRobot.binding?.id).toBe(previousRobot.binding?.id);
+      expect(currentRobot.program_run?.id).toBe(previousRobot.program_run?.id);
+      retainRobotEvidence(
+        `robot-${operation}-layout.json`,
+        JSON.stringify({
+          beforeVersion: before.lab.layout_version,
+          afterVersion: after.lab.layout_version,
+          nodes,
+          relationships: after.relationships,
+          robot: {
+            id: currentRobot.id,
+            representationId: currentRobot.representation_id,
+            bindingId: currentRobot.binding?.id ?? null,
+            runId: currentRobot.program_run?.id ?? null,
+          },
+        }),
+      );
+      await expect(
+        page
+          .locator('.lab-heading')
+          .getByText(`v${saved.layout_version}`, { exact: true }),
+      ).toBeVisible();
+      await expect(page.locator('.world-page')).toHaveAttribute(
+        'aria-busy',
+        'false',
+      );
+      return after;
+    };
+    const separation =
+      labRepresentationProfiles.profiles.bench.bounds.max[0] -
+      labRepresentationProfiles.profiles.robot.bounds.min[0] +
+      labRepresentationProfiles.profiles.bench.bounds.size[0] * 2;
+    const prepared = await savePlacement('separated-fixture', (node) => {
+      const x =
+        node.entity_id === bench.id
+          ? 0
+          : node.entity_id === robot.id
+            ? separation
+            : null;
+      if (x !== null) {
+        expect(node.representation_id).toBeNull();
+        expect(node.placement.scale).toEqual([1, 1, 1]);
+      }
+      return x === null
+        ? node.placement
+        : {
+            ...node.placement,
+            position: [
+              x,
+              node.placement.position[1],
+              node.placement.position[2],
+            ],
+          };
+    });
+    const robotNodes = prepared.nodes.filter(
+      (node) => node.entity_id === robot.id,
+    );
+    expect(robotNodes).toHaveLength(1);
+    const robotNode = robotNodes[0];
+    expect(robotNode.representation_id).toBeNull();
+    const originalPlacement = structuredClone(robotNode.placement);
+    const placeRobot = (operation: string, position: Placement['position']) =>
+      savePlacement(operation, (node) => {
+        if (node.entity_id !== robot.id) return node.placement;
+        expect(node.id).toBe(robotNode.id);
+        expect(node.entity_id).toBe(robot.id);
+        expect(node.representation_id).toBe(robotNode.representation_id);
+        return { ...node.placement, position: [...position] };
+      });
+    const selectedEntityId = async () => {
+      const details = await showEntityDetails(page);
+      return details
+        .locator('dt')
+        .filter({ hasText: /^Entity$/ })
+        .locator('+ dd')
+        .innerText();
+    };
+    const selectRobot = async () => {
+      await showObjectDirectory(page);
+      await page
+        .getByRole('button', { name: '选择 Original Robot', exact: true })
+        .click();
+      expect(await selectedEntityId()).toBe(robot.id);
+      await page
+        .getByRole('button', { name: '关闭对象目录', exact: true })
+        .click();
+      await page
+        .getByRole('button', { name: '关闭对象信息', exact: true })
+        .click();
+    };
+    await selectRobot();
+    await page
+      .locator('.world-priority-label')
+      .getByRole('button', { name: '定位 Original Robot', exact: true })
+      .click();
+    await selectRobot();
     const initial = await steadyRobot(page);
     expect(initial.pixels.count).toBeGreaterThan(100);
     const canvas = (await page.locator('canvas').boundingBox())!;
@@ -231,13 +410,19 @@ test('real World structural updates preserve an orbited camera until explicit Fi
         'aria-busy',
         'false',
       );
+      await selectRobot();
+      await expect
+        .poll(() => page.locator('canvas').boundingBox())
+        .toEqual(canvas);
       const current = await robotPixels(page, region);
+      expect(current.png.readUInt32BE(16)).toBe(orbited.png.readUInt32BE(16));
+      expect(current.png.readUInt32BE(20)).toBe(orbited.png.readUInt32BE(20));
       measurements.push({ operation, pixels: current.pixels });
-      writeFileSync(
-        join(evidence, 'camera-landmarks.json'),
+      retainRobotEvidence(
+        'camera-landmarks.json',
         JSON.stringify(measurements, null, 2),
       );
-      writeFileSync(join(evidence, `camera-${operation}.png`), current.png);
+      retainRobotEvidence(`camera-${operation}.png`, current.png);
       expect(current.pixels.count).toBeGreaterThan(orbited.pixels.count * 0.7);
       expect(Math.abs(current.pixels.x - orbited.pixels.x)).toBeLessThan(3);
       expect(Math.abs(current.pixels.y - orbited.pixels.y)).toBeLessThan(3);
@@ -247,8 +432,110 @@ test('real World structural updates preserve an orbited camera until explicit Fi
       expect(
         Math.abs(current.pixels.height - orbited.pixels.height),
       ).toBeLessThan(3);
+      return current;
     };
-    writeFileSync(join(evidence, 'camera-orbited.png'), orbited.png);
+    retainRobotEvidence('camera-orbited.png', orbited.png);
+    await showObjectDirectory(page);
+    await page
+      .getByRole('button', { name: '选择 Original bench', exact: true })
+      .click();
+    const wrongTarget = await selectedEntityId();
+    expect(wrongTarget).toBe(bench.id);
+    expect(wrongTarget === robot.id).toBe(false);
+    retainRobotEvidence(
+      'robot-wrong-target.json',
+      JSON.stringify({
+        robotId: robot.id,
+        selectedEntityId: wrongTarget,
+        rejected: true,
+      }),
+    );
+    await selectRobot();
+    await showObjectDirectory(page);
+    await page
+      .getByRole('checkbox', { name: '多选 Original Robot', exact: true })
+      .uncheck();
+    await expect(
+      page.getByRole('button', { name: '选择 Original Robot', exact: true }),
+    ).toHaveAttribute('aria-pressed', 'false');
+    await page
+      .getByRole('button', { name: '关闭对象目录', exact: true })
+      .click();
+    await steadyRobot(page);
+    const unselected = await robotPixels(page, region);
+    expect(unselected.landmark).not.toBeNull();
+    const hitCanvas = (await page.locator('canvas').boundingBox())!;
+    expect(hitCanvas).toEqual(canvas);
+    expect(unselected.png.readUInt32BE(16)).toBe(orbited.png.readUInt32BE(16));
+    expect(unselected.png.readUInt32BE(20)).toBe(orbited.png.readUInt32BE(20));
+    const point = {
+      x:
+        hitCanvas.x +
+        ((unselected.landmark!.x + 0.5) * hitCanvas.width) /
+          unselected.png.readUInt32BE(16),
+      y:
+        hitCanvas.y +
+        ((unselected.landmark!.y + 0.5) * hitCanvas.height) /
+          unselected.png.readUInt32BE(20),
+    };
+    await expect
+      .poll(() =>
+        page.evaluate(
+          ({ x, y }) => document.elementFromPoint(x, y)?.tagName,
+          point,
+        ),
+      )
+      .toBe('CANVAS');
+    await page.mouse.click(point.x, point.y);
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get('entity'))
+      .toBe(robot.id);
+    expect(await selectedEntityId()).toBe(robot.id);
+    retainRobotEvidence(
+      'robot-native-hit.json',
+      JSON.stringify({
+        robotId: robot.id,
+        priorSelectionEmpty: true,
+        point,
+        imagePoint: unselected.landmark,
+        pointTarget: 'CANVAS',
+        selectedEntityId: robot.id,
+        nodeId: robotNode.id,
+        region,
+      }),
+    );
+    await verify('identity-restored');
+    await placeRobot('moved-outside-fixed-region', [
+      100,
+      originalPlacement.position[1],
+      originalPlacement.position[2],
+    ]);
+    await selectRobot();
+    await expect
+      .poll(() => page.locator('canvas').boundingBox())
+      .toEqual(canvas);
+    const excluded = await robotPixels(page, region);
+    retainRobotEvidence(
+      'robot-fixed-region-excluded.json',
+      JSON.stringify({ region, pixels: excluded.pixels }),
+    );
+    expect(excluded.png.readUInt32BE(16)).toBe(orbited.png.readUInt32BE(16));
+    expect(excluded.png.readUInt32BE(20)).toBe(orbited.png.readUInt32BE(20));
+    expect(excluded.pixels.count).toBe(0);
+    const restored = await placeRobot(
+      'restored-original-placement',
+      originalPlacement.position,
+    );
+    expect(
+      restored.nodes.find((node) => node.id === robotNode.id),
+    ).toMatchObject({
+      id: robotNode.id,
+      entity_id: robot.id,
+      representation_id: robotNode.representation_id,
+      placement: originalPlacement,
+    });
+    const restoredPixels = await verify('restored-original-placement');
+    expect(restoredPixels.pixels.count).toBeGreaterThan(100);
     const before = await (
       await other.request.get(`/api/v1/lab/labs/${worldLab.id}/world`)
     ).json();

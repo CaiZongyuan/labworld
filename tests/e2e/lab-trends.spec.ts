@@ -61,7 +61,11 @@ async function newDevice(page: Page, definition: string, name: string) {
 type SceneMask = { x: number; y: number; width: number; height: number };
 async function sensorLabelMask(page: Page): Promise<SceneMask[]> {
   const canvas = (await page.locator('.world-viewport canvas').boundingBox())!;
-  const label = (await page.locator('.world-sensor-label').boundingBox())!;
+  const card = page
+    .locator('.world-priority-label')
+    .filter({ hasText: 'Persistent sensor' });
+  await expect(card).toHaveCount(1);
+  const label = (await card.boundingBox())!;
   return [
     {
       x: label.x - canvas.x,

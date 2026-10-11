@@ -9,6 +9,7 @@
     "packages/sdk/src/simulation-session.ts"
   ],
   "contractSymbols": [
+    "labRepresentationProfiles",
     "LabAsset",
     "AssetRepresentation",
     "AssetPage",

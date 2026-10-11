@@ -13,6 +13,8 @@ import {
   Activity,
   Box,
   Crosshair,
+  Scan,
+  ArrowDownToLine,
   Grid2X2,
   Layers3,
   ListTree,
@@ -208,10 +210,18 @@ export default function WorldView() {
   const [dialog, setDialog] = useState<WorldDialogMode | null>(null);
   const [grid, setGrid] = useState(true);
   const [fit, setFit] = useState(0);
+  const [fitNodeId, setFitNodeId] = useState<string | null>(null);
+  const [top, setTop] = useState(false);
+  function locateNode(nodeId: string) {
+    setTop(false);
+    setFitNodeId(nodeId);
+    setFit((value) => value + 1);
+  }
   const [renderVersion, setRenderVersion] = useState(0);
   const [renderBusy, setRenderBusy] = useState(false);
   const [performance, setPerformance] = useState(false);
   const [metrics, setMetrics] = useState<RenderMetrics | null>(null);
+  if (metrics !== null && (!performance || !spaceView)) setMetrics(null);
   const [error, setError] = useState<unknown>(null);
   const [nodePending, setNodePending] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -1082,7 +1092,11 @@ export default function WorldView() {
                     dark={resolvedTheme === 'dark'}
                     grid={grid}
                     fit={fit}
+                    fitNodeId={fitNodeId}
+                    top={top}
+                    onLocate={locateNode}
                     label={message('viewer.viewport')}
+                    performance={performance && spaceView}
                     onMetrics={setMetrics}
                     onBusy={setRenderBusy}
                     motion={
@@ -1122,7 +1136,30 @@ export default function WorldView() {
             <Tool
               icon={Crosshair}
               label={message('viewer.focus')}
-              onClick={() => setFit((value) => value + 1)}
+              onClick={() => {
+                setTop(false);
+                setFitNodeId(activeNode?.id ?? null);
+                setFit((value) => value + 1);
+              }}
+            />
+            <Tool
+              icon={Scan}
+              label={message('world.panorama')}
+              onClick={() => {
+                setTop(false);
+                setFitNodeId(null);
+                setFit((value) => value + 1);
+              }}
+            />
+            <Tool
+              icon={ArrowDownToLine}
+              label={message('world.top')}
+              active={top}
+              onClick={() => {
+                setTop(true);
+                setFitNodeId(null);
+                setFit((value) => value + 1);
+              }}
             />
             <Tool
               icon={Grid2X2}
@@ -1134,7 +1171,10 @@ export default function WorldView() {
               icon={Activity}
               label={message('viewer.performance')}
               active={performance}
-              onClick={() => setPerformance(!performance)}
+              onClick={() => {
+                if (!performance) setMetrics(null);
+                setPerformance(!performance);
+              }}
             />
           </div>
           {editing ? (
