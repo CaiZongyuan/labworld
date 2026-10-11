@@ -505,8 +505,13 @@ class Source {
     this.ws.terminate();
   }
 }
-async function fixture(name: string, grace = 60000) {
+async function fixture(
+  name: string,
+  grace = 60000,
+  created?: (target: ServerProcess) => void,
+) {
   const target = await new ServerProcess().create();
+  created?.(target);
   target.env = {
     APP_ORIGIN: target.url,
     FILE_PUBLIC_ORIGIN: target.url,
@@ -551,7 +556,19 @@ async function fixture(name: string, grace = 60000) {
       201,
     );
   }
-  async function admit(session: Session) {
+  async function admit(
+    session: Session,
+    observe?: (response: Response) => void,
+  ) {
+    if (observe) {
+      const path = base + `/sessions/${session.id}/publisher-admissions`;
+      const response = await sourceClient.response('POST', path, {
+        machine_id: machine.machine.id,
+      });
+      observe(response);
+      assert.equal(response.status, 201, `POST ${path.split('?')[0]}`);
+      return response.json() as Promise<Admission>;
+    }
     return sourceClient.json<Admission>(
       'POST',
       base + `/sessions/${session.id}/publisher-admissions`,
@@ -1105,13 +1122,26 @@ test(
   'persisted unsigned epoch above 2^53 survives HTTP and binary WS; expired independent machine cannot admit',
   { timeout: 60000 },
   async () => {
-    const f = await fixture('session-u64'),
-      peers: Source[] = [];
+    const peers: Source[] = [];
+    let current: Awaited<ReturnType<typeof fixture>> | undefined,
+      scopedTarget: ServerProcess | undefined;
+    const trace = new RecordingReceiptTrace(),
+      nonce = randomUUID();
+    let phase = 0,
+      session: Session | undefined,
+      admission: Admission | undefined,
+      observed: Response | undefined;
     try {
+      const f = await fixture('session-u64', 60000, (target) => {
+        scopedTarget = target;
+      });
+      current = f;
+      phase = 1;
       const expired = await f.client.json<{
         machine: { id: string };
         credential: string;
       }>('POST', '/api/v1/machines', { name: 'Expired source' }, 201);
+      phase = 2;
       await f.target.stop();
       let lease: DirectoryLease | undefined, db: Database | undefined;
       await f.target.startInProcess(
@@ -1145,9 +1175,12 @@ test(
           }
         },
       );
+      phase = 3;
       await f.target.start();
-      const session = await f.start(),
-        before = await f.read(session);
+      phase = 4;
+      session = await f.start();
+      const before = await f.read(session);
+      phase = 5;
       await new CoreHttp(f.target.url, {
         authorization: 'Bearer ' + expired.credential,
       }).error(
@@ -1158,11 +1191,16 @@ test(
         'identity.machine_unauthorized',
       );
       assert.deepEqual(await f.read(session), before);
-      const admission = await f.admit(session);
+      phase = 6;
+      admission = await f.admit(session, (response) => {
+        observed = response;
+      });
+      phase = 7;
       assert.equal(admission.epoch, '9007199254740998');
       const source = new Source(f.target, session, admission);
       peers.push(source);
       assert.equal((await source.ready()).epoch, '9007199254740998');
+      phase = 8;
       const viewerTicket = await f.client.json<Admission>(
           'POST',
           f.base + `/sessions/${session.id}/viewer-tickets`,
@@ -1172,26 +1210,10 @@ test(
         viewer = new Source(f.target, session, viewerTicket, 'viewer');
       peers.push(viewer);
       await viewer.ready();
-      source.diagnostic = new RecordingReceiptTrace();
-      try {
-        await source.frame();
-      } catch (error) {
-        try {
-          await writeRecordingReceipt(
-            f.target.evidence,
-            source.diagnostic,
-            error,
-            f.client,
-            f.base + `/sessions/${session.id}`,
-            f.base + `/recordings/${admission.recording!.recording_id}`,
-          );
-        } catch {
-          console.log(
-            JSON.stringify({ event: 'session.u64.diagnostic-write', code: 1 }),
-          );
-        }
-        throw error;
-      }
+      phase = 9;
+      source.diagnostic = trace;
+      await source.frame();
+      phase = 10;
       await f.state(session, 'running');
       await until(
         async () => viewer.frames.length,
@@ -1201,13 +1223,53 @@ test(
         decodeMotionSnapshot(viewer.frames[0]).epoch,
         9007199254740998n,
       );
+    } catch (error) {
+      const f = current,
+        target = f?.target ?? scopedTarget;
+      try {
+        if (!target)
+          throw new Error('Diagnostic owner unavailable', { cause: error });
+        await writeRecordingReceipt(
+          target.evidence,
+          trace,
+          error,
+          f?.client ?? new CoreHttp(target.url),
+          session && f ? f.base + `/sessions/${session.id}` : undefined,
+          session && f
+            ? admission?.recording
+              ? f.base + `/recordings/${admission.recording.recording_id}`
+              : f.base + '/recordings?limit=20'
+            : undefined,
+          {
+            phase,
+            nonce,
+            sessionId: session?.id,
+            response: observed,
+            logs: target.logs,
+          },
+        );
+      } catch {
+        console.log(
+          JSON.stringify({
+            event: 'session.u64.diagnostic-write',
+            code: 1,
+            phase,
+            nonce,
+            classification: 'FAILED_PREREQUISITE_OR_UNCLASSIFIED',
+            owner_run_id: null,
+          }),
+        );
+      }
+      throw error;
     } finally {
       peers.forEach((p) => p.close());
-      await f.target.cleanup();
+      await (current?.target ?? scopedTarget)?.cleanup();
       console.log(
         JSON.stringify({
           event: 'session.u64.resources',
-          ledger: f.target.evidence + '/owned-resources.json',
+          ledger:
+            (current?.target ?? scopedTarget)?.evidence +
+            '/owned-resources.json',
         }),
       );
     }

@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { CoreHttp } from './core-http.ts';
 
@@ -91,34 +91,161 @@ export function receiptFacts(value: unknown, recording: boolean) {
         : null,
   };
 }
+const errorCodes = [
+  'lab.publisher_capacity',
+  'lab.recording_unavailable',
+  'lab.recording_prepare_timeout',
+  'lab.recording_read_timeout',
+  'lab.source_unavailable',
+  'files.unavailable',
+  'internal.unavailable',
+  'identity.machine_unauthorized',
+  'database.unavailable',
+  'auth.unavailable',
+  'internal.error',
+];
+export const admissionCode = (value: unknown) =>
+  errorCodes.indexOf(String(object(object(value).error).code)) + 1;
+const number = (value: unknown) =>
+  typeof value === 'number' &&
+  Number.isFinite(value) &&
+  value >= 0 &&
+  value <= 1e9
+    ? value
+    : 0;
+const uuid = (value: unknown) =>
+  typeof value === 'string' &&
+  /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(value)
+    ? value
+    : null;
+export function serverPhases(log: string) {
+  const rows: number[][] = [];
+  for (const line of log.slice(-65536).split('\n').slice(-128)) {
+    try {
+      const row = object(JSON.parse(line));
+      const category =
+        [
+          'database.operation',
+          'http.request',
+          'sessions.source_failed',
+          'sessions.tick_failed',
+          'server.ready',
+          'server.start_failed',
+          'server.close_failed',
+        ].indexOf(String(row.event)) + 1;
+      if (!category) continue;
+      if (rows.length === 16) rows.shift();
+      rows.push([
+        category,
+        number(row.status),
+        row.outcome === 'error' ? 2 : row.outcome === 'ok' ? 1 : 0,
+        number(row.durationMs ?? row.duration_ms),
+        number(row.queueWaitMs),
+        number(row.statements),
+        typeof row.path === 'string' &&
+        row.path.endsWith('/publisher-admissions')
+          ? 1
+          : 0,
+      ]);
+    } catch {
+      /* No raw log text retained. */
+    }
+  }
+  return rows;
+}
+async function boundedJSON(response: Response, signal: AbortSignal) {
+  const reader = response.body?.getReader();
+  if (!reader || signal.aborted) throw new Error('Diagnostic body unavailable');
+  const cancel = () => {
+    void reader.cancel().catch(() => {});
+  };
+  signal.addEventListener('abort', cancel, { once: true });
+  try {
+    const chunks: Uint8Array[] = [];
+    let size = 0;
+    while (!signal.aborted) {
+      const part = await reader.read();
+      if (part.done) break;
+      size += part.value.byteLength;
+      if (size > 65536) {
+        cancel();
+        throw new Error('Diagnostic body limit');
+      }
+      chunks.push(part.value);
+    }
+    if (signal.aborted) throw new Error('Diagnostic body deadline');
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } finally {
+    signal.removeEventListener('abort', cancel);
+    reader.releaseLock();
+  }
+}
+export type PrerequisiteDiagnostic = {
+  phase: number;
+  nonce: string;
+  sessionId?: string;
+  response?: Response;
+  logs: string;
+};
 // Called only after the original exception; a new independent 2s diagnostic budget.
 export async function writeRecordingReceipt(
   evidence: string,
   trace: RecordingReceiptTrace,
   error: unknown,
   client: CoreHttp,
-  sessionPath: string,
-  recordingPath: string,
+  sessionPath: string | undefined,
+  recordingPath: string | undefined,
+  prerequisite?: PrerequisiteDiagnostic,
 ) {
   const snapshot = trace.snapshot();
   const signal = AbortSignal.timeout(2000);
-  const read = async (path: string, recording: boolean) => {
+  const read = async (path: string | undefined, recording: boolean) => {
     try {
+      if (!path) throw new Error('Diagnostic scope unavailable');
       const response = await fetch(client.url + path, {
         headers: { cookie: client.cookie ?? '', origin: client.url },
         signal,
       });
+      let value = await boundedJSON(response, signal);
+      if (recording && Array.isArray(object(value).data))
+        value = (object(value).data as unknown[]).find(
+          (item) => object(item).session_id === prerequisite?.sessionId,
+        );
       return {
         http_status: response.status,
-        ...receiptFacts(await response.json(), recording),
+        ...receiptFacts(value, recording),
       };
     } catch {
       return { http_status: 0, ...receiptFacts(null, recording) };
     }
   };
-  const [session, recording] = await Promise.all([
+  const decodeAdmission = async () => {
+    try {
+      return admissionCode(
+        await boundedJSON(prerequisite!.response!.clone(), signal),
+      );
+    } catch {
+      return 0;
+    }
+  };
+  const readOwner = async () => {
+    try {
+      const ledger = JSON.parse(
+        await readFile(join(evidence, 'owned-resources.json'), {
+          encoding: 'utf8',
+          signal,
+        }),
+      );
+      return uuid(ledger.runId);
+    } catch {
+      return null;
+    }
+  };
+  const [session, recording, code, owner] = await Promise.all([
     read(sessionPath, false),
     read(recordingPath, true),
+    decodeAdmission(),
+    readOwner(),
   ]);
   const exceptions = [
     'Recording receipt deadline exceeded',
@@ -131,11 +258,35 @@ export async function writeRecordingReceipt(
     JSON.stringify({
       trace: snapshot,
       facts: {
+        classification:
+          prerequisite && prerequisite.phase < 9
+            ? 'FAILED_PREREQUISITE_OR_UNCLASSIFIED'
+            : 'FAILED_RECORDING_OR_UNCLASSIFIED',
+        phase: prerequisite?.phase ?? 9,
+        current_nonce: uuid(prerequisite?.nonce),
+        owner_run_id: owner,
+        admission: {
+          http_status: prerequisite?.response?.status ?? 0,
+          error_code: code,
+        },
+        first_assertion: {
+          expected: number(object(error).expected),
+          actual: number(object(error).actual),
+          strict_equal: object(error).operator === 'strictEqual',
+        },
         first_exception:
           exceptions.indexOf(error instanceof Error ? error.message : '') + 1,
         session,
         recording,
       },
+    }) + '\n',
+    { signal: AbortSignal.timeout(1000) },
+  );
+  await writeFile(
+    join(evidence, 'recording-u64-server-phases.json'),
+    JSON.stringify({
+      current_nonce: uuid(prerequisite?.nonce),
+      phases: serverPhases(prerequisite?.logs ?? ''),
     }) + '\n',
     { signal: AbortSignal.timeout(1000) },
   );

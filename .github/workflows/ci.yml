@@ -6,7 +6,7 @@ on:
       collection:
         description: Reproduction collection (a focused pass is not proof of a fixed bug)
         type: choice
-        default: focused
+        default: file
         options: [focused, file]
 permissions:
   contents: read
@@ -37,5 +37,6 @@ jobs:
           path: |
             .scratch/vnext-m1/**/owned-resources.json
             .scratch/vnext-m1/**/recording-u64-diagnostic.json
+            .scratch/vnext-m1/**/recording-u64-server-phases.json
           retention-days: 7
           if-no-files-found: ignore
