@@ -96,6 +96,10 @@ Reset 结束旧 Session 和 Recording，再创建两个新身份。新来源从�
 
 这些后缀都位于 `/api/v1/lab/labs/{lab_id}` 下。列表 `limit` 默认为 20，允许 1 到 100。事件页还受 256 KiB 预算约束。保留 `next_cursor`，将它作为 `cursor` 传入同一列表的下一次请求。片段和事件游标绑定当前 Recording。改变 Lab、Recording 或筛选时，从第一页重新读取。
 
+事件查询每次只扫描一个最多 1 MiB 的已确认片段；旧式提交需要回查时，另读最多两个精确片段。只有 pose 的历史可能返回空 `data` 和非空 `next_cursor`。继续同一游标链，直到 `next_cursor` 为 null；空数据不是结束。开放录制按本次已确认前缀读取，后续追加可从保留的游标继续。示例的第三个参数接受上次的事件游标。
+
+新事件游标经过独立的 Lab 密钥签名，正常服务重启后仍可使用。备份不包含密钥；恢复到新数据目录后从第一页重新查询，原录制历史不变。
+
 生成 SDK 提供相同的列表和读取方法。[readRecordingSegment](../../packages/sdk/src/recording.ts) 读取并核对一个已封存片段，最多 1 MiB。调用者持有 AbortSignal，并决定何时替换当前页。不要将整个 Recording 的片段合并到内存中。
 
 ## 独立删除

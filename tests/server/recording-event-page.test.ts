@@ -200,6 +200,31 @@ test('legacy prepare/abort/commit across segment boundaries remains witnessed an
     [commit],
   ]);
   assert.deepEqual(aborted.result, []);
+  const consumed = await collect([
+    [prepare],
+    [row(2, 'business.commit', { batch_id: 'legacy', sha256 })],
+    [row(3, 'header', {})],
+    [commit],
+  ]);
+  assert.deepEqual(
+    consumed.result.map((r) => r.event_id),
+    ['legacy-a', 'legacy-b'],
+  );
+  const replacement = [event('replacement')],
+    replacementHash = journalDigest(Buffer.from(JSON.stringify(replacement)));
+  const nearest = await collect([
+    [prepare],
+    [
+      row(2, 'business.prepare', {
+        batch_id: 'legacy',
+        events: replacement,
+        sha256: replacementHash,
+      }),
+    ],
+    [row(3, 'header', {})],
+    [commit],
+  ]);
+  assert.deepEqual(nearest.result, []);
 });
 
 test('last-page continuation can read later append and rejects wrong Recording cursor', async () => {
