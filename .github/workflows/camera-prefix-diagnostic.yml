@@ -1,0 +1,72 @@
+name: One camera prefix diagnostic
+on:
+  push:
+    branches: [diag/67-camera-prefix-ci-20261011]
+permissions:
+  contents: read
+concurrency:
+  group: camera-prefix-diagnostic-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  camera-prefix:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: product
+    env:
+      E2E_LAB_REFERENCE_LOAD: '1'
+      DIAGNOSTIC_RUN_HEAD: ${{ github.sha }}
+    steps:
+      - name: Check out diagnostic workflow and bundle
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          path: diagnostic-ref
+          persist-credentials: false
+      - name: Check out frozen product
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: 1b9e4c0ade58ff766be18e7996a40a3643b026e1
+          path: product
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: product/.node-version
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.17.0
+          package_json_file: product/package.json
+      - name: Install frozen product dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Install ordinary Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Inject and verify the ignored diagnostic bundle
+        run: |
+          mkdir -p .scratch/camera-prefix-ci .scratch/camera-prefix-ci-evidence
+          cp -R ../diagnostic-ref/diagnostics/camera-prefix-ci/. .scratch/camera-prefix-ci/
+          node .scratch/camera-prefix-ci/verify.mjs
+      - name: Discover exactly one diagnostic case without runtime
+        run: |
+          pnpm exec playwright test --config .scratch/camera-prefix-ci/playwright.config.ts .scratch/camera-prefix-ci/camera-prefix.spec.ts --list --reporter=list | tee .scratch/camera-prefix-ci-evidence/discovery.txt
+          rg '^Total: 1 test in 1 file$' .scratch/camera-prefix-ci-evidence/discovery.txt
+      - name: Run the original camera prefix once
+        run: node .scratch/camera-prefix-ci/run.mjs
+      - name: Reconcile owned resources after success, failure or cancellation
+        if: always()
+        run: |
+          if test -f .scratch/camera-prefix-ci/cleanup.mjs; then
+            node --experimental-strip-types .scratch/camera-prefix-ci/cleanup.mjs
+          fi
+      - name: Retain safe diagnostic and cleanup evidence
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: camera-prefix-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            product/.scratch/vnext-m1/
+            product/.scratch/camera-prefix-ci-evidence/
+            product/test-results/summary.json
+          include-hidden-files: true
+          if-no-files-found: ignore
+          retention-days: 7
