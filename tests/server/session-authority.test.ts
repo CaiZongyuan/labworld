@@ -8,6 +8,10 @@ import { readFile } from 'node:fs/promises';
 import { WebSocket } from 'ws';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
+import {
+  RecordingReceiptTrace,
+  writeRecordingReceipt,
+} from '../support/recording-receipt-diagnostic.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
 import { SessionEventReader } from '../support/session-event-reader.ts';
 import {
@@ -54,6 +58,7 @@ type Admission = {
 };
 class Source {
   readonly session: Session;
+  diagnostic?: RecordingReceiptTrace;
   ws: WebSocket;
   controls: Record<string, unknown>[] = [];
   frames: Uint8Array[] = [];
@@ -115,9 +120,11 @@ class Source {
       { origin: target.url },
     );
     this.ws.on('error', (error) => {
+      this.diagnostic?.mark(17);
       this.failure = error.message;
     });
     this.ws.on('close', (_code, reason) => {
+      this.diagnostic?.mark(16, _code);
       this.failure ??= reason.toString() || 'connection_closed';
     });
     this.ws.on('message', (data, binary) => {
@@ -195,8 +202,14 @@ class Source {
       this.recordingFailure = reason;
       this.recordingWaiter?.reject(new Error(reason));
     };
-    this.recording.on('error', () => failed('Recording socket error'));
-    this.recording.on('close', () => failed('Recording socket closed'));
+    this.recording.on('error', () => {
+      this.diagnostic?.mark(14, 1);
+      failed('Recording socket error');
+    });
+    this.recording.on('close', (code) => {
+      this.diagnostic?.mark(13, code);
+      failed('Recording socket closed');
+    });
     this.recording.on('message', (data, binary) => {
       const raw = Array.isArray(data) ? Buffer.concat(data) : data;
       if (binary || raw.byteLength > (this.recordingReady ? 4096 : 16384)) {
@@ -206,6 +219,7 @@ class Source {
       const text = (
         raw instanceof ArrayBuffer ? Buffer.from(raw) : raw
       ).toString('utf8');
+      this.diagnostic?.response(text);
       if (text === this.pendingReply) return;
       if (this.lastAck) {
         try {
@@ -281,6 +295,10 @@ class Source {
       performance.now() < deadline,
       'Recording total receipt deadline already expired',
     );
+    this.diagnostic?.mark(
+      9,
+      Math.max(0, Math.round(deadline - performance.now())),
+    );
     this.pendingReply = undefined;
     const started = performance.now(),
       limits = this.recordingReady?.limits;
@@ -308,6 +326,7 @@ class Source {
         this.recordingTimer = setTimeout(
           () => {
             if (performance.now() >= deadline || attempt === steps.length) {
+              this.diagnostic?.mark(15, attempt);
               complete(
                 undefined,
                 new Error('Recording receipt deadline exceeded'),
@@ -315,6 +334,7 @@ class Source {
               return;
             }
             this.recording!.send(data);
+            this.diagnostic?.mark(11, attempt + 1);
             attempt++;
             schedule();
           },
@@ -322,6 +342,10 @@ class Source {
         );
       };
       this.recording!.send(data);
+      this.diagnostic?.mark(
+        10,
+        typeof data === 'string' ? data.length : data.byteLength,
+      );
       schedule();
     });
   }
@@ -345,6 +369,7 @@ class Source {
     deadline: number,
   ) {
     const ready = this.recordingReady!;
+    this.diagnostic?.mark(3);
     const packet = await encodeRecordingPacket({
       kind,
       recording_id: ready.recording_id,
@@ -353,11 +378,17 @@ class Source {
       source_packet_sequence: this.packetSequence + 1n,
       payload,
     });
+    this.diagnostic?.mark(4, packet.byteLength);
+    this.diagnostic?.mark(5);
     const decoded = await decodeRecordingPacket(packet, ready);
+    this.diagnostic?.mark(6);
+    this.diagnostic?.mark(7);
     const prefix = await advanceSourcePrefix(
       this.prefix,
       decoded.packet_sha256,
     );
+    this.diagnostic?.mark(8);
+    if (this.diagnostic) this.diagnostic.expectedPrefix = prefix;
     const ack = parseRecordingAck(await this.exchange(packet, deadline));
     assert.deepEqual(ack, {
       type: 'recording.ack',
@@ -378,7 +409,9 @@ class Source {
     this.lastAck = ack;
   }
   async frame(time: bigint = 0n, offset = 0) {
+    this.diagnostic?.mark(1);
     const value = this.selectFrame(time, offset);
+    this.diagnostic?.mark(2, value.byteLength);
     await this.capture(
       1,
       encodeFrameBatch([value]),
@@ -1139,7 +1172,26 @@ test(
         viewer = new Source(f.target, session, viewerTicket, 'viewer');
       peers.push(viewer);
       await viewer.ready();
-      await source.frame();
+      source.diagnostic = new RecordingReceiptTrace();
+      try {
+        await source.frame();
+      } catch (error) {
+        try {
+          await writeRecordingReceipt(
+            f.target.evidence,
+            source.diagnostic,
+            error,
+            f.client,
+            f.base + `/sessions/${session.id}`,
+            f.base + `/recordings/${admission.recording!.recording_id}`,
+          );
+        } catch {
+          console.log(
+            JSON.stringify({ event: 'session.u64.diagnostic-write', code: 1 }),
+          );
+        }
+        throw error;
+      }
       await f.state(session, 'running');
       await until(
         async () => viewer.frames.length,
