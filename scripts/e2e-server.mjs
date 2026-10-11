@@ -1,3 +1,4 @@
+import { dispatchPressureRequest } from './lib/pressure-control.mjs';
 import { once } from 'node:events';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
@@ -332,50 +333,60 @@ try {
   if (bootstrap.user.role !== 'owner')
     throw new Error('Isolated browser Owner was not initialized');
   const controlFile = join(backend.evidence, 'service-control.json'),
-    replyFile = join(backend.evidence, 'service-control-reply.json');
+    replyFile = join(backend.evidence, 'service-control-reply.json'),
+    observerControl = join(backend.evidence, 'observer-control.json'),
+    observerReply = join(backend.evidence, 'observer-control-reply.json');
   if (secure || statusControl || reference) {
     let handled = 0,
-      controlling = Promise.resolve();
+      controlling = Promise.resolve(),
+      observerControlling = Promise.resolve();
     await writeFile(controlFile, JSON.stringify({ revision: 0 }));
     watcher = watch(dirname(controlFile), (_event, name) => {
+      if (secure && String(name) === basename(observerControl)) {
+        observerControlling = observerControlling
+          .then(() =>
+            dispatchPressureRequest(observerControl, async (request) => {
+              if (
+                closed ||
+                request.expected_owner_pid !== backend.child?.pid ||
+                !/^[0-9a-f-]{36}$/.test(request.request_id ?? '')
+              )
+                return;
+              try {
+                const acknowledged = once(backend.child, 'message', {
+                  signal: AbortSignal.timeout(1500),
+                });
+                backend.child.send(request, () => {});
+                const [ack] = await acknowledged;
+                if (
+                  ack.event !== 'motion.observer_window_sealed' ||
+                  ack.request_id !== request.request_id ||
+                  ack.owner?.pid !== backend.child.pid
+                )
+                  return;
+                await writeFile(
+                  observerReply + '.next',
+                  JSON.stringify({
+                    request_id: request.request_id,
+                    served_pid: backend.child.pid,
+                    run_id: resources.data.runId,
+                    ack,
+                  }) + '\n',
+                  { mode: 0o600 },
+                );
+                await rename(observerReply + '.next', observerReply);
+              } catch {
+                /* ACK unavailable; never terminates the production owner. */
+              }
+              return;
+            }),
+          )
+          .catch(() => false);
+        return;
+      }
       if (String(name) !== basename(controlFile)) return;
       controlling = controlling.then(async () => {
         const request = JSON.parse(await readFile(controlFile, 'utf8'));
-        if (secure && request.action === 'observer-health-barrier') {
-          if (
-            closed ||
-            request.expected_owner_pid !== backend.child?.pid ||
-            !/^[0-9a-f-]{36}$/.test(request.request_id ?? '')
-          )
-            return;
-          try {
-            const acknowledged = once(backend.child, 'message', {
-              signal: AbortSignal.timeout(1500),
-            });
-            backend.child.send(request, () => {});
-            const [ack] = await acknowledged;
-            if (
-              ack.event !== 'motion.observer_window_sealed' ||
-              ack.request_id !== request.request_id ||
-              ack.owner?.pid !== backend.child.pid
-            )
-              return;
-            await writeFile(
-              replyFile + '.next',
-              JSON.stringify({
-                request_id: request.request_id,
-                served_pid: backend.child.pid,
-                run_id: resources.data.runId,
-                ack,
-              }) + '\n',
-              { mode: 0o600 },
-            );
-            await rename(replyFile + '.next', replyFile);
-          } catch {
-            /* ACK unavailable; never terminates the production owner. */
-          }
-          return;
-        }
         if (closed || request.revision <= handled) return;
         handled = request.revision;
         let facts;
@@ -434,6 +445,8 @@ try {
       secure || statusControl || reference ? controlFile : '',
     E2E_SERVICE_CONTROL_REPLY:
       secure || statusControl || reference ? replyFile : '',
+    E2E_OBSERVER_CONTROL: secure ? observerControl : '',
+    E2E_OBSERVER_REPLY: secure ? observerReply : '',
     LAB_WORD_MIGRATION_DESKTOP:
       process.env.LAB_WORD_MIGRATION_DESKTOP ?? 'true',
     ...(history

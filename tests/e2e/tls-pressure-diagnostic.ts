@@ -1,7 +1,10 @@
 import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { assertPressureSealAck } from '../support/pressure-barrier.ts';
+import {
+  assertPressureSealAck,
+  publishPressureRequest,
+} from '../support/pressure-barrier.ts';
 
 export function pressureWindow(sessionId: string, clientPort: number) {
   const directory = process.env.TLS_PRESSURE_PROBE_DIR;
@@ -157,31 +160,46 @@ export async function sealPressureWindow(sessionId: string) {
         baselineGenerations[role] = 0;
       }
     }
-    writeFileSync(
-      process.env.E2E_SERVICE_CONTROL!,
-      JSON.stringify({
+    if (
+      !publishPressureRequest(process.env.E2E_OBSERVER_CONTROL!, {
         action: 'observer-health-barrier',
         request_id,
         expected_owner_pid: serverPid,
-      }) + '\n',
-      { mode: 0o600 },
-    );
+      })
+    )
+      throw new Error('Diagnostic publication unavailable');
     for (const owner of roles)
-      writeFileSync(
-        join(witnesses, owner.role + '-seal-request.json'),
-        JSON.stringify({
-          request_id,
-          expected_owner_pid: owner.pid,
-          sessionId,
-        }) + '\n',
-        { mode: 0o600 },
-      );
+      if (
+        !publishPressureRequest(
+          join(witnesses, owner.role + '-seal-request.json'),
+          {
+            request_id,
+            expected_owner_pid: owner.pid,
+            sessionId,
+          },
+        )
+      )
+        throw new Error('Diagnostic publication unavailable');
     const deadline = performance.now() + 2500;
     let replies: Record<string, unknown> | undefined;
+    let invalidCurrentAck = false;
+    function checkCurrentAck(
+      value: unknown,
+      expected: Parameters<typeof assertPressureSealAck>[1],
+    ) {
+      if ((value as { request_id?: string })?.request_id !== request_id)
+        throw new Error('Await current ACK');
+      try {
+        return assertPressureSealAck(value, expected);
+      } catch {
+        invalidCurrentAck = true;
+        throw new Error('Current ACK invalid');
+      }
+    }
     while (performance.now() < deadline) {
       try {
         const envelope = JSON.parse(
-          readFileSync(process.env.E2E_SERVICE_CONTROL_REPLY!, 'utf8'),
+          readFileSync(process.env.E2E_OBSERVER_REPLY!, 'utf8'),
         );
         if (
           envelope.request_id !== request_id ||
@@ -189,14 +207,14 @@ export async function sealPressureWindow(sessionId: string) {
           envelope.run_id !== process.env.CONTRACT_RUN_ID
         )
           throw new Error('No current owner reply');
-        const server = assertPressureSealAck(envelope.ack, {
+        const server = checkCurrentAck(envelope.ack, {
           request_id,
           pid: serverPid,
           afterGeneration: baselineGenerations.server,
           requestedAt,
         });
         const acknowledgments = roles.map((owner) =>
-          assertPressureSealAck(
+          checkCurrentAck(
             JSON.parse(
               readFileSync(
                 join(witnesses, owner.role + '-seal-ack.json'),
@@ -218,6 +236,7 @@ export async function sealPressureWindow(sessionId: string) {
         };
         break;
       } catch {
+        if (invalidCurrentAck) break;
         await new Promise((resolve) => setTimeout(resolve, 25));
       }
     }
@@ -230,6 +249,7 @@ export async function sealPressureWindow(sessionId: string) {
         peer: roles[1].pid,
       },
       baselineGenerations,
+      invalidCurrentAck,
       valid: !!replies,
       replies: replies ?? null,
     });

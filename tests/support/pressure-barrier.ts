@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { writeFileSync, renameSync } from 'node:fs';
 
 export function assertPressureSealAck(
   value: unknown,
@@ -32,11 +33,20 @@ export function assertPressureSealAck(
     Number.isSafeInteger(ack.publicationGeneration) &&
       ack.publicationGeneration! > expected.afterGeneration,
   );
+  assert(Number.isSafeInteger(expected.requestedAt));
+  assert(
+    Number.isSafeInteger(ack.requestObservedEpochMs) &&
+      Number.isSafeInteger(ack.sealedEpochMs),
+  );
   assert(
     ack.requestObservedEpochMs! >= expected.requestedAt &&
       ack.sealedEpochMs! >= ack.requestObservedEpochMs!,
   );
-  assert(ack.sealedEpochMs! <= Date.now() + 1000);
+  // All owners are on this host's UTC wall clock; no skew allowance is assumed.
+  assert(
+    ack.sealedEpochMs! <= Date.now(),
+    'Future ACK is not completed evidence',
+  );
   assert.equal(ack.sealed, true);
   assert.equal(
     ack.observerPersistence?.valid,
@@ -45,4 +55,21 @@ export function assertPressureSealAck(
   );
   assert(ack.snapshot, 'No fresh published capture');
   return ack;
+}
+
+/** A failed partial temporary write never changes a published request. */
+export function publishPressureRequest(
+  path: string,
+  request: unknown,
+  io = { writeFileSync, renameSync },
+) {
+  try {
+    io.writeFileSync(path + '.next', JSON.stringify(request) + '\n', {
+      mode: 0o600,
+    });
+    io.renameSync(path + '.next', path);
+    return true;
+  } catch {
+    return false;
+  }
 }
