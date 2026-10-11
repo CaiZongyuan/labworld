@@ -2,7 +2,7 @@
 
 目标：显式运行一个固定场景，并在两个桌面 Viewer 中观察同一个 Simulation Session。每个 Viewer 保留各自的相机、选择和 Inspector。
 
-先完成[持久 Lab 与对象](persistent-world.md)和[持久数字资产](persistent-assets.md)。使用仓库指定的 Node、pnpm、Python 3.10+、venv 和 pip，以及 Linux 或 WSL Ubuntu。从仓库根目录执行 Bash 命令。它们创建隔离的开发数据。本章使用开发合成运动，不需要 GPU、Newton 或 Docker。可靠 Lab Recording 仍是后续能力。
+先完成[持久 Lab 与对象](persistent-world.md)和[持久数字资产](persistent-assets.md)。使用仓库指定的 Node、pnpm、Python 3.10+、venv 和 pip，以及 Linux 或 WSL Ubuntu。从仓库根目录执行 Bash 命令。它们创建隔离的开发数据。本章使用开发合成运动，不需要 GPU、Newton 或 Docker。每次 Session 自动创建一份可靠 Lab Recording；读取片段、检查完整性和删除见[采集和检查一次 Recording](recording.md)。
 
 ## 配置由服务持有的来源
 
@@ -89,4 +89,4 @@ Resume 排除暂停期间的真实时间。它的可信边界建立新的接收�
 
 来源：[会话 owner](../../packages/server/src/lab/sessions/service.ts)、[HTTP 路由](../../packages/server/src/lab/sessions/routes.ts)、[SDK 生命周期流](../../packages/sdk/src/simulation-session.ts)、[会话控件](../../packages/views/src/lab/simulation-session-controls.tsx)、[运动缓冲](../../packages/sdk/src/motion-buffer.ts)与 [body 到可视目标校正](../../packages/views/src/lab/motion-scene.ts)。来源参数默认 translation amplitude 为 `0.45`、angular speed 为 `1`、joint amplitude 为 `1`。Start HTTP 为每项接受 `0` 到 `10` 的有限值。这些数学轨迹不计算物理接触。
 
-继续[空间工作台](spatial-workbench.md)。生产 Newton、持久 Recording、远程入口和机器人任务仍是独立工作。
+继续[采集和检查一次 Recording](recording.md)或[空间工作台](spatial-workbench.md)。生产 Newton、远程入口和机器人任务仍是独立工作。

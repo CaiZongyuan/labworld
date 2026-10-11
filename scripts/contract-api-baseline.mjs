@@ -10,6 +10,7 @@ import {
 import { sessionApiParts } from './lib/session-api.ts';
 import { motionApiParts } from './lib/motion-api.ts';
 import { guideProgressApiParts } from './lib/guide-progress-api.ts';
+import { recordingApiParts } from './lib/recording-api.ts';
 const { values } = parseArgs({
   options: {
     input: { type: 'string', default: 'packages/contracts/openapi.json' },
@@ -24,7 +25,8 @@ if (values.write) {
   writeFileSync(baseline, JSON.stringify(canonical(actual), null, 2) + '\n');
   console.log('Retained Rust API baseline written');
 } else {
-  const sessions = sessionApiParts(actual);
+  const recordings = recordingApiParts(actual);
+  const sessions = sessionApiParts(recordings.existing);
   const motion = motionApiParts(sessions.existing);
   const parts = guideProgressApiParts(motion.existing);
   const diff = semanticDifferences(
@@ -62,4 +64,15 @@ if (values.write) {
   if (sessionDiff.length)
     throw new Error('Approved Session API drift:\n' + sessionDiff.join('\n'));
   console.log('Approved Session API semantic difference is empty');
+  const recordingDiff = semanticDifferences(
+    JSON.parse(
+      readFileSync(resolve(root, 'tests/contract/recording-api.json'), 'utf8'),
+    ),
+    recordings.addition,
+  );
+  if (recordingDiff.length)
+    throw new Error(
+      'Approved Recording API drift:\n' + recordingDiff.join('\n'),
+    );
+  console.log('Approved Recording API semantic difference is empty');
 }

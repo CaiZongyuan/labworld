@@ -3,6 +3,7 @@ import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import {
+  MOTION_LIMITS,
   parseMotionHello,
   parseMotionSessionAck,
   type MotionErrorCode,
@@ -16,6 +17,7 @@ import {
   loopback,
 } from '../../../packages/server/src/lab/motion/fixture.ts';
 import type { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
+import type { RecordingWebSockets } from './recording-ws.ts';
 function bytes(data: RawData) {
   if (Array.isArray(data)) return Buffer.concat(data);
   return data instanceof ArrayBuffer
@@ -32,6 +34,7 @@ export class MotionWebSockets {
   private gateway = new MotionGateway();
   private server?: Server;
   private stopping = false;
+  private quiescing = false;
   private admissions = new Set<Promise<void>>();
   private deadlines = new Map<WebSocket, ReturnType<typeof setTimeout>>();
   constructor(
@@ -39,21 +42,33 @@ export class MotionWebSockets {
     origin: string,
     sessions?: SimulationSessions,
     log: (entry: Record<string, unknown>) => void = () => {},
+    recording?: RecordingWebSockets,
   ) {
     this.log = log;
     this.sessions = sessions;
     this.fixtures = privateFixtures;
     this.origin = origin;
+    this.recording = recording;
   }
   private log: (entry: Record<string, unknown>) => void;
   private sessions?: SimulationSessions;
   private fixtures: MotionFixtures;
   private origin: string;
+  private recording?: RecordingWebSockets;
+  get connections() {
+    return this.ws.clients.size;
+  }
   private upgrade = (
     request: IncomingMessage,
     socket: Duplex,
     head: Buffer,
   ) => {
+    if (
+      !this.stopping &&
+      !this.quiescing &&
+      this.recording?.tryUpgrade(request, socket, head)
+    )
+      return;
     const reject = () => {
       socket.end(
         'HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Length: 0\r\n\r\n',
@@ -67,12 +82,13 @@ export class MotionWebSockets {
     if (
       !match ||
       this.stopping ||
+      this.quiescing ||
       (!this.fixtures.enabled && !this.sessions?.options.enabled) ||
       !loopback(request.socket.remoteAddress) ||
       ['forwarded', 'x-forwarded-for', 'x-real-ip'].some(
         (name) => request.headers[name] !== undefined,
       ) ||
-      this.ws.clients.size >= 128 ||
+      this.connections + (this.recording?.connections ?? 0) >= 128 ||
       (request.headers.origin !== undefined &&
         request.headers.origin !== this.origin) ||
       (match[2] === 'viewer' && request.headers.origin !== this.origin)
@@ -160,7 +176,11 @@ export class MotionWebSockets {
     const receive = (raw: RawData, binary: boolean) => {
       const data = bytes(raw);
       if (!admitted) {
-        if (admitting || binary || data.byteLength > 4096) {
+        if (
+          admitting ||
+          binary ||
+          data.byteLength > MOTION_LIMITS.hello_bytes
+        ) {
           this.gateway.reject(
             transport,
             'invalid_message',
@@ -192,7 +212,8 @@ export class MotionWebSockets {
               );
               return;
             }
-            if (closed || this.stopping || !transport.open) return;
+            if (closed || this.stopping || this.quiescing || !transport.open)
+              return;
             const authority = formal
               ? (
                   admission as Awaited<
@@ -284,6 +305,9 @@ export class MotionWebSockets {
   }
   fence(id: string) {
     this.gateway.fence(id);
+  }
+  quiesce() {
+    this.quiescing = true;
   }
   async stop() {
     if (this.stopping) return;

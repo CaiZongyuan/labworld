@@ -3,6 +3,7 @@ import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { once } from 'node:events';
+import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { WebSocket } from 'ws';
 import { ServerProcess, until } from '../support/server-process.ts';
@@ -12,8 +13,29 @@ import {
   encodeMotionSnapshot,
   decodeMotionSnapshot,
   parseMotionWelcome,
+  parseMotionSessionControl,
   type MotionWelcome,
 } from '../../packages/contracts/src/motion/index.ts';
+import {
+  RECORDING_CAPTURE_POLICY,
+  RECORDING_CODEC,
+  RECORDING_IDENTITY_FIELDS,
+  parseRecordingBootstrap,
+  parseRecordingReady,
+  parseRecordingAck,
+  canonicalSourceHeader,
+  recordingSHA256,
+  mappingDigest,
+  sourcePrefixSeed,
+  advanceSourcePrefix,
+  encodeRecordingPacket,
+  decodeRecordingPacket,
+  encodeFrameBatch,
+  type RecordingBootstrap,
+  type RecordingReady,
+  type RecordingAck,
+  type RecordingSourceHeader,
+} from '../../packages/contracts/src/recording/index.ts';
 import type {
   Session,
   Installation,
@@ -23,6 +45,7 @@ type Admission = {
   websocket_path: string;
   lease_id: string;
   epoch: string;
+  recording?: RecordingBootstrap;
   bootstrap: {
     snapshot_hash: string;
     initial_poses: Session['snapshot']['initial_poses'];
@@ -36,6 +59,24 @@ class Source {
   welcome?: MotionWelcome;
   sequence = 0n;
   failure?: string;
+  private admission: Admission;
+  private role: 'viewer' | 'publisher';
+  private target: ServerProcess;
+  private ownership: Promise<void>;
+  private recording?: WebSocket;
+  private recordingReady?: RecordingReady;
+  private recordingFailure?: string;
+  private recordingWaiter?: {
+    resolve: (text: string) => void;
+    reject: (error: Error) => void;
+  };
+  private recordingTimer?: ReturnType<typeof setTimeout>;
+  private packetSequence = 0n;
+  private eventSequence = 0n;
+  private prefix = '';
+  private lastAck?: RecordingAck;
+  private pendingReply?: string;
+  private receivedControl?: { id: unknown; at: number };
   constructor(
     target: ServerProcess,
     session: Session,
@@ -43,6 +84,31 @@ class Source {
     role: 'viewer' | 'publisher' = 'publisher',
   ) {
     this.session = session;
+    this.admission = admission;
+    this.role = role;
+    this.target = target;
+    this.ownership = target.startInProcess(
+      `session-authority:${session.id}:${role}:${randomUUID()}`,
+      async () => {},
+      async () => {
+        const sockets = [this.ws, this.recording].filter(
+          (socket): socket is WebSocket => !!socket,
+        );
+        const closed = sockets.map((socket) =>
+          socket.readyState === WebSocket.CLOSED
+            ? Promise.resolve()
+            : new Promise<void>((resolve) =>
+                socket.once('close', () => resolve()),
+              ),
+        );
+        this.close();
+        await Promise.all(closed);
+      },
+    );
+    void this.ownership.catch((error) => {
+      this.failure = String(error);
+      this.close();
+    });
     this.ws = new WebSocket(
       target.url.replace('http:', 'ws:') + admission.websocket_path,
       { origin: target.url },
@@ -55,7 +121,15 @@ class Source {
     });
     this.ws.on('message', (data, binary) => {
       if (binary) this.frames.push(new Uint8Array(data as Buffer));
-      else this.controls.push(JSON.parse(String(data)));
+      else {
+        const control = JSON.parse(String(data));
+        if (control.type === 'motion.session_control')
+          this.receivedControl = {
+            id: control.transition_id,
+            at: performance.now(),
+          };
+        this.controls.push(control);
+      }
     });
     this.ws.once('open', () =>
       this.ws.send(
@@ -75,6 +149,7 @@ class Source {
     );
   }
   async ready() {
+    await this.ownership;
     this.welcome = parseMotionWelcome(
       JSON.stringify(
         await until(
@@ -90,22 +165,273 @@ class Source {
         ),
       ),
     );
+    if (this.role === 'publisher') await this.openRecording();
     return this.welcome;
   }
-  frame(time: bigint = 0n, offset = 0) {
+  private async openRecording() {
+    const bootstrap = parseRecordingBootstrap(this.admission.recording);
+    assert.equal(bootstrap.session_id, this.session.id);
+    assert.equal(bootstrap.lease_id, this.admission.lease_id);
+    assert.equal(bootstrap.epoch, this.welcome!.epoch);
+    assert.equal(bootstrap.snapshot_hash, this.session.snapshot.hash);
+    assert.equal(bootstrap.scene_hash, this.welcome!.scene_hash);
+    assert.equal(bootstrap.mapping_revision, this.welcome!.mapping_revision);
+    assert.equal(bootstrap.mapping_sha256, await mappingDigest(this.welcome!));
+    const header: RecordingSourceHeader = {
+      source_kind: 'synthetic',
+      implementation: {
+        name: 'session-authority-test',
+        version: '1',
+        sha256: null,
+      },
+      python_version: null,
+      dependencies: [],
+      capture_policy: RECORDING_CAPTURE_POLICY,
+    };
+    this.recording = new WebSocket(
+      this.target.url.replace('http:', 'ws:') + bootstrap.websocket_path,
+      { origin: this.target.url, maxPayload: 16384 },
+    );
+    const failed = (reason: string) => {
+      this.recordingFailure = reason;
+      this.recordingWaiter?.reject(new Error(reason));
+    };
+    this.recording.on('error', () => failed('Recording socket error'));
+    this.recording.on('close', () => failed('Recording socket closed'));
+    this.recording.on('message', (data, binary) => {
+      const raw = Array.isArray(data) ? Buffer.concat(data) : data;
+      if (binary || raw.byteLength > (this.recordingReady ? 4096 : 16384)) {
+        failed('Unexpected Recording response');
+        return;
+      }
+      const text = (
+        raw instanceof ArrayBuffer ? Buffer.from(raw) : raw
+      ).toString('utf8');
+      if (text === this.pendingReply) return;
+      if (this.lastAck) {
+        try {
+          if (
+            JSON.stringify(parseRecordingAck(text)) ===
+            JSON.stringify(this.lastAck)
+          )
+            return;
+        } catch {
+          /* the current waiter checks its own message */
+        }
+      }
+      if (!this.recordingWaiter) {
+        failed('Recording reply without an in-flight request');
+        return;
+      }
+      this.pendingReply = text;
+      this.recordingWaiter.resolve(text);
+    });
+    await until(
+      async () => {
+        if (this.recordingFailure) throw new Error(this.recordingFailure);
+        return this.recording!.readyState === WebSocket.OPEN;
+      },
+      Boolean,
+      3000,
+    );
+    const identity = Object.fromEntries(
+      RECORDING_IDENTITY_FIELDS.map((key) => [key, bootstrap[key]]),
+    );
+    const ready = parseRecordingReady(
+      await this.exchange(
+        JSON.stringify({
+          type: 'recording.hello',
+          version: 1,
+          codec: RECORDING_CODEC,
+          ...identity,
+          ticket: bootstrap.ticket,
+          source_header: header,
+        }),
+        performance.now() + 3000,
+        false,
+      ),
+    );
+    for (const key of RECORDING_IDENTITY_FIELDS)
+      assert.equal(ready[key], bootstrap[key]);
+    assert.deepEqual(ready.capture_policy, bootstrap.capture_policy);
+    assert.deepEqual(ready.limits, bootstrap.limits);
+    assert.equal(
+      ready.source_header_sha256,
+      await recordingSHA256(canonicalSourceHeader(header)),
+    );
+    assert.equal(
+      ready.source_prefix_sha256,
+      await sourcePrefixSeed(bootstrap, ready.source_header_sha256),
+    );
+    this.recordingReady = ready;
+    this.prefix = ready.source_prefix_sha256;
+  }
+  private exchange(
+    data: string | Uint8Array,
+    deadline: number,
+    retry = true,
+  ): Promise<string> {
+    assert.ok(this.recording && this.recording.readyState === WebSocket.OPEN);
+    assert.equal(
+      this.recordingWaiter,
+      undefined,
+      'Only one reliable packet may be in flight',
+    );
+    assert.equal(this.recordingFailure, undefined);
+    assert.ok(
+      performance.now() < deadline,
+      'Recording total receipt deadline already expired',
+    );
+    this.pendingReply = undefined;
+    const started = performance.now(),
+      limits = this.recordingReady?.limits;
+    const steps = retry
+      ? [limits!.retry_first_ms, limits!.retry_second_ms]
+      : [];
+    let attempt = 0;
+    return new Promise((resolve, reject) => {
+      const complete = (text?: string, error?: Error) => {
+        clearTimeout(this.recordingTimer);
+        this.recordingTimer = undefined;
+        this.recordingWaiter = undefined;
+        if (error) reject(error);
+        else resolve(text!);
+      };
+      this.recordingWaiter = {
+        resolve: (text) => complete(text),
+        reject: (error) => complete(undefined, error),
+      };
+      const schedule = () => {
+        const next = Math.min(
+          deadline,
+          attempt < steps.length ? started + steps[attempt] : deadline,
+        );
+        this.recordingTimer = setTimeout(
+          () => {
+            if (performance.now() >= deadline || attempt === steps.length) {
+              complete(
+                undefined,
+                new Error('Recording receipt deadline exceeded'),
+              );
+              return;
+            }
+            this.recording!.send(data);
+            attempt++;
+            schedule();
+          },
+          Math.max(0, next - performance.now()),
+        );
+      };
+      this.recording!.send(data);
+      schedule();
+    });
+  }
+  private selectFrame(time: bigint, offset: number) {
     this.sequence += 1n;
-    const value = encodeMotionSnapshot({
+    return encodeMotionSnapshot({
       epoch: BigInt(this.welcome!.epoch),
       sequence: this.sequence,
       sim_time_ns: time,
-      mapping_revision: 1,
+      mapping_revision: this.welcome!.mapping_revision,
       poses: this.session.snapshot.initial_poses.map((p) => ({
         position: [p.position[0] + offset, p.position[1], p.position[2]],
         quaternion: p.quaternion as [number, number, number, number],
       })),
       joints: this.session.snapshot.initial_joints,
     });
+  }
+  private async capture(
+    kind: 1 | 2 | 3,
+    payload: Uint8Array,
+    deadline: number,
+  ) {
+    const ready = this.recordingReady!;
+    const packet = await encodeRecordingPacket({
+      kind,
+      recording_id: ready.recording_id,
+      session_id: this.session.id,
+      epoch: BigInt(ready.epoch),
+      source_packet_sequence: this.packetSequence + 1n,
+      payload,
+    });
+    const decoded = await decodeRecordingPacket(packet, ready);
+    const prefix = await advanceSourcePrefix(
+      this.prefix,
+      decoded.packet_sha256,
+    );
+    const ack = parseRecordingAck(await this.exchange(packet, deadline));
+    assert.deepEqual(ack, {
+      type: 'recording.ack',
+      version: 1,
+      recording_id: ready.recording_id,
+      session_id: this.session.id,
+      lease_id: ready.lease_id,
+      epoch: ready.epoch,
+      source_packet_sequence: String(this.packetSequence + 1n),
+      packet_sha256: decoded.packet_sha256,
+      source_prefix_sha256: prefix,
+      durable_source_sequence: String(this.sequence),
+      durable_source_event_sequence: String(this.eventSequence),
+      source_ended: kind === 3,
+    });
+    this.prefix = prefix;
+    this.packetSequence++;
+    this.lastAck = ack;
+  }
+  async frame(time: bigint = 0n, offset = 0) {
+    const value = this.selectFrame(time, offset);
+    await this.capture(
+      1,
+      encodeFrameBatch([value]),
+      performance.now() + this.recordingReady!.limits.durability_timeout_ms,
+    );
     this.ws.send(value);
+    return value;
+  }
+  async apply(control: Record<string, unknown>, time: bigint, offset = 0) {
+    const request = parseMotionSessionControl(JSON.stringify(control));
+    assert.equal(request.transition_id, this.receivedControl?.id);
+    const deadline =
+      this.receivedControl!.at +
+      this.recordingReady!.limits.durability_timeout_ms;
+    const value = this.selectFrame(time, offset);
+    await this.capture(1, encodeFrameBatch([value]), deadline);
+    this.eventSequence++;
+    const json = (value: unknown) =>
+      new TextEncoder().encode(JSON.stringify(value));
+    await this.capture(
+      2,
+      json({
+        source_event_sequence: String(this.eventSequence),
+        event_id: randomUUID(),
+        event_type: 'lifecycle.applied',
+        subject: { session_id: this.session.id },
+        sim_time_ns: String(time),
+        observed_at: null,
+        event: {
+          transition_id: request.transition_id,
+          revision: request.revision,
+          action: request.action,
+          boundary_source_sequence: String(this.sequence),
+        },
+      }),
+      deadline,
+    );
+    if (request.action === 'stop')
+      await this.capture(
+        3,
+        json({
+          transition_id: request.transition_id,
+          revision: request.revision,
+          reason: 'stop',
+          last_source_sequence: String(this.sequence),
+          last_source_event_sequence: String(this.eventSequence),
+          sim_time_ns: String(time),
+        }),
+        deadline,
+      );
+    this.ws.send(value);
+    this.ack(control, time);
     return value;
   }
   async control(action: string) {
@@ -137,6 +463,13 @@ class Source {
     );
   }
   close() {
+    this.recordingWaiter?.reject(new Error('Owned source closed'));
+    clearTimeout(this.recordingTimer);
+    this.recordingTimer = undefined;
+    this.ws.terminate();
+    this.recording?.terminate();
+  }
+  disconnectMotion() {
     this.ws.terminate();
   }
 }
@@ -301,7 +634,7 @@ test(
       const source = new Source(f.target, session, await f.admit(session));
       peers.push(source);
       await source.ready();
-      source.frame();
+      await source.frame();
       await f.state(session, 'running');
       const world = await f.client.json<Session['snapshot']['world']>(
         'GET',
@@ -345,12 +678,20 @@ test(
         'lab.entity_in_use',
       );
       assert.deepEqual(await f.client.json('GET', f.base + '/world'), latest);
-      const running = await f.read(session),
-        reset = await f.client.json<Session>(
-          'POST',
-          f.base + `/sessions/${session.id}/reset`,
-          { expected_revision: running.revision },
-        );
+      const running = await f.read(session);
+      const resetting = f.client.json<Session>(
+        'POST',
+        f.base + `/sessions/${session.id}/reset`,
+        { expected_revision: running.revision },
+      );
+      const [reset] = await Promise.all([
+        resetting,
+        (async () => {
+          // Reset owns this Stop; finish the old durable frontier before its successor.
+          const internalStop = await source.control('stop');
+          await source.apply(internalStop, 0n);
+        })(),
+      ]);
       assert.notEqual(reset.id, session.id);
       assert.deepEqual(reset.snapshot, session.snapshot);
       assert.deepEqual(
@@ -362,14 +703,13 @@ test(
       const successor = new Source(f.target, reset, await f.admit(reset));
       peers.push(successor);
       await successor.ready();
-      successor.frame();
+      await successor.frame();
       const resumed = await f.state(reset, 'running');
       await f.client.json('POST', f.base + `/sessions/${reset.id}/stop`, {
         expected_revision: resumed.revision,
       });
       const stop = await successor.control('stop');
-      successor.frame(0n);
-      successor.ack(stop, 0n);
+      await successor.apply(stop, 0n);
       await f.state(reset, 'stopped');
       const next = await f.start();
       assert.deepEqual(
@@ -458,7 +798,7 @@ test(
       const source = new Source(f.target, session, admission);
       peers.push(source);
       await source.ready();
-      source.frame();
+      await source.frame();
       const running = await f.state(session, 'running');
       const replay = new Source(f.target, session, admission);
       peers.push(replay);
@@ -469,13 +809,13 @@ test(
         expected_revision: running.revision,
       });
       const pause = await source.control('pause');
-      source.frame(10n);
-      source.ack(pause, 10n);
+      await source.apply(pause, 10n);
       const paused = await f.state(session, 'paused');
       await f.client.json('POST', f.base + `/sessions/${session.id}/resume`, {
         expected_revision: paused.revision,
       });
       const resume = await source.control('resume');
+      // Reuse the paused frontier deliberately; no new frame/event may make this ACK valid.
       source.ack(resume, 10n);
       await until(
         async () => source.controls.some((c) => c.type === 'motion.error'),
@@ -525,7 +865,7 @@ test(
         source = new Source(f.target, session, await f.admit(session));
       peers.push(source);
       await source.ready();
-      source.frame();
+      await source.frame();
       const running = await f.state(session, 'running');
       const ticket = await f.client.json<Admission>(
           'POST',
@@ -540,8 +880,7 @@ test(
         expected_revision: running.revision,
       });
       const pause = await source.control('pause');
-      const boundary = source.frame(100n, 1);
-      source.ack(pause, 100n);
+      const boundary = await source.apply(pause, 100n, 1);
       await f.state(session, 'paused');
       await until(
         async () => viewer.controls.some((c) => c.state === 'paused'),
@@ -560,8 +899,7 @@ test(
         expected_revision: paused.revision,
       });
       const resume = await source.control('resume');
-      source.frame(100n, 1);
-      source.ack(resume, 100n);
+      await source.apply(resume, 100n, 1);
       await f.state(session, 'running');
       await until(
         async () => viewer.controls.some((c) => c.state === 'stale'),
@@ -630,7 +968,7 @@ test(
         source = new Source(f.target, session, await f.admit(session));
       peers.push(source);
       await source.ready();
-      source.frame();
+      await source.frame();
       await f.state(session, 'running');
       await f.client.error(
         'POST',
@@ -802,7 +1140,7 @@ test(
         viewer = new Source(f.target, session, viewerTicket, 'viewer');
       peers.push(viewer);
       await viewer.ready();
-      source.frame();
+      await source.frame();
       await f.state(session, 'running');
       await until(
         async () => viewer.frames.length,
@@ -877,7 +1215,7 @@ test(
         source = new Source(f.target, session, await f.admit(session));
       peers.push(source);
       await source.ready();
-      source.frame();
+      await source.frame();
       await f.state(session, 'running');
       const connections = await Promise.all([
         f.client.response('GET', f.base + '/sessions/events'),
@@ -923,8 +1261,7 @@ test(
       assert.equal(requested[0].session.revision, pausing.revision);
       assert.equal(requested[0].session.status, 'pausing');
       const control = await source.control('pause');
-      source.frame(100n);
-      source.ack(control, 100n);
+      await source.apply(control, 100n);
       const paused = await Promise.all(readers.map(event));
       assert.deepEqual(paused[0], paused[1]);
       assert.equal(paused[0].session.status, 'paused');
@@ -960,7 +1297,7 @@ test(
         source = new Source(f.target, session, await f.admit(session));
       peers.push(source);
       await source.ready();
-      source.frame();
+      await source.frame();
       const running = await f.state(session, 'running');
       const ticket = await f.client.json<Admission>(
           'POST',
@@ -975,15 +1312,15 @@ test(
         expected_revision: running.revision,
       });
       const pause = await source.control('pause'),
-        boundary = source.frame(100n, 1);
-      source.ack(pause, 100n);
+        boundary = await source.apply(pause, 100n, 1);
       await f.state(session, 'paused');
       await until(
         async () => viewer.controls.some((c) => c.state === 'paused'),
         Boolean,
       );
       const controls = viewer.controls.length;
-      source.close();
+      // Recording stays healthy while this test loses the live Publisher socket.
+      source.disconnectMotion();
       await until(
         async () =>
           viewer.controls.slice(controls).some((c) => c.state === 'stale'),

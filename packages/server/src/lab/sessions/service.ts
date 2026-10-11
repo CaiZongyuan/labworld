@@ -1,4 +1,9 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
+import type { RecordingBootstrap } from '../../../../contracts/src/recording/index.ts';
+import type { RecordingService } from '../recordings/service.ts';
+import { planResetSuccessor } from '../recordings/reset-plan.ts';
+import { recordedSessionTransaction } from '../recordings/session-plan.ts';
+import type { DbOperation, DbSession } from '../../platform/db/index.ts';
 import { AsyncResource } from 'node:async_hooks';
 import {
   accessIn,
@@ -47,6 +52,7 @@ export type SourceStart = {
   session: Session;
   ticket: string;
   websocket_path: string;
+  recording?: RecordingBootstrap;
 };
 export type OwnedSource = { stop: () => Promise<void> };
 /** #72 supplies a real durable readiness receipt for this exact immutable snapshot. */
@@ -58,18 +64,22 @@ type Transition = {
   deadline: number;
   baseline?: bigint;
   ack?: MotionSessionAck;
+  internal?: boolean;
+  done?: () => void;
 };
 type Live = {
   session: Session;
   progress: number;
   pong: number;
   last?: MotionSnapshot;
+  lastDigest?: string;
   transport?: MotionTransport;
   source?: OwnedSource;
   transition?: Transition;
   connected: boolean;
   owned: boolean;
   fault?: string;
+  recordingFailed?: boolean;
   initial: boolean;
 };
 type Ticket = {
@@ -98,9 +108,11 @@ export class SimulationSessions {
   private timer?: ReturnType<typeof setInterval>;
   private current?: Promise<void>;
   private stopping = false;
+  private stopped = false;
   private checkedSubscribersAt = 0;
   private resource = new AsyncResource('simulation-session-owner');
   private launcher?: (input: SourceStart) => Promise<OwnedSource>;
+  private recording?: RecordingService;
   private fenceMotion: (id: string) => void = () => {};
   constructor(
     world: WorldService,
@@ -118,23 +130,85 @@ export class SimulationSessions {
     this.launcher = launcher;
     this.fenceMotion = fence;
   }
-  async initialize() {
-    await this.world.context.db.transaction(
-      { id: 'sessions:recovery:' + randomUUID(), kind: 'startup' },
-      async (tx) => {
-        const rows = await tx.execute<{ id: string }>(
-          sql`select id::text from lab.simulation_sessions where ended_at is null`,
-        );
-        for (const row of rows.rows)
-          await endSessionIn(
-            tx,
-            row.id,
-            'interrupted',
-            'server_restarted',
-            this.world.context.clock.now(),
-          );
-      },
+  configureRecording(recording: RecordingService) {
+    this.recording = recording;
+    recording.configure(
+      (id, reason) => this.recordingFault(id, reason),
+      (id) => this.live.get(id)?.transition?.control,
     );
+  }
+  private sessionTransaction<T>(
+    op: DbOperation,
+    lab: string,
+    id: string,
+    work: (tx: DbSession) => Promise<T>,
+    validate?: (tx: DbSession) => Promise<unknown>,
+  ) {
+    return this.recording
+      ? recordedSessionTransaction(
+          this.world.context.db,
+          this.recording,
+          op,
+          lab,
+          id,
+          work,
+          validate,
+        )
+      : this.world.context.db.transaction(op, work);
+  }
+  private recordingFault(id: string, reason: string) {
+    const live = this.live.get(id);
+    if (!live || live.session.ended_at) return;
+    live.fault = reason;
+    live.recordingFailed = true;
+    this.fenceMotion(id);
+    live.transport?.close(1008, 'recording_interrupted');
+    live.transition?.done?.();
+    void this.resource.runInAsyncScope(() => this.tick());
+  }
+  async initialize() {
+    if (this.recording) {
+      const rows = await this.world.context.db.read(
+        { id: 'sessions:recovery-read:' + randomUUID(), kind: 'startup' },
+        (tx) =>
+          tx.execute<{ id: string; lab_id: string }>(
+            sql`select id::text,lab_id::text from lab.simulation_sessions where ended_at is null`,
+          ),
+      );
+      for (const row of rows.rows) {
+        const ended = await this.sessionTransaction(
+          { id: 'sessions:recovery:' + randomUUID(), kind: 'startup' },
+          row.lab_id,
+          row.id,
+          (tx) =>
+            endSessionIn(
+              tx,
+              row.id,
+              'interrupted',
+              'server_restarted',
+              this.world.context.clock.now(),
+            ),
+        );
+        if (ended)
+          await this.recording.finish(ended, 'server_restarted', false);
+      }
+    } else
+      await this.world.context.db.transaction(
+        { id: 'sessions:recovery:' + randomUUID(), kind: 'startup' },
+        async (tx) => {
+          const rows = await tx.execute<{ id: string }>(
+            sql`select id::text from lab.simulation_sessions where ended_at is null`,
+          );
+          for (const row of rows.rows)
+            await endSessionIn(
+              tx,
+              row.id,
+              'interrupted',
+              'server_restarted',
+              this.world.context.clock.now(),
+            );
+        },
+      );
     this.timer = setInterval(() => void this.tick(), 100);
     this.timer.unref();
   }
@@ -299,6 +373,18 @@ export class SimulationSessions {
     );
   }
   async start(headers: Headers, requestId: string, lab: string, input: Start) {
+    return this.recording
+      ? this.recording.preparation(lab, () =>
+          this.startBase(headers, requestId, lab, input),
+        )
+      : this.startBase(headers, requestId, lab, input);
+  }
+  private async startBase(
+    headers: Headers,
+    requestId: string,
+    lab: string,
+    input: Start,
+  ) {
     const result = await this.world.context.db.transaction(
       { id: requestId, kind: 'request' },
       async (tx) => {
@@ -345,10 +431,35 @@ export class SimulationSessions {
           actor.user.id,
           this.world.context.clock.now(),
         );
+        await this.recording?.reserveIn(tx, session, actor.user.id);
         await this.audit(tx, actor, requestId, session.id, 'start');
-        return { session, credential: machine.credential };
+        return {
+          session,
+          credential: machine.credential,
+          actorId: actor.user.id,
+        };
       },
     );
+    if (this.recording) {
+      try {
+        await this.recording.prepareSession(result.session, result.actorId);
+        await this.requireRecordingReady(result.session, this.recording);
+      } catch (error) {
+        await this.world.context.db.transaction(
+          { id: requestId, kind: 'request' },
+          (tx) =>
+            endSessionIn(
+              tx,
+              result.session.id,
+              'interrupted',
+              'recording_prepare_failed',
+              this.world.context.clock.now(),
+            ),
+        );
+        await this.recording.compensatePreparation(result.session);
+        throw error;
+      }
+    }
     return this.activate(result.session, result.credential, requestId);
   }
   private async activate(
@@ -367,8 +478,10 @@ export class SimulationSessions {
       };
     this.live.set(session.id, live);
     if (this.stopping) {
-      const ended = await this.world.context.db.transaction(
+      const ended = await this.sessionTransaction(
         { id: requestId, kind: 'request' },
+        session.lab_id,
+        session.id,
         (tx) =>
           endSessionIn(
             tx,
@@ -401,6 +514,7 @@ export class SimulationSessions {
           session: live.session,
           ticket: admission.ticket,
           websocket_path: admission.websocket_path,
+          recording: admission.recording,
         },
       );
       if (
@@ -420,8 +534,10 @@ export class SimulationSessions {
         message: error instanceof Error ? error.message : 'Source start failed',
       });
       // HTTP's transaction scope remains the owner of this compensation.
-      const ended = await this.world.context.db.transaction(
+      const ended = await this.sessionTransaction(
         { id: requestId, kind: 'request' },
+        session.lab_id,
+        session.id,
         (tx) =>
           endSessionIn(
             tx,
@@ -448,7 +564,7 @@ export class SimulationSessions {
       );
     for (const [key, ticket] of this.tickets)
       if (ticket.expires <= performance.now()) this.tickets.delete(key);
-    if (this.tickets.size >= 256)
+    if (this.tickets.size + (this.recording?.ticketCount ?? 0) >= 256)
       throw sessionFailure(
         'session_ticket_capacity',
         'Motion admission capacity reached',
@@ -504,8 +620,10 @@ export class SimulationSessions {
     lab = worldId(lab);
     id = worldId(id);
     machine = worldId(machine);
-    const session = await this.world.context.db.transaction(
+    const session = await this.sessionTransaction(
       { id: requestId, kind: 'request' },
+      lab,
+      id,
       async (tx) => {
         await authenticateMachineIn(
           tx,
@@ -548,12 +666,23 @@ export class SimulationSessions {
         );
         return sessionValue(changed.rows[0]);
       },
+      (tx) =>
+        authenticateMachineIn(
+          tx,
+          machine,
+          headers,
+          this.world.context.clock.now(),
+        ),
     );
     const live = this.live.get(id);
     if (live && !live.session.ended_at) live.session = session;
     this.broadcast(session);
+    const recording = this.recording
+      ? await this.recording.bootstrap(session, this.tickets.size)
+      : undefined;
     return {
       ...this.issueTicket({ session, machine, role: 'publisher', rate: 30 }),
+      recording,
       lease_id: session.lease_id!,
       epoch: session.epoch!,
       bootstrap: {
@@ -672,7 +801,10 @@ export class SimulationSessions {
     live.connected = true;
     live.pong = performance.now();
     return {
-      frame: (frame: MotionSnapshot) => {
+      frame: (frame: MotionSnapshot, raw?: Uint8Array) => {
+        const digest = raw
+          ? 'sha256:' + createHash('sha256').update(raw).digest('hex')
+          : undefined;
         if (!this.valid(live, lease, transport))
           throw sessionFailure(
             'publisher_unauthorized',
@@ -686,6 +818,21 @@ export class SimulationSessions {
             400,
           );
         if (!live.initial) {
+          if (
+            this.recording &&
+            (!digest ||
+              !this.recording.initialMatches(
+                id,
+                frame.sequence,
+                frame.sim_time_ns,
+                digest,
+              ))
+          )
+            throw sessionFailure(
+              'session_recording_initial_rejected',
+              'Initial live frame does not match durable Recording bytes',
+              400,
+            );
           const expected = live.session.snapshot;
           const equal = (a: number, b: number) =>
             Math.abs(a - b) <= Math.max(0.00001, Math.abs(b) * 0.000001);
@@ -713,6 +860,31 @@ export class SimulationSessions {
             );
         }
         const now = performance.now();
+        if (this.recording && live.transition && !live.transition.ack) {
+          const receipt = this.recording.boundaryFor(
+            id,
+            live.transition.control,
+          );
+          if (
+            receipt &&
+            frame.sequence >= BigInt(receipt.sequence) &&
+            (!digest ||
+              !this.recording.boundaryMatches(
+                id,
+                live.transition.control,
+                frame.sequence,
+                frame.sim_time_ns,
+                digest,
+              ))
+          ) {
+            this.recording.faultSession(id, 'live_boundary_digest_mismatch');
+            throw sessionFailure(
+              'session_boundary_rejected',
+              'Live boundary differs from its durable bytes',
+              400,
+            );
+          }
+        }
         if (live.session.status === 'paused')
           throw sessionFailure(
             'session_paused',
@@ -722,6 +894,7 @@ export class SimulationSessions {
         if (!live.last || frame.sim_time_ns > live.last.sim_time_ns)
           live.progress = now;
         live.last = frame;
+        live.lastDigest = digest;
         if (!live.initial) live.initial = true;
       },
       ack: (ack: MotionSessionAck) => {
@@ -738,6 +911,15 @@ export class SimulationSessions {
           ack.action !== pending.control.action ||
           performance.now() > pending.deadline ||
           !last ||
+          (this.recording &&
+            (!live.lastDigest ||
+              !this.recording.boundaryMatches(
+                id,
+                pending.control,
+                last.sequence,
+                last.sim_time_ns,
+                live.lastDigest,
+              ))) ||
           (pending.control.action !== 'stop' &&
             pending.baseline !== undefined &&
             last.sequence <= pending.baseline) ||
@@ -750,6 +932,7 @@ export class SimulationSessions {
             400,
           );
         pending.ack = ack;
+        pending.done?.();
       },
       pong: () => {
         if (this.valid(live, lease, transport)) live.pong = performance.now();
@@ -771,7 +954,7 @@ export class SimulationSessions {
       live.transport === transport
     );
   }
-  async transition(
+  private async transitionBase(
     headers: Headers,
     requestId: string,
     lab: string,
@@ -783,8 +966,10 @@ export class SimulationSessions {
     id = worldId(id);
     let owner: Live | undefined;
     let credential: string | undefined;
-    const result = await this.world.context.db.transaction(
+    const result = await this.sessionTransaction(
       { id: requestId, kind: 'request' },
+      lab,
+      id,
       async (tx) => {
         const actor = await accessIn(
             tx,
@@ -853,6 +1038,15 @@ export class SimulationSessions {
         await this.audit(tx, actor, requestId, id, action);
         return sessionValue(changed.rows[0]);
       },
+      (tx) =>
+        accessIn(
+          tx,
+          this.world.context,
+          this.world.policy,
+          headers,
+          'lab:full',
+          true,
+        ),
     );
     const live = owner!;
     if (this.stopping && action !== 'reset') {
@@ -902,6 +1096,252 @@ export class SimulationSessions {
     else live.transport.send(JSON.stringify(control));
     return result;
   }
+  async transition(
+    headers: Headers,
+    requestId: string,
+    lab: string,
+    id: string,
+    action: 'pause' | 'resume' | 'stop' | 'reset',
+    expected: number,
+  ) {
+    if (!this.recording)
+      return this.transitionBase(headers, requestId, lab, id, action, expected);
+    return this.recording.preparation(lab, () =>
+      action === 'reset'
+        ? this.resetRecorded(headers, requestId, lab, id, expected)
+        : this.transitionBase(headers, requestId, lab, id, action, expected),
+    );
+  }
+  private async resetRecorded(
+    headers: Headers,
+    requestId: string,
+    lab: string,
+    id: string,
+    expected: number,
+  ) {
+    lab = worldId(lab);
+    id = worldId(id);
+    const initial = await this.world.context.db.transaction(
+      { id: requestId, kind: 'request' },
+      async (tx) => {
+        const actor = await accessIn(
+            tx,
+            this.world.context,
+            this.world.policy,
+            headers,
+            'lab:full',
+            true,
+          ),
+          session = await sessionIn(tx, lab, id);
+        const live = this.live.get(id);
+        if (
+          !live ||
+          session.ended_at ||
+          session.revision !== expected ||
+          live.transition
+        )
+          throw sessionFailure(
+            'session_conflict',
+            'Session changed or has a transition in progress',
+          );
+        return { actor, session, live };
+      },
+    );
+    const { live, session } = initial;
+    const control: MotionSessionControl = {
+      type: 'motion.session_control',
+      session_id: id,
+      epoch: session.epoch ?? '0',
+      transition_id: randomUUID(),
+      revision: session.revision + 1,
+      action: 'stop',
+    };
+    let resolve!: () => void;
+    const applied = new Promise<void>((r) => (resolve = r));
+    live.transition = {
+      control,
+      deadline: performance.now() + this.options.ackMillis,
+      baseline: live.last?.sequence,
+      internal: true,
+      done: resolve,
+    };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      if (live.transport?.open && live.transport.bufferedAmount <= 64 * 1024)
+        live.transport.send(JSON.stringify(control));
+      else resolve();
+      await Promise.race([
+        applied,
+        new Promise<void>(
+          (r) => (timer = setTimeout(r, this.options.ackMillis)),
+        ),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+    const drained = !!live.transition?.ack;
+    if (!drained)
+      this.recording!.faultSession(id, 'reset_source_drain_incomplete');
+    let stage:
+      Awaited<ReturnType<RecordingService['stageSession']>> | undefined;
+    let successor: Session | undefined;
+    try {
+      const plan = await planResetSuccessor(
+        this.world.context.db,
+        { id: requestId, kind: 'request' },
+        session,
+        initial.actor.user.id,
+        live.owned,
+        this.world.context.clock.now(),
+      );
+      successor = plan.session;
+      stage = await this.recording!.stageSession(
+        plan.session,
+        initial.actor.user.id,
+      );
+      const prepared = stage;
+      const next = await this.sessionTransaction(
+        { id: requestId, kind: 'request' },
+        lab,
+        id,
+        async (tx) => {
+          const actor = await accessIn(
+              tx,
+              this.world.context,
+              this.world.policy,
+              headers,
+              'lab:full',
+              true,
+            ),
+            current = await sessionIn(tx, lab, id);
+          if (current.ended_at || current.revision !== expected)
+            throw sessionFailure(
+              'session_conflict',
+              'Session changed while Reset prepared',
+            );
+          await endSessionIn(
+            tx,
+            id,
+            'reset',
+            'reset_requested',
+            plan.session.started_at,
+            plan.session.id,
+          );
+          if (plan.machine)
+            await tx.execute(
+              sql`insert into labos_threejs_core.machines select m.* from jsonb_populate_record(null::labos_threejs_core.machines,${JSON.stringify(plan.machine)}::jsonb)m`,
+            );
+          const created = await reserveSessionIn(
+            tx,
+            lab,
+            current.installation_id,
+            plan.session.machine_id,
+            current.snapshot,
+            actor.user.id,
+            plan.session.started_at,
+            plan.session.id,
+          );
+          await this.recording!.reserveIn(
+            tx,
+            created,
+            actor.user.id,
+            prepared.recording_id,
+          );
+          await this.audit(tx, actor, requestId, id, 'reset');
+          return created;
+        },
+        (tx) =>
+          accessIn(
+            tx,
+            this.world.context,
+            this.world.policy,
+            headers,
+            'lab:full',
+            true,
+          ),
+      );
+      successor = next;
+      await this.recording!.attachStage(prepared, next);
+      live.session = await this.world.context.db.read(
+        { id: requestId, kind: 'request' },
+        (tx) => sessionIn(tx, lab, id),
+      );
+      live.transition = undefined;
+      this.broadcast(live.session);
+      await this.recording!.finish(live.session, 'reset_requested', drained);
+      await this.release(live);
+      await this.requireRecordingReady(next, this.recording!);
+      return this.activate(next, plan.credential, requestId);
+    } catch (error) {
+      if (stage) await this.recording!.abortStage(stage.recording_id);
+      if (successor && stage) {
+        const planned = successor,
+          recordingId = stage.recording_id;
+        // Reconcile only the exact planned adoption. Marker failure can reject
+        // the helper after its business transaction committed; no return value
+        // or expired HTTP credential is needed to compensate that owned state.
+        const ended = await this.resource.runInAsyncScope(() =>
+          this.world.context.db.transaction(
+            {
+              id: 'sessions:reset-compensation:' + randomUUID(),
+              kind: 'background',
+            },
+            async (tx) => {
+              const rows = await tx.execute<Session>(
+                sql`select ${sessionColumns} from lab.simulation_sessions where id=${planned.id}::uuid and lab_id=${lab}::uuid and machine_id=${planned.machine_id}::uuid and snapshot->>'hash'=${planned.snapshot.hash} and exists(select 1 from lab.simulation_sessions predecessor where predecessor.id=${id}::uuid and predecessor.lab_id=${lab}::uuid and predecessor.successor_session_id=${planned.id}::uuid and predecessor.ended_at is not null) and exists(select 1 from lab.recordings recording where recording.id=${recordingId}::uuid and recording.session_id=${planned.id}::uuid and recording.lab_id=${lab}::uuid)`,
+              );
+              if (!rows.rows[0]) return;
+              const adopted = sessionValue(rows.rows[0]);
+              return adopted.ended_at
+                ? adopted
+                : endSessionIn(
+                    tx,
+                    adopted.id,
+                    'interrupted',
+                    'reset_prepare_failed',
+                    this.world.context.clock.now(),
+                  );
+            },
+          ),
+        );
+        if (ended) {
+          this.recording!.faultSession(ended.id, 'reset_prepare_failed');
+          await this.resource.runInAsyncScope(() =>
+            this.recording!.compensatePreparation(
+              ended,
+              'reset_prepare_failed',
+            ),
+          );
+          live.session = await this.resource.runInAsyncScope(() =>
+            this.world.context.db.read(
+              {
+                id: 'sessions:reset-predecessor:' + randomUUID(),
+                kind: 'background',
+              },
+              (tx) => sessionIn(tx, lab, id),
+            ),
+          );
+          this.broadcast(live.session);
+        }
+      }
+      live.transition = undefined;
+      this.recording!.faultSession(id, 'reset_prepare_failed');
+      if (live.session.ended_at) {
+        try {
+          await this.release(live);
+        } catch (cleanupError) {
+          this.log({
+            event: 'sessions.reset_cleanup_failed',
+            message:
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError),
+          });
+        }
+      }
+      throw error;
+    }
+  }
   private async release(live: Live) {
     this.fenceMotion(live.session.id);
     live.transport?.close(1000, 'session_closed');
@@ -910,9 +1350,21 @@ export class SimulationSessions {
       if (ticket.session.id === live.session.id) this.tickets.delete(key);
     const source = live.source;
     live.source = undefined;
-    if (source) await source.stop();
-    if (this.live.get(live.session.id) === live)
-      this.live.delete(live.session.id);
+    try {
+      if (live.session.ended_at && this.recording)
+        await this.recording.finish(
+          live.session,
+          live.session.reason ?? 'session_ended',
+          live.session.status === 'stopped',
+        );
+    } finally {
+      try {
+        if (source) await source.stop();
+      } finally {
+        if (this.live.get(live.session.id) === live)
+          this.live.delete(live.session.id);
+      }
+    }
   }
   private broadcast(session: Session) {
     for (const subscriber of this.subscribers)
@@ -1055,11 +1507,14 @@ export class SimulationSessions {
             }
         }
         for (const live of this.live.values()) {
-          if (live.session.ended_at) continue;
+          if (live.session.ended_at || live.transition?.internal) continue;
           const now = performance.now(),
             transition = live.transition;
           let target: Session['status'] | undefined, reason: string | undefined;
-          if (live.fault === 'machine_revoked') {
+          if (live.recordingFailed && live.fault) {
+            target = 'interrupted';
+            reason = live.fault;
+          } else if (live.fault === 'machine_revoked') {
             target = 'interrupted';
             reason = 'machine_revoked';
           } else if (transition?.ack) {
@@ -1095,8 +1550,15 @@ export class SimulationSessions {
             reason = 'source_progress_timeout';
           }
           if (!target) continue;
-          const changed = await this.world.context.db.transaction(
+          if (target === 'interrupted')
+            this.recording?.faultSession(
+              live.session.id,
+              reason ?? 'session_interrupted',
+            );
+          const changed = await this.sessionTransaction(
             { id: 'sessions:transition:' + randomUUID(), kind: 'background' },
+            live.session.lab_id,
+            live.session.id,
             async (tx) => {
               if (target === 'interrupted' || target === 'stopped')
                 return endSessionIn(
@@ -1162,15 +1624,18 @@ export class SimulationSessions {
     await this.resource.runInAsyncScope(() => this.tick());
   }
   async stop() {
-    if (this.stopping) return;
+    if (this.stopped) return;
+    this.stopped = true;
     this.stopping = true;
     clearInterval(this.timer);
     await this.current;
     for (const live of this.live.values())
       if (!live.session.ended_at) {
         const changed = await this.resource.runInAsyncScope(() =>
-          this.world.context.db.transaction(
+          this.sessionTransaction(
             { id: 'sessions:shutdown:' + randomUUID(), kind: 'background' },
+            live.session.lab_id,
+            live.session.id,
             (tx) =>
               endSessionIn(
                 tx,
@@ -1187,5 +1652,14 @@ export class SimulationSessions {
     this.tickets.clear();
     for (const subscriber of this.subscribers) this.endSubscriber(subscriber);
     this.resource.emitDestroy();
+  }
+  quiesce() {
+    this.stopping = true;
+    clearInterval(this.timer);
+    this.tickets.clear();
+    for (const live of this.live.values()) {
+      this.fenceMotion(live.session.id);
+      live.transport?.close(1001, 'server_shutdown');
+    }
   }
 }

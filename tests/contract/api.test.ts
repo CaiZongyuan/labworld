@@ -8,6 +8,7 @@ import {
 import { guideProgressApiParts } from '../../scripts/lib/guide-progress-api';
 import { sessionApiParts } from '../../scripts/lib/session-api';
 import { motionApiParts } from '../../scripts/lib/motion-api';
+import { recordingApiParts } from '../../scripts/lib/recording-api';
 import { HttpClient } from './http';
 const baseline = JSON.parse(
   readFileSync('tests/contract/api-baseline.json', 'utf8'),
@@ -22,8 +23,12 @@ const motionAddition = JSON.parse(
 const sessionAddition = JSON.parse(
   readFileSync('tests/contract/session-api.json', 'utf8'),
 ) as Json;
+const recordingAddition = JSON.parse(
+  readFileSync('tests/contract/recording-api.json', 'utf8'),
+) as Json;
 function differences(document: Json) {
-  const sessions = sessionApiParts(document);
+  const recordings = recordingApiParts(document);
+  const sessions = sessionApiParts(recordings.existing);
   const motion = motionApiParts(sessions.existing);
   const parts = guideProgressApiParts(motion.existing);
   return [
@@ -31,9 +36,10 @@ function differences(document: Json) {
     ...semanticDifferences(addition, parts.addition),
     ...semanticDifferences(motionAddition, motion.addition),
     ...semanticDifferences(sessionAddition, sessions.addition),
+    ...semanticDifferences(recordingAddition, recordings.addition),
   ];
 }
-test('API-01 retained Rust OpenAPI and approved guide/motion/Session additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
+test('API-01 retained Rust OpenAPI and approved guide/motion/Session/Recording additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
   const source = await new HttpClient().json<Json>('GET', '/api/openapi.json');
   const retained = retainedOpenApi(source);
   expect(differences(retained)).toEqual([]);
@@ -159,6 +165,23 @@ test('API-01 retained Rust OpenAPI and approved guide/motion/Session additions h
       (
         (api.components as Record<string, Json>).schemas as Record<string, Json>
       ).MachineIdentity = { type: 'string' };
+    },
+  );
+  const recordings = '/api/v1/lab/labs/{lab_id}/recordings';
+  cases.push(
+    (api) => {
+      (api.paths as typeof paths)[recordings].get.operationId =
+        'listUnapprovedRecordings';
+    },
+    (api) => {
+      (api.paths as typeof paths)[recordings + '/future'] = {
+        get: structuredClone(paths[recordings].get),
+      };
+    },
+    (api) => {
+      (
+        (api.components as Record<string, Json>).schemas as Record<string, Json>
+      ).RecordingEvent = { type: 'string' };
     },
   );
   for (const mutate of cases) {

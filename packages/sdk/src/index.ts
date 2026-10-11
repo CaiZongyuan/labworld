@@ -6,6 +6,7 @@ export type * from '@labos-threejs/contracts';
 export type * from '@labos-threejs/contracts/motion';
 export * from './motion';
 export * from './simulation-session';
+export * from './recording';
 export { MotionBuffer, type MotionSample } from './motion-buffer';
 export {
   subscribeLabWorld,

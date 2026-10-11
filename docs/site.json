@@ -134,6 +134,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "synthetic-motion",
+      "next": "recording"
+    },
+    {
+      "id": "recording",
+      "source": "docs/tutorials/recording.md",
+      "sourceEn": "docs/tutorials/recording.en.md",
+      "route": "tutorials/recording.md",
+      "title": "采集和检查一次 Recording",
+      "titleEn": "Capture and inspect a Recording",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "simulation-session",
       "next": "spatial-workbench"
     },
     {

@@ -204,7 +204,7 @@ export async function reserveSessionIn(
   snapshot: Snapshot,
   actor: string,
   now: string,
-  id = randomUUID(),
+  id: string = randomUUID(),
 ) {
   lab = worldId(lab);
   machine = worldId(machine);

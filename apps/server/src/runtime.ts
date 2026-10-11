@@ -7,6 +7,13 @@ import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Server } from 'node:http';
 import { MotionWebSockets } from './motion-ws.ts';
+import { RecordingWebSockets } from './recording-ws.ts';
+import {
+  RecordingService,
+  defaultRecordingOptions,
+} from '../../../packages/server/src/lab/recordings/service.ts';
+import type { RecordingFaults } from '../../../packages/server/src/lab/recordings/source.ts';
+import { recordingRoutes } from '../../../packages/server/src/lab/recordings/routes.ts';
 import { MotionFixtures } from '../../../packages/server/src/lab/motion/fixture.ts';
 import { motionRoutes } from '../../../packages/server/src/lab/motion/routes.ts';
 export { serve };
@@ -58,11 +65,16 @@ export type RuntimeControl = {
   stop: () => Promise<void>;
   ownStop: (stop: () => Promise<void>) => void;
 };
+export type RuntimeOptions = {
+  recordingFaults?: RecordingFaults;
+  deviceExecutionGate?: () => Promise<void>;
+};
 export async function run(
   factory?: (
     context: FoundationContext,
     control: RuntimeControl,
   ) => Promise<Prepared>,
+  options: RuntimeOptions = {},
 ): Promise<RuntimeControl | undefined> {
   const config = configuration();
   const log = (entry: Record<string, unknown>) =>
@@ -178,6 +190,44 @@ export async function run(
     }
     const context = { db, clock: { now: () => new Date().toISOString() } };
     const prepareCore = async () => {
+      const owners: {
+        recording?: RecordingService;
+        devices?: DeviceRuntime;
+        sessions?: SimulationSessions;
+        motion?: MotionWebSockets;
+        recordingSockets?: RecordingWebSockets;
+        sources?: SyntheticSources;
+        subscriptions?: WorldSubscriptions;
+        maintenance?: ReturnType<typeof historyScheduler>;
+        scheduler?: ReturnType<typeof fileScheduler>;
+      } = {};
+      // Register before preparation so a partial startup owns the same ordered
+      // cleanup. A single composite owner establishes the capture seal boundary.
+      ownStop(async () => {
+        const errors: unknown[] = [];
+        owners.motion?.quiesce();
+        owners.sessions?.quiesce();
+        await Promise.allSettled([...admittedHandlers]);
+        for (const closeOwner of [
+          () => owners.maintenance?.stop(),
+          () => owners.scheduler?.stop(),
+          () => owners.devices?.stop(),
+          () => owners.subscriptions?.stop(),
+          () => owners.sessions?.stop(),
+          () => owners.recording?.stop(),
+          () => owners.sources?.stop(),
+          () => owners.recordingSockets?.stop(),
+          () => owners.motion?.stop(),
+        ]) {
+          try {
+            await closeOwner();
+          } catch (error) {
+            errors.push(error);
+          }
+        }
+        if (errors.length)
+          throw new AggregateError(errors, 'Core service shutdown failed');
+      });
       const files = new FileService(
         context,
         config.files,
@@ -191,10 +241,29 @@ export async function run(
       fileRoutes(app, files);
       registerAssetFileOwnership(files);
       assetRoutes(app, files);
-      const devices = new DeviceRuntime(context, log);
-      ownStop(() => devices.stop());
-      await devices.initialize();
       const world = new WorldService(context, config.auth);
+      const recording = new RecordingService(
+        world,
+        files,
+        config.directory,
+        {
+          ...defaultRecordingOptions,
+          ackMillis: config.motionAckMillis,
+          graceMillis: config.motionGraceMillis,
+        },
+        options.recordingFaults,
+      );
+      owners.recording = recording;
+      // Resolve committed WAL witnesses while old capture owners still exist.
+      await recording.initialize();
+      const devices = new DeviceRuntime(
+        context,
+        log,
+        recording.capture,
+        options.deviceExecutionGate,
+      );
+      owners.devices = devices;
+      await devices.initialize();
       worldRoutes(app, world, () => devices.ready);
       const fixtures = new MotionFixtures(world, config.motionFixture);
       motionRoutes(app, fixtures, (c) => getConnInfo(c).remote.address);
@@ -207,8 +276,11 @@ export async function run(
         },
         log,
       );
-      ownStop(() => sessions.stop());
+      owners.sessions = sessions;
+      sessions.configureRecording(recording);
       await sessions.initialize();
+      await recording.recoverLegacy();
+      recordingRoutes(app, recording);
       sessionRoutes(app, sessions, (c) => getConnInfo(c).remote.address);
       machineRoutes(
         app,
@@ -216,10 +288,26 @@ export async function run(
           sessions.machineRevoked(id),
         ),
       );
+      const recordingSockets: RecordingWebSockets = new RecordingWebSockets(
+        recording,
+        config.auth.origin,
+        config.motionGraceMillis,
+        () =>
+          (owners.motion?.connections ?? 0) + recordingSockets.connections <
+          128,
+      );
+      owners.recordingSockets = recordingSockets;
       const motion =
         config.motionFixture || config.syntheticSession
-          ? new MotionWebSockets(fixtures, config.auth.origin, sessions, log)
+          ? new MotionWebSockets(
+              fixtures,
+              config.auth.origin,
+              sessions,
+              log,
+              recordingSockets,
+            )
           : undefined;
+      owners.motion = motion;
       const sources = new SyntheticSources(
         {
           directory: config.directory,
@@ -231,20 +319,24 @@ export async function run(
         (id) => sessions.sourceExited(id),
         log,
       );
-      ownStop(() => sources.stop());
+      owners.sources = sources;
       await sources.initialize(config.syntheticSession);
-      if (config.syntheticSession && motion)
-        sessions.configure(
-          (input) => sources.launch(input),
-          (id) => motion.fence(id),
-        );
-      if (motion) ownStop(() => motion.stop());
+      sessions.configure(
+        (input) => sources.launch(input),
+        (id) => {
+          motion?.fence(id);
+          recordingSockets.fence(id);
+        },
+      );
       progressRoutes(app, new ProgressService(context, config.auth));
       lifecycleRoutes(app, world);
       const subscriptions = new WorldSubscriptions(world, () => devices.ready);
-      ownStop(() => subscriptions.stop());
+      owners.subscriptions = subscriptions;
       subscriptionRoutes(app, subscriptions);
-      deviceRoutes(app, new DeviceService(context, config.auth, devices));
+      deviceRoutes(
+        app,
+        new DeviceService(context, config.auth, devices, recording.capture),
+      );
       const history = new HistoryService(
         context,
         config.auth,
@@ -253,10 +345,8 @@ export async function run(
       historyRoutes(app, history);
       recordsRoutes(app, new RecordsService(history));
       trendRoutes(app, history);
-      const maintenance = historyScheduler(history, log);
-      ownStop(() => maintenance.stop());
-      const scheduler = fileScheduler(context, files, log);
-      ownStop(() => scheduler.stop());
+      owners.maintenance = historyScheduler(history, log);
+      owners.scheduler = fileScheduler(context, files, log);
       devices.start();
       subscriptions.start();
       if (config.webDirectory) await hostWeb(app, config.webDirectory);
