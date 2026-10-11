@@ -37,7 +37,7 @@ export function MotionControls({
   const [representation, setRepresentation] = useState('');
   const [rate, setRate] = useState<15 | 30>(30);
   const busy = motion.state === 'connecting';
-  const joined = ['waiting', 'live', 'stale', 'interrupted'].includes(
+  const joined = ['waiting', 'live', 'stale', 'paused', 'interrupted'].includes(
     motion.state,
   );
   const selected = world?.assets.some(

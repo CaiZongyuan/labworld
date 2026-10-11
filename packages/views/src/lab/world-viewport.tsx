@@ -359,6 +359,7 @@ function Scene({
   world,
   connected,
   assets,
+  frozenAssets,
   renderer,
   selected,
   onSelect,
@@ -381,6 +382,7 @@ function Scene({
   world: LabWorld;
   connected: boolean;
   assets: ModelAsset[];
+  frozenAssets?: Map<string, ModelAsset>;
   renderer: WebGLRenderer | null;
   selected: string[];
   onSelect: (id: string, additive: boolean, nodeId?: string) => void;
@@ -586,9 +588,11 @@ function Scene({
         {world.nodes.map((node) => {
           const entity = entityById.get(node.entity_id);
           if (!entity || entity.archived_at) return null;
-          const asset = node.representation_id
-            ? assetByRepresentation.get(node.representation_id)
-            : undefined;
+          const asset =
+            frozenAssets?.get(node.id) ??
+            (node.representation_id
+              ? assetByRepresentation.get(node.representation_id)
+              : undefined);
           return (
             <NodeModel
               key={node.id}
@@ -659,6 +663,7 @@ export default function WorldViewport(props: {
   world: LabWorld;
   connected: boolean;
   assets: ModelAsset[];
+  frozenAssets?: Map<string, ModelAsset>;
   selected: string[];
   onSelect: (id: string | null, additive: boolean, nodeId?: string) => void;
   activeNodeId?: string;

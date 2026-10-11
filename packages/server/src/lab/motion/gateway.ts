@@ -3,6 +3,7 @@ import {
   type MotionErrorCode,
   type MotionWelcome,
   type MotionSnapshot,
+  type MotionStatus,
 } from '../../../../contracts/src/motion/index.ts';
 import type { MotionFixture } from './fixture.ts';
 
@@ -13,10 +14,20 @@ export type MotionTransport = {
   send(data: string | Uint8Array): void;
   close(code: number, reason: string): void;
 };
+export type MotionAuthority = {
+  epoch: bigint;
+  state: () =>
+    'waiting' | 'live' | 'stale' | 'paused' | 'interrupted' | 'closed';
+  frame?: (frame: MotionSnapshot) => void;
+  leave?: () => void;
+};
 type Viewer = {
   transport: MotionTransport;
   rate: 15 | 30;
   pending?: Uint8Array;
+  sentSequence?: bigint;
+  pendingSequence?: bigint;
+  pendingStatus?: MotionStatus['state'];
   sentAt: number;
   blockedAt?: number;
 };
@@ -31,7 +42,8 @@ type Session = {
   budgetAt: number;
   budget: number;
   viewers: Set<Viewer>;
-  state: 'waiting' | 'live' | 'stale' | 'interrupted';
+  state: 'waiting' | 'live' | 'stale' | 'paused' | 'interrupted' | 'closed';
+  authority?: MotionAuthority;
 };
 export const motionBudgets = {
   softBytes: 64 * 1024,
@@ -77,7 +89,7 @@ export class MotionGateway {
     };
   }
   private control(transport: MotionTransport, message: unknown) {
-    if (!transport.open) return;
+    if (!transport.open) return false;
     if (transport.bufferedAmount > motionBudgets.softBytes) {
       if (
         message &&
@@ -86,9 +98,30 @@ export class MotionGateway {
         message.type === 'motion.welcome'
       )
         transport.close(1008, 'slow_viewer');
-      return;
+      return false;
     }
     transport.send(JSON.stringify(message));
+    return true;
+  }
+  private status(session: Session, viewer: Viewer) {
+    if (viewer.pendingStatus !== 'paused') viewer.pendingStatus = session.state;
+  }
+  private sendStatus(session: Session, viewer: Viewer) {
+    const state = viewer.pendingStatus;
+    if (!state) return;
+    if (
+      !this.control(viewer.transport, {
+        type: 'motion.status',
+        state,
+        rate_hz: viewer.rate,
+      })
+    )
+      return;
+    viewer.pendingStatus = state === session.state ? undefined : session.state;
+    if (state === 'paused' && session.state !== 'paused') {
+      viewer.pending = session.latest;
+      viewer.pendingSequence = session.sequence;
+    }
   }
   reject(transport: MotionTransport, code: MotionErrorCode, message: string) {
     this.control(transport, { type: 'motion.error', code, message });
@@ -99,12 +132,25 @@ export class MotionGateway {
     role: 'publisher' | 'viewer',
     rate: 15 | 30,
     transport: MotionTransport,
+    authority?: MotionAuthority,
   ) {
     if (this.stopped) {
       this.reject(transport, 'session_closed', 'Motion gateway is closed');
       return undefined;
     }
     const session = this.session(metadata);
+    const previousEpoch = session.epoch;
+    const hadAuthority = !!session.authority;
+    if (authority) {
+      session.authority = {
+        ...session.authority,
+        ...authority,
+        frame: authority.frame ?? session.authority?.frame,
+        leave: authority.leave ?? session.authority?.leave,
+      };
+      session.epoch = authority.epoch;
+      if (!hadAuthority) session.state = authority.state();
+    }
     if (role === 'publisher') {
       if (session.publisher) {
         this.reject(
@@ -114,7 +160,7 @@ export class MotionGateway {
         );
         return undefined;
       }
-      session.epoch += 1n;
+      if (!authority) session.epoch += 1n;
       session.publisher = transport;
       session.latest = undefined;
       session.sequence = undefined;
@@ -125,12 +171,13 @@ export class MotionGateway {
       session.state = 'waiting';
       for (const viewer of session.viewers) {
         viewer.pending = undefined;
-        this.control(viewer.transport, this.welcome(session, viewer.rate));
-        this.control(viewer.transport, {
-          type: 'motion.status',
-          state: session.state,
-          rate_hz: viewer.rate,
-        });
+        viewer.pendingSequence = undefined;
+        viewer.sentSequence = undefined;
+        viewer.pendingStatus = undefined;
+        if (!authority || previousEpoch !== session.epoch)
+          this.control(viewer.transport, this.welcome(session, viewer.rate));
+        this.status(session, viewer);
+        this.sendStatus(session, viewer);
       }
       this.control(transport, this.welcome(session, 30));
       return {
@@ -138,13 +185,9 @@ export class MotionGateway {
         leave: () => {
           if (session.publisher !== transport) return;
           session.publisher = undefined;
-          session.state = 'interrupted';
-          for (const viewer of session.viewers)
-            this.control(viewer.transport, {
-              type: 'motion.status',
-              state: 'interrupted',
-              rate_hz: viewer.rate,
-            });
+          session.authority?.leave?.();
+          session.state = session.authority ? 'stale' : 'interrupted';
+          for (const viewer of session.viewers) this.status(session, viewer);
         },
       };
     }
@@ -157,14 +200,18 @@ export class MotionGateway {
       rate,
       sentAt: -Infinity,
       pending: session.latest,
+      pendingSequence: session.sequence,
     };
     session.viewers.add(viewer);
     this.control(transport, this.welcome(session, rate));
-    this.control(transport, {
-      type: 'motion.status',
-      state: session.state,
-      rate_hz: rate,
-    });
+    if (
+      !this.control(transport, {
+        type: 'motion.status',
+        state: session.state,
+        rate_hz: rate,
+      })
+    )
+      viewer.pendingStatus = session.state;
     this.flushViewer(session, viewer, performance.now());
     return {
       receive: () =>
@@ -229,20 +276,29 @@ export class MotionGateway {
       return;
     }
     session.budget -= 1;
+    try {
+      session.authority?.frame?.(snapshot);
+    } catch {
+      this.reject(
+        transport,
+        'sequence_rejected',
+        'Session rejected the source frame',
+      );
+      return;
+    }
     session.sequence = snapshot.sequence;
     session.simTime = snapshot.sim_time_ns;
     session.receivedAt = now;
     session.latest = bytes.slice();
-    if (session.state !== 'live') {
+    if (!session.authority && session.state !== 'live') {
       session.state = 'live';
-      for (const viewer of session.viewers)
-        this.control(viewer.transport, {
-          type: 'motion.status',
-          state: 'live',
-          rate_hz: viewer.rate,
-        });
+      for (const viewer of session.viewers) this.status(session, viewer);
     }
-    for (const viewer of session.viewers) viewer.pending = session.latest;
+    for (const viewer of session.viewers) {
+      if (viewer.pendingStatus === 'paused') continue;
+      viewer.pending = session.latest;
+      viewer.pendingSequence = session.sequence;
+    }
   }
   private flushViewer(session: Session, viewer: Viewer, now: number) {
     if (!viewer.transport.open) {
@@ -269,35 +325,84 @@ export class MotionGateway {
     }
     if (viewer.blockedAt !== undefined) {
       viewer.blockedAt = undefined;
-      this.control(viewer.transport, {
-        type: 'motion.status',
-        state: session.state,
-        rate_hz: viewer.rate,
-      });
+      this.status(session, viewer);
     }
-    if (!viewer.pending || now - viewer.sentAt < 1000 / viewer.rate) return;
-    const bytes = viewer.pending;
-    viewer.pending = undefined;
-    viewer.sentAt = now;
-    viewer.transport.send(bytes);
+    if (viewer.pendingStatus !== 'paused') {
+      this.sendStatus(session, viewer);
+      if (viewer.pendingStatus) return;
+    } else {
+      // A trusted pause boundary is independent of the subscription cadence.
+      viewer.sentAt = -Infinity;
+    }
+    if (
+      viewer.pendingSequence !== undefined &&
+      viewer.sentSequence !== undefined &&
+      viewer.pendingSequence <= viewer.sentSequence
+    ) {
+      viewer.pending = undefined;
+      viewer.pendingSequence = undefined;
+    }
+    if (viewer.pending && now - viewer.sentAt >= 1000 / viewer.rate) {
+      if (viewer.transport.bufferedAmount > motionBudgets.softBytes) return;
+      const bytes = viewer.pending;
+      viewer.pending = undefined;
+      viewer.sentAt = now;
+      viewer.sentSequence = viewer.pendingSequence;
+      viewer.pendingSequence = undefined;
+      viewer.transport.send(bytes);
+    }
+    if (viewer.pendingStatus === 'paused' && !viewer.pending)
+      this.sendStatus(session, viewer);
   }
   private flush(now: number) {
     for (const session of this.sessions.values()) {
+      if (session.authority) {
+        const authoritative = session.authority.state();
+        const next =
+          authoritative === 'live' &&
+          now - session.receivedAt > motionBudgets.freshnessMillis
+            ? 'stale'
+            : authoritative;
+        if (session.state !== next) {
+          session.state = next;
+          for (const viewer of session.viewers) {
+            if (next === 'paused') {
+              viewer.pending = session.latest;
+              viewer.pendingSequence = session.sequence;
+              viewer.pendingStatus = 'paused';
+            } else {
+              this.status(session, viewer);
+              if (next === 'live' && viewer.pendingStatus !== 'paused') {
+                viewer.pending = session.latest;
+                viewer.pendingSequence = session.sequence;
+              }
+            }
+          }
+        }
+      }
       if (
+        !session.authority &&
         session.state === 'live' &&
         now - session.receivedAt > motionBudgets.freshnessMillis
       ) {
         session.state = 'stale';
-        for (const viewer of session.viewers)
-          this.control(viewer.transport, {
-            type: 'motion.status',
-            state: 'stale',
-            rate_hz: viewer.rate,
-          });
+        for (const viewer of session.viewers) this.status(session, viewer);
       }
       for (const viewer of session.viewers)
         this.flushViewer(session, viewer, now);
     }
+  }
+  fence(id: string) {
+    const session = this.sessions.get(id);
+    if (!session) return;
+    session.publisher?.close(1000, 'session_closed');
+    session.publisher = undefined;
+    for (const viewer of session.viewers) {
+      viewer.pending = undefined;
+      viewer.transport.close(1000, 'session_closed');
+    }
+    session.viewers.clear();
+    this.sessions.delete(id);
   }
   stop() {
     if (this.stopped) return;

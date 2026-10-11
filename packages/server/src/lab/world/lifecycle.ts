@@ -13,13 +13,13 @@ import { catalog } from './catalog.ts';
 import { validConfiguration, type LabEntity } from './domain.ts';
 async function idle(tx: DbSession, entity: LabEntity) {
   const result = await tx.execute<{ busy: boolean }>(
-    sql`select exists(select 1 from lab.program_runs where entity_id=${entity.id}::uuid and status='running') or exists(select 1 from lab.device_tasks where entity_id=${entity.id}::uuid and ended_at is null) as busy`,
+    sql`select exists(select 1 from lab.session_objects where entity_id=${entity.id}::uuid) or exists(select 1 from lab.program_runs where entity_id=${entity.id}::uuid and status='running') or exists(select 1 from lab.device_tasks where entity_id=${entity.id}::uuid and ended_at is null) as busy`,
   );
   if (result.rows[0].busy)
     throw new PublicFailure(
       409,
       'lab.entity_in_use',
-      'Finish the Task and stop the program before archiving or changing definition',
+      'Finish active Sessions and Tasks and stop the program before archiving or changing definition',
     );
 }
 export async function entityLifecycle(

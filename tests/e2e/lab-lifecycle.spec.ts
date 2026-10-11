@@ -13,6 +13,13 @@ import {
   showObjectDirectory,
 } from './lab-desktop';
 import { observeBrowserSeam } from './lab-browser-facts';
+import {
+  freshRenderMetrics,
+  markRenderMetrics,
+  remainingMetricBudget,
+  type RenderMetricSample,
+  type RenderMetricMark,
+} from './fresh-render-metrics';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -196,16 +203,19 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       .toBeGreaterThan(4);
     const builtinCount = Number(await geometries.innerText());
     const builtinTextures = Number(await textures.innerText());
-    const resources: {
+    const resources: (RenderMetricSample & {
       appearance: string;
-      geometries: number;
-      textures: number;
-    }[] = [];
-    async function sample(appearance: string) {
+      after: RenderMetricMark;
+    })[] = [];
+    function sample(
+      appearance: string,
+      metrics: RenderMetricSample,
+      after: RenderMetricMark,
+    ) {
       const reading = {
         appearance,
-        geometries: Number(await geometries.innerText()),
-        textures: Number(await textures.innerText()),
+        ...metrics,
+        after,
       };
       resources.push(reading);
       writeFileSync(
@@ -261,17 +271,31 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       release();
     }
     await page.unrouteAll({ behavior: 'wait' });
-    await expect
-      .poll(async () => Number(await geometries.innerText()))
-      .toBeLessThan(builtinCount);
     await expect(page.locator('.world-page')).toHaveAttribute(
       'aria-busy',
       'false',
     );
-    const dracoCount = Number(await geometries.innerText());
-    await expect(textures).toHaveText(String(builtinTextures));
-    const dracoTextures = Number(await textures.innerText());
     await pixels(page, 't09-running-imported-canvas.png');
+    const dracoDeadline = performance.now() + 5000;
+    const dracoMark = await markRenderMetrics(page);
+    let dracoSample = await freshRenderMetrics(page, dracoMark, dracoDeadline);
+    await expect
+      .poll(
+        async () => {
+          dracoSample = await freshRenderMetrics(
+            page,
+            dracoMark,
+            dracoDeadline,
+          );
+          return dracoSample.geometries;
+        },
+        { timeout: remainingMetricBudget(dracoDeadline) },
+      )
+      .toBeLessThan(builtinCount);
+    expect(dracoSample.textures).toBe(builtinTextures);
+    const dracoCount = dracoSample.geometries;
+    const dracoTextures = dracoSample.textures;
+    sample('draco-initial', dracoSample, dracoMark);
     await expect(
       page.getByRole('img', { name: /^Lifecycle centrifuge:/ }),
     ).toContainText('rpm');
@@ -299,10 +323,13 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
           '.world-priority-label,.world-priority-labels,.world-render-error,.world-canvas-tools,.lab-perf { visibility: hidden !important; }',
       });
     const usableDraco = await staticScene();
-    const usableResources = {
-      geometries: Number(await geometries.innerText()),
-      textures: Number(await textures.innerText()),
-    };
+    const usableDeadline = performance.now() + 5000;
+    const usableMark = await markRenderMetrics(page);
+    const usableResources = await freshRenderMetrics(
+      page,
+      usableMark,
+      usableDeadline,
+    );
     await page.route(`**/assets/${basis.id}/download`, (route) =>
       route.fulfill({ status: 503, body: '' }),
     );
@@ -317,29 +344,45 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       const directory = process.env.LAB_NODE_EVIDENCE;
       writeFileSync(join(directory, 'failed-glb-before.png'), usableDraco);
       writeFileSync(join(directory, 'failed-glb-after.png'), failedFrame);
-      writeFileSync(
-        join(directory, 'failed-glb-resources.json'),
-        JSON.stringify({
-          atInitialReady: { geometries: dracoCount, textures: dracoTextures },
-          beforeFailure: usableResources,
-          afterFailure: {
-            geometries: Number(await geometries.innerText()),
-            textures: Number(await textures.innerText()),
-          },
-          retainedPixels: failedFrame.equals(usableDraco),
-        }),
-      );
     }
-    expect(failedFrame).toEqual(usableDraco);
-    await expect
-      .poll(async () => Number(await geometries.innerText()))
-      .toBe(usableResources.geometries);
-    await expect(textures).toHaveText(String(usableResources.textures));
+    const failureDeadline = performance.now() + 5000;
+    const failureMark = await markRenderMetrics(page);
+    let failedResources: RenderMetricSample | undefined;
+    try {
+      expect(failedFrame).toEqual(usableDraco);
+      await expect
+        .poll(
+          async () => {
+            failedResources = await freshRenderMetrics(
+              page,
+              failureMark,
+              failureDeadline,
+            );
+            return failedResources.geometries;
+          },
+          { timeout: remainingMetricBudget(failureDeadline) },
+        )
+        .toBe(usableResources.geometries);
+      expect(failedResources!.textures).toBe(usableResources.textures);
+    } finally {
+      if (process.env.LAB_NODE_EVIDENCE)
+        writeFileSync(
+          join(process.env.LAB_NODE_EVIDENCE, 'failed-glb-resources.json'),
+          JSON.stringify({
+            atInitialReady: { geometries: dracoCount, textures: dracoTextures },
+            beforeFailure: usableResources,
+            beforeMark: usableMark,
+            afterFailure: failedResources ?? null,
+            afterMark: failureMark,
+            retainedPixels: failedFrame.equals(usableDraco),
+          }),
+        );
+    }
     const afterFailure = await get(path);
     expect(afterFailure.id).toBe(entity);
     expect(afterFailure.program_run.id).toBe(before.program_run.id);
     expect(afterFailure.task.id).toBe(task.id);
-    await sample('failed-basis-retains-draco');
+    sample('failed-basis-retains-draco', failedResources!, failureMark);
     await page.unrouteAll({ behavior: 'wait' });
     await appearance(draco.representation.id);
     await expect(page.locator('.world-page')).toHaveAttribute(
@@ -352,38 +395,87 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       'aria-busy',
       'false',
     );
-    await expect
-      .poll(async () => Number(await textures.innerText()))
-      .toBeGreaterThan(dracoTextures);
-    const basisTextures = Number(await textures.innerText());
     await pixels(page, 't09-basis-canvas.png');
+    const basisDeadline = performance.now() + 5000;
+    const basisMark = await markRenderMetrics(page);
+    let basisSample = await freshRenderMetrics(page, basisMark, basisDeadline);
+    await expect
+      .poll(
+        async () => {
+          basisSample = await freshRenderMetrics(
+            page,
+            basisMark,
+            basisDeadline,
+          );
+          return basisSample.textures;
+        },
+        { timeout: remainingMetricBudget(basisDeadline) },
+      )
+      .toBeGreaterThan(dracoTextures);
+    const basisTextures = basisSample.textures;
     let previousDraco = { ...usableResources };
     let previousBasis = {
-      geometries: Number(await geometries.innerText()),
+      geometries: basisSample.geometries,
       textures: basisTextures,
     };
-    await sample('basis-initial');
+    sample('basis-initial', basisSample, basisMark);
     for (let i = 0; i < 3; i++) {
       await appearance(draco.representation.id);
+      const dracoReturnDeadline = performance.now() + 5000;
       await expect(page.locator('.world-page')).toHaveAttribute(
         'aria-busy',
         'false',
+        { timeout: remainingMetricBudget(dracoReturnDeadline) },
+      );
+      const dracoReturnMark = await markRenderMetrics(page);
+      let dracoReturn = await freshRenderMetrics(
+        page,
+        dracoReturnMark,
+        dracoReturnDeadline,
       );
       await expect
-        .poll(async () => Number(await geometries.innerText()))
+        .poll(
+          async () => {
+            dracoReturn = await freshRenderMetrics(
+              page,
+              dracoReturnMark,
+              dracoReturnDeadline,
+            );
+            return dracoReturn.geometries;
+          },
+          { timeout: remainingMetricBudget(dracoReturnDeadline) },
+        )
         .toBeLessThanOrEqual(previousDraco.geometries);
-      await expect(textures).toHaveText(String(dracoTextures));
-      previousDraco = await sample(`draco-${i}`);
+      expect(dracoReturn.textures).toBe(dracoTextures);
+      previousDraco = sample(`draco-${i}`, dracoReturn, dracoReturnMark);
       await appearance(basis.representation.id);
+      const basisReturnDeadline = performance.now() + 5000;
       await expect(page.locator('.world-page')).toHaveAttribute(
         'aria-busy',
         'false',
+        { timeout: remainingMetricBudget(basisReturnDeadline) },
+      );
+      const basisReturnMark = await markRenderMetrics(page);
+      let basisReturn = await freshRenderMetrics(
+        page,
+        basisReturnMark,
+        basisReturnDeadline,
       );
       await expect
-        .poll(async () => Number(await geometries.innerText()))
+        .poll(
+          async () => {
+            basisReturn = await freshRenderMetrics(
+              page,
+              basisReturnMark,
+              basisReturnDeadline,
+            );
+            return basisReturn.geometries;
+          },
+          { timeout: remainingMetricBudget(basisReturnDeadline) },
+        )
         .toBeLessThanOrEqual(previousBasis.geometries);
-      await expect(textures).toHaveText(String(basisTextures));
-      previousBasis = await sample(`basis-${i}`);
+      expect(basisReturn.textures).toBe(basisTextures);
+      previousBasis = sample(`basis-${i}`, basisReturn, basisReturnMark);
     }
     await page.getByRole('tab', { name: '编辑布局', exact: true }).click();
     await inspector

@@ -18,6 +18,8 @@ export function MetricSampler({
     ).memory;
     const heap = memory?.usedJSHeapSize;
     onMetrics({
+      sampledAt: performance.now(),
+      completedRenderFrame: gl.info.render.frame,
       fps,
       frameMs: 1000 / fps,
       calls: gl.info.render.calls,

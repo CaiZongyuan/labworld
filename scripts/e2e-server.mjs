@@ -19,7 +19,10 @@ const args = process.argv.slice(2),
   motion = args.some((argument) =>
     argument.includes('lab-synthetic-motion.spec.ts'),
   ),
-  production = motion || process.env.E2E_WEB_MODE === 'production',
+  session = args.some((argument) =>
+    argument.includes('lab-simulation-session.spec.ts'),
+  ),
+  production = motion || session || process.env.E2E_WEB_MODE === 'production',
   statusControl = args.some((argument) => argument.includes('status.spec.ts')),
   reference = args.some((argument) =>
     argument.includes('lab-reference-load.spec.ts'),
@@ -121,7 +124,7 @@ for (const signal of ['SIGINT', 'SIGTERM'])
     void close();
   });
 try {
-  if (motion) {
+  if (motion || session) {
     const python = resolveRoot(
       process.env.MOTION_E2E_PYTHON ?? '.scratch/motion-python/bin/python',
     );
@@ -149,6 +152,12 @@ try {
       );
     motionEnv = {
       MOTION_E2E_PYTHON: python,
+      ...(session
+        ? {
+            LAB_WORD_SYNTHETIC_SESSION: 'true',
+            LAB_WORD_SYNTHETIC_PYTHON: python,
+          }
+        : {}),
       MOTION_E2E_SLOW_READER: resolveRoot(
         'tests/support/motion-slow-reader.py',
       ),
@@ -172,7 +181,7 @@ try {
   resources.save();
   resources.snapshot('start');
   const origin = production ? backend.url : web.url;
-  if (motion)
+  if (motion || session)
     motionEnv.MOTION_E2E_OBSERVER_DIR = join(
       backend.evidence,
       'motion-observer',
@@ -183,7 +192,11 @@ try {
     LAB_WORD_WEB_DIR: '',
     RATE_LIMIT_ENABLED: rate ? 'true' : 'false',
     LAB_WORD_MOTION_FIXTURE: motion ? 'true' : 'false',
-    ...(motion
+    LAB_WORD_SYNTHETIC_SESSION: session ? 'true' : 'false',
+    ...(session
+      ? { LAB_WORD_SYNTHETIC_PYTHON: motionEnv.MOTION_E2E_PYTHON }
+      : {}),
+    ...(motion || session
       ? {
           MOTION_E2E_OBSERVER_DIR: motionEnv.MOTION_E2E_OBSERVER_DIR,
           NODE_OPTIONS: [

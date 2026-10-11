@@ -28,6 +28,7 @@ export class MotionBuffer {
   private metadata: MotionWelcome | null = null;
   private stopped = false;
   private sourceState: MotionStatus['state'] | null = null;
+  private pausedSequence = -1n;
 
   get welcome() {
     return this.metadata;
@@ -43,6 +44,25 @@ export class MotionBuffer {
   /** Receipt of cached or queued data cannot overrule authoritative source status. */
   setSourceState(state: MotionStatus['state']) {
     if (state !== this.sourceState) this.stopped = true;
+    const latest = this.frames.at(-1);
+    if (state === 'paused' && this.sourceState !== 'paused') {
+      // Gateway delivers the accepted complete boundary before paused status,
+      // independently of the Viewer rate and interpolation delay.
+      if (latest) this.copy(latest);
+      this.pausedSequence = latest?.sequence ?? -1n;
+    }
+    if (
+      state === 'live' &&
+      this.sourceState === 'paused' &&
+      latest &&
+      latest.sequence > this.pausedSequence
+    ) {
+      // The resume boundary precedes the live status on the same socket.
+      this.frames = [latest];
+      this.anchor = { received: this.lastReceived, time: latest.sim_time_ns };
+      this.copy(latest);
+      this.stopped = false;
+    }
     this.sourceState = state;
   }
 
@@ -69,6 +89,7 @@ export class MotionBuffer {
     this.lastReceived = -Infinity;
     this.stopped = false;
     this.sourceState = null;
+    this.pausedSequence = -1n;
   }
 
   push(snapshot: MotionSnapshot, received: number): boolean {
@@ -91,6 +112,8 @@ export class MotionBuffer {
       if (!previous) {
         this.anchor = { received, time: snapshot.sim_time_ns };
         this.copy(snapshot);
+        if (this.sourceState === 'paused')
+          this.pausedSequence = snapshot.sequence;
       }
       this.frames = [snapshot];
       this.lastSequence = snapshot.sequence;

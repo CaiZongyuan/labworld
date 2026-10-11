@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, ServerSentEventsResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { ArchiveLabEntityData, ArchiveLabEntityErrors, ArchiveLabEntityResponses, ChangeLabEntityAppearanceData, ChangeLabEntityAppearanceErrors, ChangeLabEntityAppearanceResponses, ChangeLabEntityDefinitionData, ChangeLabEntityDefinitionErrors, ChangeLabEntityDefinitionResponses, CleanupLabHistoryData, CleanupLabHistoryErrors, CleanupLabHistoryResponses, CompleteAssetUploadData, CompleteAssetUploadErrors, CompleteAssetUploadResponses, ConfigureLabEntityData, ConfigureLabEntityErrors, ConfigureLabEntityResponses, CopyLabEntityData, CopyLabEntityErrors, CopyLabEntityResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateLabData, CreateLabErrors, CreateLabMotionFixtureData, CreateLabMotionFixtureErrors, CreateLabMotionFixtureResponses, CreateLabMotionPublisherTicketData, CreateLabMotionPublisherTicketErrors, CreateLabMotionPublisherTicketResponses, CreateLabMotionViewerTicketData, CreateLabMotionViewerTicketErrors, CreateLabMotionViewerTicketResponses, CreateLabResponses, CreateLabSceneNodeData, CreateLabSceneNodeErrors, CreateLabSceneNodeResponses, DeleteLabAssetData, DeleteLabAssetErrors, DeleteLabAssetResponses, GetAssetDefinitionData, GetAssetDefinitionErrors, GetAssetDefinitionResponses, GetCurrentSessionData, GetCurrentSessionErrors, GetCurrentSessionResponses, GetLabAssetData, GetLabAssetDownloadData, GetLabAssetDownloadErrors, GetLabAssetDownloadResponses, GetLabAssetErrors, GetLabAssetResponses, GetLabDeviceCommandData, GetLabDeviceCommandErrors, GetLabDeviceCommandResponses, GetLabDeviceProgramRunData, GetLabDeviceProgramRunErrors, GetLabDeviceProgramRunResponses, GetLabDeviceTaskData, GetLabDeviceTaskErrors, GetLabDeviceTaskResponses, GetLabDeviceTaskResultData, GetLabDeviceTaskResultErrors, GetLabDeviceTaskResultResponses, GetLabEntityData, GetLabEntityErrors, GetLabEntityResponses, GetLabEntityTrendData, GetLabEntityTrendErrors, GetLabEntityTrendResponses, GetLabGuideProgressData, GetLabGuideProgressErrors, GetLabGuideProgressResponses, GetLabHistoryRetentionData, GetLabHistoryRetentionErrors, GetLabHistoryRetentionResponses, GetLabMotionFixtureData, GetLabMotionFixtureErrors, GetLabMotionFixtureResponses, GetLabWorldData, GetLabWorldErrors, GetLabWorldResponses, GetLivenessData, GetLivenessResponses, GetProfileData, GetProfileErrors, GetProfileResponses, GetRateLimitStatusData, GetRateLimitStatusErrors, GetRateLimitStatusResponses, GetReadinessData, GetReadinessErrors, GetReadinessResponses, GetSystemStatusData, GetSystemStatusErrors, GetSystemStatusResponses, InvokeLabEntityActionData, InvokeLabEntityActionErrors, InvokeLabEntityActionResponses, ListApiKeyScopesData, ListApiKeyScopesErrors, ListApiKeyScopesResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAssetDefinitionsData, ListAssetDefinitionsErrors, ListAssetDefinitionsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListLabAssetsData, ListLabAssetsErrors, ListLabAssetsResponses, ListLabDeviceHistoryData, ListLabDeviceHistoryErrors, ListLabDeviceHistoryResponses, ListLabRecordsData, ListLabRecordsErrors, ListLabRecordsResponses, ListLabsData, ListLabsErrors, ListLabsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserErrors, LogoutUserResponses, RegisterLabEntityData, RegisterLabEntityErrors, RegisterLabEntityResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RenameLabAssetData, RenameLabAssetErrors, RenameLabAssetResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, SaveLabGuideProgressData, SaveLabGuideProgressErrors, SaveLabGuideProgressResponses, SaveLabLayoutData, SaveLabLayoutErrors, SaveLabLayoutResponses, StartAssetUploadData, StartAssetUploadErrors, StartAssetUploadResponses, StartLabDeviceProgramData, StartLabDeviceProgramErrors, StartLabDeviceProgramResponses, StopLabDeviceProgramData, StopLabDeviceProgramErrors, StopLabDeviceProgramResponses, StreamLabWorldData, StreamLabWorldErrors, StreamLabWorldResponse, StreamLabWorldResponses, UpdateMemberData, UpdateMemberErrors, UpdateMemberResponses } from './types.gen';
+import type { AdmitLabSessionPublisherData, AdmitLabSessionPublisherErrors, AdmitLabSessionPublisherResponses, ArchiveLabEntityData, ArchiveLabEntityErrors, ArchiveLabEntityResponses, ArchiveLabSceneInstallationData, ArchiveLabSceneInstallationErrors, ArchiveLabSceneInstallationResponses, ChangeLabEntityAppearanceData, ChangeLabEntityAppearanceErrors, ChangeLabEntityAppearanceResponses, ChangeLabEntityDefinitionData, ChangeLabEntityDefinitionErrors, ChangeLabEntityDefinitionResponses, CleanupLabHistoryData, CleanupLabHistoryErrors, CleanupLabHistoryResponses, CompleteAssetUploadData, CompleteAssetUploadErrors, CompleteAssetUploadResponses, ConfigureLabEntityData, ConfigureLabEntityErrors, ConfigureLabEntityResponses, CopyLabEntityData, CopyLabEntityErrors, CopyLabEntityResponses, CreateApiKeyData, CreateApiKeyErrors, CreateApiKeyResponses, CreateLabData, CreateLabErrors, CreateLabMotionFixtureData, CreateLabMotionFixtureErrors, CreateLabMotionFixtureResponses, CreateLabMotionPublisherTicketData, CreateLabMotionPublisherTicketErrors, CreateLabMotionPublisherTicketResponses, CreateLabMotionViewerTicketData, CreateLabMotionViewerTicketErrors, CreateLabMotionViewerTicketResponses, CreateLabResponses, CreateLabSceneInstallationData, CreateLabSceneInstallationErrors, CreateLabSceneInstallationResponses, CreateLabSceneNodeData, CreateLabSceneNodeErrors, CreateLabSceneNodeResponses, CreateLabSessionViewerTicketData, CreateLabSessionViewerTicketErrors, CreateLabSessionViewerTicketResponses, DeleteLabAssetData, DeleteLabAssetErrors, DeleteLabAssetResponses, GetAssetDefinitionData, GetAssetDefinitionErrors, GetAssetDefinitionResponses, GetCurrentSessionData, GetCurrentSessionErrors, GetCurrentSessionResponses, GetLabAssetData, GetLabAssetDownloadData, GetLabAssetDownloadErrors, GetLabAssetDownloadResponses, GetLabAssetErrors, GetLabAssetResponses, GetLabDeviceCommandData, GetLabDeviceCommandErrors, GetLabDeviceCommandResponses, GetLabDeviceProgramRunData, GetLabDeviceProgramRunErrors, GetLabDeviceProgramRunResponses, GetLabDeviceTaskData, GetLabDeviceTaskErrors, GetLabDeviceTaskResponses, GetLabDeviceTaskResultData, GetLabDeviceTaskResultErrors, GetLabDeviceTaskResultResponses, GetLabEntityData, GetLabEntityErrors, GetLabEntityResponses, GetLabEntityTrendData, GetLabEntityTrendErrors, GetLabEntityTrendResponses, GetLabGuideProgressData, GetLabGuideProgressErrors, GetLabGuideProgressResponses, GetLabHistoryRetentionData, GetLabHistoryRetentionErrors, GetLabHistoryRetentionResponses, GetLabMotionFixtureData, GetLabMotionFixtureErrors, GetLabMotionFixtureResponses, GetLabSimulationSessionData, GetLabSimulationSessionErrors, GetLabSimulationSessionResponses, GetLabWorldData, GetLabWorldErrors, GetLabWorldResponses, GetLivenessData, GetLivenessResponses, GetProfileData, GetProfileErrors, GetProfileResponses, GetRateLimitStatusData, GetRateLimitStatusErrors, GetRateLimitStatusResponses, GetReadinessData, GetReadinessErrors, GetReadinessResponses, GetSystemStatusData, GetSystemStatusErrors, GetSystemStatusResponses, InvokeLabEntityActionData, InvokeLabEntityActionErrors, InvokeLabEntityActionResponses, ListApiKeyScopesData, ListApiKeyScopesErrors, ListApiKeyScopesResponses, ListApiKeysData, ListApiKeysErrors, ListApiKeysResponses, ListAssetDefinitionsData, ListAssetDefinitionsErrors, ListAssetDefinitionsResponses, ListAuditEventsData, ListAuditEventsErrors, ListAuditEventsResponses, ListLabAssetsData, ListLabAssetsErrors, ListLabAssetsResponses, ListLabDeviceHistoryData, ListLabDeviceHistoryErrors, ListLabDeviceHistoryResponses, ListLabRecordsData, ListLabRecordsErrors, ListLabRecordsResponses, ListLabSceneInstallationsData, ListLabSceneInstallationsErrors, ListLabSceneInstallationsResponses, ListLabsData, ListLabsErrors, ListLabSimulationSessionsData, ListLabSimulationSessionsErrors, ListLabSimulationSessionsResponses, ListLabsResponses, ListMembersData, ListMembersErrors, ListMembersResponses, LoginUserData, LoginUserErrors, LoginUserResponses, LogoutUserData, LogoutUserErrors, LogoutUserResponses, PauseLabSimulationSessionData, PauseLabSimulationSessionErrors, PauseLabSimulationSessionResponses, ProvisionMachineData, ProvisionMachineErrors, ProvisionMachineResponses, RegisterLabEntityData, RegisterLabEntityErrors, RegisterLabEntityResponses, RegisterUserData, RegisterUserErrors, RegisterUserResponses, RenameLabAssetData, RenameLabAssetErrors, RenameLabAssetResponses, ResetLabSimulationSessionData, ResetLabSimulationSessionErrors, ResetLabSimulationSessionResponses, ResumeLabSimulationSessionData, ResumeLabSimulationSessionErrors, ResumeLabSimulationSessionResponses, RevokeApiKeyData, RevokeApiKeyErrors, RevokeApiKeyResponses, RevokeMachineData, RevokeMachineErrors, RevokeMachineResponses, SaveLabGuideProgressData, SaveLabGuideProgressErrors, SaveLabGuideProgressResponses, SaveLabLayoutData, SaveLabLayoutErrors, SaveLabLayoutResponses, StartAssetUploadData, StartAssetUploadErrors, StartAssetUploadResponses, StartLabDeviceProgramData, StartLabDeviceProgramErrors, StartLabDeviceProgramResponses, StartLabSimulationSessionData, StartLabSimulationSessionErrors, StartLabSimulationSessionResponses, StopLabDeviceProgramData, StopLabDeviceProgramErrors, StopLabDeviceProgramResponses, StopLabSimulationSessionData, StopLabSimulationSessionErrors, StopLabSimulationSessionResponses, StreamLabSimulationSessionsData, StreamLabSimulationSessionsErrors, StreamLabSimulationSessionsResponse, StreamLabSimulationSessionsResponses, StreamLabWorldData, StreamLabWorldErrors, StreamLabWorldResponse, StreamLabWorldResponses, UpdateMemberData, UpdateMemberErrors, UpdateMemberResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -77,6 +77,99 @@ export const createApiKey = <ThrowOnError extends boolean = false>(options: Opti
 });
 
 export const listApiKeyScopes = <ThrowOnError extends boolean = false>(options?: Options<ListApiKeyScopesData, ThrowOnError>): RequestResult<ListApiKeyScopesResponses, ListApiKeyScopesErrors, ThrowOnError> => (options?.client ?? client).get<ListApiKeyScopesResponses, ListApiKeyScopesErrors, ThrowOnError>({ url: '/api/v1/api-keys/scopes', ...options });
+
+export const listLabSceneInstallations = <ThrowOnError extends boolean = false>(options: Options<ListLabSceneInstallationsData, ThrowOnError>): RequestResult<ListLabSceneInstallationsResponses, ListLabSceneInstallationsErrors, ThrowOnError> => (options.client ?? client).get<ListLabSceneInstallationsResponses, ListLabSceneInstallationsErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/installations', ...options });
+
+export const createLabSceneInstallation = <ThrowOnError extends boolean = false>(options: Options<CreateLabSceneInstallationData, ThrowOnError>): RequestResult<CreateLabSceneInstallationResponses, CreateLabSceneInstallationErrors, ThrowOnError> => (options.client ?? client).post<CreateLabSceneInstallationResponses, CreateLabSceneInstallationErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/installations',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const archiveLabSceneInstallation = <ThrowOnError extends boolean = false>(options: Options<ArchiveLabSceneInstallationData, ThrowOnError>): RequestResult<ArchiveLabSceneInstallationResponses, ArchiveLabSceneInstallationErrors, ThrowOnError> => (options.client ?? client).post<ArchiveLabSceneInstallationResponses, ArchiveLabSceneInstallationErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/installations/{installation_id}/archive', ...options });
+
+export const listLabSimulationSessions = <ThrowOnError extends boolean = false>(options: Options<ListLabSimulationSessionsData, ThrowOnError>): RequestResult<ListLabSimulationSessionsResponses, ListLabSimulationSessionsErrors, ThrowOnError> => (options.client ?? client).get<ListLabSimulationSessionsResponses, ListLabSimulationSessionsErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/sessions', ...options });
+
+export const startLabSimulationSession = <ThrowOnError extends boolean = false>(options: Options<StartLabSimulationSessionData, ThrowOnError>): RequestResult<StartLabSimulationSessionResponses, StartLabSimulationSessionErrors, ThrowOnError> => (options.client ?? client).post<StartLabSimulationSessionResponses, StartLabSimulationSessionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/sessions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const streamLabSimulationSessions = <ThrowOnError extends boolean = false>(options: Options<StreamLabSimulationSessionsData, ThrowOnError, StreamLabSimulationSessionsResponse>): Promise<ServerSentEventsResult<StreamLabSimulationSessionsResponses>> => (options.client ?? client).sse.get<StreamLabSimulationSessionsResponses, StreamLabSimulationSessionsErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/sessions/events', ...options });
+
+export const getLabSimulationSession = <ThrowOnError extends boolean = false>(options: Options<GetLabSimulationSessionData, ThrowOnError>): RequestResult<GetLabSimulationSessionResponses, GetLabSimulationSessionErrors, ThrowOnError> => (options.client ?? client).get<GetLabSimulationSessionResponses, GetLabSimulationSessionErrors, ThrowOnError>({ url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}', ...options });
+
+export const pauseLabSimulationSession = <ThrowOnError extends boolean = false>(options: Options<PauseLabSimulationSessionData, ThrowOnError>): RequestResult<PauseLabSimulationSessionResponses, PauseLabSimulationSessionErrors, ThrowOnError> => (options.client ?? client).post<PauseLabSimulationSessionResponses, PauseLabSimulationSessionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/pause',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const resumeLabSimulationSession = <ThrowOnError extends boolean = false>(options: Options<ResumeLabSimulationSessionData, ThrowOnError>): RequestResult<ResumeLabSimulationSessionResponses, ResumeLabSimulationSessionErrors, ThrowOnError> => (options.client ?? client).post<ResumeLabSimulationSessionResponses, ResumeLabSimulationSessionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/resume',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const stopLabSimulationSession = <ThrowOnError extends boolean = false>(options: Options<StopLabSimulationSessionData, ThrowOnError>): RequestResult<StopLabSimulationSessionResponses, StopLabSimulationSessionErrors, ThrowOnError> => (options.client ?? client).post<StopLabSimulationSessionResponses, StopLabSimulationSessionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/stop',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const resetLabSimulationSession = <ThrowOnError extends boolean = false>(options: Options<ResetLabSimulationSessionData, ThrowOnError>): RequestResult<ResetLabSimulationSessionResponses, ResetLabSimulationSessionErrors, ThrowOnError> => (options.client ?? client).post<ResetLabSimulationSessionResponses, ResetLabSimulationSessionErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/reset',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const createLabSessionViewerTicket = <ThrowOnError extends boolean = false>(options: Options<CreateLabSessionViewerTicketData, ThrowOnError>): RequestResult<CreateLabSessionViewerTicketResponses, CreateLabSessionViewerTicketErrors, ThrowOnError> => (options.client ?? client).post<CreateLabSessionViewerTicketResponses, CreateLabSessionViewerTicketErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/viewer-tickets',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const admitLabSessionPublisher = <ThrowOnError extends boolean = false>(options: Options<AdmitLabSessionPublisherData, ThrowOnError>): RequestResult<AdmitLabSessionPublisherResponses, AdmitLabSessionPublisherErrors, ThrowOnError> => (options.client ?? client).post<AdmitLabSessionPublisherResponses, AdmitLabSessionPublisherErrors, ThrowOnError>({
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/publisher-admissions',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const provisionMachine = <ThrowOnError extends boolean = false>(options: Options<ProvisionMachineData, ThrowOnError>): RequestResult<ProvisionMachineResponses, ProvisionMachineErrors, ThrowOnError> => (options.client ?? client).post<ProvisionMachineResponses, ProvisionMachineErrors, ThrowOnError>({
+    url: '/api/v1/machines',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+export const revokeMachine = <ThrowOnError extends boolean = false>(options: Options<RevokeMachineData, ThrowOnError>): RequestResult<RevokeMachineResponses, RevokeMachineErrors, ThrowOnError> => (options.client ?? client).post<RevokeMachineResponses, RevokeMachineErrors, ThrowOnError>({ url: '/api/v1/machines/{machine_id}/revoke', ...options });
 
 export const listLabAssets = <ThrowOnError extends boolean = false>(options?: Options<ListLabAssetsData, ThrowOnError>): RequestResult<ListLabAssetsResponses, ListLabAssetsErrors, ThrowOnError> => (options?.client ?? client).get<ListLabAssetsResponses, ListLabAssetsErrors, ThrowOnError>({ url: '/api/v1/lab/assets', ...options });
 

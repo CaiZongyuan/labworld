@@ -5,7 +5,8 @@
     "packages/sdk/src/lab-world.ts",
     "packages/sdk/src/motion.ts",
     "packages/sdk/src/motion-buffer.ts",
-    "packages/sdk/src/index.ts"
+    "packages/sdk/src/index.ts",
+    "packages/sdk/src/simulation-session.ts"
   ],
   "contractSymbols": [
     "labRepresentationProfiles",
@@ -155,7 +156,58 @@
     "MOTION_ERROR_CODES",
     "parseMotionHello",
     "parseMotionWelcome",
-    "parseMotionControl"
+    "parseMotionControl",
+    "SessionPose",
+    "SessionMotionTarget",
+    "SceneInstallation",
+    "SceneInstallationPage",
+    "CreateSceneInstallation",
+    "SessionParameters",
+    "SimulationSessionSnapshot",
+    "SimulationSession",
+    "SimulationSessionPage",
+    "StartSimulationSession",
+    "SessionTransition",
+    "SessionViewerTicketRequest",
+    "SessionMotionTicket",
+    "PublisherAdmissionRequest",
+    "PublisherAdmission",
+    "PublisherBootstrap",
+    "SimulationSessionEvent",
+    "listLabSceneInstallations",
+    "createLabSceneInstallation",
+    "listLabSimulationSessions",
+    "startLabSimulationSession",
+    "getLabSimulationSession",
+    "pauseLabSimulationSession",
+    "resumeLabSimulationSession",
+    "resetLabSimulationSession",
+    "stopLabSimulationSession",
+    "streamLabSimulationSessions",
+    "createLabSessionViewerTicket",
+    "admitLabSessionPublisher",
+    "MotionSessionAction",
+    "MotionSessionControl",
+    "MotionSessionAck",
+    "parseMotionSessionControl",
+    "parseMotionSessionAck",
+    "archiveLabSceneInstallation",
+    "projectSessionWorld",
+    "subscribeSimulationSessions",
+    "requestSessionViewerTicket",
+    "subscribeSessionMotion"
   ],
-  "contractSubpaths": ["@labos-threejs/contracts/motion"]
+  "contractSubpaths": ["@labos-threejs/contracts/motion"],
+  "docsPaths": [
+    "docs/tutorials/simulation-session.md",
+    "docs/tutorials/simulation-session.en.md",
+    "docs/examples/session-refusals.js"
+  ],
+  "testPaths": [
+    "tests/server/session-authority.test.ts",
+    "packages/sdk/src/simulation-session.test.ts",
+    "packages/views/src/lab/simulation-session-controls.test.tsx",
+    "tests/frontend/session-fixture.ts",
+    "tests/e2e/lab-simulation-session.spec.ts"
+  ]
 }

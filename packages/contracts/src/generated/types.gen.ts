@@ -196,108 +196,91 @@ export type KeyScope = {
     label: string;
 };
 
-export type AssetPage = {
-    data: Array<LabAsset>;
-    next_cursor?: string | null;
-    has_more: boolean;
-    max_upload_bytes: number;
-    max_decoded_resource_bytes: number;
+export type SceneInstallationPage = {
+    data: Array<SceneInstallation>;
 };
 
-export type LabAsset = {
+export type SceneInstallation = {
     id: string;
-    name: string;
-    source: string;
-    license: string;
-    version: string;
-    created_by: string;
-    updated_by: string;
+    lab_id: string;
+    package_id: 'development-synthetic';
+    package_version: '1';
+    scene_hash: string;
+    mapping_revision: number;
+    pose_keys: Array<string>;
+    joint_keys: Array<string>;
+    targets: Array<SessionMotionTarget>;
     created_at: string;
-    updated_at: string;
-    representation: AssetRepresentation;
+    archived_at: string | null;
 };
 
-export type AssetRepresentation = {
+export type SessionMotionTarget = {
+    object_key: string;
+    pose_key: string;
+    entity_id: string;
+    node_id: string;
+    visual_target: 'node-root';
+    body_to_visual: SessionPose;
+};
+
+export type SessionPose = {
+    position: Array<number>;
+    quaternion: Array<number>;
+};
+
+export type CreateSceneInstallation = {
+    representation_id: string;
+};
+
+export type SimulationSessionPage = {
+    data: Array<SimulationSession>;
+    active_session_id: string | null;
+    development_synthetic_enabled: boolean;
+};
+
+export type SimulationSession = {
     id: string;
-    file_id: string;
-    file_name: string;
-    size: number;
-    sha256: string;
-    content_type: string;
+    lab_id: string;
+    installation_id: string;
+    machine_id: string;
+    status: 'starting' | 'running' | 'pausing' | 'paused' | 'resuming' | 'stopping' | 'stopped' | 'interrupted' | 'reset';
+    revision: number;
+    epoch: string | null;
+    lease_id: string | null;
+    snapshot: SimulationSessionSnapshot;
+    started_at: string;
+    ended_at: string | null;
+    reason: string | null;
+    successor_session_id: string | null;
 };
 
-export type RenameAsset = {
-    name: string;
+export type SimulationSessionSnapshot = {
+    hash: string;
+    installation: SceneInstallation;
+    world: LabWorld;
+    parameters: SessionParameters;
+    initial_poses: Array<SessionPose>;
+    initial_joints: Array<number>;
 };
 
-export type CreateAssetUpload = {
-    name: string;
-    source: string;
-    license: string;
+export type LabWorld = {
+    /**
+     * Deployment-wide committed world revision, compared only within the same Lab/query.
+     */
     version: string;
-    file: UploadInput;
-};
-
-export type LabLayout = {
-    layout_version: number;
+    lab: PersistentLab;
+    entities: Array<LabEntity>;
     nodes: Array<SceneNode>;
+    assets: Array<LabAsset>;
     relationships: Array<EntityRelationship>;
 };
 
-export type SceneNode = {
+export type PersistentLab = {
     id: string;
-    lab_id: string;
-    entity_id: string;
-    representation_id?: string | null;
-    placement: Placement;
-};
-
-export type Placement = {
-    position: Array<number>;
-    rotation: Array<number>;
-    scale: Array<number>;
-};
-
-export type EntityRelationship = {
-    id: string;
-    lab_id: string;
-    source_id: string;
-    target_id: string;
-    kind: string;
-    source: string;
-    registered_by: string;
-    registered_at: string;
-};
-
-export type SaveLabLayout = {
-    expected_version: number;
-    nodes: Array<LayoutNode>;
-    /**
-     * Omit to retain registered relationships; an array explicitly replaces them.
-     */
-    relationships?: Array<LayoutRelationship> | null;
-};
-
-export type LayoutNode = {
-    id: string;
-    entity_id: string;
-    representation_id?: string | null;
-    placement: Placement;
-};
-
-export type LayoutRelationship = {
-    id: string;
-    source_id: string;
-    target_id: string;
-    kind: RelationshipKind;
-};
-
-export type RelationshipKind = 'located_in' | 'contains' | 'simulates';
-
-export type CreateSceneNode = {
-    entity_id: string;
-    representation_id?: string | null;
-    placement: Placement;
+    name: string;
+    layout_version: number;
+    created_by: string;
+    created_at: string;
 };
 
 export type LabEntity = {
@@ -441,6 +424,201 @@ export type EntityCapability = {
     result: unknown;
 };
 
+export type SceneNode = {
+    id: string;
+    lab_id: string;
+    entity_id: string;
+    representation_id?: string | null;
+    placement: Placement;
+};
+
+export type Placement = {
+    position: Array<number>;
+    rotation: Array<number>;
+    scale: Array<number>;
+};
+
+export type LabAsset = {
+    id: string;
+    name: string;
+    source: string;
+    license: string;
+    version: string;
+    created_by: string;
+    updated_by: string;
+    created_at: string;
+    updated_at: string;
+    representation: AssetRepresentation;
+};
+
+export type AssetRepresentation = {
+    id: string;
+    file_id: string;
+    file_name: string;
+    size: number;
+    sha256: string;
+    content_type: string;
+};
+
+export type EntityRelationship = {
+    id: string;
+    lab_id: string;
+    source_id: string;
+    target_id: string;
+    kind: string;
+    source: string;
+    registered_by: string;
+    registered_at: string;
+};
+
+export type SessionParameters = {
+    /**
+     * Displacement amplitude in metres; default 0.45.
+     */
+    translation_amplitude: number;
+    /**
+     * Body local Y rotation speed in radians per second; default 1.
+     */
+    angular_speed: number;
+    /**
+     * Synthetic joint angle amplitude in radians; default 1.
+     */
+    joint_amplitude: number;
+};
+
+export type StartSimulationSession = {
+    installation_id: string;
+    parameters?: {
+        /**
+         * Displacement amplitude in metres; default 0.45.
+         */
+        translation_amplitude?: number;
+        /**
+         * Body local Y rotation speed in radians per second; default 1.
+         */
+        angular_speed?: number;
+        /**
+         * Synthetic joint angle amplitude in radians; default 1.
+         */
+        joint_amplitude?: number;
+    };
+    machine_id?: string;
+};
+
+export type SimulationSessionEvent = {
+    type: 'session';
+    session: SimulationSession;
+};
+
+export type SessionTransition = {
+    expected_revision: number;
+};
+
+export type SessionMotionTicket = {
+    ticket: string;
+    expires_in_seconds: number;
+    websocket_path: string;
+};
+
+export type SessionViewerTicketRequest = {
+    preferred_rate_hz: 15 | 30;
+};
+
+export type PublisherAdmission = SessionMotionTicket & {
+    lease_id: string;
+    epoch: string;
+    bootstrap: PublisherBootstrap;
+};
+
+export type PublisherBootstrap = {
+    snapshot_hash: string;
+    session_id: string;
+    scene_hash: string;
+    body_order: Array<string>;
+    joint_order: Array<string>;
+    initial_poses: Array<SessionPose>;
+    initial_joints: Array<number>;
+    parameters: SessionParameters;
+};
+
+export type PublisherAdmissionRequest = {
+    machine_id: string;
+};
+
+export type MachineCredential = {
+    machine: MachineIdentity;
+    credential: string;
+};
+
+export type MachineIdentity = {
+    id: string;
+    name: string;
+    created_at: string;
+    expires_at: string;
+    revoked_at: string | null;
+};
+
+export type ProvisionMachine = {
+    name: string;
+};
+
+export type AssetPage = {
+    data: Array<LabAsset>;
+    next_cursor?: string | null;
+    has_more: boolean;
+    max_upload_bytes: number;
+    max_decoded_resource_bytes: number;
+};
+
+export type RenameAsset = {
+    name: string;
+};
+
+export type CreateAssetUpload = {
+    name: string;
+    source: string;
+    license: string;
+    version: string;
+    file: UploadInput;
+};
+
+export type LabLayout = {
+    layout_version: number;
+    nodes: Array<SceneNode>;
+    relationships: Array<EntityRelationship>;
+};
+
+export type SaveLabLayout = {
+    expected_version: number;
+    nodes: Array<LayoutNode>;
+    /**
+     * Omit to retain registered relationships; an array explicitly replaces them.
+     */
+    relationships?: Array<LayoutRelationship> | null;
+};
+
+export type LayoutNode = {
+    id: string;
+    entity_id: string;
+    representation_id?: string | null;
+    placement: Placement;
+};
+
+export type LayoutRelationship = {
+    id: string;
+    source_id: string;
+    target_id: string;
+    kind: RelationshipKind;
+};
+
+export type RelationshipKind = 'located_in' | 'contains' | 'simulates';
+
+export type CreateSceneNode = {
+    entity_id: string;
+    representation_id?: string | null;
+    placement: Placement;
+};
+
 export type CopyLabEntity = {
     expected_version: number;
     name: string;
@@ -477,28 +655,8 @@ export type LabPage = {
     has_more: boolean;
 };
 
-export type PersistentLab = {
-    id: string;
-    name: string;
-    layout_version: number;
-    created_by: string;
-    created_at: string;
-};
-
 export type CreateLab = {
     name: string;
-};
-
-export type LabWorld = {
-    /**
-     * Deployment-wide committed world revision, compared only within the same Lab/query.
-     */
-    version: string;
-    lab: PersistentLab;
-    entities: Array<LabEntity>;
-    nodes: Array<SceneNode>;
-    assets: Array<LabAsset>;
-    relationships: Array<EntityRelationship>;
 };
 
 export type MotionFixture = {
@@ -1242,6 +1400,433 @@ export type ListApiKeyScopesResponses = {
 };
 
 export type ListApiKeyScopesResponse = ListApiKeyScopesResponses[keyof ListApiKeyScopesResponses];
+
+export type ListLabSceneInstallationsData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/installations';
+};
+
+export type ListLabSceneInstallationsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabSceneInstallationsError = ListLabSceneInstallationsErrors[keyof ListLabSceneInstallationsErrors];
+
+export type ListLabSceneInstallationsResponses = {
+    200: SceneInstallationPage;
+};
+
+export type ListLabSceneInstallationsResponse = ListLabSceneInstallationsResponses[keyof ListLabSceneInstallationsResponses];
+
+export type CreateLabSceneInstallationData = {
+    body: CreateSceneInstallation;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/installations';
+};
+
+export type CreateLabSceneInstallationErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabSceneInstallationError = CreateLabSceneInstallationErrors[keyof CreateLabSceneInstallationErrors];
+
+export type CreateLabSceneInstallationResponses = {
+    201: SceneInstallation;
+};
+
+export type CreateLabSceneInstallationResponse = CreateLabSceneInstallationResponses[keyof CreateLabSceneInstallationResponses];
+
+export type ArchiveLabSceneInstallationData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        installation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/installations/{installation_id}/archive';
+};
+
+export type ArchiveLabSceneInstallationErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ArchiveLabSceneInstallationError = ArchiveLabSceneInstallationErrors[keyof ArchiveLabSceneInstallationErrors];
+
+export type ArchiveLabSceneInstallationResponses = {
+    204: void;
+};
+
+export type ArchiveLabSceneInstallationResponse = ArchiveLabSceneInstallationResponses[keyof ArchiveLabSceneInstallationResponses];
+
+export type ListLabSimulationSessionsData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions';
+};
+
+export type ListLabSimulationSessionsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabSimulationSessionsError = ListLabSimulationSessionsErrors[keyof ListLabSimulationSessionsErrors];
+
+export type ListLabSimulationSessionsResponses = {
+    200: SimulationSessionPage;
+};
+
+export type ListLabSimulationSessionsResponse = ListLabSimulationSessionsResponses[keyof ListLabSimulationSessionsResponses];
+
+export type StartLabSimulationSessionData = {
+    body: StartSimulationSession;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions';
+};
+
+export type StartLabSimulationSessionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StartLabSimulationSessionError = StartLabSimulationSessionErrors[keyof StartLabSimulationSessionErrors];
+
+export type StartLabSimulationSessionResponses = {
+    201: SimulationSession;
+};
+
+export type StartLabSimulationSessionResponse = StartLabSimulationSessionResponses[keyof StartLabSimulationSessionResponses];
+
+export type StreamLabSimulationSessionsData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/events';
+};
+
+export type StreamLabSimulationSessionsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StreamLabSimulationSessionsError = StreamLabSimulationSessionsErrors[keyof StreamLabSimulationSessionsErrors];
+
+export type StreamLabSimulationSessionsResponses = {
+    /**
+     * Session lifecycle events; no motion frames.
+     */
+    200: SimulationSessionEvent;
+};
+
+export type StreamLabSimulationSessionsResponse = StreamLabSimulationSessionsResponses[keyof StreamLabSimulationSessionsResponses];
+
+export type GetLabSimulationSessionData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}';
+};
+
+export type GetLabSimulationSessionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabSimulationSessionError = GetLabSimulationSessionErrors[keyof GetLabSimulationSessionErrors];
+
+export type GetLabSimulationSessionResponses = {
+    200: SimulationSession;
+};
+
+export type GetLabSimulationSessionResponse = GetLabSimulationSessionResponses[keyof GetLabSimulationSessionResponses];
+
+export type PauseLabSimulationSessionData = {
+    body: SessionTransition;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/pause';
+};
+
+export type PauseLabSimulationSessionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type PauseLabSimulationSessionError = PauseLabSimulationSessionErrors[keyof PauseLabSimulationSessionErrors];
+
+export type PauseLabSimulationSessionResponses = {
+    200: SimulationSession;
+};
+
+export type PauseLabSimulationSessionResponse = PauseLabSimulationSessionResponses[keyof PauseLabSimulationSessionResponses];
+
+export type ResumeLabSimulationSessionData = {
+    body: SessionTransition;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/resume';
+};
+
+export type ResumeLabSimulationSessionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ResumeLabSimulationSessionError = ResumeLabSimulationSessionErrors[keyof ResumeLabSimulationSessionErrors];
+
+export type ResumeLabSimulationSessionResponses = {
+    200: SimulationSession;
+};
+
+export type ResumeLabSimulationSessionResponse = ResumeLabSimulationSessionResponses[keyof ResumeLabSimulationSessionResponses];
+
+export type StopLabSimulationSessionData = {
+    body: SessionTransition;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/stop';
+};
+
+export type StopLabSimulationSessionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StopLabSimulationSessionError = StopLabSimulationSessionErrors[keyof StopLabSimulationSessionErrors];
+
+export type StopLabSimulationSessionResponses = {
+    200: SimulationSession;
+};
+
+export type StopLabSimulationSessionResponse = StopLabSimulationSessionResponses[keyof StopLabSimulationSessionResponses];
+
+export type ResetLabSimulationSessionData = {
+    body: SessionTransition;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/reset';
+};
+
+export type ResetLabSimulationSessionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ResetLabSimulationSessionError = ResetLabSimulationSessionErrors[keyof ResetLabSimulationSessionErrors];
+
+export type ResetLabSimulationSessionResponses = {
+    200: SimulationSession;
+};
+
+export type ResetLabSimulationSessionResponse = ResetLabSimulationSessionResponses[keyof ResetLabSimulationSessionResponses];
+
+export type CreateLabSessionViewerTicketData = {
+    body: SessionViewerTicketRequest;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/viewer-tickets';
+};
+
+export type CreateLabSessionViewerTicketErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabSessionViewerTicketError = CreateLabSessionViewerTicketErrors[keyof CreateLabSessionViewerTicketErrors];
+
+export type CreateLabSessionViewerTicketResponses = {
+    201: SessionMotionTicket;
+};
+
+export type CreateLabSessionViewerTicketResponse = CreateLabSessionViewerTicketResponses[keyof CreateLabSessionViewerTicketResponses];
+
+export type AdmitLabSessionPublisherData = {
+    body: PublisherAdmissionRequest;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sessions/{session_id}/publisher-admissions';
+};
+
+export type AdmitLabSessionPublisherErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type AdmitLabSessionPublisherError = AdmitLabSessionPublisherErrors[keyof AdmitLabSessionPublisherErrors];
+
+export type AdmitLabSessionPublisherResponses = {
+    201: PublisherAdmission;
+};
+
+export type AdmitLabSessionPublisherResponse = AdmitLabSessionPublisherResponses[keyof AdmitLabSessionPublisherResponses];
+
+export type ProvisionMachineData = {
+    body: ProvisionMachine;
+    path?: never;
+    query?: never;
+    url: '/api/v1/machines';
+};
+
+export type ProvisionMachineErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ProvisionMachineError = ProvisionMachineErrors[keyof ProvisionMachineErrors];
+
+export type ProvisionMachineResponses = {
+    201: MachineCredential;
+};
+
+export type ProvisionMachineResponse = ProvisionMachineResponses[keyof ProvisionMachineResponses];
+
+export type RevokeMachineData = {
+    body?: never;
+    path: {
+        machine_id: string;
+    };
+    query?: never;
+    url: '/api/v1/machines/{machine_id}/revoke';
+};
+
+export type RevokeMachineErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RevokeMachineError = RevokeMachineErrors[keyof RevokeMachineErrors];
+
+export type RevokeMachineResponses = {
+    204: void;
+};
+
+export type RevokeMachineResponse = RevokeMachineResponses[keyof RevokeMachineResponses];
 
 export type ListLabAssetsData = {
     body?: never;

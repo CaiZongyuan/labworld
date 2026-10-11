@@ -246,3 +246,106 @@ test('replacing or renewing a model association restores the prior pose and reje
   scene.reset();
   expect(scene.inspect()).toBeNull();
 });
+
+test('frozen body-to-visual correction is composed once in world space before the parent inverse', () => {
+  const scene = new MotionSceneController();
+  const parent = new Group();
+  parent.position.set(5, -2, 3);
+  parent.rotation.y = Math.PI / 2;
+  const node = new Group();
+  parent.add(node);
+  const child = new Group();
+  child.position.set(-7, -2, -4);
+  node.add(child);
+  const target = motionWelcome.targets[0];
+  const placement = {
+    position: [40, 20, 10],
+    rotation: [0, 0, 0],
+    scale: [0.35, 0.35, 0.35],
+  };
+  scene.register(target.node_id, target.entity_id, node, placement);
+  const buffer = new MotionBuffer();
+  buffer.configure({
+    ...motionWelcome,
+    targets: [
+      {
+        ...target,
+        body_to_visual: {
+          position: [2, 0, 0],
+          quaternion: [0, Math.SQRT1_2, 0, Math.SQRT1_2],
+        },
+      },
+    ],
+  });
+  buffer.push(
+    motionSnapshot({
+      poses: [
+        { position: [3, 4, 5], quaternion: [0, Math.SQRT1_2, 0, Math.SQRT1_2] },
+      ],
+    }),
+    1000,
+  );
+  scene.update(buffer, 1000);
+  // Body yaw90 rotates correction +X into -Z: expected node world position=(3,4,3), yaw180.
+  expect(
+    node.getWorldPosition(new Vector3()).distanceTo(new Vector3(3, 4, 3)),
+  ).toBeLessThan(1e-10);
+  expect(
+    node
+      .getWorldQuaternion(new Quaternion())
+      .angleTo(new Quaternion(0, 1, 0, 0)),
+  ).toBeLessThan(1e-7);
+  expect(node.scale.toArray()).toEqual([0.35, 0.35, 0.35]);
+  expect(child.position.toArray()).toEqual([-7, -2, -4]);
+  scene.update(buffer, 1010);
+  expect(
+    node.getWorldPosition(new Vector3()).distanceTo(new Vector3(3, 4, 3)),
+  ).toBeLessThan(1e-10);
+});
+
+test('Stop releases the frozen association and restores latest saved Placement; Reset keeps the startup Placement', () => {
+  const scene = new MotionSceneController();
+  const node = new Group();
+  const target = motionWelcome.targets[0];
+  const startup = {
+    position: [1, 0, 0],
+    rotation: [0, 0, 0],
+    scale: [0.35, 0.35, 0.35],
+  };
+  const cleanup = scene.register(
+    target.node_id,
+    target.entity_id,
+    node,
+    startup,
+  );
+  const buffer = new MotionBuffer();
+  buffer.configure(motionWelcome);
+  buffer.push(
+    motionSnapshot({
+      poses: [{ position: [5, 0, 0], quaternion: [0, 0, 0, 1] }],
+    }),
+    1000,
+  );
+  scene.update(buffer, 1000);
+  const saved = {
+    position: [8, 2, 1],
+    rotation: [0, 0.5, 0],
+    scale: [0.8, 0.8, 0.8],
+  };
+  // R3F applies next props before the old passive-effect cleanup.
+  node.position.fromArray(saved.position);
+  cleanup();
+  scene.register(target.node_id, target.entity_id, node, saved);
+  scene.update(null, 1010);
+  expect(node.position.toArray()).toEqual(saved.position);
+  expect(node.scale.toArray()).toEqual(saved.scale);
+  scene.register(target.node_id, target.entity_id, node, startup);
+  buffer.configure({
+    ...motionWelcome,
+    session_id: 'successor-session',
+    epoch: '2',
+  });
+  expect(scene.inspect()).toBeNull();
+  expect(node.position.toArray()).toEqual(startup.position);
+  expect(saved.position).toEqual([8, 2, 1]);
+});

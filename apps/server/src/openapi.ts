@@ -1,3 +1,7 @@
+import { sessionRoutes } from '../../../packages/server/src/lab/sessions/routes.ts';
+import type { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
+import { machineRoutes } from '../../../packages/server/src/core/machines/routes.ts';
+import type { MachineService } from '../../../packages/server/src/core/machines/use-cases.ts';
 import { motionRoutes } from '../../../packages/server/src/lab/motion/routes.ts';
 import type { MotionFixtures } from '../../../packages/server/src/lab/motion/fixture.ts';
 import { readFileSync } from 'node:fs';
@@ -32,6 +36,8 @@ const app = coreApp(
   configuration().auth,
   () => {},
 );
+sessionRoutes(app, undefined as unknown as SimulationSessions);
+machineRoutes(app, undefined as unknown as MachineService);
 assetRoutes(app, undefined as unknown as FileService);
 worldRoutes(app, undefined as unknown as WorldService);
 motionRoutes(app, undefined as unknown as MotionFixtures);

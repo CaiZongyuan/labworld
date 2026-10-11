@@ -8,4 +8,6 @@ export {
   parseMotionHello,
   parseMotionWelcome,
   parseMotionControl,
+  parseMotionSessionControl,
+  parseMotionSessionAck,
 } from './control.ts';

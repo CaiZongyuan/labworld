@@ -12,17 +12,29 @@ import { dirname, join } from 'node:path';
 import { ContractResources } from './lib/contract-resources.mjs';
 import { launch, root } from './lib/process.mjs';
 
-const args = process.argv.slice(2),
-  profiles = args.length
-    ? [args]
-    : readdirSync(join(root, 'tests/e2e'))
-        .filter((name) => name.endsWith('.spec.ts'))
-        .sort()
-        .map((name) =>
-          name === 'lab-synthetic-motion.spec.ts'
-            ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
-            : ['tests/e2e/' + name],
-        ),
+const args = process.argv.slice(2);
+let shard = null;
+if (args.some((argument) => argument.startsWith('--profile-shard'))) {
+  const match =
+    args.length === 1 && /^--profile-shard=([12])\/2$/.exec(args[0]);
+  if (!match)
+    throw new Error(
+      'Use --profile-shard=1/2 or --profile-shard=2/2 alone to split the default profiles',
+    );
+  shard = Number(match[1]);
+}
+const profiles =
+    args.length && shard === null
+      ? [args]
+      : readdirSync(join(root, 'tests/e2e'))
+          .filter((name) => name.endsWith('.spec.ts'))
+          .sort()
+          .map((name) =>
+            name === 'lab-synthetic-motion.spec.ts'
+              ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
+              : ['tests/e2e/' + name],
+          )
+          .filter((_, index) => shard === null || index % 2 === shard - 1),
   resources = new ContractResources(
     join(
       root,
@@ -34,6 +46,8 @@ const args = process.argv.slice(2),
     false,
   );
 resources.data.owner = 'Node desktop browser profile supervisor';
+resources.data.profileShard = shard;
+resources.data.profiles = profiles;
 resources.save();
 resources.snapshot('start');
 const results = [],
@@ -88,6 +102,7 @@ try {
       : null;
     results.push({
       index,
+      args: profile,
       exitCode: code,
       summary,
       summaryPath: summary ? preservedSummary : null,
@@ -123,7 +138,7 @@ try {
   writeFileSync(
     join(dirname(resources.path), 'results.json'),
     JSON.stringify(
-      { status: resources.data.state, profiles: results },
+      { status: resources.data.state, shard, profiles: results },
       null,
       2,
     ) + '\n',

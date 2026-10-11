@@ -1,3 +1,8 @@
+import { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
+import { sessionRoutes } from '../../../packages/server/src/lab/sessions/routes.ts';
+import { MachineService } from '../../../packages/server/src/core/machines/use-cases.ts';
+import { machineRoutes } from '../../../packages/server/src/core/machines/routes.ts';
+import { SyntheticSources } from './synthetic-source.ts';
 import { serve } from '@hono/node-server';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Server } from 'node:http';
@@ -199,9 +204,46 @@ export async function run(
       worldRoutes(app, world, () => devices.ready);
       const fixtures = new MotionFixtures(world, config.motionFixture);
       motionRoutes(app, fixtures, (c) => getConnInfo(c).remote.address);
-      const motion = config.motionFixture
-        ? new MotionWebSockets(fixtures, config.auth.origin)
-        : undefined;
+      const sessions = new SimulationSessions(
+        world,
+        {
+          enabled: config.syntheticSession,
+          graceMillis: config.motionGraceMillis,
+          ackMillis: config.motionAckMillis,
+        },
+        log,
+      );
+      ownStop(() => sessions.stop());
+      await sessions.initialize();
+      sessionRoutes(app, sessions, (c) => getConnInfo(c).remote.address);
+      machineRoutes(
+        app,
+        new MachineService(context, config.auth, 'lab:full', (id) =>
+          sessions.machineRevoked(id),
+        ),
+      );
+      const motion =
+        config.motionFixture || config.syntheticSession
+          ? new MotionWebSockets(fixtures, config.auth.origin, sessions, log)
+          : undefined;
+      const sources = new SyntheticSources(
+        {
+          directory: config.directory,
+          python: config.syntheticPython,
+          publisher: config.syntheticPublisher,
+          url: `http://${config.hostname === '::1' ? '[::1]' : config.hostname}:${config.port}`,
+          port: config.port,
+        },
+        (id) => sessions.sourceExited(id),
+        log,
+      );
+      ownStop(() => sources.stop());
+      await sources.initialize(config.syntheticSession);
+      if (config.syntheticSession && motion)
+        sessions.configure(
+          (input) => sources.launch(input),
+          (id) => motion.fence(id),
+        );
       if (motion) ownStop(() => motion.stop());
       progressRoutes(app, new ProgressService(context, config.auth));
       lifecycleRoutes(app, world);

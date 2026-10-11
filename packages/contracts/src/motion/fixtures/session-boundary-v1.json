@@ -1,0 +1,21 @@
+{
+  "control": {
+    "type": "motion.session_control",
+    "session_id": "12345678-1234-1234-1234-123456789abc",
+    "epoch": "9007199254740993",
+    "transition_id": "12345678-1234-1234-1234-123456789def",
+    "revision": 7,
+    "action": "pause"
+  },
+  "ack": {
+    "type": "motion.session_ack",
+    "session_id": "12345678-1234-1234-1234-123456789abc",
+    "epoch": "9007199254740993",
+    "transition_id": "12345678-1234-1234-1234-123456789def",
+    "revision": 7,
+    "action": "pause",
+    "result": "applied",
+    "last_sequence": "18446744073709551615",
+    "sim_time_ns": "9007199254740995"
+  }
+}

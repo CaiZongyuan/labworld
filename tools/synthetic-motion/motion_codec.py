@@ -12,6 +12,7 @@ U64_MAX = (1 << 64) - 1
 MAX_BODIES = MAX_JOINTS = 1024
 MAX_BINARY_BYTES = 64 * 1024
 MAX_CONTROL_BYTES = 256 * 1024
+MAX_SESSION_CONTROL_BYTES = 4096
 MAX_ABS = 10_000
 QUATERNION_TOLERANCE = 0.001
 CODEC = 'pose-f32-v1'
@@ -190,9 +191,47 @@ def parse_welcome(text):
         for name in ('entity_id', 'node_id'):
             if not isinstance(target.get(name), str) or not UUID.fullmatch(target[name]):
                 invalid('Invalid visual target UUID')
+        if 'body_to_visual' in target:
+            correction = target['body_to_visual']
+            if (not isinstance(correction, dict)
+                    or not isinstance(correction.get('position'), list)
+                    or not isinstance(correction.get('quaternion'), list)):
+                invalid('Invalid correction pose')
+            validate_pose(correction)
+            encode_snapshot({'epoch': 0, 'sequence': 0, 'sim_time_ns': 0,
+                             'mapping_revision': 0, 'poses': [correction], 'joints': []})
     if len({target['node_id'] for target in targets}) != len(targets):
         invalid('Multiple poses cannot target the same Scene Node root')
     return value
+
+
+def session_boundary(value):
+    for name in ('session_id', 'transition_id'):
+        if not isinstance(value.get(name), str) or not UUID.fullmatch(value[name]):
+            raise MotionProtocolError('invalid_message', 'Invalid Session UUID')
+    parse_u64(value.get('epoch'))
+    if type(value.get('revision')) is not int or not 0 <= value['revision'] <= (1 << 53) - 1:
+        raise MotionProtocolError('invalid_message', 'Invalid Session revision')
+    if value.get('action') not in ('pause', 'resume', 'stop'):
+        raise MotionProtocolError('invalid_message', 'Invalid Session action')
+    return {name: value[name] for name in ('session_id', 'epoch', 'transition_id', 'revision', 'action')}
+
+
+def parse_session_control(text):
+    value = control_json(text, MAX_SESSION_CONTROL_BYTES)
+    if value.get('type') != 'motion.session_control':
+        raise MotionProtocolError('invalid_message', 'Expected motion.session_control')
+    return {'type': 'motion.session_control', **session_boundary(value)}
+
+
+def parse_session_ack(text):
+    value = control_json(text, MAX_SESSION_CONTROL_BYTES)
+    if value.get('type') != 'motion.session_ack' or value.get('result') != 'applied':
+        raise MotionProtocolError('invalid_message', 'Expected applied motion.session_ack')
+    parse_u64(value.get('last_sequence'))
+    parse_u64(value.get('sim_time_ns'))
+    return {'type': 'motion.session_ack', **session_boundary(value), 'result': 'applied',
+            'last_sequence': value['last_sequence'], 'sim_time_ns': value['sim_time_ns']}
 
 
 def json_snapshot(snapshot):
@@ -215,6 +254,10 @@ def main():
             result = {'snapshot': json_snapshot(decode_snapshot(bytes.fromhex(request['hex']), expected))}
         elif request['operation'] == 'welcome':
             result = {'welcome': parse_welcome(request['text'])}
+        elif request['operation'] == 'session_control':
+            result = {'control': parse_session_control(request['text'])}
+        elif request['operation'] == 'session_ack':
+            result = {'ack': parse_session_ack(request['text'])}
         else:
             raise MotionProtocolError('invalid_message', 'Unsupported oracle operation')
         print(json.dumps(result, allow_nan=False, separators=(',', ':')))
