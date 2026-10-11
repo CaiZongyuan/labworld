@@ -285,26 +285,41 @@ export class SyntheticSources {
             }
           : {}),
       };
-    await save(path, ledger);
     let child: ChildProcess | undefined,
       closed = false,
       cacheCreated = false,
+      cancelled = false,
       stopping: Promise<void> | undefined;
+    let finishPreparation!: () => void;
+    const preparationDrained = new Promise<void>((resolve) => {
+      finishPreparation = resolve;
+    });
+    let finishAdmission!: () => void;
+    const admissionDrained = new Promise<void>((resolve) => {
+      finishAdmission = resolve;
+    });
     const stop = async () => {
+      cancelled = true;
+      this.prepared.delete(input.session.id);
       if (stopping) return stopping;
       stopping = (async () => {
+        // Pending save/cache IO still owns an intent. Drain it before cleanup
+        // so it cannot create a new child or directory after stop resolves.
+        await preparationDrained;
         if (child && !closed) {
+          const exited = once(child, 'close');
           child.stdin?.end();
           child.kill('SIGTERM');
           const timeout = setTimeout(() => {
             if (!closed) child?.kill('SIGKILL');
           }, 2000);
           try {
-            await once(child, 'close');
+            await exited;
           } finally {
             clearTimeout(timeout);
           }
         }
+        await admissionDrained;
         ledger.state = 'cleaned';
         this.prepared.delete(input.session.id);
         if (this.newtonSlot === input.session.id) this.newtonSlot = undefined;
@@ -323,6 +338,10 @@ export class SyntheticSources {
     const owned = { stop };
     this.children.add(owned);
     try {
+      if (preparing) adopt?.(owned);
+      await save(path, ledger);
+      if (cancelled || this.stopped)
+        throw new Error('Synthetic source launch cancelled');
       if (ledger.cache_directory) {
         await mkdir(join(this.options.directory, 'runtime', 'newton-sources'), {
           recursive: true,
@@ -350,6 +369,8 @@ export class SyntheticSources {
             { recursive: true, mode: 0o700 },
           );
       }
+      if (cancelled || this.stopped)
+        throw new Error('Synthetic source launch cancelled');
       child = spawn(
         newton ? this.options.newton!.python : this.options.python,
         [
@@ -382,6 +403,7 @@ export class SyntheticSources {
           },
         },
       );
+      finishPreparation();
       child.once('close', () => {
         closed = true;
         this.exited(input.session.id);
@@ -393,10 +415,13 @@ export class SyntheticSources {
       ledger.process = await identity(child.pid!);
       if (!ledger.process)
         throw new Error('Synthetic source exited before ownership admission');
+      if (cancelled || this.stopped)
+        throw new Error('Synthetic source launch cancelled');
       ledger.state = 'owned';
       await save(path, ledger);
-      if (preparing) adopt?.(owned);
-      if (this.stopped) throw new Error('Synthetic source launch cancelled');
+      if (cancelled || this.stopped)
+        throw new Error('Synthetic source launch cancelled');
+      finishAdmission();
       const snapshot = input.session.snapshot;
       if (preparing) {
         const actual = child;
@@ -467,7 +492,7 @@ export class SyntheticSources {
         });
         child.stdin!.write(JSON.stringify(this.startup(input)) + '\n');
         await ready;
-        if (this.stopped || closed)
+        if (cancelled || this.stopped || closed)
           throw new Error('Newton preparation cancelled');
         child.stdout?.resume();
         this.prepared.set(input.session.id, { child, owned });
@@ -482,7 +507,21 @@ export class SyntheticSources {
       });
       return owned;
     } catch (error) {
-      await stop();
+      finishPreparation();
+      finishAdmission();
+      try {
+        await stop();
+      } catch (cleanupError) {
+        try {
+          this.log({
+            event: 'sessions.source_cleanup_failed',
+            session_id: input.session.id,
+            error: String(cleanupError),
+          });
+        } catch {
+          // Preserve the original launch failure even if cleanup logging fails.
+        }
+      }
       throw error;
     }
   }

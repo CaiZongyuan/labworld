@@ -294,6 +294,7 @@
     "tests/e2e/recording-fault-process.ts",
     "tests/e2e/recording-machine.ts",
     "tests/e2e/recording-public-support.ts",
-    "tests/e2e/recording-wire-oracle.ts"
+    "tests/e2e/recording-wire-oracle.ts",
+    "tests/tooling/synthetic-source-shutdown.test.mjs"
   ]
 }
