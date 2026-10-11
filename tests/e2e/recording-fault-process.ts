@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
 import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { promises, writeFileSync, mkdirSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { join, resolve, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { run } from '../../apps/server/src/runtime.ts';
 import {
   readRecordingRecords,
@@ -11,7 +14,8 @@ import {
 // Faults are armed over its private IPC channel; production has no such route.
 assert(process.send, 'Launch this fixture through the owned IPC supervisor');
 type Arm = {
-  point: 'beforeWrite' | 'beforeSync' | 'prepared' | 'committed';
+  point:
+    'beforeWrite' | 'beforeSync' | 'beforePublish' | 'prepared' | 'committed';
   mode: 'fail' | 'block';
   kind?: string;
   event_type?: string;
@@ -21,6 +25,172 @@ let arm: Arm | undefined;
 let release: (() => void) | undefined;
 let executionHeld = false;
 let releaseExecution: (() => void) | undefined;
+
+type NativeMethod = 'write' | 'sync';
+type NativeIo = {
+  id: number;
+  owner_pid: number;
+  path: string;
+  fd: number;
+  method: NativeMethod;
+  native_state: 'pending' | 'completed' | 'rejected';
+  product_state: 'held' | 'released' | 'settled';
+  close_requested_while_held: boolean;
+  closed: boolean;
+};
+let ioArm: { method: NativeMethod; recording_id: string } | undefined;
+const heldIo = new Map<NativeIo, () => void>();
+const ioEvidence: NativeIo[] = [];
+const ioRoot = resolve(process.env.LAB_WORD_DATA_DIR!, 'recordings');
+const originalOpen = promises.open;
+const ioOutput = process.env.RECORDING_E2E_OUTPUT ?? 'test-results';
+
+function saveIo() {
+  mkdirSync(ioOutput, { recursive: true });
+  writeFileSync(
+    join(ioOutput, `recording-held-io-${process.pid}.json`),
+    JSON.stringify(
+      {
+        owner_pid: process.pid,
+        experiment:
+          'Actual native method started; product-visible completion held. Kernel may already have completed.',
+        operations: ioEvidence,
+      },
+      null,
+      2,
+    ),
+    { mode: 0o600 },
+  );
+}
+
+function releaseIo() {
+  for (const [entry, releaseHeld] of heldIo) {
+    entry.product_state = 'released';
+    releaseHeld();
+  }
+  if (heldIo.size) saveIo();
+}
+
+const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
+  const handle = await originalOpen(file, flags, mode);
+  const filename = file instanceof URL ? fileURLToPath(file) : String(file);
+  const path = resolve(filename),
+    owned = relative(ioRoot, path);
+  if (
+    !/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}[\\/][0-9]{6}-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\.lwf$/.test(
+      owned,
+    )
+  )
+    return handle;
+  // Only this fixture's canonical Recording journal handles are wrapped.
+  // PGlite, Core blobs, directory sync and other projects' files are untouched.
+  const recordingId = owned.split(/[\\/]/)[0];
+  const nativeSync = handle.sync.bind(handle),
+    nativeWrite = handle.write.bind(handle),
+    nativeClose = handle.close.bind(handle);
+  let planned: RecordingRecord | undefined;
+  const entries: NativeIo[] = [];
+  async function visibleCompletion<T>(
+    method: NativeMethod,
+    startNative: () => Promise<T>,
+  ) {
+    if (!ioArm || ioArm.method !== method || ioArm.recording_id !== recordingId)
+      return startNative();
+    ioArm = undefined;
+    const entry: NativeIo = {
+      id: ioEvidence.length + 1,
+      owner_pid: process.pid,
+      path,
+      fd: handle.fd,
+      method,
+      native_state: 'pending',
+      product_state: 'held',
+      close_requested_while_held: false,
+      closed: false,
+    };
+    const native = startNative(); // The ORIGINAL operation starts after its pre-I/O hook has returned.
+    const result = native.then(
+      (value) => {
+        entry.native_state = 'completed';
+        saveIo();
+        process.send!({
+          event: 'actual-io-native-completed',
+          method,
+          fd: entry.fd,
+          path,
+        });
+        return value;
+      },
+      (error: unknown) => {
+        entry.native_state = 'rejected';
+        saveIo();
+        process.send!({
+          event: 'actual-io-native-rejected',
+          method,
+          fd: entry.fd,
+          path,
+        });
+        throw error;
+      },
+    );
+    void result.catch(() => {}); // Keep the original rejection owned until release.
+    entries.push(entry);
+    ioEvidence.push(entry);
+    const held = new Promise<void>((releaseHeld) =>
+      heldIo.set(entry, releaseHeld),
+    );
+    saveIo();
+    process.send!({
+      event: 'actual-io-held',
+      ...entry,
+      recording_id: recordingId,
+      actual_native_started: true,
+      planned,
+    });
+    try {
+      await held;
+      return await result;
+    } finally {
+      heldIo.delete(entry);
+      entry.product_state = 'settled';
+      saveIo();
+      process.send!({ event: 'actual-io-settled', method, fd: entry.fd, path });
+    }
+  }
+  handle.write = ((...args: Parameters<typeof handle.write>) => {
+    if (ioArm?.recording_id === recordingId && Buffer.isBuffer(args[0])) {
+      // Capture only the armed append's externally inspectable intent. No
+      // per-sample observer runs during ordinary browser or pressure journeys.
+      const bytes = args[0] as Buffer;
+      try {
+        planned = readRecordingRecords(bytes).find(
+          (record) => record.kind === 'business.prepare',
+        );
+      } catch {
+        planned = undefined;
+      }
+    }
+    return visibleCompletion('write', () =>
+      Reflect.apply(nativeWrite, handle, args),
+    );
+  }) as typeof handle.write;
+  handle.sync = () => visibleCompletion('sync', nativeSync);
+  handle.close = async () => {
+    for (const entry of entries)
+      if (entry.product_state === 'held')
+        entry.close_requested_while_held = true;
+    if (entries.length) saveIo();
+    try {
+      await nativeClose();
+    } finally {
+      for (const entry of entries) entry.closed = true;
+      if (entries.length) saveIo();
+    }
+  };
+  return handle;
+};
+promises.open = ownedOpen;
+syncBuiltinESMExports();
 
 async function preparedBatch(recording: string, batch: string) {
   const directory = join(
@@ -58,15 +228,18 @@ async function fault(point: Arm['point'], recording: string, detail: string) {
     if (current.event_type) {
       const events = prepared.data.events as {
         event_type: string;
-        event: Record<string, Record<string, unknown>>;
+        event: Record<string, unknown>;
       }[];
       if (
         !events.some(
           (event) =>
             event.event_type === current.event_type &&
             (!current.status ||
+              event.event.status === current.status ||
               ['command', 'task', 'program'].some(
-                (key) => event.event[key]?.status === current.status,
+                (key) =>
+                  (event.event[key] as Record<string, unknown> | undefined)
+                    ?.status === current.status,
               )),
         )
       )
@@ -89,7 +262,12 @@ async function fault(point: Arm['point'], recording: string, detail: string) {
 
 process.on(
   'message',
-  (message: { operation: string; fault?: Arm; held?: boolean }) => {
+  (message: {
+    operation: string;
+    fault?: Arm;
+    held?: boolean;
+    io?: { method: NativeMethod; recording_id: string };
+  }) => {
     if (message.operation === 'arm') {
       assert(!arm && !release);
       arm = message.fault;
@@ -104,6 +282,14 @@ process.on(
         releaseExecution = undefined;
       }
       process.send!({ event: 'execution-configured', held: executionHeld });
+    } else if (message.operation === 'arm-io') {
+      assert(!ioArm && heldIo.size === 0);
+      assert(message.io && ['write', 'sync'].includes(message.io.method));
+      ioArm = message.io;
+      process.send!({ event: 'actual-io-armed', ...ioArm });
+    } else if (message.operation === 'release-io') {
+      releaseIo();
+      process.send!({ event: 'actual-io-release-requested' });
     }
   },
 );
@@ -114,6 +300,8 @@ await run(undefined, {
       fault('beforeWrite', recording, kind),
     beforeSync: (recording: string, kind: string) =>
       fault('beforeSync', recording, kind),
+    beforePublish: (recording: string, segment: string) =>
+      fault('beforePublish', recording, segment),
     prepared: (recording: string, batch: string) =>
       fault('prepared', recording, batch),
     committed: (recording: string, batch: string) =>
@@ -132,4 +320,8 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const)
     arm = undefined;
     release?.();
     releaseExecution?.();
+    ioArm = undefined;
+    releaseIo();
+    promises.open = originalOpen;
+    syncBuiltinESMExports();
   });

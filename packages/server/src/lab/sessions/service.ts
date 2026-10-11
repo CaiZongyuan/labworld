@@ -1194,6 +1194,7 @@ export class SimulationSessions {
         live.owned,
         this.world.context.clock.now(),
       );
+      successor = plan.session;
       stage = await this.recording!.stageSession(
         plan.session,
         initial.actor.user.id,
@@ -1273,26 +1274,71 @@ export class SimulationSessions {
       return this.activate(next, plan.credential, requestId);
     } catch (error) {
       if (stage) await this.recording!.abortStage(stage.recording_id);
-      if (successor) {
-        this.recording!.faultSession(successor.id, 'reset_prepare_failed');
-        await this.world.context.db.transaction(
-          { id: requestId, kind: 'request' },
-          (tx) =>
-            endSessionIn(
-              tx,
-              successor!.id,
-              'interrupted',
+      if (successor && stage) {
+        const planned = successor,
+          recordingId = stage.recording_id;
+        // Reconcile only the exact planned adoption. Marker failure can reject
+        // the helper after its business transaction committed; no return value
+        // or expired HTTP credential is needed to compensate that owned state.
+        const ended = await this.resource.runInAsyncScope(() =>
+          this.world.context.db.transaction(
+            {
+              id: 'sessions:reset-compensation:' + randomUUID(),
+              kind: 'background',
+            },
+            async (tx) => {
+              const rows = await tx.execute<Session>(
+                sql`select ${sessionColumns} from lab.simulation_sessions where id=${planned.id}::uuid and lab_id=${lab}::uuid and machine_id=${planned.machine_id}::uuid and snapshot->>'hash'=${planned.snapshot.hash} and exists(select 1 from lab.simulation_sessions predecessor where predecessor.id=${id}::uuid and predecessor.lab_id=${lab}::uuid and predecessor.successor_session_id=${planned.id}::uuid and predecessor.ended_at is not null) and exists(select 1 from lab.recordings recording where recording.id=${recordingId}::uuid and recording.session_id=${planned.id}::uuid and recording.lab_id=${lab}::uuid)`,
+              );
+              if (!rows.rows[0]) return;
+              const adopted = sessionValue(rows.rows[0]);
+              return adopted.ended_at
+                ? adopted
+                : endSessionIn(
+                    tx,
+                    adopted.id,
+                    'interrupted',
+                    'reset_prepare_failed',
+                    this.world.context.clock.now(),
+                  );
+            },
+          ),
+        );
+        if (ended) {
+          this.recording!.faultSession(ended.id, 'reset_prepare_failed');
+          await this.resource.runInAsyncScope(() =>
+            this.recording!.compensatePreparation(
+              ended,
               'reset_prepare_failed',
-              this.world.context.clock.now(),
             ),
-        );
-        await this.recording!.compensatePreparation(
-          successor,
-          'reset_prepare_failed',
-        );
+          );
+          live.session = await this.resource.runInAsyncScope(() =>
+            this.world.context.db.read(
+              {
+                id: 'sessions:reset-predecessor:' + randomUUID(),
+                kind: 'background',
+              },
+              (tx) => sessionIn(tx, lab, id),
+            ),
+          );
+          this.broadcast(live.session);
+        }
       }
       live.transition = undefined;
       this.recording!.faultSession(id, 'reset_prepare_failed');
+      if (live.session.ended_at) {
+        try {
+          await this.release(live);
+        } catch (cleanupError) {
+          this.log({
+            event: 'sessions.reset_cleanup_failed',
+            message:
+              cleanupError instanceof Error
+                ? cleanupError.message
+                : String(cleanupError),
+          });
+        }
+      }
       throw error;
     }
   }
@@ -1312,10 +1358,13 @@ export class SimulationSessions {
           live.session.status === 'stopped',
         );
     } finally {
-      if (source) await source.stop();
+      try {
+        if (source) await source.stop();
+      } finally {
+        if (this.live.get(live.session.id) === live)
+          this.live.delete(live.session.id);
+      }
     }
-    if (this.live.get(live.session.id) === live)
-      this.live.delete(live.session.id);
   }
   private broadcast(session: Session) {
     for (const subscriber of this.subscribers)

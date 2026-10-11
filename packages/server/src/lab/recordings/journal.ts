@@ -410,6 +410,10 @@ export class RecordingJournal {
   }
   async inventory() {
     await this.barrier();
+    return this.snapshot();
+  }
+  /** Only confirmed sizes/ordinals; taking a read snapshot never waits on future writes. */
+  snapshot() {
     return [
       ...this.segments,
       ...(this.current?.size ? [this.current] : []),

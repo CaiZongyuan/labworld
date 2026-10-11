@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { readFile } from 'node:fs/promises';
+import { readFile, readlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import type {
@@ -864,6 +864,17 @@ test(
         mandatory,
       );
       assert.equal(readback.metadata.integrity, 'incomplete');
+      const published = readback.segments;
+      await restored.stop();
+      await restored.start();
+      await api.login(f.email);
+      const second = await publicRecording(api, f.lab, recording.id);
+      assertSelectedBytes(
+        recordedSourcePackets(second.records).slice(0, mandatory.length),
+        mandatory,
+      );
+      assert.deepEqual(second.segments, published);
+      assert.deepEqual(second.records, readback.records);
       assert.equal(
         (
           await api.json<{ active_session_id: string | null }>(
@@ -1291,3 +1302,420 @@ test('recording oracle matches literal high-epoch packet and rejects altered ACK
   assert.throws(() => readRecordingRecords(altered));
   assert.throws(() => assertSelectedBytes([literal.subarray(1)], [literal]));
 });
+
+test(
+  'recording Reset post-commit marker failure compensates successor without restart or Lab blockage',
+  { timeout: 120000 },
+  async () => {
+    const f = await fixture();
+    try {
+      const machine = await start(f);
+      await boundary(f, machine, 'pause', 1000000000n);
+      await ipc(
+        f,
+        {
+          operation: 'arm',
+          fault: {
+            point: 'committed',
+            mode: 'fail',
+            event_type: 'session.changed',
+            status: 'reset',
+          },
+        },
+        'armed',
+      );
+      const current = await f.api.json<SimulationSession>(
+        'GET',
+        sessionPath(f.lab, machine.session.id),
+      );
+      const reset = f.api.response(
+        'POST',
+        sessionPath(f.lab, current.id) + '/reset',
+        { expected_revision: current.revision },
+      );
+      await finishResetSource(f, machine);
+      const response = await reset;
+      assert(response.status >= 400);
+      await response.arrayBuffer();
+      const reached = f.messages.find(
+        (message) => message.event === 'fault-reached',
+      );
+      assert(reached);
+      assert.equal(reached.point, 'committed');
+      const prepared = reached.prepared as RecordingRecord;
+      const oldEnd = (prepared.data.events as RecordingEvent[]).find(
+        (event) =>
+          event.event.session_id === current.id &&
+          event.event.status === 'reset',
+      );
+      assert(oldEnd);
+      assert(oldEnd.event.successor_session_id);
+      // No restart is allowed to repair this condition. This directly observes
+      // the post-business-commit/pre-marker frontier, unlike preparation failure.
+      const list = await recordingEventually(
+        () =>
+          f.api.json<{
+            data: SimulationSession[];
+            active_session_id: string | null;
+          }>('GET', sessionPath(f.lab)),
+        (value) => value.active_session_id === null,
+        5000,
+      );
+      const successor = list.data.find(
+        (session) => session.id === oldEnd.event.successor_session_id,
+      );
+      assert(successor);
+      assert.equal(successor.status, 'interrupted');
+      assert(successor.ended_at);
+      assert.equal(successor.snapshot.hash, current.snapshot.hash);
+      const newStart = await f.api.response('POST', sessionPath(f.lab), {
+        installation_id: f.installation.id,
+        machine_id: f.credential.machine.id,
+      });
+      assert.equal(
+        newStart.status,
+        201,
+        'Failed Reset left the Lab blocked by an unowned starting successor',
+      );
+      const fresh = (await newStart.json()) as SimulationSession;
+      await transition(f, fresh.id, 'stop');
+      await state(f, fresh.id, 'interrupted');
+      recordingReceipt('recording-reset-postcommit-failure', {
+        faultAfterActualCommit: true,
+        withoutRestart: true,
+        compensatedSuccessor: successor.id,
+        newOrdinaryStartAccepted: true,
+      });
+    } finally {
+      await cleanup(f);
+    }
+  },
+);
+
+test(
+  'recording actual Core publication failure retains ACKed candidate identity and bytes through retry and second reopen',
+  { timeout: 120000 },
+  async () => {
+    const f = await fixture();
+    try {
+      const machine = await start(f);
+      await boundary(f, machine, 'pause', 1000000000n);
+      await ipc(
+        f,
+        { operation: 'arm', fault: { point: 'beforePublish', mode: 'fail' } },
+        'armed',
+      );
+      await boundary(f, machine, 'stop', 1000000000n);
+      const first = await incomplete(f, machine.session.id),
+        reached = f.messages.find(
+          (message) => message.event === 'fault-reached',
+        );
+      assert(reached);
+      assert.equal(reached.point, 'beforePublish');
+      const candidate = first.segments.find(
+        (segment) => segment.id === reached.detail,
+      );
+      assert(candidate);
+      assert.equal(candidate.file_id, null);
+      const mandatory = machine.packets.map((packet) =>
+        Buffer.from(packet.bytes),
+      );
+      assertSelectedBytes(recordedSourcePackets(first.records), mandatory);
+      await f.target.stop();
+      await f.target.start();
+      await f.api.login(f.email);
+      const retried = await incomplete(f, machine.session.id),
+        published = retried.segments.find(
+          (segment) => segment.id === candidate.id,
+        );
+      assert(published && published.sealed && published.file_id);
+      for (const key of [
+        'id',
+        'index',
+        'size',
+        'sha256',
+        'first_ordinal',
+        'last_ordinal',
+      ] as const)
+        assert.equal(published[key], candidate[key]);
+      assertSelectedBytes(recordedSourcePackets(retried.records), mandatory);
+      await f.target.stop();
+      await f.target.start();
+      await f.api.login(f.email);
+      const second = await incomplete(f, machine.session.id);
+      assert.deepEqual(second.segments, retried.segments);
+      assert.deepEqual(second.records, retried.records);
+      assertSelectedBytes(recordedSourcePackets(second.records), mandatory);
+      recordingReceipt('recording-Core-publication-failure', {
+        candidateId: candidate.id,
+        index: candidate.index,
+        sha256: candidate.sha256,
+        mandatoryPackets: mandatory.length,
+        identityAndBytesRetainedOnRetry: true,
+        secondReopenExact: true,
+      });
+    } finally {
+      await cleanup(f);
+    }
+  },
+);
+
+async function withinIoBudget<T>(
+  promise: Promise<T>,
+  millis: number,
+  label: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(label)), millis);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+for (const method of ['write', 'sync'] as const)
+  test(
+    `recording actual native ${method} completion hold bounds ordinary caller during idle Pause and retains owned writer`,
+    { timeout: 120000 },
+    async () => {
+      const f = await fixture(1000);
+      let pending: Promise<Response> | undefined;
+      try {
+        await ipc(
+          f,
+          { operation: 'execution', held: true },
+          'execution-configured',
+        );
+        const device = await f.api.json<{ id: string }>(
+          'POST',
+          `/api/v1/lab/labs/${f.lab}/entities`,
+          {
+            name: 'Native I/O ownership light',
+            definition_id: 'light',
+            definition_version: '1.0',
+            reality: 'simulated',
+            configuration: {},
+          },
+          201,
+        );
+        const path = `/api/v1/lab/labs/${f.lab}/entities/${device.id}`;
+        await f.api.json('POST', path + '/program/start', undefined, 201);
+        const a = await admission(f),
+          machine = new RecordingMachine(a.session, a.admitted, f.target.url);
+        const { reliable } = await machine.ready();
+        const limits = reliable.limits as Record<string, number>;
+        const D = limits.durability_timeout_ms;
+        assert.equal(limits.lifecycle_ack_timeout_ms, 1000);
+        assert.equal(D, Math.min(1000, Math.floor(1000 / 3)));
+        const initial = selectedFrame(a.session, 1n, 0n);
+        await machine.capture([initial]);
+        machine.liveFrame(initial);
+        await state(f, a.session.id, 'running');
+        await boundary(f, machine, 'pause', 1000000000n);
+        // Remove current appearance refs so retained asset access/refusal reflects
+        // the experiment's custody rather than a current layout representation.
+        for (const target of f.installation.targets)
+          await f.api.json(
+            'PUT',
+            `/api/v1/lab/labs/${f.lab}/entities/${target.entity_id}/appearance`,
+            { representation_id: null },
+          );
+        const recording = await recordingForSession(
+            f.api,
+            f.lab,
+            machine.session.id,
+          ),
+          prior = await publicRecording(f.api, f.lab, recording.id);
+        const confirmed = machine.packets.map((packet) =>
+          Buffer.from(packet.bytes),
+        );
+        await ipc(
+          f,
+          { operation: 'arm-io', io: { method, recording_id: recording.id } },
+          'actual-io-armed',
+        );
+        pending = f.api.response(
+          'POST',
+          path + '/actions',
+          { capability: 'light.set_power', parameters: { on: true } },
+          { 'idempotency-key': randomUUID() },
+        );
+        const held = await recordingEventually(
+          () =>
+            f.messages.find((message) => message.event === 'actual-io-held'),
+          Boolean,
+        );
+        assert(held);
+        assert.equal(held.actual_native_started, true);
+        assert.equal(held.method, method);
+        assert.equal(held.owner_pid, f.target.child!.pid);
+        const planned = held.planned as RecordingRecord;
+        assert(planned && planned.kind === 'business.prepare');
+        const plannedCommand = (planned.data.events as RecordingEvent[]).find(
+          (event) => event.event_type === 'command.changed',
+        )!.event.command as Record<string, unknown>;
+        assert.deepEqual(plannedCommand.parameters, { on: true });
+        // D is the admitted server budget. 100ms only covers local IPC/HTTP
+        // observation; it does not change a source/recorder/lifecycle timer.
+        const observerMillis = D + 100,
+          witnessAt = performance.now();
+        const response = await withinIoBudget(
+          pending,
+          observerMillis,
+          'Ordinary caller remained blocked beyond its admitted D while physics was idle',
+        );
+        assert(
+          [409, 503].includes(response.status),
+          'Native I/O timeout must be a controlled business refusal',
+        );
+        const error = (await response.json()) as { error: { code: string } };
+        assert.match(error.error.code, /recording/);
+        await withinIoBudget(
+          recordingEventually(
+            () =>
+              machine.live.socket.readyState === 3 &&
+              machine.reliable.socket.readyState === 3,
+            Boolean,
+            observerMillis,
+          ),
+          observerMillis,
+          'Native I/O deadline did not fence both source streams',
+        );
+        const ledgerPath = join(
+          process.env.RECORDING_E2E_OUTPUT ?? 'test-results',
+          `recording-held-io-${f.target.child!.pid}.json`,
+        );
+        const ledger = JSON.parse(await readFile(ledgerPath, 'utf8')) as {
+          operations: {
+            path: string;
+            fd: number;
+            product_state: string;
+            closed: boolean;
+            close_requested_while_held: boolean;
+          }[];
+        };
+        const operation = ledger.operations[0];
+        assert(operation);
+        assert.equal(operation.product_state, 'held');
+        assert.equal(operation.closed, false);
+        assert.equal(operation.close_requested_while_held, false);
+        if (process.platform === 'linux')
+          assert.equal(
+            await readlink(`/proc/${f.target.child!.pid}/fd/${operation.fd}`),
+            operation.path,
+          );
+        assert.equal(
+          (await f.api.response('DELETE', `/api/v1/lab/assets/${f.asset.id}`))
+            .status,
+          409,
+        );
+        const list = await withinIoBudget(
+          f.api.response(
+            'GET',
+            recordingPath(f.lab, recording.id) + '/segments',
+          ),
+          observerMillis,
+          'Segment listing followed an unsettled future tail',
+        );
+        assert([200, 503].includes(list.status));
+        await list.arrayBuffer();
+        const raw = await withinIoBudget(
+          f.api.response(
+            'GET',
+            recordingPath(f.lab, recording.id) +
+              '/segments/' +
+              prior.segments.at(-1)!.id,
+          ),
+          observerMillis,
+          'Raw segment read followed an unsettled future tail',
+        );
+        assert([200, 503].includes(raw.status));
+        if (raw.status === 200) {
+          const actual = readRecordingRecords(
+              Buffer.from(await raw.arrayBuffer()),
+            ),
+            last = prior.segments.at(-1)!;
+          assert.deepEqual(
+            actual,
+            prior.records.filter(
+              (record) =>
+                BigInt(record.ordinal) >= BigInt(last.first_ordinal) &&
+                BigInt(record.ordinal) <= BigInt(last.last_ordinal),
+            ),
+          );
+        } else await raw.arrayBuffer();
+        await ipc(
+          f,
+          { operation: 'release-io' },
+          'actual-io-release-requested',
+        );
+        await recordingEventually(
+          () =>
+            f.messages.some((message) => message.event === 'actual-io-settled'),
+          Boolean,
+        );
+        await state(f, machine.session.id, 'interrupted');
+        assert.equal(
+          (await f.api.response('GET', path + '/commands/' + plannedCommand.id))
+            .status,
+          404,
+          'Timed-out intent continued into acceptance after native completion release',
+        );
+        const readback = await incomplete(f, machine.session.id);
+        assertSelectedBytes(recordedSourcePackets(readback.records), confirmed);
+        assert(
+          !readback.events.some(
+            (event) =>
+              (event.event.command as Record<string, unknown> | undefined)
+                ?.id === plannedCommand.id,
+          ),
+        );
+        const next = await f.api.json<DeviceCommand>(
+          'POST',
+          path + '/actions',
+          { capability: 'light.set_power', parameters: { on: false } },
+          202,
+          { 'idempotency-key': randomUUID() },
+        );
+        await ipc(
+          f,
+          { operation: 'execution', held: false },
+          'execution-configured',
+        );
+        const applied = await recordingEventually(
+          () => f.api.json<DeviceCommand>('GET', path + '/commands/' + next.id),
+          (command) => command.status === 'succeeded',
+        );
+        assert.equal(applied.status, 'succeeded');
+        recordingReceipt('recording-native-io-' + method, {
+          method,
+          D,
+          observerMillis,
+          witnessToChecksMillis: performance.now() - witnessAt,
+          originalNativeCallStarted: true,
+          kernelMayAlreadyHaveCompleted: true,
+          controlledStatus: response.status,
+          stillOwnedOpenFdAtDeadline: true,
+          linuxFdProbe: process.platform === 'linux',
+          rawReadStatus: raw.status,
+          noLateAcceptanceOrACK: true,
+          subsequentOrdinaryCommand: next.id,
+          ledgerPath,
+        });
+      } finally {
+        // Resolve only our test hold before the normal owner shutdown can await or
+        // close the real handle. Abnormal process recovery remains ServerProcess's.
+        if (f.target.child?.connected) {
+          f.target.child.send({ operation: 'release-io' });
+          f.target.child.send({ operation: 'execution', held: false });
+        }
+        await pending?.catch(() => undefined);
+        await cleanup(f);
+      }
+    },
+  );

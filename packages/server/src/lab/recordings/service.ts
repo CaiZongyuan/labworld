@@ -1,5 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
-import { AsyncLocalStorage } from 'node:async_hooks';
+import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { readFile } from 'node:fs/promises';
 import {
   sql,
@@ -104,6 +104,8 @@ type Owner = {
   budget: number;
   budgetAt: number;
   pending: Map<string, PreparedEventBatch>;
+  io: Set<Promise<unknown>>;
+  cleanup?: Promise<void>;
 };
 const emptyPrefix = () => ({
   source_packet_sequence: '0',
@@ -197,6 +199,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   private charged = 0;
   private stopping = false;
   private recovering = false;
+  private resource = new AsyncResource('recording-io-owner');
   private admissionUnavailable?: string;
   private fence: (id: string, reason: string) => void = () => {};
   private control: (id: string) => MotionSessionControl | undefined = () =>
@@ -226,14 +229,20 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   hasActiveRecordings() {
     return (
       this.preparingLabs.size > 0 ||
+      this.gateCounts.size > 0 ||
       [...this.owners.values()].some(
-        (o) => o.row.status === 'open' && (!o.fault || this.recovering),
+        (o) => o.io.size > 0 || !!o.cleanup || o.row.status === 'open',
       )
     );
   }
   covers(entity: string) {
     return [...this.owners.values()].some(
-      (o) => o.row.status === 'open' && o.entities.has(entity),
+      (o) =>
+        (o.row.status === 'open' ||
+          o.io.size > 0 ||
+          !!o.cleanup ||
+          this.gateCounts.has(o.row.lab_id)) &&
+        o.entities.has(entity),
     );
   }
   private async bounded<T>(
@@ -257,6 +266,40 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     } finally {
       clearTimeout(timer);
     }
+  }
+  private actualIO<T>(owner: Owner, work: () => Promise<T>): Promise<T> {
+    const actual = this.resource.runInAsyncScope(work);
+    owner.io.add(actual);
+    void actual.finally(() => owner.io.delete(actual)).catch(() => {});
+    return actual;
+  }
+  private async waitIO<T>(
+    owner: Owner,
+    actual: Promise<T>,
+    code: string,
+    millis = this.limits.durability_timeout_ms,
+  ) {
+    try {
+      return await this.bounded(actual, millis, code);
+    } catch (error) {
+      this.faultSession(owner.session.id, code);
+      throw error;
+    }
+  }
+  private io<T>(
+    owner: Owner,
+    work: () => Promise<T>,
+    code: string,
+    millis?: number,
+  ) {
+    return this.waitIO(owner, this.actualIO(owner, work), code, millis);
+  }
+  private preparationMillis() {
+    return Math.max(
+      1,
+      (this.preparingDeadline.getStore() ?? performance.now() + 10000) -
+        performance.now(),
+    );
   }
   async gate<T>(labs: string[], work: () => Promise<T>): Promise<T> {
     const held = this.held.getStore() ?? new Set<string>(),
@@ -297,7 +340,23 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       }
       return await this.held.run(new Set([...held, ...needed]), work);
     } finally {
-      for (const free of releases.reverse()) free();
+      const pending = () =>
+        [...this.owners.values()]
+          .filter((owner) => needed.includes(owner.session.lab_id))
+          .flatMap((owner) => [
+            ...owner.io,
+            ...(owner.cleanup ? [owner.cleanup] : []),
+            ...(owner.resolving ? [owner.resolving] : []),
+          ]);
+      const release = async () => {
+        let work = pending();
+        while (work.length) {
+          await Promise.allSettled(work);
+          work = pending();
+        }
+        for (const free of releases.reverse()) free();
+      };
+      void release();
     }
   }
   async preparation<T>(lab: string, work: () => Promise<T>) {
@@ -323,16 +382,16 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   }
   private async readBarrier(id: string) {
     const owner = this.owners.get(id);
-    if (owner && owner.row.status === 'open')
+    if (owner && (owner.row.status === 'open' || owner.pending.size > 0))
       await this.bounded(
         this.resolveCommitted(owner),
-        1000,
+        this.limits.durability_timeout_ms,
         'recording_read_timeout',
       );
     else if (owner)
       await this.bounded(
         owner.journal.barrier(),
-        1000,
+        this.limits.durability_timeout_ms,
         'recording_read_timeout',
       );
   }
@@ -360,10 +419,10 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     const owner = [...this.owners.values()].find(
       (o) =>
         o.row.lab_id === lab &&
-        o.row.status === 'open' &&
-        (!o.fault || this.recovering),
+        (o.row.status === 'open' || o.io.size > 0 || !!o.cleanup),
     );
-    if (!owner && !this.preparingLabs.has(lab)) return undefined;
+    if (!owner && !this.preparingLabs.has(lab) && !this.gateCounts.has(lab))
+      return undefined;
     if (entity && owner && !owner.entities.has(entity)) return undefined;
     return { lab, entities: entity ? [entity] : [...(owner?.entities ?? [])] };
   }
@@ -422,6 +481,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       budget: 60,
       budgetAt: performance.now(),
       pending: new Map(),
+      io: new Set(),
       journal: undefined as unknown as RecordingJournal,
     };
     owner.journal = new RecordingJournal(
@@ -627,36 +687,53 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     this.charged += charge;
     const owner = this.createOwner(row, session);
     try {
-      await owner.journal.initialize();
-      await this.files.publishManaged(
-        this.operation(),
-        actorId,
-        {
-          file_name: 'recording-manifest.json',
-          content_type: 'application/json',
-          bytes,
-        },
-        { ownerType: 'lab.recording', ownerId: id },
-        async (tx, file) => {
-          await tx.execute(
-            sql`update lab.recording_stages set manifest_file_id=${file.id}::uuid,manifest_sha256=${sha} where id=${id}::uuid`,
-          );
-          owner.row.manifest_file_id = file.id;
-          owner.row.manifest_sha256 = sha;
-        },
+      await this.io(
+        owner,
+        () => owner.journal.initialize(),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
+      );
+      await this.io(
+        owner,
+        () =>
+          this.files.publishManaged(
+            this.operation(),
+            actorId,
+            {
+              file_name: 'recording-manifest.json',
+              content_type: 'application/json',
+              bytes,
+            },
+            { ownerType: 'lab.recording', ownerId: id },
+            async (tx, file) => {
+              await tx.execute(
+                sql`update lab.recording_stages set manifest_file_id=${file.id}::uuid,manifest_sha256=${sha} where id=${id}::uuid`,
+              );
+              owner.row.manifest_file_id = file.id;
+              owner.row.manifest_sha256 = sha;
+            },
+          ),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
       );
       this.checkPreparation();
-      await owner.journal.append(
-        'header',
-        {
-          format: 'lab-word-recording-journal-v1',
-          recording_id: id,
-          session_id: session.id,
-          manifest_sha256: sha,
-          snapshot_hash: session.snapshot.hash,
-          staged: true,
-        },
-        now,
+      await this.io(
+        owner,
+        () =>
+          owner.journal.append(
+            'header',
+            {
+              format: 'lab-word-recording-journal-v1',
+              recording_id: id,
+              session_id: session.id,
+              manifest_sha256: sha,
+              snapshot_hash: session.snapshot.hash,
+              staged: true,
+            },
+            now,
+          ),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
       );
       this.checkPreparation();
       await this.world.context.db.transaction(this.operation(), (tx) =>
@@ -693,26 +770,47 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       throw fail('recording_stage_changed');
     owner.row = row;
     owner.session = session;
-    await owner.journal.append(
-      'business.event',
-      {
-        event_id: randomUUID(),
-        event_type: 'session.changed',
-        entity_id: null,
-        recorded_at: this.now(),
-        sim_time_ns: null,
-        event: {
-          session_id: session.id,
-          status: session.status,
-          revision: session.revision,
-          started_at: session.started_at,
-        },
-      },
-      this.now(),
+    await this.io(
+      owner,
+      () =>
+        owner.journal.append(
+          'business.event',
+          {
+            event_id: randomUUID(),
+            event_type: 'session.changed',
+            entity_id: null,
+            recorded_at: this.now(),
+            sim_time_ns: null,
+            event: {
+              session_id: session.id,
+              status: session.status,
+              revision: session.revision,
+              started_at: session.started_at,
+            },
+          },
+          this.now(),
+        ),
+      'recording_event_commit_timeout',
     );
   }
   async abortStage(id: string) {
     const owner = this.owners.get(id);
+    if (owner?.io.size) {
+      if (!owner.cleanup) {
+        owner.cleanup = this.resource
+          .runInAsyncScope(async () => {
+            await Promise.allSettled([...owner.io]);
+            await this.abortStage(id);
+          })
+          .finally(() => {
+            owner.cleanup = undefined;
+          });
+        void owner.cleanup.catch(() => {
+          this.admissionUnavailable = 'Recording stage cleanup failed';
+        });
+      }
+      return;
+    }
     const stage = await this.world.context.db.read(this.operation(), (tx) =>
       tx.execute<{ session_id: string; charged_bytes: number }>(
         sql`select session_id::text,charged_bytes::float8 from lab.recording_stages where id=${id}::uuid`,
@@ -954,56 +1052,79 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     this.charged += Number(row.charged_bytes);
     const owner = this.createOwner(row, session);
     try {
-      await owner.journal.initialize();
+      await this.io(
+        owner,
+        () => owner.journal.initialize(),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
+      );
       const sha = journalDigest(bytes);
-      await this.files.publishManaged(
-        this.operation(),
-        actorId,
-        {
-          file_name: 'recording-manifest.json',
-          content_type: 'application/json',
-          bytes,
-        },
-        { ownerType: 'lab.recording', ownerId: id },
-        async (tx, file) => {
-          await tx.execute(
-            sql`insert into lab.recording_resources(recording_id,file_id,role) values(${id}::uuid,${file.id}::uuid,'manifest')`,
-          );
-          await tx.execute(
-            sql`update lab.recordings set manifest_file_id=${file.id}::uuid,manifest_sha256=${sha} where id=${id}::uuid`,
-          );
-          owner.row.manifest_file_id = file.id;
-          owner.row.manifest_sha256 = sha;
-        },
+      await this.io(
+        owner,
+        () =>
+          this.files.publishManaged(
+            this.operation(),
+            actorId,
+            {
+              file_name: 'recording-manifest.json',
+              content_type: 'application/json',
+              bytes,
+            },
+            { ownerType: 'lab.recording', ownerId: id },
+            async (tx, file) => {
+              await tx.execute(
+                sql`insert into lab.recording_resources(recording_id,file_id,role) values(${id}::uuid,${file.id}::uuid,'manifest')`,
+              );
+              await tx.execute(
+                sql`update lab.recordings set manifest_file_id=${file.id}::uuid,manifest_sha256=${sha} where id=${id}::uuid`,
+              );
+              owner.row.manifest_file_id = file.id;
+              owner.row.manifest_sha256 = sha;
+            },
+          ),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
       );
       this.checkPreparation();
-      await owner.journal.append(
-        'header',
-        {
-          format: 'lab-word-recording-journal-v1',
-          recording_id: id,
-          session_id: session.id,
-          manifest_sha256: sha,
-          snapshot_hash: session.snapshot.hash,
-        },
-        now,
+      await this.io(
+        owner,
+        () =>
+          owner.journal.append(
+            'header',
+            {
+              format: 'lab-word-recording-journal-v1',
+              recording_id: id,
+              session_id: session.id,
+              manifest_sha256: sha,
+              snapshot_hash: session.snapshot.hash,
+            },
+            now,
+          ),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
       );
-      await owner.journal.append(
-        'business.event',
-        {
-          event_id: randomUUID(),
-          event_type: 'session.changed',
-          entity_id: null,
-          recorded_at: now,
-          sim_time_ns: null,
-          event: {
-            session_id: session.id,
-            status: session.status,
-            revision: session.revision,
-            started_at: session.started_at,
-          },
-        },
-        now,
+      await this.io(
+        owner,
+        () =>
+          owner.journal.append(
+            'business.event',
+            {
+              event_id: randomUUID(),
+              event_type: 'session.changed',
+              entity_id: null,
+              recorded_at: now,
+              sim_time_ns: null,
+              event: {
+                session_id: session.id,
+                status: session.status,
+                revision: session.revision,
+                started_at: session.started_at,
+              },
+            },
+            now,
+          ),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
       );
       this.checkPreparation();
       await this.world.context.db.transaction(this.operation(), (tx) =>
@@ -1060,6 +1181,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     });
     const owner = this.owner(session.id);
     if (owner) {
+      owner.session = session;
       owner.fault = reason;
       owner.row.status = 'incomplete';
       owner.row.reason = reason;
@@ -1178,17 +1300,24 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     owner.identity = identity;
     owner.headerDigest = headerDigest;
     const prefix = await sourcePrefixSeed(identity, headerDigest);
-    await owner.journal.append(
-      'source.header',
-      {
-        identity,
-        source_header: hello.source_header,
-        source_header_sha256: headerDigest,
-        source_prefix_sha256: prefix,
-      },
-      this.now(),
+    await this.io(
+      owner,
+      () =>
+        owner.journal.append(
+          'source.header',
+          {
+            identity,
+            source_header: hello.source_header,
+            source_header_sha256: headerDigest,
+            source_prefix_sha256: prefix,
+          },
+          this.now(),
+        ),
+      'recording_ack_timeout',
     );
     owner.prefix.source_prefix_sha256 = prefix;
+    if (owner.fault || owner.row.status !== 'open' || this.stopping)
+      throw fail('recording_closed');
     owner.connected = true;
     const ready: RecordingReady = {
       ...identity,
@@ -1391,15 +1520,20 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     );
     if (owner.fault || owner.row.status !== 'open')
       throw fail('recording_closed');
-    await owner.journal.append(
-      'source.packet',
-      {
-        packet_base64: Buffer.from(raw).toString('base64'),
-        source_packet_sequence: String(packet.source_packet_sequence),
-        packet_sha256: packet.packet_sha256,
-        source_prefix_sha256: prefix,
-      },
-      this.now(),
+    await this.io(
+      owner,
+      () =>
+        owner.journal.append(
+          'source.packet',
+          {
+            packet_base64: Buffer.from(raw).toString('base64'),
+            source_packet_sequence: String(packet.source_packet_sequence),
+            packet_sha256: packet.packet_sha256,
+            source_prefix_sha256: prefix,
+          },
+          this.now(),
+        ),
+      'recording_ack_timeout',
     );
     owner.lastFrame = last;
     owner.initial = initial;
@@ -1497,12 +1631,26 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         owner.row.checkpoint.header_synced !== true
       )
         throw fail('recording_not_ready');
-      await owner.journal.barrier();
+      await this.waitIO(
+        owner,
+        owner.journal.barrier(),
+        'recording_prepare_timeout',
+        this.preparationMillis(),
+      );
       return;
     }
     const result: PreparedEventBatch[] = [];
     for (const owner of this.owners.values()) {
       if (owner.row.status !== 'open') continue;
+      if (
+        owner.fault &&
+        !this.recovering &&
+        input.some(
+          (event) =>
+            event.entity_id !== null && owner.entities.has(event.entity_id),
+        )
+      )
+        throw fail('recording_closed');
       const events = input.filter((event) =>
         event.entity_id === null
           ? event.event.session_id === owner.session.id
@@ -1510,10 +1658,12 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             owner.entities.has(event.entity_id),
       );
       if (!events.length) continue;
+      const deadline = performance.now() + this.limits.durability_timeout_ms;
+      const remaining = () => Math.max(1, deadline - performance.now());
       try {
         await this.bounded(
           this.resolveCommitted(owner),
-          this.limits.durability_timeout_ms,
+          remaining(),
           'recording_event_prepare_timeout',
         );
         const receipts = await this.world.context.db.read(
@@ -1532,7 +1682,12 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
           pendingBytes + Buffer.byteLength(JSON.stringify(events)) >
             8 * 1024 * 1024
         )
-          await owner.journal.sealAll();
+          await this.io(
+            owner,
+            () => owner.journal.sealAll(),
+            'recording_event_prepare_timeout',
+            remaining(),
+          );
         const batch: PreparedEventBatch = {
           recording_id: owner.row.id,
           batch_id: randomUUID(),
@@ -1546,15 +1701,23 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
           Buffer.byteLength(JSON.stringify(events)) > 64 * 1024
         )
           throw fail('recording_event_capacity');
-        await owner.journal.append(
-          'business.prepare',
-          { ...batch },
-          this.now(),
-        );
         owner.pending.set(batch.batch_id, batch);
+        await this.io(
+          owner,
+          () =>
+            owner.journal.append('business.prepare', { ...batch }, this.now()),
+          'recording_event_prepare_timeout',
+          remaining(),
+        );
+        if (
+          owner.fault &&
+          !this.recovering &&
+          events.some((event) => event.entity_id !== null)
+        )
+          throw fail('recording_closed');
         await waitRecordingFault(
           this.faults.prepared?.(owner.row.id, batch.batch_id),
-          this.limits.durability_timeout_ms,
+          remaining(),
         );
         result.push(batch);
       } catch (error) {
@@ -1567,6 +1730,12 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   async witness(tx: DbSession, batches: PreparedEventBatch[]) {
     for (const b of batches) {
       const owner = this.owners.get(b.recording_id)!;
+      if (
+        owner.fault &&
+        !this.recovering &&
+        b.events.some((event) => event.entity_id !== null)
+      )
+        throw fail('recording_closed');
       const last = BigInt(b.first_event_sequence) + BigInt(b.event_count) - 1n;
       const changed = await tx.execute(
         sql`update lab.recordings set event_sequence=${String(last)}::numeric where id=${b.recording_id}::uuid and status='open' and event_sequence=${String(BigInt(b.first_event_sequence) - 1n)}::numeric returning id`,
@@ -1582,37 +1751,47 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     owner: Owner,
     batch: PreparedEventBatch,
     recovered = false,
+    deadline = performance.now() + this.limits.durability_timeout_ms,
   ) {
     if (batch.marked) return;
     if (!batch.marking)
-      batch.marking = owner.journal.append(
-        'business.commit',
-        {
-          batch_id: batch.batch_id,
-          sha256: batch.sha256,
-          first_event_sequence: batch.first_event_sequence,
-          event_count: batch.event_count,
-          events: batch.events,
-          recovered,
-        },
-        this.now(),
-      );
-    try {
-      await batch.marking;
-      batch.marked = true;
-    } finally {
-      batch.marking = undefined;
-    }
+      batch.marking = this.actualIO(owner, () =>
+        owner.journal.append(
+          'business.commit',
+          {
+            batch_id: batch.batch_id,
+            sha256: batch.sha256,
+            first_event_sequence: batch.first_event_sequence,
+            event_count: batch.event_count,
+            events: batch.events,
+            recovered,
+          },
+          this.now(),
+        ),
+      )
+        .then(() => {
+          batch.marked = true;
+        })
+        .finally(() => {
+          batch.marking = undefined;
+        });
+    await this.waitIO(
+      owner,
+      batch.marking,
+      'recording_event_commit_timeout',
+      Math.max(1, deadline - performance.now()),
+    );
   }
   async commit(batches: PreparedEventBatch[]) {
     for (const batch of batches) {
       const owner = this.owners.get(batch.recording_id)!;
+      const deadline = performance.now() + this.limits.durability_timeout_ms;
       try {
         await waitRecordingFault(
           this.faults.committed?.(batch.recording_id, batch.batch_id),
-          this.limits.durability_timeout_ms,
+          Math.max(1, deadline - performance.now()),
         );
-        await this.mark(owner, batch);
+        await this.mark(owner, batch, false, deadline);
         owner.eventSequence =
           BigInt(batch.first_event_sequence) + BigInt(batch.event_count) - 1n;
       } finally {
@@ -1624,10 +1803,15 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     for (const b of batches) {
       const owner = this.owners.get(b.recording_id)!;
       try {
-        await owner.journal.append(
-          'business.abort',
-          { batch_id: b.batch_id },
-          this.now(),
+        await this.io(
+          owner,
+          () =>
+            owner.journal.append(
+              'business.abort',
+              { batch_id: b.batch_id },
+              this.now(),
+            ),
+          'recording_event_abort_timeout',
         );
         owner.pending.delete(b.batch_id);
       } catch (error) {
@@ -1638,7 +1822,9 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   }
   private async resolveCommitted(owner: Owner) {
     if (owner.resolving) return owner.resolving;
-    const work = this.resolveCommittedBase(owner);
+    const work = this.resource.runInAsyncScope(() =>
+      this.resolveCommittedBase(owner),
+    );
     owner.resolving = work;
     try {
       await work;
@@ -1738,12 +1924,21 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
           ),
         ),
       };
-      const final = await owner.journal.append(
-        'seal',
-        { reason, integrity: seal.integrity, prefix: owner.prefix },
-        this.now(),
+      const final = await this.io(
+        owner,
+        () =>
+          owner.journal.append(
+            'seal',
+            { reason, integrity: seal.integrity, prefix: owner.prefix },
+            this.now(),
+          ),
+        'recording_seal_timeout',
       );
-      await owner.journal.sealAll();
+      await this.io(
+        owner,
+        () => owner.journal.sealAll(),
+        'recording_seal_timeout',
+      );
       const sealed = (
         await this.world.context.db.read(this.operation(), (tx) =>
           tx.execute<{ id: string; index: number; sha256: string }>(
@@ -2089,6 +2284,20 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     limit = 20,
   ) {
     await this.authorized(headers, id, lab);
+    const deadline = performance.now() + this.limits.durability_timeout_ms;
+    return this.bounded(
+      this.segmentsBase(id, cursor, limit, deadline),
+      this.limits.durability_timeout_ms,
+      'recording_read_timeout',
+    );
+  }
+  private async segmentsBase(
+    id: string,
+    cursor: string | undefined,
+    limit: number,
+    deadline: number,
+  ) {
+    await this.readBarrier(id);
     const rows = await this.world.context.db.read(
       this.operation('request'),
       (tx) =>
@@ -2107,19 +2316,22 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     const data = rows.rows.map((r) => ({ ...r, sealed: true }));
     const owner = this.owners.get(id);
     if (owner) {
-      for (const p of await owner.journal.inventory())
+      for (const p of owner.journal.snapshot())
         if (!data.some((r) => r.id === p.id))
           data.push({
             id: p.id,
             index: p.index,
             file_id: null as unknown as string,
             size: p.size,
-            sha256: p.sha256 || journalDigest(await readFile(p.path)),
+            sha256:
+              p.sha256 ||
+              journalDigest((await readFile(p.path)).subarray(0, p.size)),
             first_ordinal: p.first_ordinal,
             last_ordinal: p.last_ordinal,
             sealed: false,
           });
     }
+    if (performance.now() >= deadline) throw fail('recording_read_timeout');
     const after = cursor ? this.cursor(cursor, id) : { index: -1 };
     if (!Number.isInteger(after.index) || Number(after.index) < -1)
       throw fail('recording_invalid_cursor', 'Invalid segment cursor', 400);
@@ -2141,6 +2353,13 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   }
   async segment(headers: Headers, lab: string, id: string, segmentId: string) {
     await this.authorized(headers, id, lab);
+    return this.bounded(
+      this.segmentBase(id, segmentId),
+      this.limits.durability_timeout_ms,
+      'recording_read_timeout',
+    );
+  }
+  private async segmentBase(id: string, segmentId: string) {
     const result = await this.world.context.db.read(
       this.operation('request'),
       (tx) =>
@@ -2157,9 +2376,11 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         size: result.rows[0].size,
       };
     }
-    const p = (await this.owners.get(id)?.journal.inventory())?.find(
-      (p) => p.id === segmentId,
-    );
+    await this.readBarrier(id);
+    const p = this.owners
+      .get(id)
+      ?.journal.snapshot()
+      .find((p) => p.id === segmentId);
     if (!p) throw fail('recording_segment_not_found', 'Segment not found', 404);
     const bytes = (await readFile(p.path)).subarray(0, p.size);
     return {
@@ -2170,13 +2391,12 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     };
   }
   private async *records(id: string): AsyncGenerator<JournalRecord> {
-    const owner = this.owners.get(id),
-      local = owner ? await owner.journal.inventory() : [];
     const archived = await this.world.context.db.read(this.operation(), (tx) =>
       tx.execute<{ id: string; index: number; file_id: string }>(
         sql`select id::text,index,file_id::text from lab.recording_segments where recording_id=${id}::uuid order by index limit 1024`,
       ),
     );
+    const local = this.owners.get(id)?.journal.snapshot() ?? [];
     const parts = [
       ...archived.rows.map((p) => ({
         ...p,
@@ -2208,6 +2428,20 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     limit = 20,
   ) {
     const row = await this.authorized(headers, id, lab);
+    const deadline = performance.now() + this.limits.durability_timeout_ms;
+    return this.bounded(
+      this.eventsBase(row, id, cursor, limit, deadline),
+      this.limits.durability_timeout_ms,
+      'recording_read_timeout',
+    );
+  }
+  private async eventsBase(
+    row: RecordingRow,
+    id: string,
+    cursor: string | undefined,
+    limit: number,
+    deadline: number,
+  ) {
     await this.readBarrier(id);
     const after = cursor
       ? this.cursor(cursor, id)
@@ -2223,6 +2457,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     let bytes = 0,
       last = after;
     for await (const record of this.records(id)) {
+      if (performance.now() >= deadline) throw fail('recording_read_timeout');
       let events: Array<Record<string, unknown>> = [];
       if (record.kind === 'business.prepare')
         prepared.set(
@@ -2343,7 +2578,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             ownerId: row.id,
           });
       });
-      this.charged -= Number(row.charged_bytes);
+      this.charged -= Number(owner?.row.charged_bytes ?? row.charged_bytes);
       this.owners.delete(row.id);
       this.bySession.delete(row.session_id);
     });
@@ -2407,6 +2642,8 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       [...this.owners.values()].flatMap((owner) => [
         owner.inflight?.settled,
         owner.resolving,
+        ...owner.io,
+        owner.cleanup,
       ]),
     );
     for (const owner of this.owners.values())

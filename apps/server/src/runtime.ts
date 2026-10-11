@@ -333,7 +333,10 @@ export async function run(
       const subscriptions = new WorldSubscriptions(world, () => devices.ready);
       owners.subscriptions = subscriptions;
       subscriptionRoutes(app, subscriptions);
-      deviceRoutes(app, new DeviceService(context, config.auth, devices));
+      deviceRoutes(
+        app,
+        new DeviceService(context, config.auth, devices, recording.capture),
+      );
       const history = new HistoryService(
         context,
         config.auth,
