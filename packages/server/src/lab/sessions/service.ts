@@ -469,15 +469,6 @@ export class SimulationSessions {
           true,
         );
         this.enabled();
-        if (
-          !(this.options.managedSynthetic ?? this.options.enabled) &&
-          !input.machine_id
-        )
-          throw sessionFailure(
-            'machine_required',
-            'External Sessions require a provisioned machine',
-            400,
-          );
         const installation = await installationIn(
             tx,
             lab,
@@ -493,6 +484,16 @@ export class SimulationSessions {
           installation.package_id === 'so101-vial' ? 'newton' : 'synthetic';
         this.enabled(backend);
         if (
+          backend === 'synthetic' &&
+          !(this.options.managedSynthetic ?? this.options.enabled) &&
+          !input.machine_id
+        )
+          throw sessionFailure(
+            'machine_required',
+            'External Sessions require a provisioned machine',
+            400,
+          );
+        if (
           (backend === 'newton' && input.parameters !== undefined) ||
           (backend === 'synthetic' && input.live_rate_hz !== undefined)
         )
@@ -500,16 +501,6 @@ export class SimulationSessions {
             'session_parameters_mismatch',
             'Use the selected backend parameters',
             400,
-          );
-        if (
-          backend === 'synthetic' &&
-          !input.machine_id &&
-          !(this.options.managedSynthetic ?? this.options.enabled)
-        )
-          throw sessionFailure(
-            'session_source_unavailable',
-            'Provide an external Machine for this Session',
-            503,
           );
         if (
           backend === 'newton' &&
@@ -627,6 +618,7 @@ export class SimulationSessions {
             if (
               this.stopping ||
               live.session.ended_at ||
+              this.terminalFault(live) ||
               this.live.get(session.id) !== live
             ) {
               await prepared.stop();
@@ -638,7 +630,8 @@ export class SimulationSessions {
             await this.launchOwned(live, credential, requestId);
           } catch {
             live.preparing = false;
-            live.fault = 'source_preparation_failed';
+            if (!this.terminalFault(live))
+              live.fault = 'source_preparation_failed';
             await live.source?.stop();
             await this.tick();
           }
@@ -1890,7 +1883,12 @@ export class SimulationSessions {
         }
         for (const live of this.live.values()) {
           if (live.session.ended_at || live.transition?.internal) continue;
-          if (live.preparing && !live.session.lease_id) continue;
+          if (
+            live.preparing &&
+            !live.session.lease_id &&
+            !this.terminalFault(live)
+          )
+            continue;
           const now = performance.now(),
             transition = live.transition;
           let target: Session['status'] | undefined, reason: string | undefined;
