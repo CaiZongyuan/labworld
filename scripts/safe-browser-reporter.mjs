@@ -15,6 +15,7 @@ const errorClasses = new Set([
 const matchers = new Set([
   'toHaveAttribute',
   'toBeVisible',
+  'toBeEnabled',
   'toHaveCount',
   'toBe',
   'toBeGreaterThan',
@@ -76,7 +77,7 @@ export function publicFailure(error) {
   const message = stripVTControlCharacters(error.message ?? '');
   const named = /^([A-Za-z]*Error):/.exec(message)?.[1];
   const matcher =
-    /\b(toHaveAttribute|toBeVisible|toHaveCount|toBeGreaterThan|toBeLessThanOrEqual|toBe)\b/.exec(
+    /\b(toHaveAttribute|toBeVisible|toBeEnabled|toHaveCount|toBeGreaterThan|toBeLessThanOrEqual|toBe)\b/.exec(
       message,
     )?.[1];
   const busy =
@@ -154,6 +155,17 @@ export function publicFailure(error) {
     busy: busy
       ? { expected: expected ?? null, received: received ?? null }
       : null,
+    enabled:
+      matcher === 'toBeEnabled'
+        ? {
+            expected:
+              /^Expected:\s*(enabled|disabled)\s*$/im.exec(message)?.[1] ??
+              null,
+            received:
+              /^Received:\s*(enabled|disabled)\s*$/im.exec(message)?.[1] ??
+              null,
+          }
+        : null,
     numeric,
     timeoutKind: timeout.kind,
     timeoutMs: timeout.milliseconds,

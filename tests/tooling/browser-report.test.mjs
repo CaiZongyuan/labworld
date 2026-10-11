@@ -141,3 +141,24 @@ test('fractional Playwright deadlines keep bounded timeout facts without raw det
     assert.ok(!JSON.stringify(result).includes(secret));
   }
 });
+
+test('enabled action assertions expose only fixed states', () => {
+  const secret = 'fake-secret-must-not-be-retained';
+  const result = publicFailure({
+    message:
+      'expect(locator).toBeEnabled()\nExpected: enabled\nReceived: disabled\nTimeout: 5000ms\n' +
+      secret,
+  });
+  assert.equal(result.matcher, 'toBeEnabled');
+  assert.deepEqual(result.enabled, {
+    expected: 'enabled',
+    received: 'disabled',
+  });
+  assert.ok(!JSON.stringify(result).includes(secret));
+  assert.deepEqual(
+    publicFailure({
+      message: 'toBeEnabled\nExpected: ' + secret + '\nReceived: ' + secret,
+    }).enabled,
+    { expected: null, received: null },
+  );
+});
