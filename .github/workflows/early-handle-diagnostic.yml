@@ -1,4 +1,4 @@
-name: One early draft handle diagnostic
+name: One bounded-font v3 early draft diagnostic
 on:
   push:
     branches: [diag/67-early-handle-ci-20261011]
@@ -58,7 +58,7 @@ jobs:
           if (summaries.length !== 1 || summaries[0] !== 'Total: 1 test in 1 file')
             throw new Error('Expected exactly one diagnostic test in one file');
           NODE
-      - name: Run the original early draft handle prefix once
+      - name: Run v3 first acquisition and the original whole poll once
         run: node .scratch/early-handle-ci/run.mjs
       - name: Reconcile owned resources after success, failure or cancellation
         if: always()

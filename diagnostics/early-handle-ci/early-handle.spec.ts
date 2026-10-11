@@ -295,13 +295,140 @@ async function world(page: Page, lab: string) {
   return response.json();
 }
 
-async function redHandle(page: Page) {
+async function firstViewportCanvasCapture(page: Page) {
+  const deadline = performance.now() + 10_000;
+  const remaining = () => {
+    const timeout = deadline - performance.now();
+    if (!(timeout > 0)) throw new Error('Canvas acquisition deadline expired');
+    return timeout;
+  };
+  const canvas = await page
+    .locator('canvas')
+    .elementHandle({ timeout: remaining() });
+  expect(canvas).not.toBeNull();
+  try {
+    if (!process.env.PW_TEST_SCREENSHOT_NO_FONTS_READY) {
+      const ready = await page.waitForFunction(
+        async (canvas) => {
+          await canvas.ownerDocument.fonts.ready;
+          return true;
+        },
+        canvas!,
+        { timeout: remaining() },
+      );
+      await ready.dispose();
+    }
+    await canvas!.waitForElementState('visible', { timeout: remaining() });
+    remaining();
+    const area = await canvas!.evaluate((canvas) => {
+      const owner = canvas.closest('.world-viewport');
+      const rect = canvas.getBoundingClientRect();
+      const visual = window.visualViewport;
+      return {
+        ownedCanvas:
+          canvas instanceof HTMLCanvasElement &&
+          window === window.top &&
+          canvas.ownerDocument === document &&
+          canvas.getRootNode() === document &&
+          canvas.isConnected &&
+          document.querySelectorAll('.world-viewport').length === 1 &&
+          owner === document.querySelector('.world-viewport') &&
+          owner?.ownerDocument === document &&
+          owner?.isConnected === true,
+        visible:
+          canvas.checkVisibility() &&
+          getComputedStyle(canvas).visibility === 'visible',
+        x: rect.x,
+        y: rect.y,
+        width: rect.width,
+        height: rect.height,
+        right: rect.right,
+        bottom: rect.bottom,
+        viewportWidth: innerWidth,
+        viewportHeight: innerHeight,
+        scrollX,
+        scrollY,
+        visualViewport: visual
+          ? {
+              offsetLeft: visual.offsetLeft,
+              offsetTop: visual.offsetTop,
+              pageLeft: visual.pageLeft,
+              pageTop: visual.pageTop,
+              width: visual.width,
+              height: visual.height,
+              scale: visual.scale,
+            }
+          : null,
+        browserDPR: devicePixelRatio,
+      };
+    });
+    expect(area).toMatchObject({
+      ownedCanvas: true,
+      visible: true,
+      viewportWidth: 1440,
+      viewportHeight: 1000,
+      scrollX: 0,
+      scrollY: 0,
+      visualViewport: {
+        offsetLeft: 0,
+        offsetTop: 0,
+        pageLeft: 0,
+        pageTop: 0,
+        width: 1440,
+        height: 1000,
+        scale: 1,
+      },
+      browserDPR: 1,
+    });
+    expect(area.width).toBeGreaterThan(0);
+    expect(area.height).toBeGreaterThan(0);
+    expect(area.x).toBeGreaterThanOrEqual(0);
+    expect(area.y).toBeGreaterThanOrEqual(0);
+    expect(area.right).toBeLessThanOrEqual(area.viewportWidth);
+    expect(area.bottom).toBeLessThanOrEqual(area.viewportHeight);
+    // Match Playwright's element edge rounding; preserve every visible overlay.
+    const x = Math.floor(area.x + 0.001);
+    const y = Math.floor(area.y + 0.001);
+    const clip = {
+      x,
+      y,
+      width: Math.ceil(area.x + area.width - 0.001) - x,
+      height: Math.ceil(area.y + area.height - 0.001) - y,
+    };
+    expect(clip.width).toBeGreaterThan(0);
+    expect(clip.height).toBeGreaterThan(0);
+    expect(clip.x + clip.width).toBeLessThanOrEqual(area.viewportWidth);
+    expect(clip.y + clip.height).toBeLessThanOrEqual(area.viewportHeight);
+    const png = await page.screenshot({ clip, timeout: remaining() });
+    expect(png.readUInt32BE(16)).toBe(clip.width);
+    expect(png.readUInt32BE(20)).toBe(clip.height);
+    return png;
+  } finally {
+    await canvas?.dispose();
+  }
+}
+
+function observedCapturePage(page: Page) {
+  const phase = rasterPhases.get(page)!;
+  return new Proxy(page, {
+    get(target, property) {
+      if (property === 'screenshot')
+        return (...args: Parameters<Page['screenshot']>) =>
+          phase('page-screenshot', () => target.screenshot(...args));
+      const value = Reflect.get(target, property, target);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
+  });
+}
+
+async function redHandle(
+  page: Page,
+  capture = () => page.locator('canvas').screenshot(),
+) {
   const observer = observers.get(page)!;
   const attempt = ++captureOrdinal;
   observer.rasterNote('capture-entry', { captureOrdinal: attempt });
-  const png = await rasterPhases.get(page)!('canvas-screenshot', () =>
-    page.locator('canvas').screenshot(),
-  );
+  const png = await rasterPhases.get(page)!('canvas-acquisition', capture);
   latestCapture = { attempt, png };
   const result = await rasterPhases.get(page)!('pixel-evaluate', () =>
     page.evaluate(
@@ -479,7 +606,11 @@ test('one browser recovers private layout input while other users and browsers s
             return (
               await observers
                 .get(page)!
-                .operation('red-handle.callback', 227, () => redHandle(page))
+                .operation('red-handle.callback', 227, () =>
+                  redHandle(page, () =>
+                    firstViewportCanvasCapture(observedCapturePage(page)),
+                  ),
+                )
             ).count;
           })
           .toBeGreaterThan(10),

@@ -1768,12 +1768,12 @@
       "sha256": "4d9716243b3c57610702b14c710c4468a628e591f7bc406b86ed68075bee74b8"
     },
     {
-      "path": "docs/draft/LabOS \u5e7f\u6cdb\u68c0\u7d22.md",
+      "path": "docs/draft/LabOS 广泛检索.md",
       "kind": "file",
       "sha256": "d1a4fc4728add436a1b90cca06905ef0f985b2b1ed8c69d08649db05750a9930"
     },
     {
-      "path": "docs/draft/\u5177\u8eab\u5b9e\u9a8c\u5ba4\u6559\u5b66_\u65b9\u6848\u539f\u59cb\u7d20\u6750.md",
+      "path": "docs/draft/具身实验室教学_方案原始素材.md",
       "kind": "file",
       "sha256": "419cc7e6753b69b767c0e816de0dc9a7a8314505511ec6b8577e039aff45f40f"
     },
@@ -5966,7 +5966,7 @@
   "bundleFiles": [
     {
       "path": "early-handle.spec.ts",
-      "sha256": "65b0e357e35114f1afbf6bb0151dd63eb6a729b8a0659ce713bf0c831ebae608"
+      "sha256": "f61cc1c3a5bde6ea356c94da85478920b04d2e987224dbccb528f32ccc9de934"
     },
     {
       "path": "observer.ts",
@@ -5974,7 +5974,7 @@
     },
     {
       "path": "lab-raster-phases.ts",
-      "sha256": "9c67d6a8511aebcd2f45ef0b2c16b3e874207dd2889dec6cea08f277f56f7f8d"
+      "sha256": "9a8ee75b9cbda93fd052c6b6f7fa9b14f66c6c7328c6cfbd65883333749f8e36"
     },
     {
       "path": "playwright.config.ts",
@@ -6006,7 +6006,7 @@
     }
   ],
   "meaning": "Relative hashes bind all frozen tracked product files, build inputs, fixtures, configuration and dependency locks. Symlink hashes cover link text. Diagnostic workflow identity is separate.",
-  "purpose": "SOURCE-ONLY early draft first redHandle prefix preparation; runtime/publication not authorized",
+  "purpose": "SOURCE-ONLY literal bounded-font v3 first acquisition under the original early draft whole poll; publication/runtime not admitted",
   "target": {
     "run": 38100785779,
     "shard": 1,
@@ -6015,10 +6015,19 @@
     "assertionLine": 228,
     "predicateMs": 5000,
     "numeric": null,
-    "stop": "first whole count>10 poll outcome or earlier original error, before beforeX/standalone redHandle/drag/suffix"
+    "stop": "first whole count>10 poll outcome or earlier original error, before beforeX/standalone redHandle/drag/suffix",
+    "previousDiagnosticRun": 38119632418,
+    "question": "Does the amended first-only acquisition satisfy the original real-application whole count>10 five-second poll?"
   },
   "workflow": {
     "path": ".github/workflows/early-handle-diagnostic.yml",
-    "sha256": "3f10a6094931e9a31fdc821d2e04b9d59e1d8cc41f7edc0fe9e94f65e295b931"
+    "sha256": "e253754738d0b54890e8f69241f19185e49ff808c65f0686afaf987efea63754"
+  },
+  "amendedCapture": {
+    "sourceIdentitySha256": "7555443428dad95fce9a1e275f64b8188869497d7ee73cd12ae816eeee45838d",
+    "proposedSpecSha256": "e2e26d87bbb8de6537e03468020bfb946f15275b35620869d3aaa5c59ccd34d3",
+    "literalHelperSha256": "c8004e7813115eb1de44046576231b92aa58ec6fa120bc1c2eaf0db8354aca7a",
+    "publicTimingAdapter": "First-only public Page proxy; existing bounded phases record total acquisition and actual Page.screenshot outer await separately; no additional browser calls or waits",
+    "authoritativeVerdict": "Original whole poll only; late/drain result cannot replace failure"
   }
 }

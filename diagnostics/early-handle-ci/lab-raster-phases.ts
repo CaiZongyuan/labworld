@@ -3,6 +3,8 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 
 type Phase =
+  | 'canvas-acquisition'
+  | 'page-screenshot'
   | 'canvas-geometry'
   | 'canvas-screenshot'
   | 'region-screenshot'
