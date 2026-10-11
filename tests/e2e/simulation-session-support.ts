@@ -117,9 +117,10 @@ export async function dialog(page: Page) {
                           : 'none',
                 modalCount: document.querySelectorAll('[aria-modal="true"]')
                   .length,
-                backdropCount: document.querySelectorAll(
-                  '[data-slot="dialog-overlay"]',
-                ).length,
+                mountedDialogBackdropCount: Array.from(
+                  document.querySelectorAll('.fixed.inset-0.z-50'),
+                ).filter((element) => element.classList.contains('bg-black/45'))
+                  .length,
                 busy: busy === 'true' || busy === 'false' ? busy : 'missing',
               };
             }),
