@@ -470,6 +470,19 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     const id = this.bySession.get(sessionId);
     return id ? this.owners.get(id) : undefined;
   }
+  private metadata(row: RecordingRow) {
+    const owner = this.owners.get(row.id);
+    const projected: RecordingRow =
+      owner?.fault && (row.status === 'open' || row.status === 'preparing')
+        ? { ...row, status: 'incomplete', reason: owner.fault }
+        : row;
+    return publicRow(
+      projected,
+      owner?.prefix ??
+        (row.checkpoint.prefix as ReturnType<typeof emptyPrefix>) ??
+        emptyPrefix(),
+    );
+  }
   private createOwner(row: RecordingRow, session: Session) {
     const owner: Owner = {
       row,
@@ -2239,16 +2252,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
           sql`select ${recordingColumns} from lab.recordings where lab_id=${lab}::uuid and status<>'deleted' and ${cursor ? sql`id>${cursor}::uuid` : sql`true`} order by id limit ${limit + 1}`,
         );
         return {
-          data: rows.rows
-            .slice(0, limit)
-            .map((r) =>
-              publicRow(
-                r,
-                this.owners.get(r.id)?.prefix ??
-                  (r.checkpoint.prefix as ReturnType<typeof emptyPrefix>) ??
-                  emptyPrefix(),
-              ),
-            ),
+          data: rows.rows.slice(0, limit).map((r) => this.metadata(r)),
           next_cursor:
             rows.rows.length > limit ? rows.rows[limit - 1].id : null,
         };
@@ -2258,12 +2262,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   async get(headers: Headers, lab: string, id: string) {
     const row = await this.authorized(headers, id, lab);
     await this.readBarrier(id);
-    return publicRow(
-      row,
-      this.owners.get(id)?.prefix ??
-        (row.checkpoint.prefix as ReturnType<typeof emptyPrefix>) ??
-        emptyPrefix(),
-    );
+    return this.metadata(row);
   }
   async manifest(headers: Headers, lab: string, id: string) {
     const row = await this.authorized(headers, id, lab);
@@ -2512,14 +2511,14 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             next_cursor: Buffer.from(JSON.stringify(last)).toString(
               'base64url',
             ),
-            integrity: publicRow(row).integrity,
+            integrity: this.metadata(row).integrity,
           };
         data.push(entry);
         bytes += size;
         last = { recording_id: id, ordinal: record.ordinal, index };
       }
     }
-    return { data, next_cursor: null, integrity: publicRow(row).integrity };
+    return { data, next_cursor: null, integrity: this.metadata(row).integrity };
   }
   async delete(headers: Headers, lab: string, id: string) {
     const row = await this.authorized(headers, id, lab, true);
