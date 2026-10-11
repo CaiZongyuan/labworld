@@ -282,11 +282,15 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
             dracoMark,
             dracoDeadline,
           );
-          return dracoSample.geometries;
+          return (
+            dracoSample.geometries < builtinCount &&
+            dracoSample.textures === builtinTextures
+          );
         },
         { timeout: remainingMetricBudget(dracoDeadline) },
       )
-      .toBeLessThan(builtinCount);
+      .toBe(true);
+    expect(dracoSample.geometries).toBeLessThan(builtinCount);
     expect(dracoSample.textures).toBe(builtinTextures);
     const dracoCount = dracoSample.geometries;
     const dracoTextures = dracoSample.textures;
@@ -362,11 +366,17 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
               dracoReturnMark,
               dracoReturnDeadline,
             );
-            return dracoReturn.geometries;
+            return (
+              dracoReturn.geometries <= previousDraco.geometries &&
+              dracoReturn.textures === dracoTextures
+            );
           },
           { timeout: remainingMetricBudget(dracoReturnDeadline) },
         )
-        .toBeLessThanOrEqual(previousDraco.geometries);
+        .toBe(true);
+      expect(dracoReturn.geometries).toBeLessThanOrEqual(
+        previousDraco.geometries,
+      );
       expect(dracoReturn.textures).toBe(dracoTextures);
       previousDraco = sample(`draco-${i}`, dracoReturn, dracoReturnMark);
       await appearance(basis.representation.id);
@@ -390,11 +400,17 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
               basisReturnMark,
               basisReturnDeadline,
             );
-            return basisReturn.geometries;
+            return (
+              basisReturn.geometries <= previousBasis.geometries &&
+              basisReturn.textures === basisTextures
+            );
           },
           { timeout: remainingMetricBudget(basisReturnDeadline) },
         )
-        .toBeLessThanOrEqual(previousBasis.geometries);
+        .toBe(true);
+      expect(basisReturn.geometries).toBeLessThanOrEqual(
+        previousBasis.geometries,
+      );
       expect(basisReturn.textures).toBe(basisTextures);
       previousBasis = sample(`basis-${i}`, basisReturn, basisReturnMark);
     }
