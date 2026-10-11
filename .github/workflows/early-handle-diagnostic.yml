@@ -73,6 +73,7 @@ jobs:
           name: early-handle-${{ github.run_id }}-${{ github.run_attempt }}
           path: |
             product/.scratch/vnext-m1/
+            !product/.scratch/vnext-m1/**/layout-draft-save-*.json
             product/.scratch/early-handle-ci-evidence/
             product/test-results/summary.json
           include-hidden-files: true
