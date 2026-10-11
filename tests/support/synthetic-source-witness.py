@@ -10,7 +10,7 @@ root = Path(__file__).resolve().parents[2]
 source = root / 'tools' / 'synthetic-motion'
 sys.path.insert(0, str(source))
 import recording_source
-from tls_pressure_measure import SourceFacts
+from tls_pressure_measure import SourceFacts, observation_health
 
 directory = Path(os.environ['SECURE_MOTION_SOURCE_WITNESS'])
 directory.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -52,14 +52,14 @@ def capture(self, frame, sequence, immediate=False):
     # The bytes and timing policy are never replaced by the witness.
     append(self.scope, 'frames', frame)
     if os.environ.get('TLS_PRESSURE_PROBE_DIR'):
-        pressure_owner(self.scope).capture(frame, sequence)
+        observation_health('source', self.scope['session_id']).observe(lambda: pressure_owner(self.scope).capture(frame, sequence))
     return original_capture(self, frame, sequence, immediate)
 
 
 async def send(self, packet):
     append(self.scope, 'packets', packet)
     if os.environ.get('TLS_PRESSURE_PROBE_DIR'):
-        pressure_owner(self.scope).packet(packet)
+        observation_health('source', self.scope['session_id']).observe(lambda: pressure_owner(self.scope).packet(packet))
     return await original_send(self, packet)
 
 
@@ -73,6 +73,8 @@ sys.argv[0] = str(target)
 try:
     runpy.run_path(str(target), run_name='__main__')
 finally:
+    for scope, facts in pressure_facts.items():
+        facts.health.receipt(final=True)
     for descriptor in owned.values():
         os.fsync(descriptor)
         os.close(descriptor)

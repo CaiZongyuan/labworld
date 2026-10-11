@@ -9,7 +9,7 @@ import ssl
 import sys
 from urllib.parse import urlsplit
 from websockets.asyncio.client import connect
-from tls_pressure_measure import PeerFacts
+from tls_pressure_measure import PeerFacts, observation_health, watch_peer_task
 
 if ctypes.CDLL(None).prctl(1, signal.SIGKILL) != 0:
     sys.exit(1)
@@ -41,7 +41,8 @@ async def main():
                           'local_address': local[0], 'local_port': local[1],
                           'server_address': remote[0], 'server_port': remote[1],
                           'receive_buffer_bytes': peer.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)}), flush=True)
-        probe = asyncio.create_task(PeerFacts(session, ws, peer, local, remote).observe()) if os.environ.get('TLS_PRESSURE_PROBE_DIR') else None
+        health = observation_health('peer', session)
+        probe = health.observe(lambda: watch_peer_task(asyncio.create_task(PeerFacts(session, ws, peer, local, remote).observe()), health)) if os.environ.get('TLS_PRESSURE_PROBE_DIR') else None
         try:
             await asyncio.sleep(2)
             print(json.dumps({'event': 'slow.pressure', 'transport_reading': ws.transport.is_reading()}), flush=True)
@@ -50,6 +51,9 @@ async def main():
         finally:
             if probe:
                 probe.cancel()
-                await asyncio.gather(probe, return_exceptions=True)
+                result = await asyncio.gather(probe, return_exceptions=True)
+                if result and isinstance(result[0], Exception):
+                    health.invalidate()
+                health.receipt(final=True)
 
 asyncio.run(main())

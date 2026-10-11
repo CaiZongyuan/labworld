@@ -25,21 +25,17 @@ function identity(pid) {
 
 /** Diagnostic-only counters and owned ss reader; never mutates a transport. */
 export class TlsPressureObserver {
-  constructor(directory, sockets) {
+  constructor(directory, sockets, health) {
     this.directory = directory;
+    this.health = health;
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.sockets = sockets;
     this.counts = new Map();
-    this.baselines = new Map();
     this.samples = 0;
     this.sendObserverMs = 0;
     this.sampleElapsedMs = 0;
     this.timer = setInterval(() => {
-      try {
-        this.sample();
-      } catch {
-        this.stopped = true;
-      }
+      this.health.observe(() => this.sample());
     }, 1000);
     this.timer.unref();
   }
@@ -91,13 +87,17 @@ export class TlsPressureObserver {
   save(name, row) {
     try {
       const path = join(this.directory, name);
-      const data = JSON.stringify(row) + '\n';
+      const data =
+        JSON.stringify({ ...row, diagnosticHealth: this.health.status() }) +
+        '\n';
       if (Buffer.byteLength(data) > 16384)
         throw new Error('Owned diagnostic tuple exceeded bound');
       writeFileSync(path + '.next', data, { mode: 0o600 });
       renameSync(path + '.next', path);
+      if (name === 'server.json') this.health.published();
       return true;
     } catch {
+      this.health.invalidate();
       return false;
     }
   }
@@ -198,51 +198,55 @@ export class TlsPressureObserver {
       { timeout: 400, maxBuffer: 8192 },
       (error, stdout) => {
         this.child = undefined;
-        value.ss = error
-          ? { available: false, reason: error.code ?? 'command failed' }
-          : {
-              available: true,
-              boundary:
-                'matched real kernel socket; includes Send-Q/Recv-Q/skmem/TCP MSS/window facts',
-              text: stdout,
-            };
-        value.sampleCompletedAt = performance.now();
-        this.sampleElapsedMs += value.sampleCompletedAt - started;
-        this.save('server.json', value);
-        const journal = join(this.directory, 'server.jsonl');
-        const data = JSON.stringify(value) + '\n';
-        let bytes = 0;
-        try {
-          bytes = statSync(journal).size;
-        } catch {
-          /* first sample */
-        }
-        try {
-          if (bytes + Buffer.byteLength(data) <= 4 * 1024 * 1024)
-            appendFileSync(journal, data, { mode: 0o600 });
-        } catch {
-          /* Measurement failure must not interrupt production. */
-        }
-        this.save('ss-owner.json', {
-          owner: 'passive TLS pressure observer',
-          creatorPid: process.pid,
-          creatorToken: identity(process.pid),
-          state: 'stopped',
-          lastPid: child.pid,
-          lastToken: this.childToken,
+        this.health.observe(() => {
+          value.ss = error
+            ? { available: false, reason: error.code ?? 'command failed' }
+            : {
+                available: true,
+                boundary:
+                  'matched real kernel socket; includes Send-Q/Recv-Q/skmem/TCP MSS/window facts',
+                text: stdout,
+              };
+          value.sampleCompletedAt = performance.now();
+          this.sampleElapsedMs += value.sampleCompletedAt - started;
+          this.save('server.json', value);
+          const journal = join(this.directory, 'server.jsonl');
+          const data = JSON.stringify(value) + '\n';
+          let bytes = 0;
+          try {
+            bytes = statSync(journal).size;
+          } catch {
+            /* first sample */
+          }
+          try {
+            if (bytes + Buffer.byteLength(data) <= 4 * 1024 * 1024)
+              appendFileSync(journal, data, { mode: 0o600 });
+          } catch {
+            this.health.invalidate();
+          }
+          this.save('ss-owner.json', {
+            owner: 'passive TLS pressure observer',
+            creatorPid: process.pid,
+            creatorToken: identity(process.pid),
+            state: 'stopped',
+            lastPid: child.pid,
+            lastToken: this.childToken,
+          });
         });
       },
     );
     this.child = child;
     child.once('spawn', () => {
-      this.childToken = identity(child.pid);
-      this.save('ss-owner.json', {
-        owner: 'passive TLS pressure observer',
-        creatorPid: process.pid,
-        creatorToken: identity(process.pid),
-        state: 'owned',
-        pid: child.pid,
-        token: this.childToken,
+      this.health.observe(() => {
+        this.childToken = identity(child.pid);
+        this.save('ss-owner.json', {
+          owner: 'passive TLS pressure observer',
+          creatorPid: process.pid,
+          creatorToken: identity(process.pid),
+          state: 'owned',
+          pid: child.pid,
+          token: this.childToken,
+        });
       });
     });
   }

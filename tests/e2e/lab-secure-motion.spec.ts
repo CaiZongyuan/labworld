@@ -947,6 +947,7 @@ test('TLS slow reader pressure: actual encrypted TCP buffering stays bounded whi
       assert(BigInt(next.nodes[0].sequence) >= BigInt(first.nodes[0].sequence));
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
+    pressureFailure();
     assert(pressure && pressure.encrypted && !pressure.open);
     assert(pressure.maxBufferBytes > 65536);
     assert.equal(pressure.closeReason, 'slow_viewer');

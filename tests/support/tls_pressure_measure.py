@@ -6,6 +6,7 @@ import socket
 import struct
 import time
 import asyncio
+import sys
 
 
 def available(read):
@@ -16,8 +17,65 @@ def available(read):
         return {'available': False, 'reason': type(error).__name__}
 
 
+class ObservationHealth:
+    def __init__(self, role, session):
+        self.role, self.session = role, session
+        self.failed = False
+        self.published = 0
+        self.last_tuple_ms = None
+
+    def status(self, final=False):
+        return {'valid': not self.failed, 'category': 'pressure_observer_failed' if self.failed else None,
+                'published': self.published, 'lastTupleWallMs': self.last_tuple_ms, 'final': final}
+
+    def receipt(self, final=False):
+        try:
+            root = Path(os.environ['SECURE_MOTION_SOURCE_WITNESS'])
+            path = root / (self.role + '-' + self.session + '.pressure-health.json')
+            temporary = path.with_suffix('.next')
+            with temporary.open('w', opener=lambda p, flags: os.open(p, flags, 0o600)) as handle:
+                handle.write(json.dumps(self.status(final)) + '\n')
+            temporary.replace(path)
+        except Exception:
+            self.invalidate()
+
+    def invalidate(self):
+        first = not self.failed
+        self.failed = True
+        if first:
+            try:
+                print(json.dumps({'event': 'pressure.observer.invalid', 'role': self.role,
+                                  'diagnosticHealth': self.status()}), file=sys.stderr, flush=True)
+            except Exception:
+                pass
+
+    def observe(self, operation):
+        if self.failed:
+            return None
+        try:
+            return operation()
+        except Exception:
+            self.invalidate()
+            self.receipt()
+            return None
+
+    def success(self):
+        self.published += 1
+        self.last_tuple_ms = time.time_ns() // 1_000_000
+        self.receipt()
+
+
+health_owners = {}
+def observation_health(role, session):
+    key = (role, session)
+    if key not in health_owners:
+        health_owners[key] = ObservationHealth(role, session)
+    return health_owners[key]
+
+
 class Facts:
     def __init__(self, session, role):
+        self.health = observation_health(role, session)
         self.directory = Path(os.environ['TLS_PRESSURE_PROBE_DIR'])
         self.directory.mkdir(parents=True, exist_ok=True, mode=0o700)
         self.session = session
@@ -50,7 +108,7 @@ class Facts:
                'clock': 'Python time.monotonic_ns; subtract only this clock',
                'monoNs': str(now), 'wallNs': str(time.time_ns()),
                'windowFirstObservedMonoNs': str(self.started),
-               'priorObservationNs': str(self.observation_ns), **values}
+               'priorObservationNs': str(self.observation_ns), 'diagnosticHealth': self.health.status(), **values}
         data = json.dumps(row, separators=(',', ':')) + '\n'
         if len(data.encode()) > 8192:
             raise RuntimeError('Owned pressure tuple exceeded bound')
@@ -65,20 +123,10 @@ class Facts:
         with journal.open('a', opener=lambda p, flags: os.open(p, flags, 0o600)) as handle:
             handle.write(data)
         self.observation_ns += time.monotonic_ns() - begin
+        self.health.success()
 
     def observe(self, values):
-        try:
-            self.save(values)
-        except Exception as error:
-            # Measurement failure cannot interrupt source/peer behavior.
-            self.failure = type(error).__name__
-            try:
-                path = self.directory / (self.role + '-' + self.session + '.json')
-                path.write_text(json.dumps({'available': False, 'reason': self.failure,
-                                            'monoNs': str(time.monotonic_ns())}) + '\n')
-                path.chmod(0o600)
-            except OSError:
-                pass
+        self.health.observe(lambda: self.save(values))
 
 
 class SourceFacts(Facts):
@@ -158,3 +206,15 @@ class PeerFacts(Facts):
                        'websocketQueuedFrames': available(lambda: len(self.ws.recv_messages.frames)),
                        'websocketAssemblerPaused': available(lambda: self.ws.recv_messages.paused)})
             await asyncio.sleep(1)
+
+
+def watch_peer_task(task, health):
+    def completed(owner):
+        try:
+            if not owner.cancelled() and owner.exception() is not None:
+                health.invalidate()
+                health.receipt()
+        except Exception:
+            health.invalidate()
+    task.add_done_callback(completed)
+    return task

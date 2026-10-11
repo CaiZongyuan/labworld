@@ -26,7 +26,7 @@ export function pressureWindow(sessionId: string, clientPort: number) {
 }
 
 /** Capture the actual failed predicate and last bounded tuples before cleanup. */
-export function pressureFailure(error: unknown) {
+export function pressureFailure(error: unknown = undefined) {
   const directory = process.env.TLS_PRESSURE_PROBE_DIR;
   if (!directory) return;
   try {
@@ -67,7 +67,12 @@ export function pressureFailure(error: unknown) {
       }
     });
     writeFileSync(
-      join(directory, 'before-cleanup-failure.json'),
+      join(
+        directory,
+        error === undefined
+          ? 'pressure-boundary.json'
+          : 'before-cleanup-failure.json',
+      ),
       JSON.stringify({
         testNodeAt: performance.now(),
         testMonoNs: process.hrtime.bigint().toString(),
