@@ -22,6 +22,28 @@ import type {
   DownloadCapability,
 } from '../../packages/contracts/src/generated/types.gen.ts';
 
+// Approved #72 Recording append: schema 4. The c80 Session baseline's first
+// three migration identities remain immutable; these expectations are literals,
+// independent of the running build's schemaVersion calculation.
+const approvedHistory = [
+  {
+    hash: '1385b5d42f0f497877192ba56d953fc1864948a165946061ff15adaad3c92e53',
+    created_at: '1791273889002',
+  },
+  {
+    hash: '928c1425e0f1cbd82cd7224c66cc5d196a9d59d1497691c04186d1401f5d6034',
+    created_at: '1791436317560',
+  },
+  {
+    hash: '598fc65ec18fc2054c56c73c00c85b202c7082443df80f3cb3bb404735e70495',
+    created_at: '1791665433443',
+  },
+  {
+    hash: '63c83437ec7487eb4797a902288fae41f007dbf3fe4be7ec03f2698790129e7c',
+    created_at: '1791681569129',
+  },
+];
+
 test(
   'a real compressed baseline archive upgrades once with identity files and committed Command intact',
   { timeout: 90000 },
@@ -67,6 +89,35 @@ test(
       }
     }
     try {
+      const currentJournal = JSON.parse(
+        await readFile(
+          new URL(
+            '../../packages/server/migrations/meta/_journal.json',
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      );
+      assert.deepEqual(currentJournal.entries.at(-1), {
+        idx: 3,
+        version: '7',
+        when: 1791681569129,
+        tag: '0003_reliable_recording',
+        breakpoints: true,
+      });
+      assert.equal(
+        createHash('sha256')
+          .update(
+            await readFile(
+              new URL(
+                '../../packages/server/migrations/0003_reliable_recording.sql',
+                import.meta.url,
+              ),
+            ),
+          )
+          .digest('hex'),
+        approvedHistory[3].hash,
+      );
       await mkdir(baselineRoot);
       const source = execFileSync(
         'git',
@@ -110,6 +161,7 @@ test(
           ),
         )
         .digest('hex');
+      assert.equal(baselineHash, approvedHistory[0].hash);
       producer.entry = join(baselineRoot, 'apps/server/src/main.ts');
       producer.env = { APP_ORIGIN: producer.url, RATE_LIMIT_ENABLED: 'false' };
       await producer.start();
@@ -198,7 +250,7 @@ test(
         '--archive',
         archive,
       ]);
-      assert.equal(result.schemaVersion, 3);
+      assert.equal(result.schemaVersion, 4);
       destination.env = {
         APP_ORIGIN: destination.url,
         LAB_WORD_DATA_DIR: restored,
@@ -265,7 +317,16 @@ test(
         '--output',
         currentArchive,
       ]);
-      assert.equal(currentBackup.schemaVersion, 3);
+      assert.equal(currentBackup.schemaVersion, 4);
+      const currentManifest = JSON.parse(
+        await readFile(join(currentArchive, 'manifest.json'), 'utf8'),
+      );
+      assert.equal(currentManifest.database.schemaVersion, 4);
+      assert.deepEqual(currentManifest.database.history, approvedHistory);
+      assert.deepEqual(
+        currentManifest.database.history[0],
+        manifest.database.history[0],
+      );
       assert.equal(
         (
           await command('apps/server/src/cli.ts', currentCopy, [
@@ -274,7 +335,7 @@ test(
             currentArchive,
           ])
         ).schemaVersion,
-        3,
+        4,
       );
       await writeFile(
         join(artifacts.evidence, 'guide-archive-result.json'),
@@ -282,6 +343,13 @@ test(
           baselineRevision,
           baselineHash,
           sourceHistory: manifest.database.history,
+          upgradedHistory: currentManifest.database.history,
+          approvedRecordingMigration: {
+            issue: 'https://github.com/CaiZongyuan/labworld/issues/72',
+            tag: '0003_reliable_recording',
+            schemaVersion: 4,
+            ...approvedHistory[3],
+          },
           restore: result,
           identityPreserved: true,
           fileBytesPreserved: true,

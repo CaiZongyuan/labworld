@@ -27,6 +27,20 @@ import {
   readSessionFrame,
   type SessionFrame,
 } from './simulation-session-oracle';
+import {
+  assertAck,
+  canonicalHeader,
+  capturePolicy,
+  digest,
+  frameBatch,
+  initialPrefix,
+  mappingDigest,
+  nextPrefix,
+  sourceHeader,
+  sourcePacket,
+  type RecordingIdentity,
+  type SourceAck,
+} from './recording-wire-oracle';
 
 // Independently write the published 48-byte header and 584-byte pose-f32-v1
 // payload. The proof never imports the production encoder or authority cache.
@@ -73,10 +87,25 @@ class Peer {
   sequence = 0n;
   time = 0n;
   failure?: string;
+  private recording?: WebSocket;
+  private recordingScope?: RecordingIdentity;
+  private recordingLimits?: Record<string, number>;
+  private recordingFailure?: string;
+  private recordingWaiter?: {
+    resolve: (text: string) => void;
+    reject: (error: Error) => void;
+  };
+  private recordingTimer?: ReturnType<typeof setTimeout>;
+  private packetSequence = 0n;
+  private eventSequence = 0n;
+  private prefix = '';
+  private lastAck?: SourceAck;
+  private pendingReply?: string;
+  private receivedControl?: { id: unknown; at: number };
   constructor(
     readonly session: SimulationSession,
-    ticket: SessionMotionTicket,
-    role: 'publisher' | 'viewer' = 'publisher',
+    private ticket: SessionMotionTicket,
+    private role: 'publisher' | 'viewer' = 'publisher',
   ) {
     this.socket = new WebSocket(
       process.env.E2E_API_URL!.replace(/^http/, 'ws') + ticket.websocket_path,
@@ -90,7 +119,15 @@ class Peer {
       try {
         if (binary)
           this.latest = readSessionFrame(Buffer.from(data as Uint8Array));
-        else this.messages.push(JSON.parse(String(data)));
+        else {
+          const control = JSON.parse(String(data));
+          if (control.type === 'motion.session_control')
+            this.receivedControl = {
+              id: control.transition_id,
+              at: performance.now(),
+            };
+          this.messages.push(control);
+        }
       } catch (error) {
         this.failure = error instanceof Error ? error.name : 'WireError';
       }
@@ -138,6 +175,194 @@ class Peer {
       welcome.joint_keys,
       this.session.snapshot.installation.joint_keys,
     );
+    if (this.role === 'publisher') await this.openRecording();
+  }
+  private async openRecording() {
+    const admission = this.ticket as PublisherAdmission;
+    const bootstrap = admission.recording;
+    assert(bootstrap, 'Formal publisher requires independent Recording');
+    this.recordingScope = {
+      recording_id: bootstrap.recording_id,
+      session_id: bootstrap.session_id,
+      lease_id: bootstrap.lease_id,
+      epoch: bootstrap.epoch,
+      snapshot_hash: bootstrap.snapshot_hash,
+      manifest_sha256: bootstrap.manifest_sha256,
+      scene_hash: bootstrap.scene_hash,
+      mapping_revision: bootstrap.mapping_revision,
+      mapping_sha256: bootstrap.mapping_sha256,
+    };
+    assert.equal(bootstrap.session_id, this.session.id);
+    assert.equal(bootstrap.lease_id, admission.lease_id);
+    assert.equal(bootstrap.epoch, this.session.epoch);
+    assert.equal(bootstrap.snapshot_hash, this.session.snapshot.hash);
+    assert.equal(
+      bootstrap.scene_hash,
+      this.session.snapshot.installation.scene_hash,
+    );
+    assert.equal(
+      bootstrap.mapping_revision,
+      this.session.snapshot.installation.mapping_revision,
+    );
+    assert.equal(bootstrap.mapping_sha256, mappingDigest(this.session));
+    assert.deepEqual(bootstrap.capture_policy, capturePolicy);
+    assert.notEqual(bootstrap.ticket, admission.ticket);
+    assert.notEqual(bootstrap.websocket_path, admission.websocket_path);
+    const deadline = performance.now() + 3000;
+    this.recording = new WebSocket(
+      process.env.E2E_API_URL!.replace(/^http/, 'ws') +
+        bootstrap.websocket_path,
+      { origin: process.env.E2E_WEB_URL!, maxPayload: 16384 },
+    );
+    ownSessionSocket(
+      this.recording,
+      'machine-proof-recording',
+      this.session.id,
+    );
+    const failed = (reason: string) => {
+      this.recordingFailure = reason;
+      this.recordingWaiter?.reject(new Error(reason));
+    };
+    this.recording.on('error', () => failed('Recording socket error'));
+    this.recording.on('close', () => failed('Recording socket closed'));
+    this.recording.on('message', (data, binary) => {
+      const raw = Array.isArray(data) ? Buffer.concat(data) : data;
+      if (binary || raw.byteLength > (this.recordingLimits ? 4096 : 16384)) {
+        failed('Unexpected Recording response');
+        return;
+      }
+      const text = (
+        raw instanceof ArrayBuffer ? Buffer.from(raw) : raw
+      ).toString('utf8');
+      if (text === this.pendingReply) return;
+      if (this.lastAck && text === JSON.stringify(this.lastAck)) return;
+      if (!this.recordingWaiter) {
+        failed('Recording reply without an in-flight request');
+        return;
+      }
+      this.pendingReply = text;
+      this.recordingWaiter.resolve(text);
+    });
+    await eventually(
+      async () => {
+        assert.equal(this.recordingFailure, undefined);
+        return this.recording!.readyState;
+      },
+      (state) => state === WebSocket.OPEN,
+      Math.max(1, deadline - performance.now()),
+    );
+    const header = sourceHeader();
+    this.prefix = initialPrefix(this.recordingScope, header);
+    const ready = JSON.parse(
+      await this.exchange(
+        JSON.stringify({
+          type: 'recording.hello',
+          version: 1,
+          codec: 'lwr1-source-v1',
+          ...this.recordingScope,
+          ticket: bootstrap.ticket,
+          source_header: header,
+        }),
+        deadline,
+        false,
+      ),
+    );
+    assert.equal(ready.type, 'recording.ready');
+    assert.equal(ready.version, 1);
+    assert.equal(ready.codec, 'lwr1-source-v1');
+    for (const [key, value] of Object.entries(this.recordingScope))
+      assert.equal(ready[key], value);
+    assert.equal(ready.source_header_sha256, digest(canonicalHeader(header)));
+    assert.equal(ready.source_prefix_sha256, this.prefix);
+    assert.deepEqual(ready.capture_policy, bootstrap.capture_policy);
+    assert.deepEqual(ready.limits, bootstrap.limits);
+    this.recordingLimits = bootstrap.limits;
+  }
+  private exchange(
+    bytes: string | Buffer,
+    deadline: number,
+    retry = true,
+  ): Promise<string> {
+    assert.equal(this.recording?.readyState, WebSocket.OPEN);
+    assert.equal(this.recordingWaiter, undefined);
+    assert.equal(this.recordingFailure, undefined);
+    assert(performance.now() < deadline, 'Recording receipt budget expired');
+    this.pendingReply = undefined;
+    const started = performance.now();
+    const steps = retry
+      ? [
+          this.recordingLimits!.retry_first_ms,
+          this.recordingLimits!.retry_second_ms,
+        ]
+      : [];
+    let attempt = 0;
+    return new Promise((resolve, reject) => {
+      const complete = (text?: string, error?: Error) => {
+        clearTimeout(this.recordingTimer);
+        this.recordingTimer = undefined;
+        this.recordingWaiter = undefined;
+        if (error) reject(error);
+        else resolve(text!);
+      };
+      this.recordingWaiter = {
+        resolve: (text) => complete(text),
+        reject: (error) => complete(undefined, error),
+      };
+      const schedule = () => {
+        const next = Math.min(
+          deadline,
+          attempt < steps.length ? started + steps[attempt] : deadline,
+        );
+        this.recordingTimer = setTimeout(
+          () => {
+            if (performance.now() >= deadline || attempt === steps.length) {
+              complete(
+                undefined,
+                new Error('Recording receipt deadline exceeded'),
+              );
+              return;
+            }
+            this.recording!.send(bytes);
+            attempt++;
+            schedule();
+          },
+          Math.max(0, next - performance.now()),
+        );
+      };
+      this.recording!.send(bytes);
+      schedule();
+    });
+  }
+  private async capture(kind: 1 | 2 | 3, payload: Buffer, deadline: number) {
+    const scope = this.recordingScope!;
+    const selected = sourcePacket(
+      scope,
+      kind,
+      this.packetSequence + 1n,
+      payload,
+    );
+    const prefix = nextPrefix(this.prefix, selected.digest);
+    const ack = JSON.parse(
+      await this.exchange(selected.bytes, deadline),
+    ) as SourceAck;
+    assertAck(ack, scope, {
+      packetSequence: this.packetSequence + 1n,
+      packetHash: selected.digest,
+      prefixHash: prefix,
+      sourceSequence: this.sequence,
+      eventSequence: this.eventSequence,
+      ended: kind === 3,
+    });
+    this.packetSequence++;
+    this.prefix = prefix;
+    this.lastAck = ack;
+    receipt('session-machine-recording-' + this.session.id, {
+      session_id: this.session.id,
+      recording_id: scope.recording_id,
+      lastDurableReceipt: ack,
+      selectedFrameCount: String(this.sequence),
+      sourceEventCount: String(this.eventSequence),
+    });
   }
   async control(action: string) {
     return eventually(
@@ -155,13 +380,81 @@ class Peer {
       return value;
     });
   }
-  frame(time = 0n, offset = 0) {
+  private selectFrame(time: bigint, offset: number) {
     this.sequence++;
     this.time = time;
-    const bytes = packet(this.session, this.sequence, time, offset);
+    return packet(this.session, this.sequence, time, offset);
+  }
+  async frame(time = 0n, offset = 0) {
+    const bytes = this.selectFrame(time, offset);
+    await this.capture(
+      1,
+      frameBatch([bytes]),
+      performance.now() + this.recordingLimits!.durability_timeout_ms,
+    );
     this.socket.send(bytes);
     return readSessionFrame(bytes);
   }
+  private controlDeadline(control: Control) {
+    assert.equal(control.transition_id, this.receivedControl?.id);
+    return (
+      this.receivedControl!.at + this.recordingLimits!.durability_timeout_ms
+    );
+  }
+  private async captureAppliedClaim(control: Control, deadline: number) {
+    this.eventSequence++;
+    await this.capture(
+      2,
+      Buffer.from(
+        JSON.stringify({
+          source_event_sequence: String(this.eventSequence),
+          event_id: randomUUID(),
+          event_type: 'lifecycle.applied',
+          subject: { session_id: this.session.id },
+          sim_time_ns: String(this.time),
+          observed_at: null,
+          event: {
+            transition_id: control.transition_id,
+            revision: control.revision,
+            action: control.action,
+            boundary_source_sequence: String(this.sequence),
+          },
+        }),
+      ),
+      deadline,
+    );
+  }
+  async apply(control: Control, time: bigint, offset = 0) {
+    const deadline = this.controlDeadline(control);
+    const bytes = this.selectFrame(time, offset);
+    await this.capture(1, frameBatch([bytes]), deadline);
+    await this.captureAppliedClaim(control, deadline);
+    if (control.action === 'stop')
+      await this.capture(
+        3,
+        Buffer.from(
+          JSON.stringify({
+            transition_id: control.transition_id,
+            revision: control.revision,
+            reason: 'stop',
+            last_source_sequence: String(this.sequence),
+            last_source_event_sequence: String(this.eventSequence),
+            sim_time_ns: String(time),
+          }),
+        ),
+        deadline,
+      );
+    this.socket.send(bytes);
+    this.ack(control);
+    return readSessionFrame(bytes);
+  }
+  async claimOldBoundary(control: Control) {
+    assert(control.action === 'pause' || control.action === 'resume');
+    // Hostile source claim: Recording can retain it, but it must not authorize
+    // a transition without the required new boundary sequence. No live write.
+    await this.captureAppliedClaim(control, this.controlDeadline(control));
+  }
+  // Deliberately raw: negative cases must not acquire a new durable boundary.
   ack(control: Control) {
     this.socket.send(
       JSON.stringify({
@@ -172,6 +465,13 @@ class Peer {
         sim_time_ns: String(this.time),
       }),
     );
+  }
+  close() {
+    this.recordingWaiter?.reject(new Error('Owned source closed'));
+    clearTimeout(this.recordingTimer);
+    this.recordingTimer = undefined;
+    this.socket.terminate();
+    this.recording?.terminate();
   }
   async rejected() {
     const error = await this.message('motion.error');
@@ -285,7 +585,7 @@ export async function verifyMachineAuthority() {
     );
     const source = ownedPeer(scoped, admission);
     await source.ready();
-    const initial = source.frame();
+    const initial = await source.frame();
     assert.equal(initial.sim_time_ns, '0');
     const running = await authority(api, lab.id, session.id, 'running');
     records.push({
@@ -355,8 +655,7 @@ export async function verifyMachineAuthority() {
     await viewer.ready();
     await transition(original.id, 'pause');
     const pause = await f.source.control('pause');
-    const boundary = f.source.frame(100_000_000n, 0.4);
-    f.source.ack(pause);
+    const boundary = await f.source.apply(pause, 100_000_000n, 0.4);
     await authority(api, lab.id, original.id, 'paused');
     await eventually(
       async () => viewer.latest,
@@ -420,10 +719,9 @@ export async function verifyMachineAuthority() {
     await authority(api, crossLab.id, crossSession.id, 'interrupted');
     await transition(original.id, 'resume');
     const resume = await f.source.control('resume');
-    const anchor = f.source.frame(100_000_000n, 0.4);
+    const anchor = await f.source.apply(resume, 100_000_000n, 0.4);
     assert(BigInt(anchor.sequence) > BigInt(boundary.sequence));
     assert.equal(anchor.sim_time_ns, boundary.sim_time_ns);
-    f.source.ack(resume);
     await authority(api, lab.id, original.id, 'running');
     records.push({
       phase: 'valid-new-sequence-same-time-resume',
@@ -436,7 +734,13 @@ export async function verifyMachineAuthority() {
       { preferred_rate_hz: 30 },
       201,
     );
-    const reset = await transition(original.id, 'reset');
+    const [reset, resetBoundary] = await Promise.all([
+      transition(original.id, 'reset'),
+      (async () => {
+        const stop = await f.source.control('stop');
+        return f.source.apply(stop, 200_000_000n, 0.4);
+      })(),
+    ]);
     assert.notEqual(reset.id, original.id);
     assert.deepEqual(reset.snapshot, original.snapshot);
     await eventually(
@@ -456,6 +760,7 @@ export async function verifyMachineAuthority() {
     );
     records.push({
       phase: 'reset-old-scope-fenced',
+      durableStopBoundary: resetBoundary,
       ...(await ownedPeer(f.scoped, oldViewerTicket, 'viewer').rejected()),
     });
     let candidate = reset;
@@ -471,14 +776,15 @@ export async function verifyMachineAuthority() {
       await transition(candidate.id, 'pause');
       let control = await bound.source.control('pause');
       if (variant === 'old-resume') {
-        bound.source.frame(100_000_000n, 0.4);
-        bound.source.ack(control);
+        await bound.source.apply(control, 100_000_000n, 0.4);
         await authority(api, lab.id, candidate.id, 'paused');
         await transition(candidate.id, 'resume');
         control = await bound.source.control('resume');
       }
-      if (variant.startsWith('old-')) bound.source.ack(control);
-      else if (variant === 'malformed-pause')
+      if (variant.startsWith('old-')) {
+        await bound.source.claimOldBoundary(control);
+        bound.source.ack(control);
+      } else if (variant === 'malformed-pause')
         bound.source.socket.send(
           JSON.stringify({
             ...control,
@@ -554,6 +860,7 @@ export async function verifyMachineAuthority() {
     });
     throw error;
   } finally {
+    for (const peer of peers) peer.close();
     const results = await Promise.allSettled([
       closeSessionSockets(),
       api.json(

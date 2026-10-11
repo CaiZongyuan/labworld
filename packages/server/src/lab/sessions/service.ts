@@ -885,12 +885,38 @@ export class SimulationSessions {
             );
           }
         }
-        if (live.session.status === 'paused')
-          throw sessionFailure(
-            'session_paused',
-            'Paused source cannot emit new frames',
-            400,
-          );
+        if (live.session.status === 'paused') {
+          const pending = live.transition,
+            last = live.last;
+          const resetBoundary =
+            pending?.internal === true &&
+            !pending.ack &&
+            pending.control.action === 'stop' &&
+            pending.control.session_id === id &&
+            pending.control.epoch === live.session.epoch &&
+            pending.control.revision === live.session.revision + 1 &&
+            frame.epoch === BigInt(pending.control.epoch) &&
+            pending.baseline !== undefined &&
+            frame.sequence > pending.baseline &&
+            last !== undefined &&
+            frame.sequence > last.sequence &&
+            frame.sim_time_ns === last.sim_time_ns &&
+            now <= pending.deadline &&
+            !!digest &&
+            this.recording?.boundaryMatches(
+              id,
+              pending.control,
+              frame.sequence,
+              frame.sim_time_ns,
+              digest,
+            );
+          if (!resetBoundary)
+            throw sessionFailure(
+              'session_paused',
+              'Paused source cannot emit new frames',
+              400,
+            );
+        }
         if (!live.last || frame.sim_time_ns > live.last.sim_time_ns)
           live.progress = now;
         live.last = frame;
