@@ -63,14 +63,90 @@ export async function dialog(page: Page) {
   if (!(await current.isVisible())) {
     const toolbar = page.getByRole('button', { name: /^仿真会话/ });
     const deadline = performance.now() + 5000;
+    const phases: { phase: string; elapsedMs: number; remainingMs: number }[] =
+      [];
+    const diagnostic = process.env.DIALOG_DIAGNOSTIC === 'true';
+    const note = (phase: string) => {
+      if (diagnostic)
+        phases.push({
+          phase,
+          elapsedMs: performance.now() - (deadline - 5000),
+          remainingMs: deadline - performance.now(),
+        });
+    };
     const remaining = () => {
       const milliseconds = deadline - performance.now();
       assert(milliseconds > 0, 'Session toolbar readiness deadline expired');
       return milliseconds;
     };
-    await expect(toolbar).toBeVisible({ timeout: remaining() });
-    await expect(toolbar).toBeEnabled({ timeout: remaining() });
-    await toolbar.click({ timeout: remaining() });
+    try {
+      note('visible-start');
+      await expect(toolbar).toBeVisible({ timeout: remaining() });
+      note('enabled-start');
+      await expect(toolbar).toBeEnabled({ timeout: remaining() });
+      note('click-start');
+      await toolbar.click({ timeout: remaining() });
+      note('click-complete');
+    } catch (error) {
+      note('original-failure');
+      if (diagnostic) {
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          const state = await Promise.race([
+            toolbar.evaluate((node) => {
+              const box = node.getBoundingClientRect();
+              const hit = document.elementFromPoint(
+                box.x + box.width / 2,
+                box.y + box.height / 2,
+              );
+              const busy = document
+                .querySelector('.world-page')
+                ?.getAttribute('aria-busy');
+              return {
+                box: [box.x, box.y, box.width, box.height],
+                viewport: [innerWidth, innerHeight],
+                centerHit:
+                  box.width <= 0 || box.height <= 0
+                    ? 'no-box'
+                    : hit === node
+                      ? 'self'
+                      : hit && node.contains(hit)
+                        ? 'descendant'
+                        : hit
+                          ? 'other'
+                          : 'none',
+                modalCount: document.querySelectorAll('[aria-modal="true"]')
+                  .length,
+                backdropCount: document.querySelectorAll(
+                  '[data-slot="dialog-overlay"]',
+                ).length,
+                busy: busy === 'true' || busy === 'false' ? busy : 'missing',
+              };
+            }),
+            new Promise((resolve) => {
+              timer = setTimeout(() => resolve({ unavailable: true }), 750);
+            }),
+          ]);
+          receipt('dialog-failure-' + randomUUID(), {
+            phases,
+            observedAfterFailure: true,
+            state,
+          });
+        } catch {
+          // An observer failure must preserve the original action failure.
+        } finally {
+          clearTimeout(timer);
+        }
+      }
+      throw error;
+    }
+    if (diagnostic) {
+      try {
+        receipt('dialog-success-' + randomUUID(), { phases });
+      } catch {
+        // Read-only diagnostics do not determine the original journey verdict.
+      }
+    }
   }
   return current;
 }

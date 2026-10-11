@@ -114,3 +114,30 @@ test('timeout and action diagnostics retain only bounded facts and fixed states'
   });
   assert.equal(repeated.callLog.length, 12);
 });
+
+test('fractional Playwright deadlines keep bounded timeout facts without raw details', () => {
+  const secret = 'fake-secret-must-not-be-retained';
+  const action = publicFailure({
+    message:
+      'locator.click: Timeout 4922.812ms exceeded.\nCall Log:\n- <div token="' +
+      secret +
+      '"> intercepts pointer events',
+  });
+  assert.equal(action.timeoutKind, 'action');
+  assert.equal(action.timeoutMs, 4922.812);
+  assert.deepEqual(action.callLog, [
+    { event: 'actionability', state: 'pointer-intercepted' },
+  ]);
+  assert.ok(!JSON.stringify(action).includes(secret));
+  for (const message of [
+    'locator.' + secret + ': Timeout 4922.812ms exceeded.',
+    'locator.click: Timeout Infinityms exceeded.',
+    'locator.click: Timeout -0.1ms exceeded.',
+    'locator.click: Timeout 1.2.3ms exceeded.',
+    'locator.click: Timeout 1000000000.1ms exceeded.',
+  ]) {
+    const result = publicFailure({ message });
+    assert.equal(result.timeoutMs, null);
+    assert.ok(!JSON.stringify(result).includes(secret));
+  }
+});

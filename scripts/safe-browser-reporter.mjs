@@ -31,13 +31,16 @@ const protocolMethods = new Set([
   'DOM.getDocument',
 ]);
 const timeoutPatterns = [
-  ['case', /Test timeout of (\d+)ms exceeded/],
-  ['predicate', /Timeout (\d+)ms exceeded while waiting on the predicate/],
+  ['case', /Test timeout of (\d+(?:\.\d+)?)ms exceeded/],
+  [
+    'predicate',
+    /Timeout (\d+(?:\.\d+)?)ms exceeded while waiting on the predicate/,
+  ],
   [
     'action',
-    /(?:locator|page|mouse)\.(?:click|dblclick|fill|check|uncheck|selectOption|press|hover|screenshot|goto|move|waitForFunction): Timeout (\d+)ms exceeded/,
+    /(?:locator|page|mouse)\.(?:click|dblclick|fill|check|uncheck|selectOption|press|hover|screenshot|goto|move|waitForFunction): Timeout (\d+(?:\.\d+)?)ms exceeded/,
   ],
-  ['expect', /Timeout:\s*(\d+)ms/],
+  ['expect', /Timeout:\s*(\d+(?:\.\d+)?)ms/],
 ];
 const actionabilityPatterns = [
   [/element is not stable/, 'unstable'],
@@ -55,8 +58,15 @@ function boundedCount(value) {
 }
 function timeoutFacts(message) {
   for (const [kind, pattern] of timeoutPatterns) {
-    const milliseconds = boundedCount(pattern.exec(message)?.[1]);
-    if (milliseconds !== null) return { kind, milliseconds };
+    const value = pattern.exec(message)?.[1];
+    const milliseconds = Number(value);
+    if (
+      value !== undefined &&
+      Number.isFinite(milliseconds) &&
+      milliseconds >= 0 &&
+      milliseconds <= 1e9
+    )
+      return { kind, milliseconds };
   }
   return { kind: null, milliseconds: null };
 }
