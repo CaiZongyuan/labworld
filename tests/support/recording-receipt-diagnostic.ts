@@ -120,7 +120,7 @@ const uuid = (value: unknown) =>
     : null;
 export function serverPhases(log: string) {
   const rows: number[][] = [];
-  const bytes = Buffer.from(log, 'utf8');
+  const bytes = Buffer.from(log.slice(-65537), 'utf8');
   const start = Math.max(0, bytes.length - 65536);
   const lines = bytes.subarray(start).toString('utf8').split('\n');
   // A byte tail can start inside a multibyte character or a JSON line.

@@ -198,6 +198,24 @@ test('server projection uses a UTF-8 byte tail and drops its truncated first lin
   assert.deepEqual(serverPhases('界\n' + boundary), [[2, 503, 0, 0, 0, 0, 1]]);
 });
 
+test('server projection encodes bounded input even when the supplied log is large', () => {
+  const http = JSON.stringify({ event: 'http.request', status: 503 });
+  const log = '界'.repeat(1000000) + '\n' + http;
+  const originalFrom = Buffer.from;
+  let largestEncoded = 0;
+  try {
+    Buffer.from = ((value: unknown, ...rest: unknown[]) => {
+      if (typeof value === 'string')
+        largestEncoded = Math.max(largestEncoded, Buffer.byteLength(value));
+      return Reflect.apply(originalFrom, Buffer, [value, ...rest]);
+    }) as typeof Buffer.from;
+    assert.deepEqual(serverPhases(log), [[2, 503, 0, 0, 0, 0, 0]]);
+    assert(largestEncoded <= 3 * 65537);
+  } finally {
+    Buffer.from = originalFrom;
+  }
+});
+
 test('critical trace methods perform no await, timer, IO or payload mutation', async () => {
   const helper = await readFile(
     new URL('../support/recording-receipt-diagnostic.ts', import.meta.url),
