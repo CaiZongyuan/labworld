@@ -47,6 +47,18 @@ if (
           ),
       )
     : undefined;
+  globalThis[Symbol.for('lab-word.pressure-observer-seal')] = (request) => {
+    if (
+      request.expected_owner_pid !== process.pid ||
+      !/^[0-9a-f-]{36}$/.test(request.request_id ?? '')
+    )
+      return undefined;
+    return pressureProbe
+      ? pressureProbe.seal(request)
+      : pressureHealth.seal(request, () => {
+          throw new Error('Unavailable observer');
+        });
+  };
   const gateways = new Set();
   const stats = {
     pid: process.pid,

@@ -7,6 +7,7 @@ import struct
 import time
 import asyncio
 import sys
+import uuid
 
 
 def available(read):
@@ -23,12 +24,17 @@ class ObservationHealth:
         self.failed = False
         self.published = 0
         self.last_tuple_ms = None
+        self.instance_id = str(uuid.uuid4())
+        self.sealed_ack = None
+        self.last_poll = 0
 
     def status(self, final=False):
         return {'valid': not self.failed, 'category': 'pressure_observer_failed' if self.failed else None,
-                'published': self.published, 'lastTupleWallMs': self.last_tuple_ms, 'final': final}
+                'published': self.published, 'lastTupleWallMs': self.last_tuple_ms, 'final': final,
+                'owner': {'pid': os.getpid(), 'instanceId': self.instance_id}, 'sealed': self.sealed_ack is not None}
 
     def receipt(self, final=False):
+        if self.sealed_ack is not None: return
         try:
             root = Path(os.environ['SECURE_MOTION_SOURCE_WITNESS'])
             path = root / (self.role + '-' + self.session + '.pressure-health.json')
@@ -50,7 +56,7 @@ class ObservationHealth:
                 pass
 
     def observe(self, operation):
-        if self.failed:
+        if self.failed or self.sealed_ack is not None:
             return None
         try:
             return operation()
@@ -59,7 +65,43 @@ class ObservationHealth:
             self.receipt()
             return None
 
+    def poll_seal(self, publish):
+        now = time.monotonic_ns()
+        if self.sealed_ack is not None or now - self.last_poll < 1_000_000_000:
+            return
+        self.last_poll = now
+        try:
+            root = Path(os.environ['SECURE_MOTION_SOURCE_WITNESS'])
+            request = json.loads((root / (self.role + '-seal-request.json')).read_text())
+            if request.get('expected_owner_pid') != os.getpid() or request.get('sessionId') != self.session:
+                return
+            nonce = request.get('request_id', '')
+            uuid.UUID(nonce)
+            observed = time.time_ns() // 1_000_000
+            generation = self.published + 1
+            snapshot = None
+            try:
+                snapshot = publish()
+            except Exception:
+                self.invalidate()
+            self.sealed_ack = {'event': 'motion.observer_window_sealed', 'request_id': nonce,
+                'owner': {'pid': os.getpid(), 'instanceId': self.instance_id, 'clock': 'Python monotonic_ns'},
+                'publicationGeneration': generation, 'requestObservedEpochMs': observed,
+                'sealedEpochMs': time.time_ns() // 1_000_000, 'observerPersistence': self.status(),
+                'sealed': True, 'snapshot': snapshot}
+            target = root / (self.role + '-seal-ack.json')
+            temporary = target.with_suffix('.next')
+            with temporary.open('w', opener=lambda p, flags: os.open(p, flags, 0o600)) as handle:
+                handle.write(json.dumps(self.sealed_ack) + '\n')
+            temporary.replace(target)
+        except FileNotFoundError:
+            return
+        except Exception:
+            self.invalidate()
+
+
     def success(self):
+        if self.sealed_ack is not None: return
         self.published += 1
         self.last_tuple_ms = time.time_ns() // 1_000_000
         self.receipt()
@@ -86,11 +128,11 @@ class Facts:
         self.observation_ns = 0
         self.failure = None
 
-    def save(self, values):
-        if self.failure is not None:
+    def save(self, values, force=False):
+        if self.failure is not None or self.health.sealed_ack is not None:
             return
         now = time.monotonic_ns()
-        if now - self.previous < 1_000_000_000 or self.samples >= 181:
+        if not force and (now - self.previous < 1_000_000_000 or self.samples >= 181):
             return
         self.previous = now
         try:
@@ -100,7 +142,7 @@ class Facts:
         if window.get('sessionId') != self.session:
             return
         self.started = now if self.started is None else self.started
-        if now - self.started > 180_000_000_000:
+        if not force and now - self.started > 180_000_000_000:
             return
         begin = time.monotonic_ns()
         self.samples += 1
@@ -124,6 +166,7 @@ class Facts:
             handle.write(data)
         self.observation_ns += time.monotonic_ns() - begin
         self.health.success()
+        return row
 
     def observe(self, values):
         self.health.observe(lambda: self.save(values))
@@ -161,14 +204,16 @@ class SourceFacts(Facts):
         self.last_packet = sequence
         self.snapshot()
 
-    def snapshot(self):
-        self.observe({'selectionAttempts': self.selected, 'packetSendAttempts': self.attempts,
+    def snapshot(self, force=False):
+        values = {'selectionAttempts': self.selected, 'packetSendAttempts': self.attempts,
                    'uniquePacketSequences': self.unique, 'lastSourceSequence': self.last_sequence,
                    'lastPacketSequence': None if self.last_packet is None else str(self.last_packet),
                    'firstSelectedMonoNs': None if self.first_selected_ns is None else str(self.first_selected_ns),
                    'lastSelectedMonoNs': None if self.last_selected_ns is None else str(self.last_selected_ns),
                    'firstSimTimeNs': None if self.first_sim_ns is None else str(self.first_sim_ns),
-                   'lastSimTimeNs': None if self.last_sim_ns is None else str(self.last_sim_ns)})
+                   'lastSimTimeNs': None if self.last_sim_ns is None else str(self.last_sim_ns)}
+        if force: return self.save(values, force=True)
+        self.observe(values)
 
 
 class PeerFacts(Facts):
@@ -187,11 +232,10 @@ class PeerFacts(Facts):
                 'sndMss': struct.unpack_from('=I', data, 16)[0],
                 'rcvMss': struct.unpack_from('=I', data, 20)[0]}
 
-    async def observe(self):
-        while True:
-            transport = self.ws.transport
-            protocol = getattr(transport, '_ssl_protocol', None)
-            super().observe({'localAddress': self.local[0], 'localPort': self.local[1],
+    def values(self):
+        transport = self.ws.transport
+        protocol = getattr(transport, '_ssl_protocol', None)
+        return {'localAddress': self.local[0], 'localPort': self.local[1],
                        'remoteAddress': self.remote[0], 'remotePort': self.remote[1],
                        'recvBufferBytes': available(lambda: self.peer.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)),
                        'sendBufferBytes': available(lambda: self.peer.getsockopt(socket.SOL_SOCKET, socket.SO_SNDBUF)),
@@ -204,7 +248,12 @@ class PeerFacts(Facts):
                        'tlsIncomingPendingBytes': available(lambda: protocol._incoming.pending),
                        'sslDecryptedPendingBytes': available(lambda: protocol._sslobj.pending()),
                        'websocketQueuedFrames': available(lambda: len(self.ws.recv_messages.frames)),
-                       'websocketAssemblerPaused': available(lambda: self.ws.recv_messages.paused)})
+                       'websocketAssemblerPaused': available(lambda: self.ws.recv_messages.paused)}
+
+    async def observe(self):
+        while self.health.sealed_ack is None:
+            self.health.poll_seal(lambda: self.save(self.values(), force=True))
+            super().observe(self.values())
             await asyncio.sleep(1)
 
 

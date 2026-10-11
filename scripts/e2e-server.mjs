@@ -341,6 +341,41 @@ try {
       if (String(name) !== basename(controlFile)) return;
       controlling = controlling.then(async () => {
         const request = JSON.parse(await readFile(controlFile, 'utf8'));
+        if (secure && request.action === 'observer-health-barrier') {
+          if (
+            closed ||
+            request.expected_owner_pid !== backend.child?.pid ||
+            !/^[0-9a-f-]{36}$/.test(request.request_id ?? '')
+          )
+            return;
+          try {
+            const acknowledged = once(backend.child, 'message', {
+              signal: AbortSignal.timeout(1500),
+            });
+            backend.child.send(request, () => {});
+            const [ack] = await acknowledged;
+            if (
+              ack.event !== 'motion.observer_window_sealed' ||
+              ack.request_id !== request.request_id ||
+              ack.owner?.pid !== backend.child.pid
+            )
+              return;
+            await writeFile(
+              replyFile + '.next',
+              JSON.stringify({
+                request_id: request.request_id,
+                served_pid: backend.child.pid,
+                run_id: resources.data.runId,
+                ack,
+              }) + '\n',
+              { mode: 0o600 },
+            );
+            await rename(replyFile + '.next', replyFile);
+          } catch {
+            /* ACK unavailable; never terminates the production owner. */
+          }
+          return;
+        }
         if (closed || request.revision <= handled) return;
         handled = request.revision;
         let facts;

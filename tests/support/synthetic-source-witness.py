@@ -52,14 +52,18 @@ def capture(self, frame, sequence, immediate=False):
     # The bytes and timing policy are never replaced by the witness.
     append(self.scope, 'frames', frame)
     if os.environ.get('TLS_PRESSURE_PROBE_DIR'):
-        observation_health('source', self.scope['session_id']).observe(lambda: pressure_owner(self.scope).capture(frame, sequence))
+        health = observation_health('source', self.scope['session_id'])
+        health.poll_seal(lambda: pressure_owner(self.scope).snapshot(force=True))
+        health.observe(lambda: pressure_owner(self.scope).capture(frame, sequence))
     return original_capture(self, frame, sequence, immediate)
 
 
 async def send(self, packet):
     append(self.scope, 'packets', packet)
     if os.environ.get('TLS_PRESSURE_PROBE_DIR'):
-        observation_health('source', self.scope['session_id']).observe(lambda: pressure_owner(self.scope).packet(packet))
+        health = observation_health('source', self.scope['session_id'])
+        health.poll_seal(lambda: pressure_owner(self.scope).snapshot(force=True))
+        health.observe(lambda: pressure_owner(self.scope).packet(packet))
     return await original_send(self, packet)
 
 

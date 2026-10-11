@@ -39,7 +39,11 @@ import { readSessionFrame } from './simulation-session-oracle';
 import { OwnedMotionActor } from './secure-motion-source';
 import { assertPrivateDenial } from './secure-motion-oracle';
 import { assertSourceWitness } from './secure-source-witness';
-import { pressureWindow, pressureFailure } from './tls-pressure-diagnostic';
+import {
+  pressureWindow,
+  pressureFailure,
+  sealPressureWindow,
+} from './tls-pressure-diagnostic';
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 
@@ -948,6 +952,7 @@ test('TLS slow reader pressure: actual encrypted TCP buffering stays bounded whi
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
     pressureFailure();
+    await sealPressureWindow(active.id);
     assert(pressure && pressure.encrypted && !pressure.open);
     assert(pressure.maxBufferBytes > 65536);
     assert.equal(pressure.closeReason, 'slow_viewer');

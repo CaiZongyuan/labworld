@@ -102,7 +102,13 @@ export class TlsPressureObserver {
     }
   }
   sample() {
-    if (this.child || this.samples >= 181 || this.stopped) return;
+    if (
+      this.health.isSealed() ||
+      this.child ||
+      this.samples >= 181 ||
+      this.stopped
+    )
+      return;
     let window;
     try {
       window = JSON.parse(
@@ -131,6 +137,7 @@ export class TlsPressureObserver {
     );
     if (!matched) return;
     const [ws, row] = matched;
+    this.lastTarget = matched;
     const started = performance.now();
     const socket = ws._socket;
     const value = {
@@ -248,6 +255,41 @@ export class TlsPressureObserver {
           token: this.childToken,
         });
       });
+    });
+  }
+  seal(request) {
+    clearInterval(this.timer);
+    return this.health.seal(request, (publicationGeneration) => {
+      const window = JSON.parse(
+        readFileSync(join(this.directory, 'window.json'), 'utf8'),
+      );
+      const matched =
+        [...this.sockets].find(
+          ([, row]) =>
+            row.remotePort === window.clientPort &&
+            row.localPort === window.serverPort,
+        ) ?? this.lastTarget;
+      if (!matched) throw new Error('No current owned observation');
+      const [ws, row] = matched;
+      const snapshot = {
+        captureId: `${process.pid}:${request.request_id}:${publicationGeneration}`,
+        wallMs: Date.now(),
+        nodeMonoNs: process.hrtime.bigint().toString(),
+        clock: 'Node hrtime/performance; own clock only',
+        localPort: row.localPort,
+        remotePort: row.remotePort,
+        open: row.open,
+        wsBufferedAmount: numberFact(ws.bufferedAmount),
+        tlsWritableLength: numberFact(ws._socket?.writableLength),
+        counts: { ...this.counts.get(row.id) },
+        ss: {
+          available: false,
+          reason:
+            'kernel state supplied by last separately timestamped ss tuple',
+        },
+      };
+      if (!this.save('sealed-server.json', snapshot)) this.health.invalidate();
+      return snapshot;
     });
   }
   stop() {

@@ -7,7 +7,25 @@ await run(undefined, {
   clock: { now: () => new Date(Date.now() + offset).toISOString() },
 });
 process.on('message', (message) => {
-  const request = message as { action?: string };
+  const request = message as {
+    action?: string;
+    request_id?: string;
+    expected_owner_pid?: number;
+  };
+  if (request.action === 'observer-health-barrier') {
+    try {
+      const seal = (
+        globalThis as typeof globalThis & {
+          [key: symbol]: ((input: unknown) => unknown) | undefined;
+        }
+      )[Symbol.for('lab-word.pressure-observer-seal')];
+      const reply = seal?.(request);
+      if (reply) process.send?.(reply, () => {});
+    } catch {
+      /* Missing ACK remains invalid evidence; native owner continues. */
+    }
+    return;
+  }
   if (
     request.action !== 'expire-machine-clock' &&
     request.action !== 'reset-machine-clock'
