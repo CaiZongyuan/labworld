@@ -4,6 +4,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { observerWriter } from './observer-persistence.mjs';
 
 const entry = process.argv[1] ?? '';
 const controlledClockEntry = /\/tests\/support\/secure-expiry-server\.ts$/.test(
@@ -31,7 +32,6 @@ if (
     )
   );
   const directory = process.env.MOTION_E2E_OBSERVER_DIR;
-  mkdirSync(directory, { recursive: true });
   const target = join(directory, `${process.pid}.json`);
   const scope = new AsyncLocalStorage();
   const sockets = new Map();
@@ -211,24 +211,33 @@ if (
     stats.gatewayTimerAfterStop = this.timer === undefined ? 0 : 1;
     return result;
   };
+  const persistence = observerWriter(
+    (observerPersistence) => {
+      const sample = {
+        ...stats,
+        observerPersistence,
+        liveSockets: sockets.size,
+        liveGateways: gateways.size,
+        rssBytes: process.memoryUsage().rss,
+        at: new Date().toISOString(),
+      };
+      mkdirSync(directory, { recursive: true });
+      writeFileSync(target + '.next', JSON.stringify(sample) + '\n', {
+        mode: 0o600,
+      });
+      renameSync(target + '.next', target);
+    },
+    (notice) => console.log(JSON.stringify(notice)),
+  );
   function save() {
-    const sample = {
-      ...stats,
-      liveSockets: sockets.size,
-      liveGateways: gateways.size,
-      rssBytes: process.memoryUsage().rss,
-      at: new Date().toISOString(),
-    };
-    writeFileSync(target + '.next', JSON.stringify(sample) + '\n', {
-      mode: 0o600,
-    });
-    renameSync(target + '.next', target);
+    persistence.save();
   }
   const timer = setInterval(save, 1000);
   timer.unref();
   process.once('exit', () => {
     clearInterval(timer);
     save();
+    persistence.finalNotice();
   });
   save();
 }

@@ -317,6 +317,7 @@ export async function offlineCloseProbe(page: Page, output: string) {
     );
     const server: Record<string, unknown>[] = [];
     let serverReadError = false;
+    let serverPersistenceInvalid = false;
     try {
       const directory = process.env.MOTION_E2E_OBSERVER_DIR!;
       for (const file of readdirSync(directory).filter((name) =>
@@ -328,6 +329,7 @@ export async function offlineCloseProbe(page: Page, output: string) {
           pid: number;
           clockTimeOriginMs: number;
           at: string;
+          observerPersistence?: { valid: boolean; category: string | null };
           sockets: {
             id: number;
             role: string;
@@ -341,6 +343,8 @@ export async function offlineCloseProbe(page: Page, output: string) {
             remotePort: number;
           }[];
         };
+        if (facts.observerPersistence?.valid !== true)
+          serverPersistenceInvalid = true;
         for (const row of facts.sockets)
           if (
             row.role === 'viewer' &&
@@ -361,6 +365,7 @@ export async function offlineCloseProbe(page: Page, output: string) {
               remotePort: row.remotePort,
               clock: 'server performance.timeOrigin + performance.now',
               observerWrittenAt: facts.at,
+              observerPersistence: facts.observerPersistence,
               closedEpochMs:
                 row.closedAt === null
                   ? null
@@ -390,12 +395,17 @@ export async function offlineCloseProbe(page: Page, output: string) {
       correlationValid:
         !overflow &&
         !serverReadError &&
+        !serverPersistenceInvalid &&
         active.length === 1 &&
         !!active[0]?.keySha256 &&
         server.length === 1 &&
         server[0].encrypted === true,
       observerOverflow: overflow,
       serverReadError,
+      serverPersistenceInvalid,
+      diagnosticEvidenceValidity: 'pending_owned_server_log_readback',
+      requiredFinalServerMarker: 'motion.observer_persistence_final',
+      invalidServerMarker: 'motion.observer_write_failed',
     };
     writeReport(output, report);
   }
