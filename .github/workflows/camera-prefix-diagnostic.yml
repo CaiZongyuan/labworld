@@ -48,6 +48,7 @@ jobs:
           node .scratch/camera-prefix-ci/verify.mjs
       - name: Discover exactly one diagnostic case without runtime
         run: |
+          set -o pipefail
           pnpm exec playwright test --config .scratch/camera-prefix-ci/playwright.config.ts .scratch/camera-prefix-ci/camera-prefix.spec.ts --list --reporter=list | tee .scratch/camera-prefix-ci-evidence/discovery.txt
           node --input-type=module <<'NODE'
           import { readFileSync } from 'node:fs';

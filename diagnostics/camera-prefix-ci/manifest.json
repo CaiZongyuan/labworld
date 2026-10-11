@@ -6007,7 +6007,7 @@
   ],
   "workflow": {
     "path": ".github/workflows/camera-prefix-diagnostic.yml",
-    "sha256": "2ea36995769ac059f27585f1a1e6eb6c6e3c3541e715060bf005fdc140b5ed09"
+    "sha256": "81db77b766c2eb5a539094a320b0fdc98766f69cbb593eef34f80bb37c4e528d"
   },
   "meaning": "Relative hashes bind all frozen tracked product files, build inputs, fixtures, configuration and dependency locks. Symlink hashes cover link text. Diagnostic workflow identity is separate."
 }
