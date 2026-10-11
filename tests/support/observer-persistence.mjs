@@ -1,6 +1,7 @@
 /** Observer failures must neither escape a target listener nor become valid evidence. */
 export function observerWriter(publish, notify) {
   let failed = false;
+  let generation = 0;
   const status = () => ({
     valid: !failed,
     category: failed ? 'observer_write_failed' : null,
@@ -9,14 +10,21 @@ export function observerWriter(publish, notify) {
     try {
       notify({ event, observerPersistence: status() });
     } catch {
-      // A missing final marker leaves evidence unconfirmed; target cleanup continues.
+      failed = true;
     }
   }
   return {
     status,
+    generation: () => generation,
+    markInvalid() {
+      const first = !failed;
+      failed = true;
+      if (first) notice('motion.observer_write_failed');
+    },
     save() {
       try {
-        publish(status());
+        publish(status(), generation + 1);
+        generation++;
       } catch {
         const first = !failed;
         failed = true;

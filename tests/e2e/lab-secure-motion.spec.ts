@@ -253,21 +253,6 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     const recoveryDialog = await dialog(page);
     await probe.begin(active.id);
     await page.context().setOffline(true);
-    probe.startPredicate();
-    let predicateOutcome: 'passed' | 'failed' = 'failed';
-    try {
-      await expect
-        .poll(() => closedViewerSockets)
-        .toBeGreaterThan(closedBefore);
-      predicateOutcome = 'passed';
-    } finally {
-      await probe.capture({
-        outcome: predicateOutcome,
-        expectedGreaterThan: closedBefore,
-        actual: closedViewerSockets,
-        budgetMs: 5000,
-      });
-    }
     await expect(
       recoveryDialog.getByRole('status', { name: '运动接收' }),
     ).toContainText('运动过期');
@@ -280,8 +265,26 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
         BigInt(sequence) > BigInt(secondBefore.nodes[0].sequence) + 5n,
     );
     assert.deepEqual((await displayed(page))?.nodes, frozen.nodes);
+    await probe.capture({
+      outcome: 'not_run',
+      expectedGreaterThan: firstTickets,
+      actual: signed,
+      budgetMs: 5000,
+    });
     await page.context().setOffline(false);
-    await expect.poll(() => signed).toBeGreaterThan(firstTickets);
+    probe.startPredicate();
+    let predicateOutcome: 'passed' | 'failed' = 'failed';
+    try {
+      await expect.poll(() => signed).toBeGreaterThan(firstTickets);
+      predicateOutcome = 'passed';
+    } finally {
+      probe.recordRecovery({
+        outcome: predicateOutcome,
+        expectedGreaterThan: firstTickets,
+        actual: signed,
+        budgetMs: 5000,
+      });
+    }
     await eventually(
       async () => displayed(page),
       (value) =>
@@ -377,6 +380,10 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       active.id,
       successorRead.records,
       true,
+    );
+    assert(
+      await probe.observeRelease(),
+      'Old Viewer connection and registration must release after network return and Session cleanup',
     );
     receipt('secure-wss-real-journey', {
       scope:

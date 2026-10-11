@@ -1,4 +1,5 @@
 import { once } from 'node:events';
+import { ownedObserverWindow } from '../tests/support/observer-health.ts';
 import { spawnSync, execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
@@ -322,13 +323,39 @@ try {
   const controlFile = join(backend.evidence, 'service-control.json'),
     replyFile = join(backend.evidence, 'service-control-reply.json');
   if (secure || statusControl || reference) {
-    let handled = 0,
+    let lastHealthRequest,
+      handled = 0,
       controlling = Promise.resolve();
     await writeFile(controlFile, JSON.stringify({ revision: 0 }));
     watcher = watch(dirname(controlFile), (_event, name) => {
       if (String(name) !== basename(controlFile)) return;
       controlling = controlling.then(async () => {
         const request = JSON.parse(await readFile(controlFile, 'utf8'));
+        if (secure && request.action === 'observer-health-barrier') {
+          if (
+            closed ||
+            request.request_id === lastHealthRequest ||
+            !/^[0-9a-f-]{36}$/.test(request.request_id ?? '')
+          )
+            return;
+          lastHealthRequest = request.request_id;
+          try {
+            const health = await ownedObserverWindow(
+              backend.child,
+              request,
+              resources.data.runId,
+            );
+            await writeFile(replyFile + '.next', JSON.stringify(health), {
+              mode: 0o600,
+            });
+            await rename(replyFile + '.next', replyFile);
+          } catch {
+            console.log(
+              JSON.stringify({ event: 'motion.observer_health_unconfirmed' }),
+            );
+          }
+          return;
+        }
         if (closed || request.revision <= handled) return;
         handled = request.revision;
         let facts;

@@ -1,10 +1,15 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { Page, WebSocket as BrowserSocket } from '@playwright/test';
+import {
+  requestObserverWindow,
+  type ObserverOwner,
+  type ObserverWindow,
+} from '../support/observer-health.ts';
 
 type Predicate = {
-  outcome: 'passed' | 'failed';
+  outcome: 'not_run' | 'passed' | 'failed';
   expectedGreaterThan: number;
   actual: number;
   budgetMs: 5000;
@@ -48,6 +53,7 @@ export async function offlineCloseProbe(page: Page, output: string) {
   let session: string | undefined;
   let actionEpochMs: number | undefined;
   let predicateStartedEpochMs: number | undefined;
+  let oldKey: string | undefined;
   const created = (event: { requestId: string; url: string }) => {
     const id = viewerSession(event.url);
     if (!id) return;
@@ -315,21 +321,40 @@ export async function offlineCloseProbe(page: Page, output: string) {
         (row.closedObservedEpochMs === undefined ||
           row.closedObservedEpochMs >= (actionEpochMs ?? 0)),
     );
+    oldKey =
+      active.length === 1 ? (active[0].keySha256 ?? undefined) : undefined;
     const server: Record<string, unknown>[] = [];
     let serverReadError = false;
     let serverPersistenceInvalid = false;
+    let healthBarrier:
+      Awaited<ReturnType<typeof requestObserverWindow>> | undefined;
     try {
       const directory = process.env.MOTION_E2E_OBSERVER_DIR!;
-      for (const file of readdirSync(directory).filter((name) =>
-        name.endsWith('.json'),
-      )) {
-        const facts = JSON.parse(
-          readFileSync(join(directory, file), 'utf8'),
-        ) as {
+      const pid = Number(readFileSync(process.env.E2E_API_PID_FILE!, 'utf8'));
+      let cached: {
+        publicationGeneration?: number;
+        observerOwner?: ObserverOwner;
+      } = {};
+      try {
+        cached = JSON.parse(
+          readFileSync(join(directory, pid + '.json'), 'utf8'),
+        );
+      } catch {
+        /* ACK remains the current owner proof. */
+      }
+      healthBarrier = await requestObserverWindow(
+        oldKey ?? '',
+        cached.publicationGeneration ?? 0,
+        cached.observerOwner,
+      );
+      const ack = (healthBarrier.health as { health?: ObserverWindow } | null)
+        ?.health;
+      if (!healthBarrier.assessment.valid || !ack?.snapshot)
+        serverPersistenceInvalid = true;
+      if (healthBarrier.assessment.valid && ack?.snapshot) {
+        const facts = ack.snapshot as {
           pid: number;
           clockTimeOriginMs: number;
-          at: string;
-          observerPersistence?: { valid: boolean; category: string | null };
           sockets: {
             id: number;
             role: string;
@@ -341,10 +366,9 @@ export async function offlineCloseProbe(page: Page, output: string) {
             closedAt: number | null;
             closeRequestedAt: number | null;
             remotePort: number;
+            gatewayRegistrations: number;
           }[];
         };
-        if (facts.observerPersistence?.valid !== true)
-          serverPersistenceInvalid = true;
         for (const row of facts.sockets)
           if (
             row.role === 'viewer' &&
@@ -364,8 +388,10 @@ export async function offlineCloseProbe(page: Page, output: string) {
               encrypted: row.encrypted,
               remotePort: row.remotePort,
               clock: 'server performance.timeOrigin + performance.now',
-              observerWrittenAt: facts.at,
-              observerPersistence: facts.observerPersistence,
+              sealedEpochMs: ack.sealedEpochMs,
+              publicationGeneration: ack.publicationGeneration,
+              observerPersistence: ack.observerPersistence,
+              gatewayRegistrations: row.gatewayRegistrations,
               closedEpochMs:
                 row.closedAt === null
                   ? null
@@ -387,6 +413,7 @@ export async function offlineCloseProbe(page: Page, output: string) {
       predicateStartedEpochMs,
       capturedEpochMs,
       originalPredicate: predicate,
+      predicateName: 'post-online fresh 201 Viewer ticket within original 5s',
       beforeNetworkRestoreAndTeardown: true,
       dom,
       browser,
@@ -403,9 +430,10 @@ export async function offlineCloseProbe(page: Page, output: string) {
       observerOverflow: overflow,
       serverReadError,
       serverPersistenceInvalid,
-      diagnosticEvidenceValidity: 'pending_owned_server_log_readback',
-      requiredFinalServerMarker: 'motion.observer_persistence_final',
-      invalidServerMarker: 'motion.observer_write_failed',
+      healthBarrier,
+      diagnosticEvidenceValidity: healthBarrier?.assessment.valid
+        ? 'current_owned_window_confirmed'
+        : 'unconfirmed_or_invalid',
     };
     writeReport(output, report);
   }
@@ -448,6 +476,35 @@ export async function offlineCloseProbe(page: Page, output: string) {
       predicateStartedEpochMs = epochNow();
     },
     capture,
+    recordRecovery(predicate: Predicate) {
+      writeReport(output + '.recovery.json', {
+        predicateName: 'post-online fresh 201 Viewer ticket within original 5s',
+        originalPredicate: predicate,
+        predicateStartedEpochMs,
+        completedEpochMs: epochNow(),
+      });
+    },
+    async observeRelease() {
+      const health = await requestObserverWindow(oldKey ?? '', 0).catch(
+        () => undefined,
+      );
+      const ack = (health?.health as { health?: ObserverWindow } | null)
+        ?.health;
+      const rows = ack?.snapshot?.sockets as
+        { open: boolean; gatewayRegistrations: number }[] | undefined;
+      const released =
+        health?.assessment.valid === true &&
+        rows?.length === 1 &&
+        rows[0].open === false &&
+        rows[0].gatewayRegistrations === 0;
+      writeReport(output + '.release.json', {
+        afterNetworkReturn: true,
+        beforeTeardown: true,
+        health,
+        released,
+      });
+      return released;
+    },
     dispose,
   };
 }

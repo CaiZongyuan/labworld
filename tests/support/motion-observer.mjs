@@ -1,10 +1,11 @@
 import { AsyncLocalStorage } from 'node:async_hooks';
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { dirname, resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 import { observerWriter } from './observer-persistence.mjs';
+import { sealObserverWindow } from './observer-health.ts';
 
 const entry = process.argv[1] ?? '';
 const controlledClockEntry = /\/tests\/support\/secure-expiry-server\.ts$/.test(
@@ -34,11 +35,19 @@ if (
   const directory = process.env.MOTION_E2E_OBSERVER_DIR;
   const target = join(directory, `${process.pid}.json`);
   const scope = new AsyncLocalStorage();
+  const joining = new AsyncLocalStorage();
+  const transportRows = new WeakMap();
   const sockets = new Map();
   const gateways = new Set();
+  const owner = {
+    pid: process.pid,
+    clockTimeOriginMs: performance.timeOrigin,
+    instanceId: randomUUID(),
+  };
   const stats = {
     pid: process.pid,
     clockTimeOriginMs: performance.timeOrigin,
+    observerOwner: owner,
     boundary:
       'read-only actual production ws/gateway observer; no target-side blocking or value substitution',
     sockets: [],
@@ -133,6 +142,14 @@ if (
             )
           )
             row.admitted = true;
+          if (
+            JSON.parse(data).type === 'motion.welcome' &&
+            row.role === 'viewer'
+          ) {
+            const transport = joining.getStore();
+            if (transport && typeof transport === 'object')
+              transportRows.set(transport, row.id);
+          }
         } catch {
           // Non-JSON traffic is not an authenticated WELCOME.
         }
@@ -159,7 +176,7 @@ if (
   const joinGateway = MotionGateway.prototype.join;
   MotionGateway.prototype.join = function (...args) {
     gateways.add(this);
-    return joinGateway.apply(this, args);
+    return joining.run(args[3], () => joinGateway.apply(this, args));
   };
   const publish = MotionGateway.prototype.publish;
   MotionGateway.prototype.publish = function (...args) {
@@ -212,10 +229,11 @@ if (
     return result;
   };
   const persistence = observerWriter(
-    (observerPersistence) => {
+    (observerPersistence, publicationGeneration) => {
       const sample = {
         ...stats,
         observerPersistence,
+        publicationGeneration,
         liveSockets: sockets.size,
         liveGateways: gateways.size,
         rssBytes: process.memoryUsage().rss,
@@ -232,6 +250,50 @@ if (
   function save() {
     persistence.save();
   }
+  process.on('message', (request) => {
+    if (
+      !request ||
+      request.action !== 'observer-health-barrier' ||
+      request.expected_owner_pid !== process.pid ||
+      !/^[0-9a-f-]{36}$/.test(request.request_id ?? '')
+    )
+      return;
+    const ack = sealObserverWindow(
+      request.request_id,
+      owner,
+      persistence,
+      () => ({
+        pid: process.pid,
+        clockTimeOriginMs: performance.timeOrigin,
+        publicationGeneration: persistence.generation(),
+        sockets: stats.sockets
+          .filter(
+            (row) =>
+              row.role === 'viewer' &&
+              row.handshakeKeySha256 === request.key_sha256,
+          )
+          .map((row) => ({
+            ...row,
+            gatewayRegistrations: [...gateways]
+              .flatMap((gateway) =>
+                [...gateway.sessions.values()].flatMap((session) => [
+                  ...session.viewers,
+                ]),
+              )
+              .filter(
+                (viewer) => transportRows.get(viewer.transport) === row.id,
+              ).length,
+          })),
+      }),
+    );
+    try {
+      process.send?.(ack, (error) => {
+        if (error) persistence.markInvalid();
+      });
+    } catch {
+      persistence.markInvalid();
+    }
+  });
   const timer = setInterval(save, 1000);
   timer.unref();
   process.once('exit', () => {
