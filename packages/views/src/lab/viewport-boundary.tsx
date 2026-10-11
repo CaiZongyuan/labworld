@@ -1,3 +1,4 @@
+import { observeLabRender } from './render-probe';
 import { Component, type ReactNode } from 'react';
 
 export class ViewportBoundary extends Component<
@@ -5,7 +6,8 @@ export class ViewportBoundary extends Component<
   { failed: boolean }
 > {
   state = { failed: false };
-  static getDerivedStateFromError() {
+  static getDerivedStateFromError(cause: unknown) {
+    observeLabRender({ producer: 'boundary', stage: 'boundary', cause });
     return { failed: true };
   }
   componentDidUpdate(previous: { resetKey: string }) {

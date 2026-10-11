@@ -1,3 +1,4 @@
+import { observeLabRender } from './render-probe';
 import {
   Box3,
   InstancedMesh,
@@ -72,6 +73,12 @@ async function parseModel(
   id: string,
   renderer: WebGLRenderer,
 ): Promise<LoadedModel> {
+  observeLabRender({
+    producer: 'loader',
+    stage: 'validate',
+    asset: id,
+    renderer,
+  });
   validateGLB(buffer);
   const decoderPath = `${import.meta.env.BASE_URL}lab-assets/decoders/`;
   const draco = new DRACOLoader().setDecoderPath(`${decoderPath}draco/`);
@@ -81,6 +88,12 @@ async function parseModel(
   let resourceFailed = false;
   const manager = new LoadingManager();
   manager.onError = () => {
+    observeLabRender({
+      producer: 'resource',
+      stage: 'resource-error',
+      asset: id,
+      renderer,
+    });
     resourceFailed = true;
   };
   try {
@@ -88,11 +101,23 @@ async function parseModel(
       .setDRACOLoader(draco)
       .setKTX2Loader(ktx)
       .setMeshoptDecoder(MeshoptDecoder);
+    observeLabRender({
+      producer: 'loader',
+      stage: 'parse',
+      asset: id,
+      renderer,
+    });
     const gltf = await loader.parseAsync(buffer, '');
     if (resourceFailed) {
       disposeModel(gltf.scene);
       throw new ModelImportError('failed');
     }
+    observeLabRender({
+      producer: 'loader',
+      stage: 'bounds',
+      asset: id,
+      renderer,
+    });
     gltf.scene.updateMatrixWorld(true);
     const bounds = new Box3().setFromObject(gltf.scene);
     const size = bounds.getSize(new Vector3());
@@ -173,6 +198,8 @@ export function useLoadedModel(
     setError(null);
     void (async () => {
       try {
+        let stage = 'download';
+        observeLabRender({ producer: 'loader', stage, asset: id, renderer });
         let url = input;
         let headers: Record<string, string> | undefined;
         if (remote && apiClient) {
@@ -185,20 +212,48 @@ export function useLoadedModel(
           url = data.url;
           headers = data.headers;
         }
+        stage = 'response';
+        observeLabRender({ producer: 'loader', stage, asset: id, renderer });
         const response = await fetch(url, {
           headers,
           signal: controller.signal,
         });
         if (!response.ok) throw new ModelImportError('failed');
+        observeLabRender({
+          producer: 'loader',
+          stage: 'response',
+          asset: id,
+          renderer,
+        });
+        observeLabRender({
+          producer: 'loader',
+          stage: 'bytes',
+          asset: id,
+          renderer,
+        });
         const buffer = await response.arrayBuffer();
         const next = await parseModel(buffer, id, renderer);
         if (controller.signal.aborted) {
           disposeModel(next.scene);
           return;
         }
+        observeLabRender({
+          producer: 'loader',
+          stage: 'complete',
+          asset: id,
+          renderer,
+        });
         setModel(next);
         onInfo(id, next.info);
       } catch (cause) {
+        observeLabRender({
+          producer: 'loader',
+          stage: 'caught',
+          asset: id,
+          renderer,
+          cause,
+          aborted: controller.signal.aborted,
+        });
         if (!controller.signal.aborted)
           setError(cause instanceof ModelImportError ? cause.key : 'failed');
       } finally {

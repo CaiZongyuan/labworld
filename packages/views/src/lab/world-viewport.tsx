@@ -1,3 +1,4 @@
+import { observeLabRender } from './render-probe';
 import {
   memo,
   Suspense,
@@ -463,10 +464,16 @@ function Imported({
   useEffect(() => {
     if (model?.id === asset.id) onReady();
   }, [model, asset.id, onReady]);
-  useEffect(
-    () => onError(nodeId, appearance, !!error),
-    [nodeId, appearance, error, onError],
-  );
+  useEffect(() => {
+    observeLabRender({
+      producer: 'appearance',
+      stage: error ? 'appearance-failed' : 'appearance-cleared',
+      node: nodeId,
+      appearance,
+      key: error,
+    });
+    return onError(nodeId, appearance, !!error);
+  }, [nodeId, appearance, error, onError]);
   if (!model) return null;
   const center = model.bounds.getCenter(new Vector3());
   return (

@@ -1,3 +1,4 @@
+import { lab334Probe } from './lab334-probe';
 import { expectInitialSceneReady } from './initial-scene-ready';
 import {
   expect,
@@ -103,323 +104,364 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   browser,
 }) => {
   test.setTimeout(150000);
-  const errors: string[] = [];
-  page.on('pageerror', (error) => errors.push(error.name));
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.goto('/register');
-  await page
-    .getByLabel('邮箱', { exact: true })
-    .fill(`world-${Date.now()}@example.test`);
-  await page
-    .getByLabel('密码', { exact: true })
-    .fill('world-browser-test-password');
-  await page.getByRole('button', { name: '创建账号' }).click();
-  await expect(page).toHaveURL(/\/lab$/);
-  await page.getByRole('link', { name: '资产库', exact: true }).click();
-  await page
-    .getByLabel('GLB 文件')
-    .setInputFiles('tests/fixtures/lab/cube-draco.glb');
-  await page
-    .getByRole('dialog')
-    .getByRole('button', { name: '发布资产' })
-    .click();
-  await expect(page.getByText('cube-draco.glb', { exact: true })).toBeVisible();
-  await page.getByRole('link', { name: 'Lab', exact: true }).click();
-  await page.getByRole('button', { name: '创建 Lab' }).click();
-  let dialog = page.getByRole('dialog');
-  await dialog
-    .getByLabel('名称', { exact: true })
-    .fill('Persistent identity lab');
-  await dialog.getByRole('button', { name: '创建', exact: true }).click();
-  await expect(
-    page.getByRole('heading', { name: 'Persistent identity lab', exact: true }),
-  ).toBeVisible();
-  for (const name of ['Cube A', 'Cube B']) {
-    await page.getByRole('button', { name: '登记对象', exact: true }).click();
-    dialog = page.getByRole('dialog');
-    await dialog.getByLabel('定义版本').selectOption('model@1.0');
-    await dialog
-      .getByLabel('外观表示')
-      .selectOption({ label: 'cube-draco · 1.0' });
-    await dialog.getByLabel('名称', { exact: true }).fill(name);
-    await dialog.getByRole('button', { name: '登记', exact: true }).click();
+  const probe = await lab334Probe();
+  await probe.watch(page, 'first');
+  try {
+    const errors: string[] = [];
+    page.on('pageerror', (error) => errors.push(error.name));
+    await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.goto('/register');
+    await page
+      .getByLabel('邮箱', { exact: true })
+      .fill(`world-${Date.now()}@example.test`);
+    await page
+      .getByLabel('密码', { exact: true })
+      .fill('world-browser-test-password');
+    await page.getByRole('button', { name: '创建账号' }).click();
+    await expect(page).toHaveURL(/\/lab$/);
+    await page.getByRole('link', { name: '资产库', exact: true }).click();
+    await page
+      .getByLabel('GLB 文件')
+      .setInputFiles('tests/fixtures/lab/cube-draco.glb');
+    await page
+      .getByRole('dialog')
+      .getByRole('button', { name: '发布资产' })
+      .click();
     await expect(
-      page.getByRole('button', { name: `选择 ${name}`, exact: true }),
+      page.getByText('cube-draco.glb', { exact: true }),
     ).toBeVisible();
-  }
-  await page.getByRole('button', { name: '性能', exact: true }).click();
-  const geometries = page
-    .locator('.lab-perf-stats > div')
-    .filter({ has: page.getByText('Geometries', { exact: true }) })
-    .locator('dd');
-  const triangles = page
-    .locator('.lab-perf-stats > div')
-    .filter({ has: page.getByText('三角形', { exact: true }) })
-    .locator('dd');
-  await expect
-    .poll(async () => Number((await triangles.innerText()).replaceAll(',', '')))
-    .toBeGreaterThanOrEqual(24);
-  await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
-  await expectCanvasPixels(page);
-  await page.getByRole('button', { name: '选择 Cube A', exact: true }).click();
-  const inspector = page.getByRole('complementary', { name: '对象信息' });
-  await showEntityDetails(page);
-  const labId = await inspector
-    .locator('dt')
-    .filter({ hasText: /^Lab$/ })
-    .locator('+ dd')
-    .innerText();
-  const firstId = await inspector
-    .locator('dt')
-    .filter({ hasText: /^Entity$/ })
-    .locator('+ dd')
-    .innerText();
-  await page.getByRole('button', { name: '选择 Cube B', exact: true }).click();
-  await showEntityDetails(page);
-  const secondId = await inspector
-    .locator('dt')
-    .filter({ hasText: /^Entity$/ })
-    .locator('+ dd')
-    .innerText();
-  expect(firstId).not.toBe(secondId);
-  const canvas = page.locator('canvas');
-  const bounds = await canvas.boundingBox();
-  expect(bounds).toBeTruthy();
-  const picked = new Set<string>();
-  for (let y = 0.35; y <= 0.7 && picked.size < 2; y += 0.07)
-    for (let x = 0.3; x <= 0.7 && picked.size < 2; x += 0.07) {
-      await canvas.click({
-        position: { x: bounds!.width * x, y: bounds!.height * y },
-      });
-      if (!(await inspector.isVisible())) continue;
-      await showEntityDetails(page);
-      if (
-        (await inspector
+    await page.getByRole('link', { name: 'Lab', exact: true }).click();
+    await page.getByRole('button', { name: '创建 Lab' }).click();
+    let dialog = page.getByRole('dialog');
+    await dialog
+      .getByLabel('名称', { exact: true })
+      .fill('Persistent identity lab');
+    await dialog.getByRole('button', { name: '创建', exact: true }).click();
+    await expect(
+      page.getByRole('heading', {
+        name: 'Persistent identity lab',
+        exact: true,
+      }),
+    ).toBeVisible();
+    for (const name of ['Cube A', 'Cube B']) {
+      await page.getByRole('button', { name: '登记对象', exact: true }).click();
+      dialog = page.getByRole('dialog');
+      await dialog.getByLabel('定义版本').selectOption('model@1.0');
+      await dialog
+        .getByLabel('外观表示')
+        .selectOption({ label: 'cube-draco · 1.0' });
+      await dialog.getByLabel('名称', { exact: true }).fill(name);
+      await dialog.getByRole('button', { name: '登记', exact: true }).click();
+      await expect(
+        page.getByRole('button', { name: `选择 ${name}`, exact: true }),
+      ).toBeVisible();
+    }
+    await page.getByRole('button', { name: '性能', exact: true }).click();
+    const geometries = page
+      .locator('.lab-perf-stats > div')
+      .filter({ has: page.getByText('Geometries', { exact: true }) })
+      .locator('dd');
+    const triangles = page
+      .locator('.lab-perf-stats > div')
+      .filter({ has: page.getByText('三角形', { exact: true }) })
+      .locator('dd');
+    await expect
+      .poll(async () =>
+        Number((await triangles.innerText()).replaceAll(',', '')),
+      )
+      .toBeGreaterThanOrEqual(24);
+    await page.getByRole('button', { name: '聚焦模型', exact: true }).click();
+    await expectCanvasPixels(page);
+    await page
+      .getByRole('button', { name: '选择 Cube A', exact: true })
+      .click();
+    const inspector = page.getByRole('complementary', { name: '对象信息' });
+    await showEntityDetails(page);
+    const labId = await inspector
+      .locator('dt')
+      .filter({ hasText: /^Lab$/ })
+      .locator('+ dd')
+      .innerText();
+    const firstId = await inspector
+      .locator('dt')
+      .filter({ hasText: /^Entity$/ })
+      .locator('+ dd')
+      .innerText();
+    await page
+      .getByRole('button', { name: '选择 Cube B', exact: true })
+      .click();
+    await showEntityDetails(page);
+    const secondId = await inspector
+      .locator('dt')
+      .filter({ hasText: /^Entity$/ })
+      .locator('+ dd')
+      .innerText();
+    expect(firstId).not.toBe(secondId);
+    const canvas = page.locator('canvas');
+    const bounds = await canvas.boundingBox();
+    expect(bounds).toBeTruthy();
+    const picked = new Set<string>();
+    for (let y = 0.35; y <= 0.7 && picked.size < 2; y += 0.07)
+      for (let x = 0.3; x <= 0.7 && picked.size < 2; x += 0.07) {
+        await canvas.click({
+          position: { x: bounds!.width * x, y: bounds!.height * y },
+        });
+        if (!(await inspector.isVisible())) continue;
+        await showEntityDetails(page);
+        if (
+          (await inspector
+            .locator('dt')
+            .filter({ hasText: /^Entity$/ })
+            .count()) === 0
+        )
+          continue;
+        const id = await inspector
           .locator('dt')
           .filter({ hasText: /^Entity$/ })
-          .count()) === 0
-      )
-        continue;
-      const id = await inspector
-        .locator('dt')
-        .filter({ hasText: /^Entity$/ })
-        .locator('+ dd')
-        .innerText();
-      if (id === firstId || id === secondId) {
-        const name = id === firstId ? 'Cube A' : 'Cube B';
-        await expect(
-          page.getByRole('button', { name: `选择 ${name}`, exact: true }),
-        ).toHaveAttribute('aria-pressed', 'true');
-        picked.add(id);
+          .locator('+ dd')
+          .innerText();
+        if (id === firstId || id === secondId) {
+          const name = id === firstId ? 'Cube A' : 'Cube B';
+          await expect(
+            page.getByRole('button', { name: `选择 ${name}`, exact: true }),
+          ).toHaveAttribute('aria-pressed', 'true');
+          picked.add(id);
+        }
       }
-    }
-  expect(picked.size).toBe(2);
-  await page
-    .getByRole('checkbox', { name: '多选 Cube A', exact: true })
-    .check();
-  await page
-    .getByRole('checkbox', { name: '多选 Cube B', exact: true })
-    .check();
-  await expect(page.locator('.world-inspector > header > span')).toHaveText(
-    '2',
-  );
-  await page.getByRole('button', { name: '选择 Cube A', exact: true }).click();
-  await showEntityDetails(page);
-  await page
-    .getByRole('button', { name: '新增同一对象表示', exact: true })
-    .click();
-  await expect(inspector.locator('.world-node')).toHaveCount(2);
-  await expect(page.locator('.world-page')).toHaveAttribute(
-    'aria-busy',
-    'false',
-  );
-  await expect
-    .poll(async () => Number((await triangles.innerText()).replaceAll(',', '')))
-    .toBeGreaterThanOrEqual(36);
-  const baseline = Number(await geometries.innerText());
-  await page.screenshot({
-    path: 'test-results/lab-foundation/t02-world-desktop.png',
-    fullPage: true,
-  });
-  await page.getByRole('button', { name: '配置对象', exact: true }).click();
-  dialog = page.getByRole('dialog');
-  await dialog.getByLabel('标识', { exact: true }).fill('north');
-  await dialog.getByRole('button', { name: '保存', exact: true }).click();
-  await expect(inspector.getByText('north', { exact: true })).toBeVisible();
-  const session = await (await page.request.get('/api/v1/auth/session')).json();
-  const keyResponse = await page.request.post('/api/v1/api-keys', {
-    headers: {
-      origin: process.env.E2E_WEB_URL!,
-      'x-csrf-token': session.csrf_token,
-    },
-    data: {
-      name: 'World tutorial Agent',
-      scopes: ['lab:full'],
-      expires_in_days: 1,
-    },
-  });
-  expect(keyResponse.status()).toBe(201);
-  const key = await keyResponse.json();
-  const tutorial = JSON.parse(
-    execFileSync('node', ['examples/lab/register-world.mjs'], {
-      env: {
-        ...process.env,
-        LAB_API_BASE: process.env.E2E_API_URL,
-        LAB_API_KEY: key.secret,
-        LAB_ID: labId,
+    expect(picked.size).toBe(2);
+    await page
+      .getByRole('checkbox', { name: '多选 Cube A', exact: true })
+      .check();
+    await page
+      .getByRole('checkbox', { name: '多选 Cube B', exact: true })
+      .check();
+    await expect(page.locator('.world-inspector > header > span')).toHaveText(
+      '2',
+    );
+    await page
+      .getByRole('button', { name: '选择 Cube A', exact: true })
+      .click();
+    await showEntityDetails(page);
+    await page
+      .getByRole('button', { name: '新增同一对象表示', exact: true })
+      .click();
+    await expect(inspector.locator('.world-node')).toHaveCount(2);
+    await expect(page.locator('.world-page')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    );
+    await expect
+      .poll(async () =>
+        Number((await triangles.innerText()).replaceAll(',', '')),
+      )
+      .toBeGreaterThanOrEqual(36);
+    const baseline = Number(await geometries.innerText());
+    await page.screenshot({
+      path: 'test-results/lab-foundation/t02-world-desktop.png',
+      fullPage: true,
+    });
+    await page.getByRole('button', { name: '配置对象', exact: true }).click();
+    dialog = page.getByRole('dialog');
+    await dialog.getByLabel('标识', { exact: true }).fill('north');
+    await dialog.getByRole('button', { name: '保存', exact: true }).click();
+    await expect(inspector.getByText('north', { exact: true })).toBeVisible();
+    const session = await (
+      await page.request.get('/api/v1/auth/session')
+    ).json();
+    const keyResponse = await page.request.post('/api/v1/api-keys', {
+      headers: {
+        origin: process.env.E2E_WEB_URL!,
+        'x-csrf-token': session.csrf_token,
       },
-      encoding: 'utf8',
-    }),
-  );
-  expect(tutorial.entity_ids).toHaveLength(2);
-  await page.reload();
-  await page.getByLabel('打开 Lab').selectOption(labId);
-  await showObjectDirectory(page);
-  await expect(
-    page.getByRole('button', { name: '选择 Robot A', exact: true }),
-  ).toBeVisible();
-  await page.getByRole('button', { name: '选择 Robot A', exact: true }).click();
-  await showEntityDetails(page);
-  await expect(
-    inspector.getByText(tutorial.entity_ids[0], { exact: true }),
-  ).toBeVisible();
-  await showEntityOperations(page);
-  await expect(
-    inspector.getByText('未知 · 无观测', { exact: true }),
-  ).toBeVisible();
-  await showEntityDetails(page);
-  await expect(
-    inspector.getByText('robot.pick', { exact: true }),
-  ).toBeVisible();
-  await page.getByRole('link', { name: '资产库', exact: true }).click();
-  await page
-    .getByRole('button', { name: '移除 cube-draco', exact: true })
-    .click();
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: '移除', exact: true })
-    .click();
-  await expect(page.getByRole('alert')).toContainText('资产已被引用');
-  await page
-    .getByRole('alertdialog')
-    .getByRole('button', { name: '取消', exact: true })
-    .click();
-  const second = await browser.newContext({
-    locale: 'zh-CN',
-    baseURL: process.env.E2E_WEB_URL,
-  });
-  const other = await second.newPage();
-  other.on('pageerror', (error) => errors.push(error.name));
-  await other.goto('/register');
-  await other
-    .getByLabel('邮箱', { exact: true })
-    .fill(`world-other-${Date.now()}@example.test`);
-  await other
-    .getByLabel('密码', { exact: true })
-    .fill('world-browser-test-password');
-  await other.getByRole('button', { name: '创建账号' }).click();
-  await other.getByLabel('打开 Lab').selectOption(labId);
-  await showObjectDirectory(other);
-  await other.getByRole('button', { name: '选择 Cube A', exact: true }).click();
-  const otherInspector = other.getByRole('complementary', { name: '对象信息' });
-  await showEntityDetails(other);
-  await expect(
-    otherInspector.getByText(firstId, { exact: true }),
-  ).toBeVisible();
-  await expect(
-    otherInspector.getByText('north', { exact: true }),
-  ).toBeVisible();
-  await expect(otherInspector.locator('.world-node')).toHaveCount(2);
-  await expectCanvasPixels(other);
-  await expect(other.locator('.world-render-error')).toHaveCount(0);
-  await other.getByRole('button', { name: '性能', exact: true }).click();
-  await other
-    .getByRole('checkbox', { name: '多选 Cube A', exact: true })
-    .uncheck();
-  const otherGeometries = other
-    .locator('.lab-perf-stats > div')
-    .filter({ has: other.getByText('Geometries', { exact: true }) })
-    .locator('dd');
-  await expect(other.locator('.world-page')).toHaveAttribute(
-    'aria-busy',
-    'false',
-  );
-  await expect
-    .poll(async () => Number(await otherGeometries.innerText()))
-    .toBeGreaterThan(baseline);
-  const loadedCount = await otherGeometries.innerText();
-  expect(Number(loadedCount)).toBeGreaterThan(baseline);
-  await other.getByRole('button', { name: '创建 Lab' }).click();
-  await other
-    .getByRole('dialog')
-    .getByLabel('名称', { exact: true })
-    .fill('Empty resource lab');
-  await other
-    .getByRole('dialog')
-    .getByRole('button', { name: '创建', exact: true })
-    .click();
-  await expect(
-    other.getByRole('heading', { name: 'Empty resource lab', exact: true }),
-  ).toBeVisible();
-  const emptyId = await other.getByLabel('打开 Lab').inputValue();
-  await other.getByRole('button', { name: '性能', exact: true }).click();
-  await expect
-    .poll(async () => Number(await otherGeometries.innerText()))
-    .toBeLessThan(Number(loadedCount));
-  const emptyCount = await otherGeometries.innerText();
-  for (let i = 0; i < 3; i++) {
+      data: {
+        name: 'World tutorial Agent',
+        scopes: ['lab:full'],
+        expires_in_days: 1,
+      },
+    });
+    expect(keyResponse.status()).toBe(201);
+    const key = await keyResponse.json();
+    const tutorial = JSON.parse(
+      execFileSync('node', ['examples/lab/register-world.mjs'], {
+        env: {
+          ...process.env,
+          LAB_API_BASE: process.env.E2E_API_URL,
+          LAB_API_KEY: key.secret,
+          LAB_ID: labId,
+        },
+        encoding: 'utf8',
+      }),
+    );
+    expect(tutorial.entity_ids).toHaveLength(2);
+    await page.reload();
+    await page.getByLabel('打开 Lab').selectOption(labId);
+    await showObjectDirectory(page);
+    await expect(
+      page.getByRole('button', { name: '选择 Robot A', exact: true }),
+    ).toBeVisible();
+    await page
+      .getByRole('button', { name: '选择 Robot A', exact: true })
+      .click();
+    await showEntityDetails(page);
+    await expect(
+      inspector.getByText(tutorial.entity_ids[0], { exact: true }),
+    ).toBeVisible();
+    await showEntityOperations(page);
+    await expect(
+      inspector.getByText('未知 · 无观测', { exact: true }),
+    ).toBeVisible();
+    await showEntityDetails(page);
+    await expect(
+      inspector.getByText('robot.pick', { exact: true }),
+    ).toBeVisible();
+    await page.getByRole('link', { name: '资产库', exact: true }).click();
+    await page
+      .getByRole('button', { name: '移除 cube-draco', exact: true })
+      .click();
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: '移除', exact: true })
+      .click();
+    await expect(page.getByRole('alert')).toContainText('资产已被引用');
+    await page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: '取消', exact: true })
+      .click();
+    const second = await browser.newContext({
+      locale: 'zh-CN',
+      baseURL: process.env.E2E_WEB_URL,
+    });
+    const other = await second.newPage();
+    await probe.watch(other, 'second');
+    other.on('pageerror', (error) => errors.push(error.name));
+    await other.goto('/register');
+    await other
+      .getByLabel('邮箱', { exact: true })
+      .fill(`world-other-${Date.now()}@example.test`);
+    await other
+      .getByLabel('密码', { exact: true })
+      .fill('world-browser-test-password');
+    await other.getByRole('button', { name: '创建账号' }).click();
     await other.getByLabel('打开 Lab').selectOption(labId);
+    await showObjectDirectory(other);
+    await other
+      .getByRole('button', { name: '选择 Cube A', exact: true })
+      .click();
+    const otherInspector = other.getByRole('complementary', {
+      name: '对象信息',
+    });
+    await showEntityDetails(other);
+    await expect(
+      otherInspector.getByText(firstId, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      otherInspector.getByText('north', { exact: true }),
+    ).toBeVisible();
+    await expect(otherInspector.locator('.world-node')).toHaveCount(2);
+    await expectCanvasPixels(other);
+    try {
+      await expect(other.locator('.world-render-error')).toHaveCount(0);
+    } catch (error) {
+      await probe.capture(error);
+      throw error;
+    }
+    await probe.capture();
+    await other.getByRole('button', { name: '性能', exact: true }).click();
+    await other
+      .getByRole('checkbox', { name: '多选 Cube A', exact: true })
+      .uncheck();
+    const otherGeometries = other
+      .locator('.lab-perf-stats > div')
+      .filter({ has: other.getByText('Geometries', { exact: true }) })
+      .locator('dd');
     await expect(other.locator('.world-page')).toHaveAttribute(
       'aria-busy',
       'false',
     );
-    await other.getByRole('button', { name: '性能', exact: true }).click();
     await expect
       .poll(async () => Number(await otherGeometries.innerText()))
       .toBeGreaterThan(baseline);
+    const loadedCount = await otherGeometries.innerText();
+    expect(Number(loadedCount)).toBeGreaterThan(baseline);
+    await other.getByRole('button', { name: '创建 Lab' }).click();
+    await other
+      .getByRole('dialog')
+      .getByLabel('名称', { exact: true })
+      .fill('Empty resource lab');
+    await other
+      .getByRole('dialog')
+      .getByRole('button', { name: '创建', exact: true })
+      .click();
+    await expect(
+      other.getByRole('heading', { name: 'Empty resource lab', exact: true }),
+    ).toBeVisible();
+    const emptyId = await other.getByLabel('打开 Lab').inputValue();
+    await other.getByRole('button', { name: '性能', exact: true }).click();
     await expect
       .poll(async () => Number(await otherGeometries.innerText()))
-      .toBeLessThanOrEqual(Number(loadedCount));
-    await other.getByLabel('打开 Lab').selectOption(emptyId);
-    await other.getByRole('button', { name: '性能', exact: true }).click();
-    await expect(otherGeometries).toHaveText(emptyCount);
+      .toBeLessThan(Number(loadedCount));
+    const emptyCount = await otherGeometries.innerText();
+    for (let i = 0; i < 3; i++) {
+      await other.getByLabel('打开 Lab').selectOption(labId);
+      await expect(other.locator('.world-page')).toHaveAttribute(
+        'aria-busy',
+        'false',
+      );
+      await other.getByRole('button', { name: '性能', exact: true }).click();
+      await expect
+        .poll(async () => Number(await otherGeometries.innerText()))
+        .toBeGreaterThan(baseline);
+      await expect
+        .poll(async () => Number(await otherGeometries.innerText()))
+        .toBeLessThanOrEqual(Number(loadedCount));
+      await other.getByLabel('打开 Lab').selectOption(emptyId);
+      await other.getByRole('button', { name: '性能', exact: true }).click();
+      await expect(otherGeometries).toHaveText(emptyCount);
+    }
+    await other.getByLabel('打开 Lab').selectOption(labId);
+    await showObjectDirectory(other);
+    await other
+      .getByRole('button', { name: '选择 Cube A', exact: true })
+      .click();
+    if (!desktopMigration)
+      await other.setViewportSize({ width: 390, height: 844 });
+    await other.getByRole('button', { name: 'English', exact: true }).click();
+    await other.evaluate(() =>
+      localStorage.setItem('labos-threejs.theme', 'dark'),
+    );
+    await other.reload();
+    await other.getByLabel('Open Lab').selectOption(labId);
+    await showObjectDirectory(other);
+    await other
+      .getByRole('button', { name: 'Select Cube A', exact: true })
+      .click();
+    await expectCanvasPixels(other);
+    expect(
+      await other.evaluate(
+        () => document.documentElement.scrollWidth <= window.innerWidth,
+      ),
+    ).toBe(true);
+    await other.screenshot({
+      path: `test-results/lab-foundation/t02-world-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
+      fullPage: true,
+    });
+    await showEntityDetails(other);
+    await other
+      .getByRole('complementary', { name: 'Object info' })
+      .getByText(firstId, { exact: true })
+      .scrollIntoViewIfNeeded();
+    await other.screenshot({
+      path: `test-results/lab-foundation/t02-inspector-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
+      fullPage: true,
+    });
+    await second.close();
+    expect(errors).toEqual([]);
+  } catch (error) {
+    await probe.capture(error);
+    throw error;
+  } finally {
+    await probe.dispose();
   }
-  await other.getByLabel('打开 Lab').selectOption(labId);
-  await showObjectDirectory(other);
-  await other.getByRole('button', { name: '选择 Cube A', exact: true }).click();
-  if (!desktopMigration)
-    await other.setViewportSize({ width: 390, height: 844 });
-  await other.getByRole('button', { name: 'English', exact: true }).click();
-  await other.evaluate(() =>
-    localStorage.setItem('labos-threejs.theme', 'dark'),
-  );
-  await other.reload();
-  await other.getByLabel('Open Lab').selectOption(labId);
-  await showObjectDirectory(other);
-  await other
-    .getByRole('button', { name: 'Select Cube A', exact: true })
-    .click();
-  await expectCanvasPixels(other);
-  expect(
-    await other.evaluate(
-      () => document.documentElement.scrollWidth <= window.innerWidth,
-    ),
-  ).toBe(true);
-  await other.screenshot({
-    path: `test-results/lab-foundation/t02-world-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
-    fullPage: true,
-  });
-  await showEntityDetails(other);
-  await other
-    .getByRole('complementary', { name: 'Object info' })
-    .getByText(firstId, { exact: true })
-    .scrollIntoViewIfNeeded();
-  await other.screenshot({
-    path: `test-results/lab-foundation/t02-inspector-${desktopMigration ? 'desktop' : 'mobile'}-dark-en.png`,
-    fullPage: true,
-  });
-  await second.close();
-  expect(errors).toEqual([]);
 });
 
 test('members and an Agent share persistent GLB assets across browser contexts and recover from a failed model', async ({
