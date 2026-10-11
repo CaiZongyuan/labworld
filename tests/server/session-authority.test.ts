@@ -9,6 +9,7 @@ import { WebSocket } from 'ws';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
+import { SessionEventReader } from '../support/session-event-reader.ts';
 import {
   encodeMotionSnapshot,
   decodeMotionSnapshot,
@@ -1227,25 +1228,9 @@ test(
         );
         readers.push(response.body!.getReader());
       }
-      async function event(reader: ReadableStreamDefaultReader<Uint8Array>) {
-        let text = '';
-        while (true) {
-          const next = await reader.read();
-          assert.equal(next.done, false);
-          text += new TextDecoder().decode(next.value);
-          const blocks = text.split('\n\n');
-          const data = blocks
-            .slice(0, -1)
-            .find((block) => block.startsWith('data: '));
-          if (data)
-            return JSON.parse(data.slice(6)) as {
-              type: string;
-              session: Session;
-            };
-          text = blocks.at(-1)!;
-        }
-      }
-      const initial = await Promise.all(readers.map(event));
+      const events = readers.map((reader) => new SessionEventReader(reader));
+      const initial = await Promise.all(events.map((reader) => reader.next()));
+      assert(initial[0] && initial[1]);
       assert.equal(initial[0].type, 'session');
       assert.deepEqual(initial[0], initial[1]);
       assert.equal(initial[0].session.status, 'running');
@@ -1254,19 +1239,25 @@ test(
         f.base + `/sessions/${session.id}/pause`,
         { expected_revision: initial[0].session.revision },
       );
-      const requested = await Promise.all(readers.map(event));
+      const requested = await Promise.all(
+        events.map((reader) => reader.receive(pausing)),
+      );
       assert.deepEqual(requested[0], requested[1]);
       assert.equal(requested[0].session.revision, pausing.revision);
       assert.equal(requested[0].session.status, 'pausing');
       const control = await source.control('pause');
       await source.apply(control, 100n);
-      const paused = await Promise.all(readers.map(event));
+      const pausedAuthority = await f.state(session, 'paused');
+      const paused = await Promise.all(
+        events.map((reader) => reader.receive(pausedAuthority)),
+      );
       assert.deepEqual(paused[0], paused[1]);
+      assert.equal(paused[0].session.revision, pausedAuthority.revision);
       assert.equal(paused[0].session.status, 'paused');
       await f.client.json('POST', '/api/v1/auth/logout', undefined, 204);
       assert.ok(
-        (await Promise.all(readers.map((reader) => reader.read()))).every(
-          (next) => next.done,
+        (await Promise.all(events.map((reader) => reader.next()))).every(
+          (next) => next === undefined,
         ),
       );
       assert.equal(source.ws.readyState, WebSocket.OPEN);

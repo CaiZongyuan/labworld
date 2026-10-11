@@ -253,9 +253,11 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     ).toContainText('运动过期');
     const frozen = await displayed(page);
     assert(frozen && frozen.session_id === active.id);
+    const secondBefore = await pose(f.second, active.id);
     await eventually(
       async () => (await pose(f!.second, active!.id)).nodes[0].sequence,
-      (sequence) => BigInt(sequence) > BigInt(before.nodes[0].sequence) + 5n,
+      (sequence) =>
+        BigInt(sequence) > BigInt(secondBefore.nodes[0].sequence) + 5n,
     );
     assert.deepEqual((await displayed(page))?.nodes, frozen.nodes);
     await page.context().setOffline(false);
