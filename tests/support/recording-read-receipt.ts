@@ -12,6 +12,12 @@ type Receipt = {
   elapsedMs: number;
 };
 let failed = false;
+const safeCodes = new Set([
+  'lab.recording_read_timeout',
+  'lab.recording_committed_payload_missing',
+  'lab.recording_witness_changed',
+  'lab.recording_segment_changed',
+]);
 
 /** Observe only an already-failed HTTP response; preserve its original body. */
 export async function captureRecordingReadFailure(
@@ -37,6 +43,10 @@ export async function captureRecordingReadFailure(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
   const started = performance.now();
+  const deadline = started + 250;
+  const checkDeadline = () => {
+    if (performance.now() >= deadline) throw new Error('capture_timeout');
+  };
   try {
     if (response.status === expected) return;
     reader = response.clone().body?.getReader();
@@ -45,21 +55,21 @@ export async function captureRecordingReadFailure(
       let size = 0;
       const chunks: Uint8Array[] = [];
       while (true) {
+        checkDeadline();
         const next = await reader!.read();
+        checkDeadline();
         if (next.done) break;
         size += next.value.byteLength;
         if (size > 16384) throw new Error('body_limit');
         chunks.push(next.value);
       }
       const value: unknown = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+      checkDeadline();
       if (!value || typeof value !== 'object') return null;
       const error = (value as { error?: unknown }).error;
       if (!error || typeof error !== 'object') return null;
       const code = (error as { code?: unknown }).code;
-      return typeof code === 'string' &&
-        /^lab\.recording_[a-z_]{1,64}$/.test(code)
-        ? code
-        : null;
+      return typeof code === 'string' && safeCodes.has(code) ? code : null;
     };
     const code = await Promise.race([
       capture(),
@@ -67,6 +77,7 @@ export async function captureRecordingReadFailure(
         timer = setTimeout(() => reject(new Error('capture_timeout')), 250);
       }),
     ]);
+    if (code === null) failed = true;
     const receipt: Receipt = {
       nonce,
       pid: process.pid,
@@ -78,6 +89,7 @@ export async function captureRecordingReadFailure(
       valid: !failed && code !== null,
       elapsedMs: performance.now() - started,
     };
+    checkDeadline();
     publish(destination, JSON.stringify(receipt) + '\n');
   } catch {
     failed = true;
