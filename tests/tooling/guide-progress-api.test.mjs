@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { sessionApiParts } from '../../scripts/lib/session-api.ts';
 import { motionApiParts } from '../../scripts/lib/motion-api.ts';
 import { guideProgressApiParts } from '../../scripts/lib/guide-progress-api.ts';
 import { semanticDifferences } from '../../scripts/lib/contract-openapi.ts';
@@ -13,12 +14,19 @@ const baseline = JSON.parse(
 const addition = JSON.parse(
   readFileSync('tests/contract/guide-progress-api.json', 'utf8'),
 );
+const sessionAddition = JSON.parse(
+  readFileSync('tests/contract/session-api.json', 'utf8'),
+);
 const path = '/api/v1/lab/guides/{guide_id}/{guide_version}/progress';
 function differences(document) {
-  const parts = guideProgressApiParts(motionApiParts(document).existing);
+  const sessions = sessionApiParts(document);
+  const parts = guideProgressApiParts(
+    motionApiParts(sessions.existing).existing,
+  );
   return [
     ...semanticDifferences(baseline, parts.existing),
     ...semanticDifferences(addition, parts.addition),
+    ...semanticDifferences(sessionAddition, sessions.addition),
   ];
 }
 test('the two approved progress operations preserve the immutable retained API and reachable schemas', () => {

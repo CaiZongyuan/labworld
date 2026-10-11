@@ -40,6 +40,7 @@ import {
   registerLabEntity,
   saveLabLayout,
   copyLabEntity,
+  projectSessionWorld,
   type LabEntity,
   type LabRecord,
   type Placement,
@@ -84,6 +85,8 @@ import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
 import { useMotion } from './use-motion';
 import { MotionControls } from './motion-controls';
+import { useSimulationSession } from './use-simulation-session';
+import { SimulationSessionControls } from './simulation-session-controls';
 import { useLabWorkbench } from './workbench-context';
 import {
   layoutDraft,
@@ -173,6 +176,15 @@ export default function WorldView() {
     labId: labId ?? null,
     csrfToken: identity.csrf_token,
     onFixtureCreated: () => {
+      void world.refetch();
+    },
+  });
+  const simulation = useSimulationSession({
+    apiClient,
+    userId: identity.user.id,
+    labId: labId ?? null,
+    csrfToken: identity.csrf_token,
+    onInstalled: () => {
       void world.refetch();
     },
   });
@@ -272,6 +284,48 @@ export default function WorldView() {
       })) ?? [],
     [world.data?.assets, apiClient],
   );
+  const renderSnapshot =
+    !editing &&
+    simulation.session &&
+    (!simulation.session.ended_at ||
+      simulation.session.status === 'interrupted')
+      ? simulation.session.snapshot
+      : null;
+  const renderWorld = useMemo(() => {
+    if (!world.data) return null;
+    const current = { ...world.data, entities, nodes };
+    return renderSnapshot
+      ? projectSessionWorld(current, renderSnapshot)
+      : current;
+  }, [world.data, entities, nodes, renderSnapshot]);
+  const frozenAssets = useMemo(() => {
+    const byNode = new Map<string, ModelAsset>();
+    if (!renderSnapshot) return byNode;
+    const assets = new Map(
+      renderSnapshot.world.assets.map((asset) => [
+        asset.representation.id,
+        asset,
+      ]),
+    );
+    const fixedNodes = new Map(
+      renderSnapshot.world.nodes.map((node) => [node.id, node]),
+    );
+    for (const target of renderSnapshot.installation.targets) {
+      const representation = fixedNodes.get(target.node_id)?.representation_id;
+      const asset = representation ? assets.get(representation) : undefined;
+      if (asset)
+        byNode.set(target.node_id, {
+          id: asset.id,
+          name: asset.name,
+          fileName: asset.representation.file_name,
+          bytes: asset.representation.size,
+          source: 'remote',
+          asset,
+          apiClient,
+        });
+    }
+    return byNode;
+  }, [renderSnapshot, apiClient]);
   const selected = entities.find((entity) => entity.id === selection.at(-1));
   const inspectorVisible =
     !recordsView &&
@@ -711,11 +765,27 @@ export default function WorldView() {
         </TabsList>
       </Tabs>
       <div className="world-layout-toolbar" hidden={!spaceView}>
+        <SimulationSessionControls
+          key={`session-${labId}`}
+          simulation={simulation}
+          world={world.data}
+          assets={catalog.assets.flatMap((asset) =>
+            asset.source === 'remote' ? [asset.asset] : [],
+          )}
+          assetQuery={catalog.query}
+          disabled={readOnly}
+          startDisabled={readOnly || !!draft || layoutPending}
+        />
+        {editing && simulation.session && !simulation.session.ended_at ? (
+          <span role="status">{message('session.nextStartHint')}</span>
+        ) : null}
         <MotionControls
           key={labId}
           motion={motion}
           world={world.data}
-          disabled={readOnly || editing || !!draft || layoutPending}
+          disabled={
+            readOnly || editing || !!draft || layoutPending || !!renderSnapshot
+          }
         />
         <Tabs
           value={editing ? 'layout' : 'runtime'}
@@ -987,7 +1057,7 @@ export default function WorldView() {
                 >
                   <WorldViewport
                     key={`${labId}-${renderVersion}`}
-                    world={{ ...world.data, entities, nodes }}
+                    world={renderWorld!}
                     connected={connection.available}
                     onOpenRecentMinute={(entityId) => {
                       if (!entities.some((entity) => entity.id === entityId))
@@ -1001,6 +1071,7 @@ export default function WorldView() {
                       });
                     }}
                     assets={modelAssets}
+                    frozenAssets={frozenAssets}
                     selected={selection}
                     onSelect={select}
                     activeNodeId={activeNode?.id}
@@ -1015,7 +1086,15 @@ export default function WorldView() {
                     onMetrics={setMetrics}
                     onBusy={setRenderBusy}
                     motion={
-                      editing || !motion.buffer.welcome ? null : motion.buffer
+                      editing
+                        ? null
+                        : renderSnapshot
+                          ? simulation.buffer.welcome
+                            ? simulation.buffer
+                            : null
+                          : motion.buffer.welcome
+                            ? motion.buffer
+                            : null
                     }
                   />
                 </Suspense>

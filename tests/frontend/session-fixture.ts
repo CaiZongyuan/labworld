@@ -1,0 +1,125 @@
+import type {
+  LabWorld,
+  SceneInstallation,
+  SimulationSession,
+} from '../../packages/sdk/src/index';
+import { motionWelcome } from './motion-fixture';
+
+const created = '2026-10-11T00:00:00.000000Z';
+export const sessionWorld: LabWorld = {
+  version: '1',
+  lab: {
+    id: 'shared',
+    name: 'Session Lab',
+    layout_version: 1,
+    created_by: 'operator',
+    created_at: created,
+  },
+  entities: [
+    {
+      id: motionWelcome.targets[0].entity_id,
+      lab_id: 'shared',
+      name: 'Fixed object',
+      kind: 'equipment',
+      reality: 'virtual',
+      definition_id: 'robot',
+      definition_version: '1',
+      definition: {
+        id: 'robot',
+        version: '1',
+        name: '机械臂',
+        name_en: 'Robot',
+        category: 'equipment',
+        specifications: {},
+        capabilities: [],
+        state: {},
+        interfaces: [],
+      },
+      configuration: {},
+      representation_id: 'fixed-representation',
+      created_by: 'operator',
+      updated_by: 'operator',
+      created_at: created,
+      updated_at: created,
+      capabilities: [],
+    },
+  ],
+  nodes: [
+    {
+      id: motionWelcome.targets[0].node_id,
+      lab_id: 'shared',
+      entity_id: motionWelcome.targets[0].entity_id,
+      representation_id: 'fixed-representation',
+      placement: {
+        position: [1, 2, 3],
+        rotation: [0, 0, 0],
+        scale: [0.35, 0.35, 0.35],
+      },
+    },
+  ],
+  assets: [
+    {
+      id: 'fixed-asset',
+      name: 'Startup GLB',
+      source: 'Test',
+      license: 'CC0',
+      version: '1',
+      created_by: 'operator',
+      updated_by: 'operator',
+      created_at: created,
+      updated_at: created,
+      representation: {
+        id: 'fixed-representation',
+        file_id: 'fixed-file',
+        file_name: 'cube.glb',
+        size: 100,
+        sha256: 'a'.repeat(64),
+        content_type: 'model/gltf-binary',
+      },
+    },
+  ],
+  relationships: [],
+};
+export const sessionInstallation: SceneInstallation = {
+  id: 'fixed-installation',
+  lab_id: 'shared',
+  package_id: 'development-synthetic',
+  package_version: '1',
+  scene_hash: motionWelcome.scene_hash,
+  mapping_revision: 1,
+  pose_keys: [...motionWelcome.pose_keys],
+  joint_keys: [...motionWelcome.joint_keys],
+  targets: motionWelcome.targets.map((target) => ({
+    ...target,
+    object_key: 'object-0',
+    body_to_visual: { position: [0, 0, 0], quaternion: [0, 0, 0, 1] },
+  })),
+  created_at: created,
+  archived_at: null,
+};
+export const simulationSession: SimulationSession = {
+  id: motionWelcome.session_id,
+  lab_id: 'shared',
+  installation_id: sessionInstallation.id,
+  machine_id: 'independent-machine',
+  status: 'running',
+  revision: 1,
+  epoch: motionWelcome.epoch,
+  lease_id: 'server-lease',
+  started_at: created,
+  ended_at: null,
+  reason: null,
+  successor_session_id: null,
+  snapshot: {
+    hash: 'frozen-hash',
+    installation: sessionInstallation,
+    world: sessionWorld,
+    parameters: {
+      translation_amplitude: 0.45,
+      angular_speed: 1,
+      joint_amplitude: 1,
+    },
+    initial_poses: [{ position: [1, 2, 3], quaternion: [0, 0, 0, 1] }],
+    initial_joints: [0],
+  },
+};

@@ -14,6 +14,7 @@ export type ViewerMotionState =
   | 'waiting'
   | 'live'
   | 'stale'
+  | 'paused'
   | 'interrupted'
   | 'closed'
   | 'error';

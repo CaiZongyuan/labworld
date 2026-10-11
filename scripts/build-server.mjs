@@ -62,6 +62,11 @@ try {
   }
   await copyRuntime('packages/server/src');
   await cp(
+    join(root, 'tools/synthetic-motion'),
+    join(output, 'tools/synthetic-motion'),
+    { recursive: true, filter: (path) => !path.includes('__pycache__') },
+  );
+  await cp(
     join(root, 'packages/server/migrations'),
     join(output, 'packages/server/migrations'),
     { recursive: true },

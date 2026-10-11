@@ -1,5 +1,51 @@
 export const labMessages = {
   zh: {
+    'session.title': '仿真会话',
+    'session.description':
+      '开发合成模式。操作者共享权威会话，各自保留相机、选择和 Inspector。当前不运行 Newton，也不提供可靠录制。',
+    'session.lifecycle': '会话生命周期',
+    'session.reception': '运动接收',
+    'session.idle': '尚未启动',
+    'session.loading': '正在读取会话',
+    'session.starting': '正在启动 · 等待来源初始帧',
+    'session.running': '正在运行',
+    'session.pausing': '正在暂停 · 等待来源边界',
+    'session.paused': '已暂停 · 仿真时间和位姿已冻结',
+    'session.resuming': '正在恢复 · 等待来源边界',
+    'session.stopping': '正在停止',
+    'session.stopped': '已停止',
+    'session.interrupted': '会话已中断',
+    'session.reset': '旧会话已重置',
+    'session.installation': '场景安装',
+    'session.model': 'GLB 模型',
+    'session.assetsLoading': '正在读取已保存的 GLB 模型',
+    'session.retryAssets': '重试 GLB 模型列表',
+    'session.empty': '尚未安装固定场景',
+    'session.installHint':
+      '安装固定版本 development-synthetic@1，并登记 20 个独立对象。',
+    'session.nextStartHint':
+      '布局编辑用于下次 Start；返回运行视图可继续观察当前快照。',
+    'session.saveHint': '请先保存或放弃布局草稿，再 Start。',
+    'session.layoutHint':
+      '运行画面固定于启动快照。布局编辑预览下次 Start；保存不改变本次会话。Reset 从原快照创建新会话。',
+    'session.install': '安装固定场景',
+    'session.start': 'Start',
+    'session.pause': 'Pause',
+    'session.resume': 'Resume',
+    'session.resetAction': 'Reset',
+    'session.stop': 'Stop',
+    'session.retry': '重试',
+    'session.leave': '离开观察',
+    'session.observe': '观察会话',
+    'session.conflict':
+      '另一个操作者已改变会话。当前状态已刷新；检查后再操作。',
+    'session.denied': '会话访问被拒绝。请检查登录和 lab:full 凭据后重试。',
+    'session.unavailable':
+      '服务未启用开发合成来源。请按教程配置后重新启动服务，再重试。',
+    'session.failure': '操作失败。已保留选择，请检查当前会话后重试。',
+    'session.offline': '会话状态连接已断开。状态恢复前不发送控制；可重试连接。',
+    'session.interruptedHint':
+      '来源已结束。请显式 Start 新会话；服务不会自动恢复旧实验。',
     'motion.title': '合成运动',
     'motion.description':
       '连接本机测试会话，查看确定性运动。三维运动不改写已保存的布局或登记位置。',
@@ -8,6 +54,7 @@ export const labMessages = {
     'motion.waiting': '等待发布者',
     'motion.live': '运动已连接',
     'motion.stale': '运动过期 · 位姿已冻结',
+    'motion.paused': '运动已暂停 · 位姿已冻结',
     'motion.interrupted': '运动中断',
     'motion.closed': '会话已关闭',
     'motion.error': '连接失败',
@@ -507,6 +554,55 @@ export const labMessages = {
     'import.single': '一次导入一个 GLB 文件。',
   },
   en: {
+    'session.title': 'Simulation Session',
+    'session.description':
+      'Development synthetic mode. Operators share one authoritative Session, with independent cameras, selection, and Inspectors. Newton and reliable Recording are unavailable.',
+    'session.lifecycle': 'Session lifecycle',
+    'session.reception': 'Motion reception',
+    'session.idle': 'Not started',
+    'session.loading': 'Loading Session',
+    'session.starting': 'Starting · waiting for source initial frame',
+    'session.running': 'Running',
+    'session.pausing': 'Pausing · waiting for source boundary',
+    'session.paused': 'Paused · simulation time and pose frozen',
+    'session.resuming': 'Resuming · waiting for source boundary',
+    'session.stopping': 'Stopping',
+    'session.stopped': 'Stopped',
+    'session.interrupted': 'Session interrupted',
+    'session.reset': 'Previous Session reset',
+    'session.installation': 'Scene Installation',
+    'session.model': 'GLB model',
+    'session.assetsLoading': 'Loading saved GLB models',
+    'session.retryAssets': 'Retry GLB models',
+    'session.empty': 'No fixed scene installed',
+    'session.installHint':
+      'Install development-synthetic@1 and register 20 independent objects.',
+    'session.nextStartHint':
+      'Layout edits apply to the next Start. Return to Runtime to observe the current snapshot.',
+    'session.saveHint': 'Save or discard the layout draft before Start.',
+    'session.layoutHint':
+      'The running view uses the startup snapshot. Layout edits preview the next Start; saving leaves this Session fixed. Reset creates a new Session from the original snapshot.',
+    'session.install': 'Install fixed scene',
+    'session.start': 'Start',
+    'session.pause': 'Pause',
+    'session.resume': 'Resume',
+    'session.resetAction': 'Reset',
+    'session.stop': 'Stop',
+    'session.retry': 'Retry',
+    'session.leave': 'Leave observation',
+    'session.observe': 'Observe Session',
+    'session.conflict':
+      'Another operator changed the Session. Current state was refreshed; check it before trying again.',
+    'session.denied':
+      'Session access was denied. Check your login or lab:full credential, then retry.',
+    'session.unavailable':
+      'The server has no development synthetic source enabled. Configure it as described in the tutorial, restart the server, then retry.',
+    'session.failure':
+      'The action failed. Your selection remains; check the current Session, then retry.',
+    'session.offline':
+      'The Session state connection is offline. Controls wait for recovery; retry the connection.',
+    'session.interruptedHint':
+      'The source ended. Explicitly Start a new Session; the server does not resume old experiments.',
     'motion.title': 'Synthetic motion',
     'motion.description':
       'Join a local test session to view deterministic motion. Motion does not change saved Placement or Registered Location.',
@@ -515,6 +611,7 @@ export const labMessages = {
     'motion.waiting': 'Waiting for publisher',
     'motion.live': 'Motion connected',
     'motion.stale': 'Motion stale · pose frozen',
+    'motion.paused': 'Motion paused · pose frozen',
     'motion.interrupted': 'Motion interrupted',
     'motion.closed': 'Session closed',
     'motion.error': 'Connection failed',

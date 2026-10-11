@@ -4,6 +4,7 @@ import type { Duplex } from 'node:stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import {
   parseMotionHello,
+  parseMotionSessionAck,
   type MotionErrorCode,
 } from '../../../packages/contracts/src/motion/index.ts';
 import {
@@ -14,6 +15,7 @@ import {
   MotionFixtures,
   loopback,
 } from '../../../packages/server/src/lab/motion/fixture.ts';
+import type { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
 function bytes(data: RawData) {
   if (Array.isArray(data)) return Buffer.concat(data);
   return data instanceof ArrayBuffer
@@ -32,10 +34,19 @@ export class MotionWebSockets {
   private stopping = false;
   private admissions = new Set<Promise<void>>();
   private deadlines = new Map<WebSocket, ReturnType<typeof setTimeout>>();
-  constructor(privateFixtures: MotionFixtures, origin: string) {
+  constructor(
+    privateFixtures: MotionFixtures,
+    origin: string,
+    sessions?: SimulationSessions,
+    log: (entry: Record<string, unknown>) => void = () => {},
+  ) {
+    this.log = log;
+    this.sessions = sessions;
     this.fixtures = privateFixtures;
     this.origin = origin;
   }
+  private log: (entry: Record<string, unknown>) => void;
+  private sessions?: SimulationSessions;
   private fixtures: MotionFixtures;
   private origin: string;
   private upgrade = (
@@ -56,7 +67,7 @@ export class MotionWebSockets {
     if (
       !match ||
       this.stopping ||
-      !this.fixtures.enabled ||
+      (!this.fixtures.enabled && !this.sessions?.options.enabled) ||
       !loopback(request.socket.remoteAddress) ||
       ['forwarded', 'x-forwarded-for', 'x-real-ip'].some(
         (name) => request.headers[name] !== undefined,
@@ -110,6 +121,14 @@ export class MotionWebSockets {
       },
     };
     let joined: ReturnType<MotionGateway['join']>;
+    let binding: ReturnType<SimulationSessions['bind']> | undefined;
+    let formal = false;
+    const heartbeat = setInterval(() => {
+      if (admitted && ws.readyState === WebSocket.OPEN) ws.ping();
+    }, 1000);
+    heartbeat.unref();
+    const pong = () => binding?.pong();
+    ws.on('pong', pong);
     let admitting = false;
     let admitted = false;
     let closed = false;
@@ -126,9 +145,12 @@ export class MotionWebSockets {
       if (closed) return;
       closed = true;
       clearTimeout(timeout);
+      clearInterval(heartbeat);
+      ws.off('pong', pong);
       clearTimeout(this.deadlines.get(ws));
       this.deadlines.delete(ws);
       joined?.leave();
+      binding?.leave();
       // ws owns its client-tracking close listener. Remove only our callbacks.
       ws.off('message', receive);
       ws.off('error', terminate);
@@ -154,11 +176,11 @@ export class MotionWebSockets {
             );
             if (hello.role !== role || hello.session_id !== session)
               throw new Error('Wrong admission scope');
-            const { metadata, rate } = await this.fixtures.consume(
-              hello.ticket,
-              session,
-              role,
-            );
+            formal = !!this.sessions?.ownsTicket(hello.ticket);
+            const admission = formal
+              ? await this.sessions!.consume(hello.ticket, session, role)
+              : await this.fixtures.consume(hello.ticket, session, role);
+            const { metadata, rate } = admission;
             if (
               hello.role === 'publisher' &&
               hello.scene_hash !== metadata.scene_hash
@@ -171,10 +193,43 @@ export class MotionWebSockets {
               return;
             }
             if (closed || this.stopping || !transport.open) return;
-            joined = this.gateway.join(metadata, role, rate, transport);
+            const authority = formal
+              ? (
+                  admission as Awaited<
+                    ReturnType<SimulationSessions['consume']>
+                  >
+                ).authority
+              : undefined;
+            if (formal && role === 'publisher' && authority?.lease_id)
+              binding = this.sessions!.bind(
+                session,
+                authority.lease_id,
+                transport,
+              );
+            joined = this.gateway.join(
+              metadata,
+              role,
+              rate,
+              transport,
+              authority
+                ? {
+                    epoch: BigInt(authority.epoch),
+                    state: () => this.sessions!.motionState(session),
+                    frame: binding?.frame,
+                    leave: binding?.leave,
+                  }
+                : undefined,
+            );
+            if (!joined) binding?.leave();
             admitted = !!joined;
             clearTimeout(timeout);
-          } catch {
+          } catch (error) {
+            this.log({
+              event: 'motion.admission_failed',
+              session_id: session,
+              reason:
+                error instanceof Error ? error.message : 'Admission failed',
+            });
             this.gateway.reject(
               transport,
               'unauthorized',
@@ -184,6 +239,23 @@ export class MotionWebSockets {
         })();
         this.admissions.add(admission);
         void admission.finally(() => this.admissions.delete(admission));
+        return;
+      }
+      if (!binary && formal && role === 'publisher') {
+        try {
+          if (data.byteLength > 4096) throw new Error('Oversize lifecycle ACK');
+          binding?.ack(
+            parseMotionSessionAck(
+              new TextDecoder('utf-8', { fatal: true }).decode(data),
+            ),
+          );
+        } catch {
+          this.gateway.reject(
+            transport,
+            'invalid_message',
+            'Lifecycle acknowledgement rejected',
+          );
+        }
         return;
       }
       if (!binary) {
@@ -209,6 +281,9 @@ export class MotionWebSockets {
     ws.on('error', terminate);
     ws.on('close', cleanup);
     ws.on('message', receive);
+  }
+  fence(id: string) {
+    this.gateway.fence(id);
   }
   async stop() {
     if (this.stopping) return;

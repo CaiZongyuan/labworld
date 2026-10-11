@@ -10,6 +10,7 @@ import {
   getLabMotionFixture,
   createLabMotionFixture,
   createLabMotionViewerTicket,
+  createLabSessionViewerTicket,
 } from './generated/sdk.gen';
 import type { MotionFixture, MotionTicket } from '@labos-threejs/contracts';
 
@@ -51,6 +52,20 @@ export async function requestMotionViewerTicket(
   options: HttpOptions & { sessionId: string; rateHz: 15 | 30 },
 ): Promise<MotionViewerTicket> {
   const result = await createLabMotionViewerTicket({
+    client: options.client,
+    path: { lab_id: options.labId, session_id: options.sessionId },
+    signal: options.signal,
+    headers: Object.fromEntries(new Headers(options.headers)),
+    body: { preferred_rate_hz: options.rateHz },
+    throwOnError: true,
+  });
+  return result.data;
+}
+
+export async function requestSessionViewerTicket(
+  options: HttpOptions & { sessionId: string; rateHz: 15 | 30 },
+): Promise<MotionViewerTicket> {
+  const result = await createLabSessionViewerTicket({
     client: options.client,
     path: { lab_id: options.labId, session_id: options.sessionId },
     signal: options.signal,
@@ -117,10 +132,13 @@ export async function subscribeMotion(
     onWelcome: (welcome: MotionWelcome) => void;
     onSnapshot: (snapshot: MotionSnapshot, receivedAt: number) => void;
     onStatus?: (status: Exclude<MotionControl, MotionWelcome>) => void;
+    requestTicket?: typeof requestMotionViewerTicket;
   },
 ): Promise<void> {
   if (options.signal.aborted) return;
-  const ticket = await requestMotionViewerTicket(options);
+  const ticket = await (options.requestTicket ?? requestMotionViewerTicket)(
+    options,
+  );
   if (options.signal.aborted) return;
   const base =
     options.client.getConfig().baseUrl || globalThis.location?.origin;
@@ -229,5 +247,15 @@ export async function subscribeMotion(
     } catch (error) {
       finish(error);
     }
+  });
+}
+
+/** The authoritative Session and development fixture share only the read-only transport. */
+export function subscribeSessionMotion(
+  options: Parameters<typeof subscribeMotion>[0],
+) {
+  return subscribeMotion({
+    ...options,
+    requestTicket: requestSessionViewerTicket,
   });
 }

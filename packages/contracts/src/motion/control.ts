@@ -1,4 +1,4 @@
-import { parseMotionU64 } from './codec.ts';
+import { encodeMotionSnapshot, parseMotionU64 } from './codec.ts';
 import {
   MOTION_CODEC,
   MOTION_ERROR_CODES,
@@ -6,7 +6,10 @@ import {
   MotionProtocolError,
   type MotionControl,
   type MotionHello,
+  type MotionPose,
   type MotionRate,
+  type MotionSessionAck,
+  type MotionSessionControl,
   type MotionTarget,
   type MotionWelcome,
 } from './types.ts';
@@ -89,6 +92,37 @@ function keys(value: unknown, maxCount: number): readonly string[] {
   return Object.freeze(result);
 }
 
+function pose(value: unknown): MotionPose {
+  const item = record(value);
+  if (
+    !Array.isArray(item.position) ||
+    item.position.length !== 3 ||
+    !Array.isArray(item.quaternion) ||
+    item.quaternion.length !== 4
+  )
+    invalid('Invalid correction pose');
+  const result: MotionPose = {
+    position: [item.position[0], item.position[1], item.position[2]],
+    quaternion: [
+      item.quaternion[0],
+      item.quaternion[1],
+      item.quaternion[2],
+      item.quaternion[3],
+    ],
+  };
+  encodeMotionSnapshot({
+    epoch: 0n,
+    sequence: 0n,
+    sim_time_ns: 0n,
+    mapping_revision: 0,
+    poses: [result],
+    joints: [],
+  });
+  Object.freeze(result.position);
+  Object.freeze(result.quaternion);
+  return Object.freeze(result);
+}
+
 export function parseMotionHello(input: string): MotionHello {
   const value = json(input, MOTION_LIMITS.hello_bytes);
   envelope(value, 'motion.hello');
@@ -135,6 +169,9 @@ function welcome(value: Record<string, unknown>): MotionWelcome {
       entity_id: uuid(target.entity_id),
       node_id: uuid(target.node_id),
       visual_target: 'node-root',
+      ...(target.body_to_visual === undefined
+        ? {}
+        : { body_to_visual: pose(target.body_to_visual) }),
     });
   });
   if (new Set(targets.map((target) => target.node_id)).size !== targets.length)
@@ -173,6 +210,7 @@ export function parseMotionControl(input: string): MotionControl {
       'waiting',
       'live',
       'stale',
+      'paused',
       'interrupted',
       'closed',
     ] as const;
@@ -185,4 +223,50 @@ export function parseMotionControl(input: string): MotionControl {
     };
   }
   return invalid('Unsupported server motion control');
+}
+
+function sessionBoundary(value: Record<string, unknown>) {
+  const epoch = text(value.epoch, 20);
+  parseMotionU64(epoch);
+  if (
+    typeof value.revision !== 'number' ||
+    !Number.isSafeInteger(value.revision) ||
+    value.revision < 0
+  )
+    invalid('Invalid Session revision');
+  const action = (['pause', 'resume', 'stop'] as const).find(
+    (action) => action === value.action,
+  );
+  if (!action) invalid('Invalid Session action');
+  return {
+    session_id: uuid(value.session_id),
+    epoch,
+    transition_id: uuid(value.transition_id),
+    revision: value.revision,
+    action,
+  };
+}
+
+export function parseMotionSessionControl(input: string): MotionSessionControl {
+  const value = json(input, MOTION_LIMITS.session_control_bytes);
+  if (value.type !== 'motion.session_control')
+    invalid('Expected motion.session_control');
+  return { type: 'motion.session_control', ...sessionBoundary(value) };
+}
+
+export function parseMotionSessionAck(input: string): MotionSessionAck {
+  const value = json(input, MOTION_LIMITS.session_control_bytes);
+  if (value.type !== 'motion.session_ack' || value.result !== 'applied')
+    invalid('Expected applied motion.session_ack');
+  const last_sequence = text(value.last_sequence, 20);
+  const sim_time_ns = text(value.sim_time_ns, 20);
+  parseMotionU64(last_sequence);
+  parseMotionU64(sim_time_ns);
+  return {
+    type: 'motion.session_ack',
+    ...sessionBoundary(value),
+    result: 'applied',
+    last_sequence,
+    sim_time_ns,
+  };
 }

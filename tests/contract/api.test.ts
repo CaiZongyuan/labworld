@@ -6,6 +6,7 @@ import {
   type Json,
 } from '../../scripts/lib/contract-openapi';
 import { guideProgressApiParts } from '../../scripts/lib/guide-progress-api';
+import { sessionApiParts } from '../../scripts/lib/session-api';
 import { motionApiParts } from '../../scripts/lib/motion-api';
 import { HttpClient } from './http';
 const baseline = JSON.parse(
@@ -18,16 +19,21 @@ const addition = JSON.parse(
 const motionAddition = JSON.parse(
   readFileSync('tests/contract/motion-api.json', 'utf8'),
 ) as Json;
+const sessionAddition = JSON.parse(
+  readFileSync('tests/contract/session-api.json', 'utf8'),
+) as Json;
 function differences(document: Json) {
-  const motion = motionApiParts(document);
+  const sessions = sessionApiParts(document);
+  const motion = motionApiParts(sessions.existing);
   const parts = guideProgressApiParts(motion.existing);
   return [
     ...semanticDifferences(baseline, parts.existing),
     ...semanticDifferences(addition, parts.addition),
     ...semanticDifferences(motionAddition, motion.addition),
+    ...semanticDifferences(sessionAddition, sessions.addition),
   ];
 }
-test('API-01 retained Rust OpenAPI and approved guide/motion additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
+test('API-01 retained Rust OpenAPI and approved guide/motion/Session additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
   const source = await new HttpClient().json<Json>('GET', '/api/openapi.json');
   const retained = retainedOpenApi(source);
   expect(differences(retained)).toEqual([]);
@@ -128,6 +134,31 @@ test('API-01 retained Rust OpenAPI and approved guide/motion additions have no d
       (
         (api.components as Record<string, Json>).schemas as Record<string, Json>
       ).MotionTicket = { type: 'string' };
+    },
+  );
+  const sessions = '/api/v1/lab/labs/{lab_id}/sessions';
+  cases.push(
+    (api) => {
+      (api.paths as typeof paths)[sessions].post.operationId =
+        'startUnapprovedSession';
+    },
+    (api) => {
+      (api.paths as typeof paths)[sessions].put = structuredClone(
+        paths[sessions].post,
+      );
+    },
+    (api) => {
+      delete (api.paths as typeof paths)['/api/v1/machines'].post;
+    },
+    (api) => {
+      (
+        (api.components as Record<string, Json>).schemas as Record<string, Json>
+      ).PublisherBootstrap = { type: 'string' };
+    },
+    (api) => {
+      (
+        (api.components as Record<string, Json>).schemas as Record<string, Json>
+      ).MachineIdentity = { type: 'string' };
     },
   );
   for (const mutate of cases) {

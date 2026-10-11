@@ -64,7 +64,14 @@ export function PerformancePanel({
   const count = new Intl.NumberFormat(locale);
   if (!metrics) return null;
   return (
-    <aside className="lab-perf" aria-label={message('viewer.performance')}>
+    <aside
+      className="lab-perf"
+      aria-label={message('viewer.performance')}
+      data-sampled-at={metrics.sampledAt}
+      data-completed-render-frame={metrics.completedRenderFrame}
+      data-geometries={metrics.geometries}
+      data-textures={metrics.textures}
+    >
       <div className="lab-perf-title">
         <Activity />
         <span>{message('viewer.performance')}</span>

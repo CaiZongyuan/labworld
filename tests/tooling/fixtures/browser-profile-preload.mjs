@@ -23,7 +23,13 @@ if (process.argv[1]?.endsWith('/scripts/e2e-server.mjs')) {
   child.unref();
   appendFileSync(
     events,
-    JSON.stringify({ index, pid: process.pid, descendant: child.pid }) + '\n',
+    JSON.stringify({
+      index,
+      args: process.argv.slice(2),
+      webMode: process.env.E2E_WEB_MODE ?? null,
+      pid: process.pid,
+      descendant: child.pid,
+    }) + '\n',
   );
   const summary = {
     status: index === 0 ? 'failed' : 'passed',

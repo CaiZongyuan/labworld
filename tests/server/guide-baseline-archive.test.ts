@@ -198,7 +198,7 @@ test(
         '--archive',
         archive,
       ]);
-      assert.equal(result.schemaVersion, 2);
+      assert.equal(result.schemaVersion, 3);
       destination.env = {
         APP_ORIGIN: destination.url,
         LAB_WORD_DATA_DIR: restored,
@@ -265,7 +265,7 @@ test(
         '--output',
         currentArchive,
       ]);
-      assert.equal(currentBackup.schemaVersion, 2);
+      assert.equal(currentBackup.schemaVersion, 3);
       assert.equal(
         (
           await command('apps/server/src/cli.ts', currentCopy, [
@@ -274,7 +274,7 @@ test(
             currentArchive,
           ])
         ).schemaVersion,
-        2,
+        3,
       );
       await writeFile(
         join(artifacts.evidence, 'guide-archive-result.json'),

@@ -16,6 +16,10 @@ export type ViewStatus = {
   error: ModelErrorKey | null;
 };
 export type RenderMetrics = {
+  /** Browser monotonic time when these renderer counters were sampled. */
+  sampledAt: number;
+  /** gl.info frame of the preceding completed render, read at default useFrame priority. */
+  completedRenderFrame: number;
   fps: number;
   frameMs: number;
   calls: number;
