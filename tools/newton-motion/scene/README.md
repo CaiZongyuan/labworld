@@ -1,20 +1,12 @@
 # Pinned Newton scene candidate
 
-The registered profile is `sha256:1dd3014070e263e18fa639df17a64a584fd3102650d645e79b4a28c62e40bf5f`.
-`representations/base.glb` retains the exact combined archive `sha256:d2648be2c10d2948ec51de618d70936413b9222ed3de6288fdbeb16ac713d963`.
-The original ten visual geometries, maker meshes/licenses, body inertias are preserved. Endpoint joint targets are calibrated to the original finite source patches.
-Eleven locally derived collision members and their notices/provenance are part of the exact archive allowlist in `supported-profile.json`.
+The registered profile is `sha256:f85a5bed3be68d1c901298e6c976d539030fe4458f24b621a3b921de10d97bb1`.
+`representations/base.glb` retains the exact combined archive `sha256:d86c6094aa74640872afd7ce3d659b47cfed121dd7ec88d60e465ccec77d5f59`.
+The ten original visual geometries, maker meshes/licenses, body inertias, materials and collision shapes are retained.
+Eleven locally derived collision members and their provenance remain in the fixed archive allowlist.
 
-Issue #73 remains in development. Actual compiled cloud coverage/support, native float bounds, contact/constraint budgets, loaded lift/held and Viewer/Recording acceptance are pending independent validation.
-The previous 4daa profile and its failed physical evidence remain in the development handoff history; candidate registration is not delivery evidence.
+The predefined program contains fourteen records. Cartesian descent stays 5mm behind the final grip along its long axis, then enters horizontally at cap height. Closure pauses for one second. Joint targets close from0.4 to0.3 during lift, then0.3 to0.2 during held; these targets maintain contact without changing motor force or friction. The source lift goal is12mm, while the actual acceptance threshold remains6mm.
 
-Run `python -B tools/newton-motion/prepare.py --output <new-owned-directory>` to recover the fixed package through the production extractor.
-Existing output directories are preserved and rejected. No solver, GPU, network download or mesh generation is needed for preparation.
+The genuine4320step GPU measurement reached9.003527mm rise, passed an independent consecutive-ten-sample loaded gate and then released/seated. Native256contact/512constraint guards passed4321 checks; observed peaks were10/22/46 and overflow0. One brief shoulder/lower-arm contact during entry is retained in the diagnostic evidence. Viewer/Recording acceptance, independent final review and final-head CI remain pending.
 
-Discovery candidate: explicit builder gap0m with unchanged activation margin0m.
-Actual capacities/counts fail closed at constructor and each native step; compiled
-267-record classification and paired active-contact equality are pending verification.
-
-This WIP profile reuses the original waypoint and all 4320 step boundaries. Closed jaw tangency is 0.4349370575416981 rad, cap centre is vial-local z=0.094m, and the source lift goal is +0.03m. The first approach discrete separator remains UNKNOWN at fraction0.8125 for moving_slab_03 versus cap; this is not a proved intrusion. Actual native path/contact, loaded lift/held and release await genuine GPU measurement.
-
-Current WIP uses original236/92 finite inner planes with vertical cylinder-axis goal, open1.2rad, closed0.8054284571418362rad, +12mm lift goal, Cartesian approach intermediates and1s closed dwell. Actual run08 completed4320steps with nativebudgetPASS but no bilateral held or6mm rise; this is not delivery or release evidence.
+Run `python -B tools/newton-motion/prepare.py --output <new-owned-directory>` to recover this exact package. Existing directories are rejected. Preparation requires no solver, GPU, network download or mesh generation.

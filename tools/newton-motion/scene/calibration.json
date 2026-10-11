@@ -1,8 +1,8 @@
 {
   "source_commit": "a758567c3978dfeefe282ede0500085a48fe8f78",
   "initial_seed": 42,
-  "open_jaw_angle": 1.2,
-  "closed_jaw_angle": 0.8054284571418362,
+  "open_jaw_angle": 1.6,
+  "closed_jaw_angle": 0.4,
   "method": "Original-maker contact geometry and source FK calibrated trajectory; genuine GPU diagnostic WIP",
   "geometry_inputs": {
     "scene.xml": "87f919ae124e3634329975c203e8129e8816f0dd7839828a103556e7a4a94501",
@@ -13,124 +13,85 @@
     "fixed": {
       "body": "gripper",
       "closest_point_body": [
-        -0.013299999758601105,
-        4.15032591627451e-19,
-        -0.0558
+        -0.013299999758601105, 4.15032591627451e-19, -0.0558
       ],
       "mesh": "wrist_roll_follower_so101_v1.stl",
-      "normal_body": [
-        1.0,
-        0.0,
-        0.0
-      ]
+      "normal_body": [1.0, 0.0, 0.0]
     },
     "moving": {
       "body": "moving_jaw_so101_v1",
       "closest_point_body": [
-        -0.009999999776482617,
-        -0.012570203210487017,
-        0.018800000000000004
+        -0.009999999776482617, -0.012570203210487017, 0.018800000000000004
       ],
       "mesh": "moving_jaw_so101_v1.stl",
-      "normal_body": [
-        -1.0,
-        0.0,
-        0.0
-      ]
+      "normal_body": [-1.0, 0.0, 0.0]
     }
   },
   "clearance_waypoint": {
     "q": [
-      0.0004051959832758088,
-      -1.1197150035707106,
-      1.0571094478084273,
-      0.06270156585945567,
-      -1.5215039664625427
+      0.00041600088669637125, -1.1801707595411117, 1.0763741627847883,
+      0.10389260021573833, -1.5215039654243903
     ],
     "above_open_m": 0.04
   },
   "source_geometry": {
-    "capcentre_gripper": [
-      0.008700000241398893,
-      0.0,
-      -0.0558
-    ],
+    "capcentre_gripper": [0.008700000241398893, 0.0, -0.0558],
     "axis_gripper": [
-      1.8865117801247777e-17,
-      1.0000000000000002,
-      5.805767108388316e-16
+      1.8865117801247777e-17, 1.0000000000000002, 5.805767108388316e-16
     ],
     "tangent_jaw": 0.8554284571418362,
     "true_support_rule": "fullfinitecylinder radial+axial, not centre\u00b1radius nominal point"
   },
-  "physics_validation": "Actual4320 run08 completed: no bilateral held or >=6mm rise; source geometry/controls WIP, acceptance pending",
+  "physics_validation": "ActualGPU measurement pending; oldtoe samples retained in scratchhistory only",
   "source_path": {
     "above_open_m": 0.08,
     "lateral_standoff_m": 0.008,
-    "cartesian_descent_waypoints_m": [
-      0.06,
-      0.04,
-      0.02,
-      0
-    ],
-    "closed_dwell_native_steps": 240
+    "cartesian_descent_waypoints_m": [0.06, 0.04, 0.02, 0],
+    "closed_dwell_native_steps": 240,
+    "longitudinal_entry_offset_m": 0.005,
+    "pressure_program": "closed/dwell.4,lift\u2192.3,held\u2192.2,lower.2; onlyactuatortargets, notforces"
   },
   "calibration_target": {
     "toe_translation_z_m": null,
     "source_lift_goal_m": 0.012,
-    "closed_joint_target_rad": 0.8054284571418362,
-    "hypothesis": "Run07 sparsejoint interpolation contactedvial beforeclosing; replace approach by80mm above-open Cartesian descent intermediategoals with8mm lateralstandoff. Add one-second fixedclosedtarget dwell to distinguish realstaticload from closingservo transient; samecontactgeometry/motors/friction/masks/nativecriteria.",
+    "closed_joint_target_rad": 0.4,
+    "hypothesis": "Run12 initiallycrossed6mm butstaticheld slipped; run13 largerliftlostcontact sooner. Keep12mmlift/safeentry/closed.4+dwell, progressively close .4\u2192.3 duringlift and .3\u2192.2 duringheld tokeepactualnormalpreload, then maintain.2 whilelowering. Restretreat eliminatesobservedfixedresidual. Actualforce/physics unchanged; validateconsecutive10 gate.",
     "physics_pass": false
   },
   "grasp": {
     "q": [
-      0.04193460530875428,
-      -0.6660431246342243,
-      1.5159446449462193,
-      -0.8498310367944236,
-      -1.5215005087748326
+      0.04193460530875428, -0.6660431246342243, 1.5159446449462193,
+      -0.8498310367944236, -1.5215005087748326
     ],
     "position_goal_error_m": 1.415262216750919e-16,
     "axis_goal_error": 5.816162765956153e-16
   },
   "approach": {
     "q": [
-      0.00040519598395335186,
-      -0.6696546264867504,
-      1.517723976784889,
-      -0.8479733404170057,
-      -1.521503966448834
+      0.00040519598395335186, -0.6696546264867504, 1.517723976784889,
+      -0.8479733404170057, -1.521503966448834
     ],
     "position_goal_error_m": 4.219535582607321e-12,
     "axis_goal_error": 2.175027357382905e-10
   },
   "lift": {
     "q": [
-      0.041934605308756014,
-      -0.8591823523165514,
-      1.485089439920679,
-      -0.6258366040867603,
-      -1.5215005087748192
+      0.041934605308756014, -0.8591823523165514, 1.485089439920679,
+      -0.6258366040867603, -1.5215005087748192
     ],
     "position_goal_error_m": 1.2400935244705841e-14,
     "axis_goal_error": 2.0422220203276005e-13
   },
   "lower": {
     "q": [
-      0.04193460530875428,
-      -0.6660431246342243,
-      1.5159446449462193,
-      -0.8498310367944236,
-      -1.5215005087748326
+      0.04193460530875428, -0.6660431246342243, 1.5159446449462193,
+      -0.8498310367944236, -1.5215005087748326
     ]
   },
   "release": {
     "q": [
-      0.00040519598395335186,
-      -0.6696546264867504,
-      1.517723976784889,
-      -0.8479733404170057,
-      -1.521503966448834
+      0.00040519598395335186, -0.6696546264867504, 1.517723976784889,
+      -0.8479733404170057, -1.521503966448834
     ]
   },
   "static_verification": {

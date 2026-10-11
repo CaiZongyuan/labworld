@@ -39,7 +39,7 @@ class PortableTests(unittest.TestCase):
             self.assertEqual(actual,{entry['path'] for entry in profile['physics_archive']['members']})
             derived=[name for name in actual if name.endswith('.obj')]
             self.assertEqual(len(derived),11)
-            self.assertEqual(sum(entry['bytes'] for entry in profile['physics_archive']['members']),19_057_685)
+            self.assertEqual(sum(entry['bytes'] for entry in profile['physics_archive']['members']),19_057_629)
             for entry in profile['physics_archive']['members']:
                 data=(scene/entry['path']).read_bytes()
                 self.assertEqual(len(data),entry['bytes'])
