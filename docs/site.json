@@ -22,10 +22,10 @@
       "titleEn": "Home",
       "group": "公开站",
       "layout": "page",
-      "pageTitle": "Lab Word",
-      "pageTitleEn": "Lab Word",
-      "pageDescription": "实验室数字孪生。持久 Lab、资产、布局、后端虚拟设备和用户/Agent 共用接口已实现。",
-      "pageDescriptionEn": "Laboratory digital twin with persistent Labs, assets, layouts, backend virtual devices and shared Member/Agent interfaces."
+      "pageTitle": "Lab Word — 实验室数字孪生，附一块实时等距实验台",
+      "pageTitleEn": "Lab Word — laboratory digital twin with a live isometric lab",
+      "pageDescription": "Lab Word 是一个实验室数字孪生：持久化的实验室、资产与对象运行在 Three.js 工作台之上，设备程序由服务端持有，关闭浏览器后仍在继续。人类与 Agent 共用同一套 HTTP/SSE 契约。",
+      "pageDescriptionEn": "Lab Word is a laboratory digital twin: persistent Labs, assets and entities in a Three.js workbench, with server-owned device programs that keep running after the browser closes. Humans and Agents share one HTTP/SSE contract."
     },
     {
       "id": "blog",

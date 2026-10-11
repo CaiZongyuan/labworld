@@ -1,0 +1,422 @@
+// Bilingual copy for the landing page and its isolated illustration.
+
+const T = {
+  'nav.devices': ['Devices', '设备'],
+  'nav.provenance': ['Provenance', '溯源'],
+  'nav.product': ['Product', '产品'],
+  'nav.architecture': ['Direction', '产品方向'],
+  'nav.start': ['Start', '开始'],
+  'nav.github': ['GitHub', 'GitHub'],
+  'nav.lang': ['中文', 'EN'],
+  'nav.langAria': ['Switch language', '切换语言'],
+  'nav.modeAria': ['Switch light or dark', '切换亮暗主题'],
+  'nav.mode': ['Light or dark', '亮色或暗色'],
+
+  'hero.eyebrow': ['Laboratory digital twin', '实验室数字孪生'],
+  'hero.h1': [
+    'A laboratory that keeps<br>running <em>after you close the tab.</em>',
+    '关掉标签页，<br><em>实验室仍在继续运转。</em>',
+  ],
+  'hero.lede': [
+    'Persistent Labs, assets and entities in a Three.js workbench, with device programs owned by a single Node process. Humans and Agents share one HTTP/SSE contract. The plate below is live — drag it, zoom it, click anything.',
+    '持久化的实验室、资产与对象运行在 Three.js 工作台之上，设备程序由单个 Node 进程持有。人类与 Agent 共用同一套 HTTP/SSE 契约。下方图版是实时的——拖动、缩放、点击任意对象。',
+  ],
+  'hero.github': ['View on GitHub', '在 GitHub 查看'],
+  'hero.docs': ['Read the docs', '阅读文档'],
+
+  'plate.fig': ['Fig 1', '图 1'],
+  'plate.site.lab': ['Lab', '全景'],
+  'plate.site.benches': ['Benches', '实验台'],
+  'plate.site.devices': ['Devices', '设备'],
+  'plate.site.robot': ['Robot', '机械臂'],
+  'plate.site.assets': ['Assets', '资产'],
+  'plate.zoomIn': ['Zoom in', '放大'],
+  'plate.zoomOut': ['Zoom out', '缩小'],
+  'plate.home': ['Whole lab', '整间实验室'],
+  'plate.pause': ['Pause', '暂停'],
+  'plate.resume': ['Resume', '继续'],
+  'plate.skip': ['Skip six hours', '快进六小时'],
+  'plate.theme': ['Light or dark', '亮色或暗色'],
+  'plate.hint': [
+    'Drag to pan · scroll to zoom · click anything',
+    '拖动平移 · 滚轮缩放 · 点击任意对象',
+  ],
+  'plate.loading': ['loading', '加载中'],
+  'plate.progress': ['task progress', '任务进度'],
+  'plate.cardAria': ['Selection details', '选中对象详情'],
+  'plate.close': ['Close details', '关闭详情'],
+  'plate.aria': [
+    'Live isometric laboratory: benches with labware and an imported microscope, an asset shelf, two light stands, two temperature sensors, a centrifuge, a robot arm shuttling trays between an infeed station and a cart, a Lab Word Server cabinet and a technician walking the room. A day passes in four minutes and the lamps light at dusk. Drag to pan, scroll to zoom, click anything for its live details.',
+    '实时等距实验室：摆放器皿与导入显微镜的实验台、资产架、两盏灯架、两个温度传感器、一台离心机、一台在进料台与料车之间搬运周转盘的机械臂、Lab Word Server 机柜，以及一位在房间里走动的技术员。四分钟过完一天，黄昏时灯具亮起。拖动平移，滚轮缩放，点击任意对象查看实时详情。',
+  ],
+  'plate.dusk': [' · dusk', ' · 黄昏'],
+  'plate.night': [' · night', ' · 夜间'],
+  'plate.readout': [
+    '{state} · {ents} entities · {runs} runs · sse {sse}',
+    '{state} · {ents} 个对象 · {runs} 个运行 · sse {sse}',
+  ],
+  'plate.live': ['live', '实时'],
+  'plate.paused': ['paused', '已暂停'],
+
+  'kind.virtual': ['Virtual device', '虚拟设备'],
+  'kind.entity': ['Entity', '实验室对象'],
+  'kind.representation': ['Asset representation', '资产表示'],
+  'kind.library': ['Asset library', '资产库'],
+  'kind.server': ['Lab Word Server', 'Lab Word Server'],
+  'kind.member': ['Member', '成员'],
+
+  'ent.lightA': ['Light A', '灯 A'],
+  'ent.lightB': ['Light B', '灯 B'],
+  'ent.sensorA': ['Sensor A', '传感器 A'],
+  'ent.sensorB': ['Sensor B', '传感器 B'],
+  'ent.cent': ['Tutorial centrifuge B', '教程离心机 B'],
+  'ent.robot': ['Robot arm R1', '机械臂 R1'],
+  'ent.bench': ['Bench {n}', '实验台 {n}'],
+  'ent.microscope': ['Industrial Microscope', '工业显微镜'],
+  'ent.labware': ['Labware set', '器皿组'],
+  'ent.shelf': ['Asset shelf', '资产架'],
+  'ent.server': ['Lab Word Server', 'Lab Word Server'],
+  'ent.tech': ['On-shift technician', '当班技术员'],
+
+  'row.run': ['Run', '运行'],
+  'row.pending': ['Pending command', '待执行指令'],
+  'row.observation': ['Observation', '观测'],
+  'row.reported': ['Reported', '上报于'],
+  'row.binding': ['Binding', '运行绑定'],
+  'row.value': ['Value', '读数'],
+  'row.source': ['Source', '来源'],
+  'row.quality': ['Quality', '质量'],
+  'row.observed': ['Observed', '观测时间'],
+  'row.retention': ['Retention', '保留期'],
+  'row.state': ['State', '状态'],
+  'row.rpm': ['Observed RPM', '实测转速'],
+  'row.setpoint': ['Setpoint', '设定转速'],
+  'row.chamber': ['Chamber', '腔体温度'],
+  'row.done': ['Tasks completed', '已完成任务'],
+  'row.cell': ['Cell', '工作单元'],
+  'row.cycle': ['Cycle', '周期'],
+  'row.payload': ['Payload', '负载'],
+  'row.relationship': ['Relationship', '关系'],
+  'row.placement': ['Placement', '三维摆放'],
+  'row.nodes': ['Nodes', '场景节点'],
+  'row.license': ['License', '许可'],
+  'row.triangles': ['Triangles', '三角面'],
+  'row.format': ['Format', '格式'],
+  'row.vessels': ['Vessels', '容器'],
+  'row.identity': ['Identity', '身份'],
+  'row.rack': ['Rack', '试管架'],
+  'row.definitions': ['Definitions', '定义'],
+  'row.representations': ['Representations', '表示'],
+  'row.bytes': ['Bytes', '字节'],
+  'row.process': ['Process', '进程'],
+  'row.database': ['Database', '数据库'],
+  'row.sseEvents': ['SSE events', 'SSE 事件'],
+  'row.header': ['Header', '响应头'],
+  'row.serves': ['Serves', '静态服务'],
+  'row.role': ['Role', '角色'],
+  'row.session': ['Session', '会话'],
+  'row.lastAction': ['Last action', '最近操作'],
+
+  'v.none': ['none', '无'],
+  'v.ago': ['{n} s ago', '{n} 秒前'],
+  'v.live': ['run live', '运行中'],
+  'v.stopped': ['stopped', '已停止'],
+  'v.sampling': ['sampling 1 Hz', '1 Hz 采样中'],
+  'v.carrying': ['carrying', '搬运中'],
+  'v.reaching': ['reaching', '伸展中'],
+  'v.placed': ['placed', '已三维摆放'],
+  'v.published': ['published', '已发布'],
+  'v.catalog': ['catalog', '目录中'],
+  'v.ready': ['ready', '就绪'],
+  'v.atBench': ['at the bench', '在台前'],
+  'v.onShift': ['on shift', '当班中'],
+  'v.raw24': ['24 h raw', '24 小时原始值'],
+  'v.inLab': ['located in Lab', '位于 Lab 内'],
+  'v.registered': ['registered', '已登记'],
+  'v.embedded': ['embedded', '内嵌'],
+  'v.single': ['1 (single)', '1（单进程）'],
+  'v.sameOrigin': ['web, same origin', '静态站点（同源）'],
+  'v.layoutEdit': ['layout edit', '布局编辑'],
+  'v.perVessel': ['per vessel', '逐容器'],
+  'v.tote': ['labware tote', '器皿周转盘'],
+  'v.cellName': ['robot cell 01', '机械臂单元 01'],
+  'v.rpm': ['{n} rpm', '{n} rpm'],
+
+  'cs.idle': ['idle', '空闲'],
+  'cs.preparing': ['preparing', '准备中'],
+  'cs.running': ['running', '运行中'],
+  'cs.decelerating': ['decelerating', '减速中'],
+  'cs.completed': ['completed', '已完成'],
+  'cs.cancelled': ['cancelled', '已取消'],
+
+  'act.start': ['Start', '启动'],
+  'act.stop': ['Stop', '停止'],
+  'act.set40': ['Set 40 %', '设为 40 %'],
+  'act.set100': ['Set 100 %', '设为 100 %'],
+  'act.startTask': ['Start task', '开始任务'],
+  'act.cancel': ['Cancel', '取消'],
+
+  'product.eyebrow': ['The foundation', '基座'],
+  'product.h2': [
+    'A shared world<br>for people and Agents.',
+    '让人和 Agent<br>理解同一间实验室。',
+  ],
+  'product.lede': [
+    'Lab Word organizes equipment, digital assets, spatial relationships and device observations in one shared laboratory world model. People and Agents inspect the same facts, run virtual devices and trace results through the same interfaces.',
+    'Lab Word 把设备、数字资产、空间关系与设备观测组织成共享的实验室世界模型。人和 Agent 基于同一份事实查看实验室、运行虚拟设备，并追溯操作结果。',
+  ],
+  'product.p1.idx': ['01 · Persistent world', '01 · 持久世界'],
+  'product.p1.h3': [
+    'Labs, assets, entities, scene nodes',
+    '实验室、资产、对象、场景节点',
+  ],
+  'product.p1.p': [
+    'Register entities from a versioned definition catalog, place scene nodes in metres and radians, and relate objects with <em>located in</em>, <em>contains</em> and <em>simulates</em> — each relationship recorded with its source, actor and time. Layouts are versioned; a conflicting save answers <code>409 lab.layout_conflict</code> and keeps your draft.',
+    '从带版本的定义目录注册对象，以米和弧度放置场景节点，并用<em>位于</em>、<em>包含</em>、<em>模拟</em>关联对象——每条关系都记录其来源、操作者与时间。布局带版本管理；冲突的保存会返回 <code>409 lab.layout_conflict</code>，并保留你的草稿。',
+  ],
+  'product.p2.idx': ['02 · Asset library', '02 · 资产库'],
+  'product.p2.h3': ['glTF 2.0 in, provenance out', 'glTF 2.0 进，溯源出'],
+  'product.p2.p': [
+    'Upload self-contained <code>.glb</code> files with a required name, source, license and version. The server validates the bytes, stores them by content hash and reports external dependencies, absent geometry and decoder failures. An invalid import keeps the previous usable model.',
+    '上传自包含的 <code>.glb</code> 文件，名称、来源、许可与版本均为必填。服务端校验字节流、按内容哈希存储，并报告外部依赖、缺失几何体与解码失败。导入非法时保留上一个可用模型。',
+  ],
+  'product.p3.idx': ['03 · Live sync', '03 · 实时同步'],
+  'product.p3.h3': ['SSE with persistent versions', '带持久版本的 SSE'],
+  'product.p3.p': [
+    'Subscribe to the world and receive property updates on bounded queues with snapshot recovery. Every response carries <code>X-Lab-Runtime: ready</code>, an <code>x-request-id</code> and a structured error envelope. Revoking a credential ends existing access.',
+    '订阅世界后通过有界队列接收属性更新，并支持快照恢复。每个响应都带 <code>X-Lab-Runtime: ready</code>、<code>x-request-id</code> 与结构化错误信封。吊销凭据即刻终止既有访问。',
+  ],
+  'product.p4.idx': ['04 · Humans and Agents', '04 · 人类与 Agent'],
+  'product.p4.h3': ['The same contract, both sides', '两侧共用同一套契约'],
+  'product.p4.p': [
+    'People sign in with email and password — the first account becomes Owner, later accounts Members. Agents authenticate with API keys scoped <code>lab:full</code> and perform the identical business operations. Example scripts ship for registering a world, editing a layout, controlling lights, observing temperature and running centrifuges.',
+    '人用邮箱与密码登录——第一个账号成为 Owner，其后为 Member。Agent 使用作用域为 <code>lab:full</code> 的 API Key 认证，执行完全相同的业务操作。仓库附带示例脚本：注册世界、编辑布局、控制灯光、观测温度、运行离心机。',
+  ],
+  'diagram.server': ['LAB WORD SERVER', 'LAB WORD 服务端'],
+  'diagram.browser': ['BROWSER', '浏览器'],
+  'diagram.desktop': ['DESKTOP', '桌面端'],
+  'diagram.agents': ['AGENTS', 'AGENTS'],
+  'diagram.electron': ['ELECTRON', 'ELECTRON'],
+
+  'devices.eyebrow': ['Server-owned device programs', '服务端持有的设备程序'],
+  'devices.h2': [
+    'Closing a browser<br>does not stop a program.',
+    '关闭浏览器<br>并不会中断程序。',
+  ],
+  'devices.lede': [
+    'Lights, temperature sensors and centrifuges run as programs on the server. They keep sampling and spinning after every tab is shut. These three cards are wired to the same simulation driving the plate above — start a task here and watch the rotor in Fig 1.',
+    '灯、温度传感器与离心机都以服务端程序的形式运行。所有标签页关闭后它们仍在采样与旋转。下面三张卡片与驱动上方图版的是同一个模拟——在这里启动一个任务，再看图 1 里的转子。',
+  ],
+  'devices.note': ['two independent 1 Hz sources', '两路独立的 1 Hz 源'],
+
+  'prov.eyebrow': ['Provenance in every reading', '每个读数都带溯源'],
+  'prov.h2': ['A command is not<br>an observation.', '指令不等于<br>观测。'],
+  'prov.lede': [
+    'Lab Word never lets a requested target stand in for what a device actually reported. Commands, observations and placements are separate records, each with its own time, source and quality — and simulated readings stay distinguishable from real measurements at all times.',
+    'Lab Word 从不把“请求的目标值”当作设备实际上报的结果。指令、观测与三维摆放是彼此独立的记录，各自带有时间、来源与质量——模拟读数与真实测量在任何时刻都可区分。',
+  ],
+  'prov.n1': [
+    '<b>Device Command</b>“set intensity 80 %” · 202 Accepted',
+    '<b>设备命令</b>“将亮度设为 80 %” · 202 Accepted',
+  ],
+  'prov.n2': [
+    '<b>Device Program</b>run #4 on the server',
+    '<b>设备程序</b>服务端上的第 4 次运行',
+  ],
+  'prov.l1': [
+    'the program acts on the world, not on the request',
+    '程序作用于世界，而不是作用于请求',
+  ],
+  'prov.n3': [
+    '<b>Observation</b>79.6 % · quality good · 1 Hz',
+    '<b>观测</b>79.6 % · 质量 good · 1 Hz',
+  ],
+  'prov.n4': [
+    '<b>Device Program</b>reports what it measured',
+    '<b>设备程序</b>上报它实际测到的值',
+  ],
+  'prov.l2': [
+    'a heartbeat never refreshes an old measurement',
+    '心跳从不刷新旧测量值',
+  ],
+  'prov.n5': [
+    '<b>Registered Location</b>recorded by a human, with provenance',
+    '<b>登记位置</b>由人登记，附带溯源',
+  ],
+  'prov.n6': [
+    '<b>Placement</b>scene-node position in metres',
+    '<b>三维摆放</b>以米为单位的场景节点位置',
+  ],
+  'prov.l3': [
+    'moving pixels does not prove material moved',
+    '像素移动不能证明实物移动',
+  ],
+
+  'real.eyebrow': ['The real workbench', '真实的工作台'],
+  'real.h2': ['Not a mock-up. The application.', '不是示意稿，是应用本身。'],
+  'real.bar1': [
+    'Lab · Complete Foundation Lab · v24',
+    'Lab · Complete Foundation Lab · v24',
+  ],
+  'real.bar2': ['real-time sync', '实时同步'],
+  'real.alt': [
+    'Lab Word Foundation V1: an object directory listing Light A, Light B, Sensor A, Sensor B and Tutorial centrifuge B, a multi-node 3D viewport with robot arms, lights and a centrifuge, an Inspector showing the selected Light B with its entity id, definition version light 1.0, runtime binding light.v1 and current observation, and a run history panel querying events, tasks, commands and observations.',
+    'Lab Word Foundation V1：对象目录列出灯 A、灯 B、传感器 A、传感器 B 与教程离心机 B；多节点三维视图中有机械臂、灯具与离心机；Inspector 显示选中的灯 B 及其对象 id、定义版本 light 1.0、运行绑定 light.v1 与当前观测；另有运行历史面板可查询事件、任务、指令与观测。',
+  ],
+  'real.caption': [
+    'Foundation V1 on the real application stack — object directory, imported model, multi-node viewport, lighting Inspector and run history, with reproducible development data and built-in virtual devices.',
+    'Foundation V1 运行在真实的应用栈上——对象目录、导入模型、多节点视图、灯光 Inspector 与运行历史，附带可复现的开发数据与内置虚拟设备。',
+  ],
+
+  'assets.eyebrow': ['Asset library', '资产库'],
+  'assets.h2': ['Definitions, not files.', '是定义，不是文件。'],
+  'assets.lede': [
+    'An asset is a reusable object definition with its models, documents, provenance and license — separate from any concrete object\u2019s identity, configuration and state. One definition serves many entities; one entity may carry several scene nodes.',
+    '资产是可复用的对象定义，包含其模型、文档、溯源与许可——与任何具体对象的身份、配置和状态相分离。一个定义服务多个对象；一个对象可以携带多个场景节点。',
+  ],
+  'assets.alt': ['{n} definition miniature', '{n} 定义缩略图'],
+  'asset.bench': ['Bench', '实验台'],
+  'asset.centrifuge': ['Centrifuge', '离心机'],
+  'asset.light': ['Light', '灯具'],
+  'asset.robot': ['Robot', '机械臂'],
+  'asset.sensor': ['Sensor', '传感器'],
+  'asset.labware': ['Labware', '器皿'],
+  'asset.model': ['Model', '模型'],
+  'asset.environment': ['Environment', '环境'],
+
+  'arch.eyebrow': ['Product direction', '产品方向'],
+  'arch.h2': [
+    'An environment to understand,<br>act and verify.',
+    '可理解、可操作，<br>也可验证的工作环境。',
+  ],
+  'arch.lede': [
+    'Our direction is a work environment where Agents understand equipment, rehearse work and verify results. Today, Lab Word provides the shared information foundation and virtual devices. Physical execution and autonomous planning are future work.',
+    '我们希望让 Agent 理解设备与任务，在虚拟环境中预演，并通过证据验证结果。当前 Lab Word 提供共享信息底座与虚拟设备。真实设备执行和自主实验规划仍属后续方向。',
+  ],
+  'arch.t1.when': ['Available today', '当前可用'],
+  'arch.t1.h3': ['A shared laboratory world model', '共享实验室世界模型'],
+  'arch.t1.p': [
+    'Equipment identities, digital assets, layouts and observations stay connected. People and Agents use the same facts and interfaces to inspect the laboratory.',
+    '将设备身份、数字资产、布局与来源明确的观测关联起来。人和 Agent 通过同一份事实与接口理解实验室。',
+  ],
+  'arch.t2.when': ['Available today', '当前可用'],
+  'arch.t2.h3': ['Virtual devices and traceable runs', '虚拟设备与可追溯运行'],
+  'arch.t2.p': [
+    'Run virtual lights, sensors and centrifuges. Keep commands, observations, tasks and results distinct, so each outcome can be traced to its source.',
+    '运行虚拟灯具、传感器和离心机。分别记录命令、观测、任务与结果，让每个结果都能追溯到其来源。',
+  ],
+  'arch.t3.when': ['Next direction', '后续方向'],
+  'arch.t3.h3': ['Rehearse before physical execution', '真实执行前先预演'],
+  'arch.t3.p': [
+    'We aim to test workflows, equipment integrations and failure recovery in virtual environments before connecting real devices. Simulation results still need real-world validation.',
+    '后续将在连接真实设备前，先在虚拟环境中检验实验流程、设备接入与异常恢复。仿真结果仍需真实验证。',
+  ],
+  'arch.t4.when': ['Long-term direction', '长期方向'],
+  'arch.t4.h3': ['Improve through verified outcomes', '以验证结果积累能力'],
+  'arch.t4.p': [
+    'Use traceable execution evidence to evaluate changes and reuse proven workflows. Physical protocols, robot control and autonomous planning remain future work.',
+    '通过可追溯的执行证据评估改进，并复用经过验证的流程。真实协议、机器人控制和自主实验规划仍属后续范围。',
+  ],
+
+  'budget.eyebrow': ['Deterministic budgets', '确定性预算'],
+  'budget.h2': ['Numbers the CI defends.', '由 CI 守护的数字。'],
+  'budget.lede': [
+    'Every operation carries a machine-checkable budget — rows written, SQL statements, payload bytes, bundle weight — verified on every run. A budget changes only through a baseline-adjustment pull request with before-and-after evidence: first change the evidence, then the number.',
+    '每个操作都带有可机器校验的预算——写入行数、SQL 语句数、负载字节、包体积——每次运行都会校验。预算只能通过附带前后证据的基线调整 PR 变更：先改证据，再改数字。',
+  ],
+  'budget.c1': ['entities per lab', '每间实验室对象数'],
+  'budget.c2': ['scene nodes per lab', '每间实验室场景节点数'],
+  'budget.c3': ['raw observations kept', '原始观测保留时长'],
+  'budget.c4': ['ended records kept', '已结束记录保留时长'],
+  'budget.c5': ['initial bundle, gzip', '初始前端包（gzip）'],
+  'budget.c6': ['SQL statements per request', '每请求 SQL 语句数'],
+
+  'start.eyebrow': ['Quick start', '快速开始'],
+  'start.h2': [
+    'Install, start,<br>open the Lab.',
+    '安装、启动，<br>打开 Lab。',
+  ],
+  'start.lede': [
+    'No Docker, no database server, no toolchain beyond Node and pnpm. The embedded database initialises and recovers before HTTP opens; your data persists in <code>data/</code>. In production the same service hosts the built web app same-origin.',
+    '不需要 Docker，不需要数据库服务，除 Node 与 pnpm 之外不需要任何工具链。内嵌数据库在 HTTP 开启前完成初始化与恢复；你的数据持久保存在 <code>data/</code>。生产环境下同一服务同源托管构建好的 Web 应用。',
+  ],
+  'start.note': [
+    'The first account becomes <span class="hi">Owner</span>; later accounts are <span class="hi">Members</span>. Agents join with an API key.',
+    '第一个账号成为 <span class="hi">Owner</span>，其后账号为 <span class="hi">Member</span>。Agent 凭 API Key 加入。',
+  ],
+  'start.ready': [
+    '  Lab Word Server ready · 127.0.0.1:3000 · X-Lab-Runtime: ready\n',
+    '  Lab Word Server 就绪 · 127.0.0.1:3000 · X-Lab-Runtime: ready\n',
+  ],
+  'start.open': ['  open ', '  打开 '],
+  'start.first': [
+    '  — first account becomes Owner',
+    '  — 第一个账号成为 Owner',
+  ],
+
+  'foot.tagline': [
+    'A laboratory digital twin: laboratory space, equipment and their visual representation, continuously linked with clear provenance.',
+    '实验室数字孪生：实验室空间、设备及其可视化表达，以清晰的溯源持续关联。',
+  ],
+  'foot.project': ['Project', '项目'],
+  'foot.docs': ['Docs', '文档'],
+  'foot.credits': ['Credits', '致谢'],
+  'foot.repository': ['Repository', '代码仓库'],
+  'foot.issues': ['Issues', '议题'],
+  'foot.mit': ['MIT license', 'MIT 许可'],
+  'foot.site': ['Documentation site', '文档站点'],
+  'foot.guides': ['Guides (EN / 中文)', '指南（EN / 中文）'],
+  'foot.vocab': ['Domain vocabulary', '领域词汇表'],
+  'foot.credit1': ['Demo asset: Poly Haven, CC0', '演示资产：Poly Haven，CC0'],
+  'foot.credit2': [
+    'Plate style after ai-iso-skill',
+    '图版风格参考 ai-iso-skill',
+  ],
+  'foot.credit3': [
+    'Built on axum-saas-template',
+    '构建于 axum-saas-template 之上',
+  ],
+  'foot.fine1': [
+    'Lab Word · laboratory digital twin',
+    'Lab Word · 实验室数字孪生',
+  ],
+  'foot.fine2': [
+    'Fig 1 runs live in your browser',
+    '图 1 在你的浏览器里实时运行',
+  ],
+};
+
+export const DICT = { en: {}, zh: {} };
+for (const k in T) {
+  DICT.en[k] = T[k][0];
+  DICT.zh[k] = T[k][1] ?? T[k][0];
+}
+
+export function translate(lang, key, vars) {
+  let text = DICT[lang]?.[key] ?? DICT.en[key] ?? key;
+  if (vars)
+    for (const name in vars)
+      text = text.split(`{${name}}`).join(String(vars[name]));
+  return text;
+}
+
+export const TERMS = [
+  ['Entity', '实验室对象'],
+  ['Scene Node', '场景节点'],
+  ['Placement', '三维摆放'],
+  ['Registered Location', '登记位置'],
+  ['Observation', '观测'],
+  ['Device Command', '设备命令'],
+  ['Device Program', '设备程序'],
+  ['Device Program Run', '设备程序运行'],
+  ['Device Task', '设备任务'],
+  ['Asset', '数字资产'],
+  ['Asset Representation', '资产表示'],
+  ['Lab Layout', '实验室布局'],
+  ['Replay', '回放'],
+  ['Capability', '能力'],
+  ['Runtime Binding', '运行绑定'],
+  ['Archived Entity', '已归档对象'],
+  ['Backup Archive', '备份归档'],
+  ['Performance Contract', '性能合同'],
+];
