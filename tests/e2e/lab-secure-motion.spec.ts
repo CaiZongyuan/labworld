@@ -221,10 +221,10 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
   let active: SimulationSession | undefined;
   const contexts = [];
   let signed = 0;
-  let closedViewerSockets = 0;
+  let currentViewerSocket: import('@playwright/test').WebSocket | undefined;
   page.on('websocket', (socket) => {
     if (new URL(socket.url()).pathname.endsWith('/viewer'))
-      socket.on('close', () => closedViewerSockets++);
+      currentViewerSocket = socket;
   });
   page.on('response', (response) => {
     if (
@@ -244,10 +244,10 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     }
     const before = await pose(page, active.id),
       firstTickets = signed,
-      closedBefore = closedViewerSockets;
+      oldViewerSocket = currentViewerSocket;
+    assert(oldViewerSocket);
     const recoveryDialog = await dialog(page);
     await page.context().setOffline(true);
-    await expect.poll(() => closedViewerSockets).toBeGreaterThan(closedBefore);
     await expect(
       recoveryDialog.getByRole('status', { name: '运动接收' }),
     ).toContainText('运动过期');
@@ -358,12 +358,17 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       successorRead.records,
       true,
     );
+    assert(
+      oldViewerSocket.isClosed(),
+      'Old Viewer releases after network return and Session cleanup',
+    );
     receipt('secure-wss-real-journey', {
       scope:
         'local trusted TLS; production Synthetic; no remote/public/WAN proof',
       initialTickets: firstTickets,
       finalTickets: signed,
-      offlineViewerSocketClosed: closedViewerSockets > closedBefore,
+      oldViewerSocketClosedAfterNetworkReturnAndSessionCleanup:
+        oldViewerSocket.isClosed(),
       offlinePoseFrozen: true,
       oldSourceFrames: frames.length,
       oldSourceEnded: oldRead.metadata.prefix.source_ended,
