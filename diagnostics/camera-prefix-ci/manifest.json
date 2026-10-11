@@ -5974,7 +5974,7 @@
     },
     {
       "path": "cleanup.mjs",
-      "sha256": "26feb4f7358ae198e989e8473e56a5d1cfeb742d217e58fc7ecf1ccd02b11bab"
+      "sha256": "c3b5a18646ac660534c5c52801331b39f510f37cc1fd3ccbfc00de08ba08d2cb"
     },
     {
       "path": "inventory.py",
@@ -5993,8 +5993,12 @@
       "sha256": "61d787dbca90030190234fe26ceb94ffb863fc5bbff1d64432f85427581fd94f"
     },
     {
+      "path": "reconcile-association.mjs",
+      "sha256": "a7ac4739548b4cb70e21f76cd4a5218f1cee48371855ac74e2d4da4bc92c35a2"
+    },
+    {
       "path": "run.mjs",
-      "sha256": "5dfdcf0393dee5d84df950fdc84a3d5fe356068ba92f1d5e981b04a70684a849"
+      "sha256": "7c5311e005482b396d770063ae037b9d31aeb105a91ba0b815c9b488e70a6695"
     },
     {
       "path": "verify.mjs",

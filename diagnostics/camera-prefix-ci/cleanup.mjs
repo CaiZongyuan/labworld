@@ -9,6 +9,10 @@ import { resolve, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { ContractResources } from '../../scripts/lib/contract-resources.mjs';
 import {
+  reconcileAssociation,
+  saveAssociation,
+} from './reconcile-association.mjs';
+import {
   recoverServerResources,
   processIdentity,
   sameProcess,
@@ -16,6 +20,36 @@ import {
 const evidence = resolve('.scratch/camera-prefix-ci-evidence');
 const associationPath = resolve(evidence, 'association.json');
 if (!existsSync(associationPath)) {
+  if (existsSync(resolve(evidence, 'launcher-owned-resources.json'))) {
+    writeFileSync(
+      resolve(evidence, 'always-closure.json'),
+      JSON.stringify({
+        cleanupCompleted: false,
+        finalOwnershipReconciliation: {
+          complete: false,
+          missing: [
+            {
+              boundary: 'association',
+              reason:
+                'Launcher ledger exists but its association is unavailable; preserve resources',
+            },
+          ],
+        },
+      }) + '\n',
+    );
+    process.env.CAMERA_DIAGNOSTIC_EVIDENCE = evidence;
+    execFileSync(
+      'python3',
+      [
+        resolve(dirname(new URL(import.meta.url).pathname), 'inventory.py'),
+        'after',
+      ],
+      { stdio: 'inherit' },
+    );
+    throw new Error(
+      'Launcher ownership exists without association; closure incomplete',
+    );
+  }
   console.log('Diagnostic never launched; no owned runtime ledger');
   process.exit(0);
 }
@@ -42,10 +76,24 @@ const receipts = [];
 let cleanupCompleted = false;
 try {
   if (existsSync(launcher)) await new ContractResources(launcher).recover();
-  for (const path of [
-    association.suiteLedger,
-    association.browserLedger,
-  ].filter(Boolean))
+  const launcherData = existsSync(launcher)
+    ? JSON.parse(readFileSync(launcher, 'utf8'))
+    : { consumers: [] };
+  reconcileAssociation(association, launcherData);
+  saveAssociation(associationPath, association);
+  if (association.suiteLedger)
+    await new ContractResources(association.suiteLedger).recover();
+  reconcileAssociation(association, launcherData);
+  saveAssociation(associationPath, association);
+  for (const [i, path] of (association.ownedLedgers ?? []).entries())
+    copyFileSync(
+      path,
+      resolve(
+        retained,
+        `final-${i}-${path.split('/').at(-2)}-${path.split('/').at(-1)}`,
+      ),
+    );
+  for (const path of [association.browserLedger].filter(Boolean))
     await new ContractResources(path).recover();
   for (const path of association.serviceLedgers ?? []) {
     const ledger = JSON.parse(readFileSync(path, 'utf8'));
@@ -63,9 +111,16 @@ try {
       throw new Error('Owned diagnostic consumer remains active');
     receipts.push({ path, runId: resources.data.runId, reconciliation });
   }
-  for (const proof of Object.values(
-    association.immutableFirstSeenServices ?? {},
-  )) {
+  const serviceProofs = [
+    ...Object.values(association.immutableFirstSeenServices ?? {}),
+    ...Object.values(association.terminalObservedServices ?? {}).map(
+      (proof) => ({
+        ...proof,
+        originalDirectory: proof.directoryAtTerminalObservation,
+      }),
+    ),
+  ];
+  for (const proof of serviceProofs) {
     for (const original of [
       ...proof.processProofs,
       ...(proof.inProcessConsumerProofs ?? []).map((p) => p.creator),
@@ -78,10 +133,19 @@ try {
     if (
       ledger.state !== 'cleaned' ||
       ledger.processes.length ||
-      existsSync(proof.originalDirectory)
+      ledger.directory ||
+      ledger.launchIntent ||
+      ledger.inProcessConsumers?.length ||
+      (proof.originalDirectory && existsSync(proof.originalDirectory))
     )
       throw new Error('Owned diagnostic service cleanup incomplete');
   }
+  const finalOwnership = reconcileAssociation(association, launcherData);
+  saveAssociation(associationPath, association);
+  if (!finalOwnership.complete)
+    throw new Error(
+      'Owned diagnostic graph is incomplete; inspect finalOwnershipReconciliation.missing',
+    );
   cleanupCompleted = true;
 } finally {
   writeFileSync(
@@ -94,6 +158,9 @@ try {
         receipts,
         services: association.serviceLedgers,
         immutableFirstSeenServices: association.immutableFirstSeenServices,
+        terminalObservedServices: association.terminalObservedServices,
+        finalOwnershipReconciliation:
+          association.finalOwnershipReconciliation ?? null,
         cleanupCompleted,
       },
       null,
