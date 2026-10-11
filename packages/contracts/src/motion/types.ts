@@ -7,7 +7,7 @@ export const MOTION_LIMITS = Object.freeze({
   joints: 1024,
   binary_bytes: 64 * 1024,
   control_bytes: 256 * 1024,
-  hello_bytes: 4096,
+  hello_bytes: 16 * 1024,
   session_control_bytes: 4096,
   coordinate_abs: 10_000,
   joint_abs: 10_000,

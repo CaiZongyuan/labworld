@@ -18,7 +18,7 @@ export type MotionAuthority = {
   epoch: bigint;
   state: () =>
     'waiting' | 'live' | 'stale' | 'paused' | 'interrupted' | 'closed';
-  frame?: (frame: MotionSnapshot) => void;
+  frame?: (frame: MotionSnapshot, raw: Uint8Array) => void;
   leave?: () => void;
 };
 type Viewer = {
@@ -277,7 +277,7 @@ export class MotionGateway {
     }
     session.budget -= 1;
     try {
-      session.authority?.frame?.(snapshot);
+      session.authority?.frame?.(snapshot, bytes);
     } catch {
       this.reject(
         transport,

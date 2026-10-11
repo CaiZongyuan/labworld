@@ -1,4 +1,6 @@
 import { sessionRoutes } from '../../../packages/server/src/lab/sessions/routes.ts';
+import { recordingRoutes } from '../../../packages/server/src/lab/recordings/routes.ts';
+import type { RecordingService } from '../../../packages/server/src/lab/recordings/service.ts';
 import type { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
 import { machineRoutes } from '../../../packages/server/src/core/machines/routes.ts';
 import type { MachineService } from '../../../packages/server/src/core/machines/use-cases.ts';
@@ -37,6 +39,7 @@ const app = coreApp(
   () => {},
 );
 sessionRoutes(app, undefined as unknown as SimulationSessions);
+recordingRoutes(app, undefined as unknown as RecordingService);
 machineRoutes(app, undefined as unknown as MachineService);
 assetRoutes(app, undefined as unknown as FileService);
 worldRoutes(app, undefined as unknown as WorldService);

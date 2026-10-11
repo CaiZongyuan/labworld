@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+from contextlib import AsyncExitStack
 import ipaddress
 import json
 import math
@@ -11,7 +12,7 @@ import sys
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, urlunsplit
 
 from motion_codec import (CODEC, MAX_CONTROL_BYTES, MotionProtocolError, control_json,
                           encode_snapshot, parse_session_control, parse_u64, parse_welcome)
@@ -113,43 +114,61 @@ class SessionOutbox(LatestSnapshot):
 async def publish_session(startup, duration=None):
     """A single admitted Session, with no reconnect or automatic lifecycle replay."""
     from websockets.asyncio.client import connect
+    from recording_source import admit_recording
 
     url = transport_url(startup.url)
     if duration is not None and (not math.isfinite(duration) or duration <= 0):
         raise ValueError('Duration must be positive and finite')
+    if startup.recording is None:
+        raise MotionProtocolError('unauthorized', 'Formal source requires Recording admission')
     outbox = SessionOutbox()
     clock = SimulationClock()
     running = asyncio.Event()
     tasks = []
     sequence = 0
     last_revision = -1
-    async with connect(url, open_timeout=3, close_timeout=3, ping_interval=20,
-                       ping_timeout=20, max_size=MAX_CONTROL_BYTES, max_queue=1,
-                       write_limit=64 * 1024, compression=None, proxy=None) as websocket:
+    async with AsyncExitStack() as owner:
+        websocket = await owner.enter_async_context(connect(url, open_timeout=3, close_timeout=3, ping_interval=20,
+                                   ping_timeout=20, max_size=MAX_CONTROL_BYTES, max_queue=1,
+                                   write_limit=64 * 1024, compression=None, proxy=None))
         hello = {'type': 'motion.hello', 'version': 1, 'role': 'publisher',
                  'session_id': startup.session_id, 'scene_hash': startup.scene_hash,
                  'codec': CODEC, 'ticket': startup.ticket, 'preferred_rate_hz': RATE_HZ}
         await websocket.send(json.dumps(hello, separators=(',', ':')))
-        welcome = parse_welcome(await asyncio.wait_for(websocket.recv(), timeout=3))
+        try:
+            welcome = parse_welcome(await asyncio.wait_for(websocket.recv(), timeout=3))
+        except BaseException:
+            websocket.transport.abort()
+            raise
         if (welcome['session_id'] != startup.session_id or welcome['scene_hash'] != startup.scene_hash
                 or welcome['pose_keys'] != list(startup.body_order)
                 or welcome['joint_keys'] != list(startup.joint_order) or welcome['rate_hz'] != RATE_HZ):
+            websocket.transport.abort()
             raise MotionProtocolError('mapping_mismatch', 'Synthetic startup does not match admission')
         epoch = parse_u64(welcome['epoch'])
+        parsed = urlsplit(url)
+        recording_url = transport_url(urlunsplit((parsed.scheme, parsed.netloc, startup.recording['websocket_path'], '', '')))
+        recording_socket = None
+        try:
+            recording_socket = await owner.enter_async_context(connect(recording_url, open_timeout=3, close_timeout=3,
+                       ping_interval=20, ping_timeout=20, max_size=16384, max_queue=1,
+                       write_limit=65536, compression=None, proxy=None))
+            recording = await admit_recording(recording_socket, startup.recording, welcome)
+        except BaseException:
+            websocket.transport.abort()
+            if recording_socket is not None:
+                recording_socket.transport.abort()
+            raise
+        tasks = [asyncio.create_task(recording.write()), asyncio.create_task(recording.read()),
+                 asyncio.create_task(recording.watchdog())]
 
         def frame():
             nonlocal sequence
             sequence += 1
             snapshot = configured_snapshot(startup, epoch, sequence, clock.read(), welcome['mapping_revision'])
-            return snapshot, encode_snapshot(snapshot)
-
-        # Admission readiness is an actual full t=0 source frame, not a status claim.
-        _, initial = frame()
-        await websocket.send(initial)
-        outbox.sampled += 1
-        outbox.sent += 1
-        clock.resume()
-        running.set()
+            encoded = encode_snapshot(snapshot)
+            recording.capture(encoded, sequence, not running.is_set())
+            return snapshot, encoded
 
         async def sample():
             deadline = time.monotonic() + 1 / RATE_HZ
@@ -179,6 +198,7 @@ async def publish_session(startup, duration=None):
         async def control():
             nonlocal last_revision
             async for message in websocket:
+                received_at = time.monotonic()
                 value = control_json(message)
                 if value.get('type') == 'motion.status':
                     if value.get('state') not in ('waiting', 'live', 'stale', 'paused'):
@@ -193,7 +213,12 @@ async def publish_session(startup, duration=None):
                     raise MotionProtocolError('invalid_message', 'Session action conflicts with source state')
                 running.clear()
                 clock.pause()
+                deadline = received_at + recording.deadline_seconds
                 snapshot, boundary = frame()
+                recording.lifecycle(request, sequence, snapshot['sim_time_ns'])
+                if action == 'stop':
+                    recording.end(request, snapshot['sim_time_ns'])
+                await recording.drain(deadline, ended=action == 'stop')
                 ack = {'type': 'motion.session_ack',
                        **{name: request[name] for name in ('session_id', 'epoch', 'transition_id', 'revision', 'action')},
                        'result': 'applied', 'last_sequence': str(snapshot['sequence']),
@@ -207,14 +232,37 @@ async def publish_session(startup, duration=None):
                     running.set()
             raise MotionProtocolError('session_closed', 'Gateway closed Session connection')
 
-        tasks = [asyncio.create_task(sample()), asyncio.create_task(write()), asyncio.create_task(control())]
-        if duration is not None:
-            tasks.append(asyncio.create_task(asyncio.sleep(duration)))
         try:
+            # Admission readiness is an actual durable full t=0 source frame.
+            _, initial = frame()
+            # Read and writer tasks must already run while the t0 durability gate waits.
+            initial_gate = asyncio.create_task(recording.drain(time.monotonic() + recording.deadline_seconds))
+            tasks.append(initial_gate)
             done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
             for task in done:
                 task.result()
+            tasks.remove(initial_gate)
+            await websocket.send(initial)
+            outbox.sampled += 1
+            outbox.sent += 1
+            clock.resume()
+            running.set()
+            tasks.extend([asyncio.create_task(sample()), asyncio.create_task(write()), asyncio.create_task(control())])
+            if duration is not None:
+                tasks.append(asyncio.create_task(asyncio.sleep(duration)))
+            done, _ = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+            for task in done:
+                task.result()
+        except BaseException:
+            running.clear()
+            clock.pause()
+            # Abort both owned transports immediately; cleanup never waits out Motion's grace.
+            websocket.transport.abort()
+            recording_socket.transport.abort()
+            raise
         finally:
+            running.clear()
+            clock.pause()
             for task in tasks:
                 task.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
@@ -223,7 +271,8 @@ async def publish_session(startup, duration=None):
                 outbox.boundary[2].cancel()
             outbox.boundary = None
             outbox.ready.clear()
-    return {'sampled': outbox.sampled, 'sent': outbox.sent, 'overwritten': outbox.overwritten}
+            recording.clear()
+    return {'sampled': outbox.sampled, 'sent': outbox.sent, 'overwritten': outbox.overwritten, **recording.report()}
 
 
 async def run_owned(operation, watch_stdin=False):
