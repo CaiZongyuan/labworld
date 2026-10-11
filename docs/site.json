@@ -146,6 +146,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "simulation-session",
+      "next": "newton-motion"
+    },
+    {
+      "id": "newton-motion",
+      "source": "docs/tutorials/newton-motion.md",
+      "sourceEn": "docs/tutorials/newton-motion.en.md",
+      "route": "tutorials/newton-motion.md",
+      "title": "固定 Newton 环境并观察 SO-101",
+      "titleEn": "Pin Newton and observe SO-101",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "recording",
       "next": "spatial-workbench"
     },
     {

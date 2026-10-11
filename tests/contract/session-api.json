@@ -22,7 +22,12 @@
             "type": "string"
           }
         },
-        "required": ["code", "details", "message", "request_id"],
+        "required": [
+          "code",
+          "details",
+          "message",
+          "request_id"
+        ],
         "type": "object"
       },
       "ApiErrorResponse": {
@@ -31,7 +36,9 @@
             "$ref": "#/components/schemas/ApiError"
           }
         },
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "type": "object"
       },
       "AssetDefinition": {
@@ -114,12 +121,37 @@
       "CreateSceneInstallation": {
         "additionalProperties": false,
         "properties": {
+          "backend": {
+            "anyOf": [
+              {
+                "enum": [
+                  "newton"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "synthetic"
+                ],
+                "type": "string"
+              }
+            ]
+          },
           "representation_id": {
             "format": "uuid",
             "type": "string"
+          },
+          "representations": {
+            "additionalProperties": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "object"
           }
         },
-        "required": ["representation_id"],
+        "required": [
+          "representation_id"
+        ],
         "type": "object"
       },
       "DefinitionCapability": {
@@ -136,7 +168,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "implemented", "parameters"],
+        "required": [
+          "id",
+          "implemented",
+          "parameters"
+        ],
         "type": "object"
       },
       "DefinitionInterface": {
@@ -148,7 +184,10 @@
             "type": "boolean"
           }
         },
-        "required": ["id", "implemented"],
+        "required": [
+          "id",
+          "implemented"
+        ],
         "type": "object"
       },
       "DeviceObservation": {
@@ -161,7 +200,10 @@
           },
           "observed_at": {
             "format": "date-time",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "properties": {
             "additionalProperties": {
@@ -226,7 +268,10 @@
           },
           "ended_at": {
             "format": "date-time",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "entity_id": {
             "type": "string"
@@ -282,7 +327,10 @@
           },
           "ended_at": {
             "format": "date-time",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "entity_id": {
             "type": "string"
@@ -302,7 +350,10 @@
           },
           "timer_started_at": {
             "format": "date-time",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -322,13 +373,19 @@
         "properties": {
           "ended_at": {
             "format": "date-time",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "type": "string"
           },
           "reason": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "type": "string"
@@ -337,7 +394,11 @@
             "type": "string"
           }
         },
-        "required": ["id", "status", "task_id"],
+        "required": [
+          "id",
+          "status",
+          "task_id"
+        ],
         "type": "object"
       },
       "EntityCapability": {
@@ -468,7 +529,10 @@
         "properties": {
           "archived_at": {
             "format": "date-time",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "binding": {
             "oneOf": [
@@ -545,7 +609,10 @@
             "type": "string"
           },
           "representation_id": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "task": {
             "oneOf": [
@@ -646,7 +713,10 @@
             "$ref": "#/components/schemas/MachineIdentity"
           }
         },
-        "required": ["credential", "machine"],
+        "required": [
+          "credential",
+          "machine"
+        ],
         "type": "object"
       },
       "MachineIdentity": {
@@ -665,10 +735,19 @@
             "type": "string"
           },
           "revoked_at": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": ["created_at", "expires_at", "id", "name", "revoked_at"],
+        "required": [
+          "created_at",
+          "expires_at",
+          "id",
+          "name",
+          "revoked_at"
+        ],
         "type": "object"
       },
       "ObservationProperty": {
@@ -685,7 +764,10 @@
           },
           "observed_at": {
             "format": "date-time",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "quality": {
             "type": "string"
@@ -705,7 +787,10 @@
             "type": "string"
           },
           "unit": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "updated_at": {
             "format": "date-time",
@@ -781,7 +866,11 @@
             "type": "array"
           }
         },
-        "required": ["position", "rotation", "scale"],
+        "required": [
+          "position",
+          "rotation",
+          "scale"
+        ],
         "type": "object"
       },
       "ProvisionMachine": {
@@ -793,7 +882,9 @@
             "type": "string"
           }
         },
-        "required": ["name"],
+        "required": [
+          "name"
+        ],
         "type": "object"
       },
       "PublisherAdmission": {
@@ -814,7 +905,11 @@
                 "type": "string"
               }
             },
-            "required": ["bootstrap", "epoch", "lease_id"],
+            "required": [
+              "bootstrap",
+              "epoch",
+              "lease_id"
+            ],
             "type": "object"
           }
         ]
@@ -827,7 +922,9 @@
             "type": "string"
           }
         },
-        "required": ["machine_id"],
+        "required": [
+          "machine_id"
+        ],
         "type": "object"
       },
       "PublisherBootstrap": {
@@ -858,6 +955,53 @@
           },
           "parameters": {
             "$ref": "#/components/schemas/SessionParameters"
+          },
+          "physics": {
+            "properties": {
+              "live_rate_hz": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      15
+                    ],
+                    "type": "number"
+                  },
+                  {
+                    "enum": [
+                      30
+                    ],
+                    "type": "number"
+                  }
+                ]
+              },
+              "profile": {
+                "additionalProperties": {},
+                "type": "object"
+              },
+              "profile_id": {
+                "enum": [
+                  "so101-vial-v1"
+                ],
+                "type": "string"
+              },
+              "profile_sha256": {
+                "type": "string"
+              },
+              "source_kind": {
+                "enum": [
+                  "newton"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "live_rate_hz",
+              "profile_id",
+              "profile_sha256",
+              "profile",
+              "source_kind"
+            ],
+            "type": "object"
           },
           "scene_hash": {
             "type": "string"
@@ -920,7 +1064,10 @@
       "SceneInstallation": {
         "properties": {
           "archived_at": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "created_at": {
             "type": "string"
@@ -943,11 +1090,25 @@
             "type": "integer"
           },
           "package_id": {
-            "enum": ["development-synthetic"],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": [
+                  "development-synthetic"
+                ],
+                "type": "string"
+              },
+              {
+                "enum": [
+                  "so101-vial"
+                ],
+                "type": "string"
+              }
+            ]
           },
           "package_version": {
-            "enum": ["1"],
+            "enum": [
+              "1"
+            ],
             "type": "string"
           },
           "pose_keys": {
@@ -990,7 +1151,9 @@
             "type": "array"
           }
         },
-        "required": ["data"],
+        "required": [
+          "data"
+        ],
         "type": "object"
       },
       "SceneNode": {
@@ -1008,10 +1171,18 @@
             "$ref": "#/components/schemas/Placement"
           },
           "representation_id": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": ["entity_id", "id", "lab_id", "placement"],
+        "required": [
+          "entity_id",
+          "id",
+          "lab_id",
+          "placement"
+        ],
         "type": "object"
       },
       "SessionMotionTarget": {
@@ -1034,7 +1205,9 @@
             "type": "string"
           },
           "visual_target": {
-            "enum": ["node-root"],
+            "enum": [
+              "node-root"
+            ],
             "type": "string"
           }
         },
@@ -1060,7 +1233,11 @@
             "type": "string"
           }
         },
-        "required": ["expires_in_seconds", "ticket", "websocket_path"],
+        "required": [
+          "expires_in_seconds",
+          "ticket",
+          "websocket_path"
+        ],
         "type": "object"
       },
       "SessionParameters": {
@@ -1107,7 +1284,10 @@
             "type": "array"
           }
         },
-        "required": ["position", "quaternion"],
+        "required": [
+          "position",
+          "quaternion"
+        ],
         "type": "object"
       },
       "SessionTransition": {
@@ -1118,7 +1298,9 @@
             "type": "integer"
           }
         },
-        "required": ["expected_revision"],
+        "required": [
+          "expected_revision"
+        ],
         "type": "object"
       },
       "SessionViewerTicketRequest": {
@@ -1127,26 +1309,38 @@
           "preferred_rate_hz": {
             "anyOf": [
               {
-                "enum": [15],
+                "enum": [
+                  15
+                ],
                 "type": "number"
               },
               {
-                "enum": [30],
+                "enum": [
+                  30
+                ],
                 "type": "number"
               }
             ]
           }
         },
-        "required": ["preferred_rate_hz"],
+        "required": [
+          "preferred_rate_hz"
+        ],
         "type": "object"
       },
       "SimulationSession": {
         "properties": {
           "ended_at": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "epoch": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "id": {
             "format": "uuid",
@@ -1162,14 +1356,20 @@
           },
           "lease_id": {
             "format": "uuid",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "machine_id": {
             "format": "uuid",
             "type": "string"
           },
           "reason": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "revision": {
             "type": "integer"
@@ -1196,7 +1396,10 @@
           },
           "successor_session_id": {
             "format": "uuid",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -1222,18 +1425,26 @@
             "$ref": "#/components/schemas/SimulationSession"
           },
           "type": {
-            "enum": ["session"],
+            "enum": [
+              "session"
+            ],
             "type": "string"
           }
         },
-        "required": ["session", "type"],
+        "required": [
+          "session",
+          "type"
+        ],
         "type": "object"
       },
       "SimulationSessionPage": {
         "properties": {
           "active_session_id": {
             "format": "uuid",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "data": {
             "items": {
@@ -1242,6 +1453,12 @@
             "type": "array"
           },
           "development_synthetic_enabled": {
+            "type": "boolean"
+          },
+          "managed_newton_enabled": {
+            "type": "boolean"
+          },
+          "newton_enabled": {
             "type": "boolean"
           }
         },
@@ -1275,6 +1492,53 @@
           "parameters": {
             "$ref": "#/components/schemas/SessionParameters"
           },
+          "physics": {
+            "properties": {
+              "live_rate_hz": {
+                "anyOf": [
+                  {
+                    "enum": [
+                      15
+                    ],
+                    "type": "number"
+                  },
+                  {
+                    "enum": [
+                      30
+                    ],
+                    "type": "number"
+                  }
+                ]
+              },
+              "profile": {
+                "additionalProperties": {},
+                "type": "object"
+              },
+              "profile_id": {
+                "enum": [
+                  "so101-vial-v1"
+                ],
+                "type": "string"
+              },
+              "profile_sha256": {
+                "type": "string"
+              },
+              "source_kind": {
+                "enum": [
+                  "newton"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "live_rate_hz",
+              "profile_id",
+              "profile_sha256",
+              "profile",
+              "source_kind"
+            ],
+            "type": "object"
+          },
           "world": {
             "$ref": "#/components/schemas/LabWorld"
           }
@@ -1295,6 +1559,22 @@
           "installation_id": {
             "format": "uuid",
             "type": "string"
+          },
+          "live_rate_hz": {
+            "anyOf": [
+              {
+                "enum": [
+                  15
+                ],
+                "type": "number"
+              },
+              {
+                "enum": [
+                  30
+                ],
+                "type": "number"
+              }
+            ]
           },
           "machine_id": {
             "format": "uuid",
@@ -1325,7 +1605,9 @@
             "type": "object"
           }
         },
-        "required": ["installation_id"],
+        "required": [
+          "installation_id"
+        ],
         "type": "object"
       }
     }
@@ -1446,7 +1728,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       },
       "post": {
         "operationId": "createLabSceneInstallation",
@@ -1563,7 +1847,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/installations/{installation_id}/archive": {
@@ -1674,7 +1960,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions": {
@@ -1783,7 +2071,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       },
       "post": {
         "operationId": "startLabSimulationSession",
@@ -1900,7 +2190,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/{session_id}": {
@@ -2018,7 +2310,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/{session_id}/pause": {
@@ -2146,7 +2440,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/{session_id}/publisher-admissions": {
@@ -2274,7 +2570,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/{session_id}/reset": {
@@ -2402,7 +2700,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/{session_id}/resume": {
@@ -2530,7 +2830,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/{session_id}/stop": {
@@ -2658,7 +2960,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/{session_id}/viewer-tickets": {
@@ -2786,7 +3090,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/sessions/events": {
@@ -2895,7 +3201,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/machines": {
@@ -2993,7 +3301,9 @@
             "description": ""
           }
         },
-        "tags": ["Identity"]
+        "tags": [
+          "Identity"
+        ]
       }
     },
     "/api/v1/machines/{machine_id}/revoke": {
@@ -3085,7 +3395,9 @@
             "description": ""
           }
         },
-        "tags": ["Identity"]
+        "tags": [
+          "Identity"
+        ]
       }
     }
   }

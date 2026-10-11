@@ -5,6 +5,7 @@ import { planResetSuccessor } from '../recordings/reset-plan.ts';
 import { recordedSessionTransaction } from '../recordings/session-plan.ts';
 import type { DbOperation, DbSession } from '../../platform/db/index.ts';
 import { AsyncResource } from 'node:async_hooks';
+import { createNewtonInstallationIn } from './newton-installation.ts';
 import {
   accessIn,
   revalidateIn,
@@ -45,6 +46,10 @@ import {
 } from './store.ts';
 export type SessionOptions = {
   enabled: boolean;
+  syntheticEnabled?: boolean;
+  managedSynthetic?: boolean;
+  newtonEnabled?: boolean;
+  managedNewton?: boolean;
   graceMillis: number;
   ackMillis: number;
 };
@@ -81,6 +86,7 @@ type Live = {
   fault?: string;
   recordingFailed?: boolean;
   initial: boolean;
+  preparing?: boolean;
 };
 type Ticket = {
   session: Session;
@@ -112,6 +118,10 @@ export class SimulationSessions {
   private checkedSubscribersAt = 0;
   private resource = new AsyncResource('simulation-session-owner');
   private launcher?: (input: SourceStart) => Promise<OwnedSource>;
+  private preparer?: (
+    session: Session,
+    adopt: (source: OwnedSource) => void,
+  ) => Promise<OwnedSource>;
   private recording?: RecordingService;
   private fenceMotion: (id: string) => void = () => {};
   constructor(
@@ -126,9 +136,14 @@ export class SimulationSessions {
   configure(
     launcher: (input: SourceStart) => Promise<OwnedSource>,
     fence: (id: string) => void,
+    prepare?: (
+      session: Session,
+      adopt: (source: OwnedSource) => void,
+    ) => Promise<OwnedSource>,
   ) {
     this.launcher = launcher;
     this.fenceMotion = fence;
+    this.preparer = prepare;
   }
   configureRecording(recording: RecordingService) {
     this.recording = recording;
@@ -212,11 +227,21 @@ export class SimulationSessions {
     this.timer = setInterval(() => void this.tick(), 100);
     this.timer.unref();
   }
-  private enabled() {
+  private enabled(backend?: 'synthetic' | 'newton') {
     if (!this.options.enabled || this.stopping)
       throw sessionFailure(
         'synthetic_session_disabled',
         'Development synthetic Sessions are disabled',
+        503,
+      );
+    if (
+      (backend === 'newton' && !this.options.newtonEnabled) ||
+      (backend === 'synthetic' &&
+        !(this.options.syntheticEnabled ?? this.options.enabled))
+    )
+      throw sessionFailure(
+        'session_backend_disabled',
+        'The selected Session backend is disabled',
         503,
       );
   }
@@ -274,6 +299,8 @@ export class SimulationSessions {
     requestId: string,
     lab: string,
     representation: string,
+    backend: 'synthetic' | 'newton' = 'synthetic',
+    representations?: Record<string, string>,
   ) {
     return this.world.context.db.transaction(
       { id: requestId, kind: 'request' },
@@ -286,15 +313,35 @@ export class SimulationSessions {
           'lab:full',
           true,
         );
-        this.enabled();
-        const installation = await createInstallationIn(
-          tx,
-          this.world,
-          lab,
-          representation,
-          actor.user.id,
-          this.world.context.clock.now(),
-        );
+        this.enabled(backend);
+        if (
+          (backend === 'synthetic' && representations !== undefined) ||
+          (backend === 'newton' &&
+            representations?.['so101/base'] !== representation)
+        )
+          throw sessionFailure(
+            'session_mapping_mismatch',
+            'Use the selected backend representation mapping',
+            400,
+          );
+        const installation =
+          backend === 'newton'
+            ? await createNewtonInstallationIn(
+                tx,
+                this.world,
+                lab,
+                representations ?? {},
+                actor.user.id,
+                this.world.context.clock.now(),
+              )
+            : await createInstallationIn(
+                tx,
+                this.world,
+                lab,
+                representation,
+                actor.user.id,
+                this.world.context.clock.now(),
+              );
         await this.audit(tx, actor, requestId, installation.id, 'install');
         return installation;
       },
@@ -352,7 +399,11 @@ export class SimulationSessions {
         return {
           data,
           active_session_id: data.find((s) => !s.ended_at)?.id ?? null,
-          development_synthetic_enabled: this.options.enabled,
+          development_synthetic_enabled:
+            this.options.syntheticEnabled ?? this.options.enabled,
+          newton_enabled: this.options.newtonEnabled ?? false,
+          managed_newton_enabled:
+            this.options.managedNewton ?? this.options.newtonEnabled ?? false,
         };
       },
     );
@@ -408,18 +459,53 @@ export class SimulationSessions {
             joint_amplitude: 1,
             ...input.parameters,
           });
+        const backend =
+          installation.package_id === 'so101-vial' ? 'newton' : 'synthetic';
+        this.enabled(backend);
+        if (
+          (backend === 'newton' && input.parameters !== undefined) ||
+          (backend === 'synthetic' && input.live_rate_hz !== undefined)
+        )
+          throw sessionFailure(
+            'session_parameters_mismatch',
+            'Use the selected backend parameters',
+            400,
+          );
+        if (
+          backend === 'synthetic' &&
+          !input.machine_id &&
+          !(this.options.managedSynthetic ?? this.options.enabled)
+        )
+          throw sessionFailure(
+            'session_source_unavailable',
+            'Provide an external Machine for this Session',
+            503,
+          );
+        if (
+          backend === 'newton' &&
+          !input.machine_id &&
+          !(this.options.managedNewton ?? this.options.newtonEnabled)
+        )
+          throw sessionFailure(
+            'session_source_unavailable',
+            'Provide an external Machine or configure the managed Newton source',
+            503,
+          );
         const snapshot = await snapshotIn(
           tx,
           this.world,
           installation,
           parameters,
+          input.live_rate_hz,
         );
         const machine = input.machine_id
           ? { machine: { id: input.machine_id }, credential: undefined }
           : await provisionMachineIn(
               tx,
               actor.user.id,
-              'Development synthetic Session',
+              backend === 'newton'
+                ? 'Fixed Newton Session'
+                : 'Development synthetic Session',
               this.world.context.clock.now(),
             );
         const session = await reserveSessionIn(
@@ -497,6 +583,49 @@ export class SimulationSessions {
     }
     this.broadcast(session);
     if (!credential) return live.session;
+    if (session.snapshot.physics) {
+      live.preparing = true;
+      void this.resource
+        .runInAsyncScope(async () => {
+          try {
+            if (!this.preparer)
+              throw new Error('Configured Newton preparation unavailable');
+            const prepared = await this.preparer(session, (source) => {
+              live.source = source;
+            });
+            if (
+              this.stopping ||
+              live.session.ended_at ||
+              this.live.get(session.id) !== live
+            ) {
+              await prepared.stop();
+              return;
+            }
+            live.source = prepared;
+            live.preparing = false;
+            live.pong = live.progress = performance.now();
+            await this.launchOwned(live, credential, requestId);
+          } catch {
+            live.preparing = false;
+            live.fault = 'source_preparation_failed';
+            await live.source?.stop();
+            await this.tick();
+          }
+        })
+        .catch((error: unknown) =>
+          this.log({
+            event: 'sessions.source_preparation_failed',
+            session_id: session.id,
+            message: error instanceof Error ? error.message : 'Source failed',
+          }),
+        );
+      return live.session;
+    }
+    await this.launchOwned(live, credential, requestId);
+    return live.session;
+  }
+  private async launchOwned(live: Live, credential: string, requestId: string) {
+    const session = live.session;
     try {
       if (!this.launcher)
         throw new Error('Configured synthetic source unavailable');
@@ -694,6 +823,9 @@ export class SimulationSessions {
         initial_poses: session.snapshot.initial_poses,
         initial_joints: session.snapshot.initial_joints,
         parameters: session.snapshot.parameters,
+        ...(session.snapshot.physics
+          ? { physics: session.snapshot.physics }
+          : {}),
       },
     };
   }
@@ -1130,6 +1262,51 @@ export class SimulationSessions {
     action: 'pause' | 'resume' | 'stop' | 'reset',
     expected: number,
   ) {
+    const preparing = this.live.get(id);
+    if (
+      action === 'stop' &&
+      preparing?.preparing &&
+      !preparing.session.lease_id
+    ) {
+      const ended = await this.sessionTransaction(
+        { id: requestId, kind: 'request' },
+        lab,
+        id,
+        async (tx) => {
+          const actor = await accessIn(
+              tx,
+              this.world.context,
+              this.world.policy,
+              headers,
+              'lab:full',
+              true,
+            ),
+            current = await sessionIn(tx, lab, id);
+          if (
+            current.revision !== expected ||
+            current.ended_at ||
+            current.lease_id
+          )
+            throw sessionFailure('session_conflict', 'Session changed', 409);
+          const next = await endSessionIn(
+            tx,
+            id,
+            'stopped',
+            'stopped_before_admission',
+            this.world.context.clock.now(),
+          );
+          await this.audit(tx, actor, requestId, id, 'stop');
+          return next;
+        },
+      );
+      if (ended) {
+        preparing.session = ended;
+        preparing.preparing = false;
+        this.broadcast(ended);
+        await this.release(preparing);
+      }
+      return ended ?? preparing.session;
+    }
     if (!this.recording)
       return this.transitionBase(headers, requestId, lab, id, action, expected);
     return this.recording.preparation(lab, () =>
@@ -1534,6 +1711,7 @@ export class SimulationSessions {
         }
         for (const live of this.live.values()) {
           if (live.session.ended_at || live.transition?.internal) continue;
+          if (live.preparing && !live.session.lease_id) continue;
           const now = performance.now(),
             transition = live.transition;
           let target: Session['status'] | undefined, reason: string | undefined;

@@ -1,0 +1,8 @@
+newton==1.6.0rc1
+warp-lang==1.17.0
+mujoco==3.12.0
+mujoco-warp==3.12.0
+websockets==15.0.1
+numpy==2.5.2
+scipy==1.18.0
+trimesh==5.0.0

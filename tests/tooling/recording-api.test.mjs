@@ -37,10 +37,10 @@ function differences(document) {
 test('approved Recording routes and optional admission preserve all immutable API partitions', () => {
   assert.deepEqual(differences(source), []);
   const recordings = recordingApiParts(source);
-  assert.equal(Object.keys(recordings.addition.paths).length, 6);
+  assert.equal(Object.keys(recordings.addition.paths).length, 7);
   assert.equal(
     Object.values(recordings.addition.paths).flatMap(Object.keys).length,
-    7,
+    8,
   );
   assert.deepEqual(
     recordings.addition.components.schemas.PublisherAdmission.properties

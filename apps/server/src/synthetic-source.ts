@@ -8,12 +8,14 @@ import {
   readdir,
   writeFile,
   rename,
+  rm,
 } from 'node:fs/promises';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type {
   SourceStart,
   OwnedSource,
 } from '../../../packages/server/src/lab/sessions/service.ts';
+import type { Session } from '../../../packages/server/src/lab/sessions/dto.ts';
 type Identity = { pid: number; start: string; executable: string };
 type Ledger = {
   owner: 'lab-word-synthetic-session-v1';
@@ -23,6 +25,9 @@ type Ledger = {
   state: 'launching' | 'owned' | 'cleaned';
   port: number;
   consumers: string[];
+  source_kind?: 'newton';
+  cache_directory?: string;
+  evidence_file?: string;
 };
 const execute = promisify(execFile);
 async function identity(pid: number): Promise<Identity | undefined> {
@@ -81,6 +86,7 @@ type SourceOptions = {
   publisher: string;
   url: string;
   port: number;
+  newton?: { python: string; publisher: string; sceneDirectory: string };
 };
 export class SyntheticSources {
   readonly options: SourceOptions;
@@ -89,6 +95,11 @@ export class SyntheticSources {
   private directory: string;
   private creator?: Identity;
   private children = new Set<OwnedSource>();
+  private prepared = new Map<
+    string,
+    { child: ChildProcess; owned: OwnedSource }
+  >();
+  private newtonSlot?: string;
   private stopped = false;
   constructor(
     options: SourceOptions,
@@ -149,6 +160,41 @@ export class SyntheticSources {
         }
       }
       ledger.state = 'cleaned';
+      if (ledger.cache_directory) {
+        if (
+          ledger.cache_directory !==
+          join(
+            this.options.directory,
+            'runtime',
+            'newton-sources',
+            ledger.session_id,
+          )
+        )
+          throw new Error('Newton cache ownership mismatch');
+        try {
+          const marker = JSON.parse(
+            await readFile(
+              join(ledger.cache_directory, '.source-owner.json'),
+              'utf8',
+            ),
+          ) as { session_id: string; creator: Identity };
+          if (
+            marker.session_id !== ledger.session_id ||
+            !same(marker.creator, ledger.creator)
+          )
+            throw new Error('Newton cache creator mismatch');
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+          try {
+            await readdir(ledger.cache_directory);
+            throw new Error('Newton cache has no ownership receipt');
+          } catch (missing) {
+            if ((missing as NodeJS.ErrnoException).code !== 'ENOENT')
+              throw missing;
+          }
+        }
+        await rm(ledger.cache_directory, { recursive: true, force: true });
+      }
       await save(path, ledger);
       this.log({
         event: 'sessions.source_reconciled',
@@ -157,9 +203,56 @@ export class SyntheticSources {
       });
     }
   }
-  async launch(input: SourceStart): Promise<OwnedSource> {
+  async prepare(
+    session: Session,
+    adopt?: (source: OwnedSource) => void,
+  ): Promise<OwnedSource> {
+    if (this.newtonSlot) throw new Error('Managed Newton GPU is occupied');
+    this.newtonSlot = session.id;
+    try {
+      return await this.launch(
+        { session, ticket: '', websocket_path: '' },
+        true,
+        adopt,
+      );
+    } catch (error) {
+      if (this.newtonSlot === session.id) this.newtonSlot = undefined;
+      throw error;
+    }
+  }
+  private startup(input: SourceStart) {
+    const snapshot = input.session.snapshot;
+    return {
+      version: 1,
+      url: this.options.url.replace(/^http/, 'ws') + input.websocket_path,
+      ticket: input.ticket,
+      session_id: input.session.id,
+      scene_hash: snapshot.installation.scene_hash,
+      body_order: snapshot.installation.pose_keys,
+      joint_order: snapshot.installation.joint_keys,
+      initial_poses: snapshot.initial_poses,
+      initial_joints: snapshot.initial_joints,
+      parameters: snapshot.parameters,
+      ...(snapshot.physics ? { physics: snapshot.physics } : {}),
+      ...(input.recording ? { recording: input.recording } : {}),
+    };
+  }
+  async launch(
+    input: SourceStart,
+    preparing = false,
+    adopt?: (source: OwnedSource) => void,
+  ): Promise<OwnedSource> {
     if (this.stopped || !this.creator)
       throw new Error('Synthetic source owner stopped');
+    const existing = this.prepared.get(input.session.id);
+    if (existing && !preparing) {
+      this.prepared.delete(input.session.id);
+      existing.child.stdin!.write(JSON.stringify(this.startup(input)) + '\n');
+      return existing.owned;
+    }
+    const newton = !!input.session.snapshot.physics;
+    if (newton && (!preparing || !this.options.newton))
+      throw new Error('Newton source requires owned prelease preparation');
     const path = join(this.directory, input.session.id + '.json'),
       ledger: Ledger = {
         owner: 'lab-word-synthetic-session-v1',
@@ -172,10 +265,30 @@ export class SyntheticSources {
           'same-port Motion WebSocket',
           ...(input.recording ? ['same-port Recording WebSocket'] : []),
         ],
+        ...(newton
+          ? {
+              source_kind: 'newton' as const,
+              cache_directory: join(
+                this.options.directory,
+                'runtime',
+                'newton-sources',
+                input.session.id,
+              ),
+              ...(process.env.LAB_WORD_NEWTON_EVIDENCE_DIRECTORY
+                ? {
+                    evidence_file: join(
+                      resolve(process.env.LAB_WORD_NEWTON_EVIDENCE_DIRECTORY),
+                      input.session.id + '.jsonl',
+                    ),
+                  }
+                : {}),
+            }
+          : {}),
       };
     await save(path, ledger);
     let child: ChildProcess | undefined,
       closed = false,
+      cacheCreated = false,
       stopping: Promise<void> | undefined;
     const stop = async () => {
       if (stopping) return stopping;
@@ -193,6 +306,10 @@ export class SyntheticSources {
           }
         }
         ledger.state = 'cleaned';
+        this.prepared.delete(input.session.id);
+        if (this.newtonSlot === input.session.id) this.newtonSlot = undefined;
+        if (ledger.cache_directory && cacheCreated)
+          await rm(ledger.cache_directory, { recursive: true, force: true });
         await save(path, ledger);
         this.children.delete(owned);
         this.log({
@@ -206,15 +323,62 @@ export class SyntheticSources {
     const owned = { stop };
     this.children.add(owned);
     try {
+      if (ledger.cache_directory) {
+        await mkdir(join(this.options.directory, 'runtime', 'newton-sources'), {
+          recursive: true,
+          mode: 0o700,
+        });
+        await mkdir(ledger.cache_directory, { mode: 0o700 });
+        cacheCreated = true;
+        await writeFile(
+          join(ledger.cache_directory, '.source-owner.json'),
+          JSON.stringify({
+            session_id: input.session.id,
+            creator: this.creator,
+          }) + '\n',
+          { flag: 'wx', mode: 0o600 },
+        );
+        for (const name of ['tmp', 'xdg', 'cuda', 'torch', 'numba'])
+          await mkdir(join(ledger.cache_directory, name), { mode: 0o700 });
+        await mkdir(
+          join(this.options.directory, 'runtime', 'newton-kernel-cache'),
+          { recursive: true, mode: 0o700 },
+        );
+        if (ledger.evidence_file)
+          await mkdir(
+            resolve(process.env.LAB_WORD_NEWTON_EVIDENCE_DIRECTORY!),
+            { recursive: true, mode: 0o700 },
+          );
+      }
       child = spawn(
-        this.options.python,
-        [this.options.publisher, '--startup-stdin'],
+        newton ? this.options.newton!.python : this.options.python,
+        [
+          newton ? this.options.newton!.publisher : this.options.publisher,
+          preparing ? '--prepare-stdin' : '--startup-stdin',
+        ],
         {
-          stdio: ['pipe', 'ignore', 'pipe'],
+          stdio: ['pipe', preparing ? 'pipe' : 'ignore', 'pipe'],
           windowsHide: true,
           env: {
             ...process.env,
             LAB_WORD_SYNTHETIC_PARENT_PID: String(process.pid),
+            ...(ledger.cache_directory
+              ? {
+                  PYTHONDONTWRITEBYTECODE: '1',
+                  LAB_WORD_NEWTON_SCENE_DIRECTORY:
+                    this.options.newton!.sceneDirectory,
+                  WARP_CACHE_PATH: join(
+                    this.options.directory,
+                    'runtime',
+                    'newton-kernel-cache',
+                  ),
+                  CUDA_CACHE_PATH: join(ledger.cache_directory, 'cuda'),
+                  XDG_CACHE_HOME: join(ledger.cache_directory, 'xdg'),
+                  TMPDIR: join(ledger.cache_directory, 'tmp'),
+                  TORCH_HOME: join(ledger.cache_directory, 'torch'),
+                  NUMBA_CACHE_DIR: join(ledger.cache_directory, 'numba'),
+                }
+              : {}),
           },
         },
       );
@@ -231,23 +395,85 @@ export class SyntheticSources {
         throw new Error('Synthetic source exited before ownership admission');
       ledger.state = 'owned';
       await save(path, ledger);
+      if (preparing) adopt?.(owned);
       if (this.stopped) throw new Error('Synthetic source launch cancelled');
       const snapshot = input.session.snapshot;
-      child.stdin!.write(
-        JSON.stringify({
-          version: 1,
-          url: this.options.url.replace(/^http/, 'ws') + input.websocket_path,
-          ticket: input.ticket,
-          session_id: input.session.id,
-          scene_hash: snapshot.installation.scene_hash,
-          body_order: snapshot.installation.pose_keys,
-          joint_order: snapshot.installation.joint_keys,
-          initial_poses: snapshot.initial_poses,
-          initial_joints: snapshot.initial_joints,
-          parameters: snapshot.parameters,
-          ...(input.recording ? { recording: input.recording } : {}),
-        }) + '\n',
-      );
+      if (preparing) {
+        const actual = child;
+        const ready = new Promise<void>((resolve, reject) => {
+          let buffer = '';
+          const timer = setTimeout(
+            () => finish(new Error('Newton preparation timed out')),
+            120000,
+          );
+          const finish = (error?: Error) => {
+            clearTimeout(timer);
+            actual.stdout?.off('data', onData);
+            actual.off('close', onClose);
+            if (error) reject(error);
+            else resolve();
+          };
+          const onClose = () =>
+            finish(new Error('Newton preparation process exited'));
+          const onData = (chunk: Buffer) => {
+            buffer += chunk.toString('utf8');
+            if (buffer.length > 16384)
+              return finish(new Error('Newton readiness exceeds budget'));
+            if (!buffer.includes('\n')) return;
+            try {
+              const result = JSON.parse(buffer.split('\n')[0]);
+              if (
+                result.type !== 'newton.prepared' ||
+                result.profile_sha256 !== snapshot.physics!.profile_sha256 ||
+                result.initial?.sim_time_ns !== 0
+              )
+                throw new Error('Newton readiness mismatch');
+              if (
+                !Array.isArray(result.initial.poses) ||
+                result.initial.poses.length !== snapshot.initial_poses.length ||
+                !Array.isArray(result.initial.joints) ||
+                result.initial.joints.length !== snapshot.initial_joints.length
+              )
+                throw new Error('Newton readiness count mismatch');
+              for (const [index, pose] of snapshot.initial_poses.entries())
+                for (const field of ['position', 'quaternion'] as const)
+                  if (
+                    pose[field].some(
+                      (value, axis) =>
+                        !Number.isFinite(
+                          result.initial.poses[index]?.[field]?.[axis],
+                        ) ||
+                        Math.abs(
+                          value - result.initial.poses[index]?.[field]?.[axis],
+                        ) > Math.max(0.00001, Math.abs(value) * 0.000001),
+                    )
+                  )
+                    throw new Error('Newton initial FK mismatch');
+              if (
+                snapshot.initial_joints.some(
+                  (value, index) =>
+                    !Number.isFinite(result.initial.joints[index]) ||
+                    Math.abs(value - result.initial.joints[index]) > 0.00001,
+                )
+              )
+                throw new Error('Newton initial joints mismatch');
+              finish();
+            } catch {
+              finish(new Error('Newton readiness rejected'));
+            }
+          };
+          actual.stdout!.on('data', onData);
+          actual.once('close', onClose);
+        });
+        child.stdin!.write(JSON.stringify(this.startup(input)) + '\n');
+        await ready;
+        if (this.stopped || closed)
+          throw new Error('Newton preparation cancelled');
+        child.stdout?.resume();
+        this.prepared.set(input.session.id, { child, owned });
+        return owned;
+      }
+      child.stdin!.write(JSON.stringify(this.startup(input)) + '\n');
       this.log({
         event: 'sessions.source_owned',
         session_id: input.session.id,

@@ -270,7 +270,11 @@ export async function run(
       const sessions = new SimulationSessions(
         world,
         {
-          enabled: config.syntheticSession,
+          enabled: config.syntheticSession || config.newtonSession,
+          syntheticEnabled: config.syntheticSession,
+          managedSynthetic: config.syntheticSession,
+          newtonEnabled: config.newtonSession,
+          managedNewton: config.newtonManaged,
           graceMillis: config.motionGraceMillis,
           ackMillis: config.motionAckMillis,
         },
@@ -298,7 +302,7 @@ export async function run(
       );
       owners.recordingSockets = recordingSockets;
       const motion =
-        config.motionFixture || config.syntheticSession
+        config.motionFixture || config.syntheticSession || config.newtonSession
           ? new MotionWebSockets(
               fixtures,
               config.auth.origin,
@@ -313,6 +317,15 @@ export async function run(
           directory: config.directory,
           python: config.syntheticPython,
           publisher: config.syntheticPublisher,
+          ...(config.newtonManaged
+            ? {
+                newton: {
+                  python: config.newtonPython,
+                  publisher: config.newtonPublisher,
+                  sceneDirectory: config.newtonSceneDirectory!,
+                },
+              }
+            : {}),
           url: `http://${config.hostname === '::1' ? '[::1]' : config.hostname}:${config.port}`,
           port: config.port,
         },
@@ -320,13 +333,16 @@ export async function run(
         log,
       );
       owners.sources = sources;
-      await sources.initialize(config.syntheticSession);
+      await sources.initialize(config.syntheticSession || config.newtonSession);
       sessions.configure(
         (input) => sources.launch(input),
         (id) => {
           motion?.fence(id);
           recordingSockets.fence(id);
         },
+        config.newtonManaged
+          ? (session, adopt) => sources.prepare(session, adopt)
+          : undefined,
       );
       progressRoutes(app, new ProgressService(context, config.auth));
       lifecycleRoutes(app, world);

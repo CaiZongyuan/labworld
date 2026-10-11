@@ -489,7 +489,7 @@ test.each([
 test('a disabled source exposes its recovery instruction and keeps installation operable without claiming Running', async () => {
   const fixture = await openSession({ enabled: false });
   expect(screen.getByRole('dialog')).toHaveTextContent(
-    'The server has no development synthetic source enabled',
+    'The selected Session source is disabled',
   );
   expect(screen.getByRole('button', { name: 'Start' })).toBeDisabled();
   expect(

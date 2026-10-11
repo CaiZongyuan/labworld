@@ -22,7 +22,12 @@
             "type": "string"
           }
         },
-        "required": ["code", "details", "message", "request_id"],
+        "required": [
+          "code",
+          "details",
+          "message",
+          "request_id"
+        ],
         "type": "object"
       },
       "ApiErrorResponse": {
@@ -31,13 +36,18 @@
             "$ref": "#/components/schemas/ApiError"
           }
         },
-        "required": ["error"],
+        "required": [
+          "error"
+        ],
         "type": "object"
       },
       "LabRecording": {
         "properties": {
           "ended_at": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "gaps": {
             "items": {
@@ -72,7 +82,11 @@
             "type": "string"
           },
           "integrity": {
-            "enum": ["complete", "incomplete", "recording"],
+            "enum": [
+              "complete",
+              "incomplete",
+              "recording"
+            ],
             "type": "string"
           },
           "lab_id": {
@@ -81,17 +95,26 @@
           },
           "manifest_sha256": {
             "pattern": "^sha256:[0-9a-f]{64}$",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "prefix": {
             "$ref": "#/components/schemas/RecordingPrefix"
           },
           "reason": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "seal": {
             "additionalProperties": {},
-            "type": ["object", "null"]
+            "type": [
+              "object",
+              "null"
+            ]
           },
           "session_id": {
             "format": "uuid",
@@ -142,10 +165,16 @@
             "type": "array"
           },
           "next_cursor": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": ["data", "next_cursor"],
+        "required": [
+          "data",
+          "next_cursor"
+        ],
         "type": "object"
       },
       "PublisherAdmission": {
@@ -155,23 +184,33 @@
               "capture_policy": {
                 "properties": {
                   "first_source_event_sequence": {
-                    "enum": ["1"],
+                    "enum": [
+                      "1"
+                    ],
                     "type": "string"
                   },
                   "first_source_sequence": {
-                    "enum": ["1"],
+                    "enum": [
+                      "1"
+                    ],
                     "type": "string"
                   },
                   "motion_codec": {
-                    "enum": ["pose-f32-v1"],
+                    "enum": [
+                      "pose-f32-v1"
+                    ],
                     "type": "string"
                   },
                   "sample_hz": {
-                    "enum": [30],
+                    "enum": [
+                      30
+                    ],
                     "type": "number"
                   },
                   "selection": {
-                    "enum": ["all-selected"],
+                    "enum": [
+                      "all-selected"
+                    ],
                     "type": "string"
                   }
                 },
@@ -188,7 +227,9 @@
                 "type": "string"
               },
               "expires_in_seconds": {
-                "enum": [30],
+                "enum": [
+                  30
+                ],
                 "type": "number"
               },
               "lease_id": {
@@ -256,7 +297,10 @@
         "properties": {
           "entity_id": {
             "format": "uuid",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "event": {
             "additionalProperties": {},
@@ -278,7 +322,10 @@
           },
           "sim_time_ns": {
             "pattern": "^(0|[1-9][0-9]*)$",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -301,14 +348,25 @@
             "type": "array"
           },
           "integrity": {
-            "enum": ["complete", "incomplete", "recording"],
+            "enum": [
+              "complete",
+              "incomplete",
+              "recording"
+            ],
             "type": "string"
           },
           "next_cursor": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": ["data", "integrity", "next_cursor"],
+        "required": [
+          "data",
+          "integrity",
+          "next_cursor"
+        ],
         "type": "object"
       },
       "RecordingManifest": {
@@ -325,7 +383,9 @@
             "type": "array"
           },
           "format": {
-            "enum": ["lab-word-recording-manifest-v1"],
+            "enum": [
+              "lab-word-recording-manifest-v1"
+            ],
             "type": "string"
           },
           "physics_entity_ids": {
@@ -392,7 +452,10 @@
           },
           "source_prefix_sha256": {
             "pattern": "^sha256:[0-9a-f]{64}$",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
         "required": [
@@ -409,7 +472,10 @@
         "properties": {
           "file_id": {
             "format": "uuid",
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "first_ordinal": {
             "pattern": "^(0|[1-9][0-9]*)$",
@@ -458,10 +524,16 @@
             "type": "array"
           },
           "next_cursor": {
-            "type": ["string", "null"]
+            "type": [
+              "string",
+              "null"
+            ]
           }
         },
-        "required": ["data", "next_cursor"],
+        "required": [
+          "data",
+          "next_cursor"
+        ],
         "type": "object"
       }
     }
@@ -601,7 +673,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/recordings/{recording_id}": {
@@ -712,7 +786,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       },
       "get": {
         "operationId": "getLabRecording",
@@ -828,7 +904,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/events": {
@@ -965,7 +1043,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/manifest": {
@@ -1083,7 +1163,139 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/resources/{file_id}": {
+      "get": {
+        "operationId": "getLabRecordingResource",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "file_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lab_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recording_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Exact retained immutable Recording dependency."
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/segments": {
@@ -1220,7 +1432,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     },
     "/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/segments/{segment_id}": {
@@ -1348,7 +1562,9 @@
             "description": ""
           }
         },
-        "tags": ["Lab"]
+        "tags": [
+          "Lab"
+        ]
       }
     }
   },

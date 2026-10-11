@@ -162,15 +162,19 @@ export function useSimulationSession({
   const [motionError, setMotionError] = useState<unknown>(null);
   const [observing, setObserving] = useState(true);
   const observeId =
-    session && (!session.ended_at || session.status === 'interrupted')
+    session &&
+    (!session.snapshot.physics || (session.lease_id && session.epoch)) &&
+    (!session.ended_at || session.status === 'interrupted')
       ? session.id
       : null;
   const sceneHash = session?.snapshot.installation.scene_hash;
+  const sourcePreparing =
+    !!session?.snapshot.physics && session.status === 'starting';
   useEffect(() => {
     buffer.clear();
     setMotionError(null);
     if (!observing || !observeId || !labId || !sceneHash) {
-      setMotionState('disconnected');
+      setMotionState(observing && sourcePreparing ? 'waiting' : 'disconnected');
       return;
     }
     const controller = new AbortController();
@@ -227,10 +231,21 @@ export function useSimulationSession({
     rate,
     motionRetry,
     observing,
+    session?.epoch,
+    session?.lease_id,
+    sourcePreparing,
   ]);
   async function write(
-    action: 'install' | 'start' | 'pause' | 'resume' | 'reset' | 'stop',
+    action:
+      | 'install'
+      | 'install-newton'
+      | 'start'
+      | 'pause'
+      | 'resume'
+      | 'reset'
+      | 'stop',
     id?: string,
+    representations?: Record<string, string>,
   ) {
     if (!labId || pending) return;
     const controller = new AbortController();
@@ -240,10 +255,15 @@ export function useSimulationSession({
     setFailure(null);
     try {
       const request = { ...options, signal: controller.signal };
-      if (action === 'install') {
+      if (action === 'install' || action === 'install-newton') {
         await createLabSceneInstallation({
           ...request,
-          body: { representation_id: id! },
+          body: {
+            representation_id: id!,
+            ...(action === 'install-newton'
+              ? { backend: 'newton' as const, representations }
+              : {}),
+          },
         });
         if (controller.signal.aborted) return;
         await client.invalidateQueries({ queryKey: [...key, 'installations'] });

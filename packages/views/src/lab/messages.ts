@@ -2,7 +2,11 @@ export const labMessages = {
   zh: {
     'session.title': '仿真会话',
     'session.description':
-      '开发合成模式。操作者共享权威会话，各自保留相机、选择和 Inspector。当前不运行 Newton，也不提供可靠录制。',
+      '操作者共享仿真会话和独立录制，各自保留相机、选择和 Inspector。合成运动与 Newton 物理来源明确区分。',
+    'session.newtonInstall': '安装 SO-101 Newton 场景',
+    'session.newtonHint':
+      '先从资产库导入固定版本的十个 GLB，再安装 SO-101 场景。Newton 画面来自实际物理求解；合成场景用于通信验证。',
+    'session.newtonPreparing': '正在准备 Newton 物理场景',
     'session.lifecycle': '会话生命周期',
     'session.reception': '运动接收',
     'session.idle': '尚未启动',
@@ -41,7 +45,7 @@ export const labMessages = {
       '另一个操作者已改变会话。当前状态已刷新；检查后再操作。',
     'session.denied': '会话访问被拒绝。请检查登录和 lab:full 凭据后重试。',
     'session.unavailable':
-      '服务未启用开发合成来源。请按教程配置后重新启动服务，再重试。',
+      '服务未启用所选会话来源。请按教程配置后重新启动服务，再重试。',
     'session.failure': '操作失败。已保留选择，请检查当前会话后重试。',
     'session.offline': '会话状态连接已断开。状态恢复前不发送控制；可重试连接。',
     'session.interruptedHint':
@@ -556,7 +560,11 @@ export const labMessages = {
   en: {
     'session.title': 'Simulation Session',
     'session.description':
-      'Development synthetic mode. Operators share one authoritative Session, with independent cameras, selection, and Inspectors. Newton and reliable Recording are unavailable.',
+      'Operators share a Simulation Session and independent Recording, with their own cameras, selection, and Inspectors. Synthetic motion and Newton physics retain distinct sources.',
+    'session.newtonInstall': 'Install SO-101 Newton scene',
+    'session.newtonHint':
+      'Import the ten fixed-version GLBs into the Asset Library, then install the SO-101 scene. Newton displays actual solved physics; synthetic scenes verify transport.',
+    'session.newtonPreparing': 'Preparing Newton physics scene',
     'session.lifecycle': 'Session lifecycle',
     'session.reception': 'Motion reception',
     'session.idle': 'Not started',
@@ -596,7 +604,7 @@ export const labMessages = {
     'session.denied':
       'Session access was denied. Check your login or lab:full credential, then retry.',
     'session.unavailable':
-      'The server has no development synthetic source enabled. Configure it as described in the tutorial, restart the server, then retry.',
+      'The selected Session source is disabled. Configure it as described in the tutorial, restart the server, then retry.',
     'session.failure':
       'The action failed. Your selection remains; check the current Session, then retry.',
     'session.offline':

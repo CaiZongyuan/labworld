@@ -636,6 +636,62 @@ export class FileService {
       throw unavailable();
     return this.blobs.read(row.readyKey!);
   }
+  /** Open verified immutable content under the cleanup hash lock, then hand off stream custody. */
+  async openManagedRead(
+    id: string,
+    operation: DbOperation,
+    authorize: (tx: DbSession) => Promise<void>,
+  ) {
+    const planned = await this.context.db.read(operation, async (tx) => {
+      await authorize(tx);
+      return this.load(tx, id);
+    });
+    return this.blobs.withHash(planned.sha256.toString('hex'), async () => {
+      const row = await this.context.db.read(operation, async (tx) => {
+        await authorize(tx);
+        return this.load(tx, id);
+      });
+      if (row.state !== 'ready')
+        throw failure(404, 'not_found', 'Ready file not found');
+      const actual = await this.blobs.inspect(row.readyKey!, row.actualSize!);
+      if (
+        actual.sha256 !== row.sha256.toString('hex') ||
+        actual.size !== row.actualSize
+      )
+        throw unavailable();
+      const iterator = this.blobs.read(row.readyKey!)[Symbol.asyncIterator]();
+      let first: IteratorResult<Uint8Array>;
+      try {
+        first = await iterator.next();
+      } catch (error) {
+        await iterator.return?.();
+        throw error;
+      }
+      let initial = true,
+        closed = false;
+      const reader: AsyncIterator<Uint8Array> = {
+        async next() {
+          if (closed) return { done: true, value: undefined };
+          if (initial) {
+            initial = false;
+            return first;
+          }
+          const next = await iterator.next();
+          if (next.done) closed = true;
+          return next;
+        },
+        async return() {
+          closed = true;
+          await iterator.return?.();
+          return { done: true, value: undefined };
+        },
+      };
+      const bytes: AsyncIterable<Uint8Array> = {
+        [Symbol.asyncIterator]: () => reader,
+      };
+      return { bytes, size: row.actualSize!, content_type: row.contentType };
+    });
+  }
   async release(tx: DbSession, id: string, reference: FileReference) {
     await tx
       .delete(fileReferences)
