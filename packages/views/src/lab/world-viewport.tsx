@@ -931,6 +931,13 @@ export default function WorldViewport(props: {
       failed[node.id] === appearanceKey(node, entity)
     );
   });
+  useEffect(() => {
+    observeLabRender({
+      producer: 'viewport',
+      stage: hasFailure ? 'viewport-failed' : 'viewport-ready',
+      renderer,
+    });
+  }, [hasFailure, renderer]);
   useEffect(() => onBusy(pending), [pending, onBusy]);
   return (
     <>

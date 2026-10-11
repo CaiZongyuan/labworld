@@ -14,6 +14,7 @@ import { randomUUID } from 'node:crypto';
 import {
   lab334State,
   assertLab334Seal,
+  lab334BootstrapSource,
 } from '../support/lab334-observation.ts';
 import { observeLabRender } from '../../packages/views/src/lab/render-probe.ts';
 const owner = () => ({
@@ -153,4 +154,54 @@ test('the identical serialized browser recorder seals within its current realm',
     receivedAt: Date.now(),
   });
   assert.equal(seal.rows.length, 1);
+});
+
+test('exact injected bootstrap contains UUID, factory and registration faults without a page error', () => {
+  const identity = owner(),
+    sentinel = new Error('construction sentinel');
+  const source = lab334BootstrapSource(identity);
+  const sink = Symbol.for('lab-word.lab334-observer'),
+    stateKey = Symbol.for('lab-word.lab334-state');
+  for (const fault of ['uuid', 'factory', 'registration']) {
+    const sandbox = { performance, Date, WeakMap, crypto: { randomUUID } };
+    if (fault === 'uuid')
+      sandbox.crypto.randomUUID = () => {
+        throw sentinel;
+      };
+    if (fault === 'factory')
+      sandbox.WeakMap = class {
+        constructor() {
+          throw sentinel;
+        }
+      };
+    if (fault === 'registration')
+      Object.defineProperty(sandbox, sink, {
+        configurable: true,
+        set() {
+          throw sentinel;
+        },
+      });
+    assert.doesNotThrow(() =>
+      runInNewContext(source + ';globalThis.originalContinued=true', sandbox),
+    );
+    assert.equal(sandbox.originalContinued, true);
+    assert.equal(sandbox[stateKey], undefined);
+    assert.equal(sandbox[sink], undefined);
+  }
+});
+
+test('bounded recorder retains the actual aggregate viewport decision with current renderer identity', () => {
+  const state = lab334State(owner()),
+    renderer = {};
+  state.record({ producer: 'viewport', stage: 'viewport-ready', renderer });
+  state.record({ producer: 'viewport', stage: 'viewport-failed', renderer });
+  const seal = state.seal(randomUUID());
+  assert.deepEqual(
+    seal.rows.map((row) => row.stage),
+    ['viewport-ready', 'viewport-failed'],
+  );
+  assert.deepEqual(
+    seal.rows.map((row) => row.renderer),
+    [1, 1],
+  );
 });

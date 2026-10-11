@@ -69,6 +69,7 @@ export function lab334State(
             'resource',
             'appearance',
             'boundary',
+            'viewport',
             'response',
             'requestfailed',
             'pageerror',
@@ -87,6 +88,8 @@ export function lab334State(
             'appearance-failed',
             'appearance-cleared',
             'boundary',
+            'viewport-failed',
+            'viewport-ready',
             'request-failed',
             'page-error',
             'console-error',
@@ -203,4 +206,27 @@ export function assertLab334Seal(
   if ((value.health as { valid?: boolean })?.valid !== true)
     throw new Error('Latched invalidity');
   return value;
+}
+
+/** Exact injected bootstrap: unavailable observer construction is never a page error. */
+export function lab334BootstrapSource(owner: {
+  caseNonce: string;
+  pageId: string;
+  role: string;
+}) {
+  return `(() => {
+    let state;
+    try {
+      state = (${lab334State.toString()})({...${JSON.stringify(owner)},instanceId:crypto.randomUUID()});
+      const sink = row => state.record(row);
+      globalThis[Symbol.for('lab-word.lab334-observer')] = sink;
+      globalThis[Symbol.for('lab-word.lab334-state')] = state;
+      if (globalThis[Symbol.for('lab-word.lab334-observer')] !== sink || globalThis[Symbol.for('lab-word.lab334-state')] !== state) throw new Error('Unavailable registration');
+    } catch {
+      try { state?.invalidate(); } catch {}
+      try { globalThis[Symbol.for('lab-word.lab334-state')]?.invalidate(); } catch {}
+      try { delete globalThis[Symbol.for('lab-word.lab334-observer')]; } catch {}
+      try { delete globalThis[Symbol.for('lab-word.lab334-state')]; } catch {}
+    }
+  })()`;
 }

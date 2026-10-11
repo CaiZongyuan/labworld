@@ -2,7 +2,11 @@ import { randomUUID, createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync, renameSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page, Response, Request, ConsoleMessage } from '@playwright/test';
-import { lab334State, assertLab334Seal } from '../support/lab334-observation';
+import {
+  lab334State,
+  assertLab334Seal,
+  lab334BootstrapSource,
+} from '../support/lab334-observation';
 import { boundedBrowserFact } from './lab-browser-facts';
 
 /** One original-case observer; no HTTP/model/callback/value replacement. */
@@ -40,9 +44,10 @@ export async function lab334Probe() {
       .digest('hex');
   async function watch(page: Page, role: string) {
     if (!enabled) return;
-    const pageId = randomUUID();
+    const remove: (() => void)[] = [];
     try {
-      const code = `(() => { const state = (${lab334State.toString()})({caseNonce:${JSON.stringify(caseNonce)},pageId:${JSON.stringify(pageId)},role:${JSON.stringify(role)},instanceId:crypto.randomUUID()}); globalThis[Symbol.for('lab-word.lab334-observer')]=row=>state.record(row); globalThis[Symbol.for('lab-word.lab334-state')]=state; })()`;
+      const pageId = randomUUID();
+      const code = lab334BootstrapSource({ caseNonce, pageId, role });
       await page.addInitScript(code);
       const resource = (url: string) => {
         const path = new URL(url).pathname;
@@ -112,23 +117,37 @@ export async function lab334Probe() {
               asset: role,
             });
         });
+      remove.push(() => page.off('response', response));
       page.on('response', response);
+      remove.push(() => page.off('requestfailed', failed));
       page.on('requestfailed', failed);
+      remove.push(() => page.off('pageerror', pageerror));
       page.on('pageerror', pageerror);
+      remove.push(() => page.off('console', consoleError));
       page.on('console', consoleError);
       watched.push({
         page,
         pageId,
         role,
         off: () => {
-          page.off('response', response);
-          page.off('requestfailed', failed);
-          page.off('pageerror', pageerror);
-          page.off('console', consoleError);
+          for (const detach of remove) {
+            try {
+              detach();
+            } catch {
+              health.invalidate();
+            }
+          }
         },
       });
     } catch {
       health.invalidate();
+      for (const detach of remove) {
+        try {
+          detach();
+        } catch {
+          /* Other owned listeners still detach. */
+        }
+      }
     }
   }
   async function capture(error?: unknown) {
@@ -268,9 +287,13 @@ export async function lab334Probe() {
     }
   }
   async function dispose() {
-    try {
-      for (const owner of watched) {
+    for (const owner of watched) {
+      try {
         owner.off();
+      } catch {
+        health.invalidate();
+      }
+      try {
         await boundedBrowserFact(() =>
           owner.page.evaluate(() => {
             delete (globalThis as { [key: symbol]: unknown })[
@@ -281,9 +304,9 @@ export async function lab334Probe() {
             ];
           }),
         );
+      } catch {
+        health.invalidate();
       }
-    } catch {
-      health.invalidate();
     }
   }
   return { watch, capture, dispose };

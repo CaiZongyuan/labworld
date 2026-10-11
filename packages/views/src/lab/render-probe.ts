@@ -1,7 +1,7 @@
 import { ModelImportError } from './glb.ts';
 /** Private opt-in diagnostic branch only; target values and callbacks stay original. */
 export function observeLabRender(input: {
-  producer: 'loader' | 'resource' | 'appearance' | 'boundary';
+  producer: 'loader' | 'resource' | 'appearance' | 'boundary' | 'viewport';
   stage: string;
   asset?: string;
   appearance?: string;
