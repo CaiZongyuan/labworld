@@ -8,13 +8,13 @@ import {
 } from '../../../../contracts/src/motion/index.ts';
 // Pin source bytes: JSON number spelling differs between Python and JavaScript.
 const PROFILE_FILE_SHA256 =
-  '68e126b2f3440fba8f99c8c04ee80b8522ba59c293f31554829b2391de539022';
+  '83ebd8e76b378d2b3607b4795e0ee873d920f9f7704dc9b1b396277cde6a0b9a';
 if (
   createHash('sha256')
     .update(readFileSync(new URL('./newton-profile.json', import.meta.url)))
     .digest('hex') !== PROFILE_FILE_SHA256 ||
   profile.hash !==
-    'sha256:c467d6b9f697882a30375f87e0ebbad30edb81708fb9310d87588329a417e9c0' ||
+    'sha256:1dd3014070e263e18fa639df17a64a584fd3102650d645e79b4a28c62e40bf5f' ||
   profile.physics_archive.members.reduce(
     (total, member) => total + member.bytes,
     0,

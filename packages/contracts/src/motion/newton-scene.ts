@@ -2,7 +2,7 @@
 export const NEWTON_SCENE_VISUALS = [
   {
     pose_key: 'so101/base',
-    sha256: '95647e8978fb9825fe438a05dce716c61d323f2803bf59b8d6740a046dca140c',
+    sha256: 'a8fd1a0cb5fd149ffdc109a3142bd4c1c8bcc987b3f4e673aad83fe0af9914b7',
   },
   {
     pose_key: 'so101/shoulder',
