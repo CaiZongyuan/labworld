@@ -26,6 +26,7 @@ class SyntheticStartup:
     translation_amplitude: float
     angular_speed: float
     joint_amplitude: float
+    recording: dict | None = None
 
 
 def parse_startup(text):
@@ -74,11 +75,16 @@ def parse_startup(text):
     # Check the exact wire rounding as well as the persisted JSON values.
     encode_snapshot({'epoch': 0, 'sequence': 0, 'sim_time_ns': 0,
                      'mapping_revision': 0, 'poses': poses, 'joints': joints})
+    from recording_codec import parse_bootstrap
+    recording = parse_bootstrap(value['recording']) if 'recording' in value else None
+    if recording is not None and (recording['session_id'] != value['session_id'] or recording['scene_hash'] != value['scene_hash']):
+        invalid('Recording startup scope mismatch')
     return SyntheticStartup(value['url'], value['ticket'], value['session_id'], value['scene_hash'],
                             tuple(value['body_order']), tuple(value['joint_order']),
                             tuple((tuple(pose['position']), tuple(pose['quaternion'])) for pose in poses),
                             tuple(joints), **{name: parameters[name] for name in
-                                              ('translation_amplitude', 'angular_speed', 'joint_amplitude')})
+                                              ('translation_amplitude', 'angular_speed', 'joint_amplitude')},
+                            recording=recording)
 
 
 def configured_snapshot(startup, epoch, sequence, sim_time_ns, mapping_revision):

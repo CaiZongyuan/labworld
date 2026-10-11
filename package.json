@@ -31,7 +31,7 @@
     "dev:server": "node --env-file-if-exists=.env --experimental-strip-types apps/server/src/main.ts",
     "server": "node --env-file-if-exists=.env --experimental-strip-types apps/server/src/cli.ts",
     "test": "pnpm test:frontend && pnpm test:tooling && pnpm test:server",
-    "test:server": "node --test --test-concurrency=1 --experimental-strip-types tests/server/*.test.ts",
+    "test:server": "node --test --test-concurrency=1 --experimental-strip-types tests/server/*.test.ts tests/e2e/recording-reliability.test.ts",
     "server:openapi": "node --experimental-strip-types apps/server/src/openapi.ts",
     "db:generate": "pnpm --filter @labos-threejs/server exec drizzle-kit generate --config drizzle.config.ts",
     "spike:server": "node --experimental-strip-types scripts/server-spike.ts",

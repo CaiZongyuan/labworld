@@ -528,6 +528,30 @@ export type PublisherAdmission = SessionMotionTicket & {
     lease_id: string;
     epoch: string;
     bootstrap: PublisherBootstrap;
+    recording?: {
+        recording_id: string;
+        session_id: string;
+        lease_id: string;
+        epoch: string;
+        snapshot_hash: string;
+        manifest_sha256: string;
+        scene_hash: string;
+        mapping_revision: number;
+        mapping_sha256: string;
+        websocket_path: string;
+        ticket: string;
+        expires_in_seconds: 30;
+        capture_policy: {
+            selection: 'all-selected';
+            sample_hz: 30;
+            motion_codec: 'pose-f32-v1';
+            first_source_sequence: '1';
+            first_source_event_sequence: '1';
+        };
+        limits: {
+            [key: string]: number;
+        };
+    };
 };
 
 export type PublisherBootstrap = {
@@ -543,6 +567,95 @@ export type PublisherBootstrap = {
 
 export type PublisherAdmissionRequest = {
     machine_id: string;
+};
+
+export type LabRecordingPage = {
+    data: Array<LabRecording>;
+    next_cursor: string | null;
+};
+
+export type LabRecording = {
+    id: string;
+    session_id: string;
+    lab_id: string;
+    snapshot_hash: string;
+    manifest_sha256: string | null;
+    status: 'preparing' | 'open' | 'complete' | 'incomplete' | 'deleting' | 'deleted';
+    reason: string | null;
+    gaps: Array<{
+        reason: string;
+        after_source_sequence: string;
+        after_server_event_sequence: string;
+        until: null;
+    }>;
+    started_at: string;
+    ended_at: string | null;
+    integrity: 'recording' | 'complete' | 'incomplete';
+    prefix: RecordingPrefix;
+    seal: {
+        [key: string]: unknown;
+    } | null;
+};
+
+export type RecordingPrefix = {
+    source_packet_sequence: string;
+    source_prefix_sha256: string | null;
+    last_source_sequence: string;
+    last_source_event_sequence: string;
+    last_sim_time_ns: string;
+    source_ended: boolean;
+};
+
+export type RecordingManifest = {
+    format: 'lab-word-recording-manifest-v1';
+    recording_id: string;
+    session_id: string;
+    snapshot_hash: string;
+    snapshot: {
+        [key: string]: unknown;
+    };
+    capture_baseline: {
+        [key: string]: unknown;
+    };
+    capture_entity_ids: Array<string>;
+    physics_entity_ids: Array<string>;
+    versions: {
+        [key: string]: unknown;
+    };
+};
+
+export type RecordingSegmentPage = {
+    data: Array<RecordingSegment>;
+    next_cursor: string | null;
+};
+
+export type RecordingSegment = {
+    id: string;
+    index: number;
+    file_id: string | null;
+    sealed: boolean;
+    size: number;
+    sha256: string;
+    first_ordinal: string;
+    last_ordinal: string;
+};
+
+export type RecordingEventPage = {
+    data: Array<RecordingEvent>;
+    next_cursor: string | null;
+    integrity: 'recording' | 'complete' | 'incomplete';
+};
+
+export type RecordingEvent = {
+    ordinal: string;
+    event_id: string;
+    event_type: string;
+    entity_id: string | null;
+    recorded_at: string;
+    sim_time_ns: string | null;
+    event: {
+        [key: string]: unknown;
+    };
 };
 
 export type MachineCredential = {
@@ -1775,6 +1888,221 @@ export type AdmitLabSessionPublisherResponses = {
 };
 
 export type AdmitLabSessionPublisherResponse = AdmitLabSessionPublisherResponses[keyof AdmitLabSessionPublisherResponses];
+
+export type ListLabRecordingsData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/recordings';
+};
+
+export type ListLabRecordingsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabRecordingsError = ListLabRecordingsErrors[keyof ListLabRecordingsErrors];
+
+export type ListLabRecordingsResponses = {
+    200: LabRecordingPage;
+};
+
+export type ListLabRecordingsResponse = ListLabRecordingsResponses[keyof ListLabRecordingsResponses];
+
+export type DeleteLabRecordingData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        recording_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/recordings/{recording_id}';
+};
+
+export type DeleteLabRecordingErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type DeleteLabRecordingError = DeleteLabRecordingErrors[keyof DeleteLabRecordingErrors];
+
+export type DeleteLabRecordingResponses = {
+    204: void;
+};
+
+export type DeleteLabRecordingResponse = DeleteLabRecordingResponses[keyof DeleteLabRecordingResponses];
+
+export type GetLabRecordingData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        recording_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/recordings/{recording_id}';
+};
+
+export type GetLabRecordingErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabRecordingError = GetLabRecordingErrors[keyof GetLabRecordingErrors];
+
+export type GetLabRecordingResponses = {
+    200: LabRecording;
+};
+
+export type GetLabRecordingResponse = GetLabRecordingResponses[keyof GetLabRecordingResponses];
+
+export type GetLabRecordingManifestData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        recording_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/manifest';
+};
+
+export type GetLabRecordingManifestErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabRecordingManifestError = GetLabRecordingManifestErrors[keyof GetLabRecordingManifestErrors];
+
+export type GetLabRecordingManifestResponses = {
+    200: RecordingManifest;
+};
+
+export type GetLabRecordingManifestResponse = GetLabRecordingManifestResponses[keyof GetLabRecordingManifestResponses];
+
+export type ListLabRecordingSegmentsData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        recording_id: string;
+    };
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/segments';
+};
+
+export type ListLabRecordingSegmentsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabRecordingSegmentsError = ListLabRecordingSegmentsErrors[keyof ListLabRecordingSegmentsErrors];
+
+export type ListLabRecordingSegmentsResponses = {
+    200: RecordingSegmentPage;
+};
+
+export type ListLabRecordingSegmentsResponse = ListLabRecordingSegmentsResponses[keyof ListLabRecordingSegmentsResponses];
+
+export type ListLabRecordingEventsData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        recording_id: string;
+    };
+    query?: {
+        cursor?: string;
+        limit?: number;
+    };
+    url: '/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/events';
+};
+
+export type ListLabRecordingEventsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabRecordingEventsError = ListLabRecordingEventsErrors[keyof ListLabRecordingEventsErrors];
+
+export type ListLabRecordingEventsResponses = {
+    200: RecordingEventPage;
+};
+
+export type ListLabRecordingEventsResponse = ListLabRecordingEventsResponses[keyof ListLabRecordingEventsResponses];
+
+export type GetLabRecordingSegmentData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        recording_id: string;
+        segment_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/segments/{segment_id}';
+};
+
+export type GetLabRecordingSegmentErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabRecordingSegmentError = GetLabRecordingSegmentErrors[keyof GetLabRecordingSegmentErrors];
+
+export type GetLabRecordingSegmentResponses = {
+    /**
+     * Verified bounded LWF1 journal segment.
+     */
+    200: Blob | File;
+};
+
+export type GetLabRecordingSegmentResponse = GetLabRecordingSegmentResponses[keyof GetLabRecordingSegmentResponses];
 
 export type ProvisionMachineData = {
     body: ProvisionMachine;

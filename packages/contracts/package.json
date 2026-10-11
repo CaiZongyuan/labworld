@@ -5,6 +5,7 @@
   "name": "@labos-threejs/contracts",
   "exports": {
     ".": "./src/generated/types.gen.ts",
-    "./motion": "./src/motion/index.ts"
+    "./motion": "./src/motion/index.ts",
+    "./recording": "./src/recording/index.ts"
   }
 }

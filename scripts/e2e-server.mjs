@@ -19,8 +19,10 @@ const args = process.argv.slice(2),
   motion = args.some((argument) =>
     argument.includes('lab-synthetic-motion.spec.ts'),
   ),
-  session = args.some((argument) =>
-    argument.includes('lab-simulation-session.spec.ts'),
+  session = args.some(
+    (argument) =>
+      argument.includes('lab-simulation-session.spec.ts') ||
+      argument.includes('lab-recording.spec.ts'),
   ),
   production = motion || session || process.env.E2E_WEB_MODE === 'production',
   statusControl = args.some((argument) => argument.includes('status.spec.ts')),

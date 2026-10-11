@@ -2,7 +2,7 @@
 
 Goal: explicitly run one fixed scene and observe the same Simulation Session in two desktop Viewers. Each Viewer keeps its camera, selection, and Inspector.
 
-Complete [Persistent Labs and objects](persistent-world.en.md) and [Persistent digital assets](persistent-assets.en.md) first. Use the repository Node and pnpm versions, Python 3.10+ with venv and pip, and Linux or WSL Ubuntu. Run Bash commands from the repository root. They create isolated development data. This chapter uses development synthetic motion. It needs no GPU, Newton, or Docker. Reliable Lab Recording remains a later capability.
+Complete [Persistent Labs and objects](persistent-world.en.md) and [Persistent digital assets](persistent-assets.en.md) first. Use the repository Node and pnpm versions, Python 3.10+ with venv and pip, and Linux or WSL Ubuntu. Run Bash commands from the repository root. They create isolated development data. This chapter uses development synthetic motion. It needs no GPU, Newton, or Docker. Each Session automatically creates a reliable Lab Recording; see [Capture and inspect a Recording](recording.en.md) to read segments, check integrity, and delete it.
 
 ## Configure the owned source
 
@@ -89,4 +89,4 @@ To finish, Stop the Session, close its dialog, and stop `pnpm dev`. The supervis
 
 Sources: [Session owner](../../packages/server/src/lab/sessions/service.ts), [HTTP routes](../../packages/server/src/lab/sessions/routes.ts), [SDK lifecycle stream](../../packages/sdk/src/simulation-session.ts), [controls](../../packages/views/src/lab/simulation-session-controls.tsx), [motion buffer](../../packages/sdk/src/motion-buffer.ts), and [body-to-visual correction](../../packages/views/src/lab/motion-scene.ts). Source parameters default to translation amplitude `0.45`, angular speed `1`, and joint amplitude `1`. Start HTTP accepts finite values from `0` to `10` for each. These mathematical trajectories do not compute physical contact.
 
-Continue with [the spatial workbench](spatial-workbench.en.md). Production Newton, durable Recording, remote ingress, and robot tasks remain separate work.
+Continue with [Capture and inspect a Recording](recording.en.md) or [the spatial workbench](spatial-workbench.en.md). Production Newton, remote ingress, and robot tasks remain separate work.

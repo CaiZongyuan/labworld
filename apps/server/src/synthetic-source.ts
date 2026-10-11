@@ -170,6 +170,7 @@ export class SyntheticSources {
         consumers: [
           `Session ${input.session.id} Publisher`,
           'same-port Motion WebSocket',
+          ...(input.recording ? ['same-port Recording WebSocket'] : []),
         ],
       };
     await save(path, ledger);
@@ -244,6 +245,7 @@ export class SyntheticSources {
           initial_poses: snapshot.initial_poses,
           initial_joints: snapshot.initial_joints,
           parameters: snapshot.parameters,
+          ...(input.recording ? { recording: input.recording } : {}),
         }) + '\n',
       );
       this.log({

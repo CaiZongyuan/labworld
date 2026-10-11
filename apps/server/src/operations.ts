@@ -9,7 +9,10 @@ import {
   writeFile,
 } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { Database } from '../../../packages/server/src/platform/db/index.ts';
+import {
+  Database,
+  sql,
+} from '../../../packages/server/src/platform/db/index.ts';
 import {
   canonicalPath,
   DirectoryLease,
@@ -21,6 +24,15 @@ import {
 } from '../../../packages/server/src/core/files/archive.ts';
 import { LocalBlobStore } from '../../../packages/server/src/platform/blob-store.ts';
 import { ArchiveWorkspace } from './archive-workspace.ts';
+import { configuration } from './config.ts';
+import { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
+import { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
+import { DeviceRuntime } from '../../../packages/server/src/lab/devices/runtime.ts';
+import { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
+import {
+  RecordingService,
+  defaultRecordingOptions,
+} from '../../../packages/server/src/lab/recordings/service.ts';
 
 type Entry = { path: string; size: number; sha256: string };
 type Manifest = {
@@ -94,6 +106,71 @@ function within(root: string, path: string) {
     (!isAbsolute(child) && child !== '..' && !child.startsWith('..' + sep))
   );
 }
+async function recoverRecordingsForBackup(
+  db: Database,
+  directory: string,
+  signal?: AbortSignal,
+) {
+  const table = await db.read(
+    { id: 'backup:recording-schema', kind: 'startup' },
+    (tx) =>
+      tx.execute<{ present: boolean }>(
+        sql`select to_regclass('lab.recordings') is not null as present`,
+      ),
+  );
+  if (!table.rows[0].present) return;
+  const config = configuration();
+  const context = { db, clock: { now: () => new Date().toISOString() } };
+  const files = new FileService(
+    context,
+    config.files,
+    config.auth,
+    config.fileOrigin,
+    directory,
+  );
+  const world = new WorldService(context, config.auth);
+  const recording = new RecordingService(world, files, directory, {
+    ...defaultRecordingOptions,
+    ackMillis: config.motionAckMillis,
+    graceMillis: config.motionGraceMillis,
+  });
+  const devices = new DeviceRuntime(context, undefined, recording.capture);
+  const sessions = new SimulationSessions(world, {
+    enabled: false,
+    ackMillis: config.motionAckMillis,
+    graceMillis: config.motionGraceMillis,
+  });
+  sessions.configureRecording(recording);
+  const errors: unknown[] = [];
+  try {
+    signal?.throwIfAborted();
+    await files.initialize();
+    await recording.initialize();
+    // Preserve old capture owners through exact Device and Session recovery.
+    await devices.initialize();
+    await sessions.initialize();
+    await recording.recoverLegacy();
+    signal?.throwIfAborted();
+    await recording.sealForBackup();
+  } catch (error) {
+    errors.push(error);
+  } finally {
+    sessions.quiesce();
+    for (const closeOwner of [
+      () => devices.stop(),
+      () => sessions.stop(),
+      () => recording.stop(),
+    ]) {
+      try {
+        await closeOwner();
+      } catch (error) {
+        errors.push(error);
+      }
+    }
+  }
+  if (errors.length)
+    throw new AggregateError(errors, 'Recording recovery prevented backup');
+}
 export async function backup(
   directory: string,
   output: string,
@@ -118,6 +195,9 @@ export async function backup(
   let workspace: ArchiveWorkspace | undefined;
   try {
     await db.openExisting();
+    // Acknowledged WAL bytes must be adopted before the ready-file inventory.
+    // Any recovery/seal error leaves the archive unpublished.
+    await recoverRecordingsForBackup(db, directory, signal);
     const facts = await db.archiveFacts(),
       files: ReadyArchiveFile[] = [],
       blobs = new LocalBlobStore(join(directory, 'blobs'));
