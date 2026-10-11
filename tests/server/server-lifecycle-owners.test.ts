@@ -75,7 +75,9 @@ for (const mode of ['partial', 'stop'] as const)
           await until(
             () => actualReceipt(ledger),
             (facts) =>
-              facts?.pid === target.child!.pid && facts.resources.length === 2,
+              facts !== null &&
+              facts.pid === target.child!.pid &&
+              facts.resources.length === 2,
             10000,
           );
         }
