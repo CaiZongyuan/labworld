@@ -5,6 +5,8 @@ import { syncBuiltinESMExports } from 'node:module';
 import { join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../apps/server/src/runtime.ts';
+import { DeviceRuntime } from '../../packages/server/src/lab/devices/runtime.ts';
+import { WebSocket, WebSocketServer } from 'ws';
 import {
   readRecordingRecords,
   type RecordingRecord,
@@ -25,6 +27,80 @@ let arm: Arm | undefined;
 let release: (() => void) | undefined;
 let executionHeld = false;
 let releaseExecution: (() => void) | undefined;
+
+// Private trusted ordinary-device ingress, captured from the unchanged real
+// runtime composition. No HTTP route, Row mutation or physics Task authority.
+let ordinaryReport: DeviceRuntime['report'] | undefined;
+const initializeDeviceRuntime = DeviceRuntime.prototype.initialize;
+DeviceRuntime.prototype.initialize = async function () {
+  await initializeDeviceRuntime.call(this);
+  ordinaryReport = this.report.bind(this);
+};
+
+const viewers = new Map<
+  WebSocket,
+  {
+    remote_port: number;
+    session_id: string;
+    max_buffer_bytes: number;
+    samples: number;
+    open: boolean;
+    close_reason: string | null;
+  }
+>();
+let pressureTimer: ReturnType<typeof setInterval> | undefined;
+let pressureObserverMillis = 0;
+const pressureUpgrade = WebSocketServer.prototype.handleUpgrade;
+WebSocketServer.prototype.handleUpgrade = function (
+  request,
+  socket,
+  head,
+  callback,
+) {
+  return pressureUpgrade.call(this, request, socket, head, (ws, incoming) => {
+    const match = request.url?.match(
+      /^\/api\/v1\/lab\/motion\/sessions\/([0-9a-f-]{36})\/viewer$/,
+    );
+    if (match) {
+      const row = {
+        remote_port: request.socket.remotePort!,
+        session_id: match[1],
+        max_buffer_bytes: 0,
+        samples: 0,
+        open: true,
+        close_reason: null as string | null,
+      };
+      assert(viewers.size < 128);
+      viewers.set(ws, row);
+      const close = ws.close.bind(ws);
+      ws.close = (code?: number, reason?: string | Buffer) => {
+        if (pressureTimer)
+          row.close_reason =
+            typeof reason === 'string' ? reason : (reason?.toString() ?? null);
+        return close(code, reason);
+      };
+      ws.once('close', () => {
+        row.open = false;
+      });
+    }
+    callback(ws, incoming);
+  });
+};
+function stopPressureObserver() {
+  clearInterval(pressureTimer);
+  pressureTimer = undefined;
+}
+function pressureSnapshot() {
+  return {
+    event: 'pressure-observer',
+    owner_pid: process.pid,
+    observer_millis: pressureObserverMillis,
+    interval_ms: 50,
+    boundary:
+      'read-only actual ws.bufferedAmount/close observer; no target-side pause or replacement',
+    viewers: [...viewers.values()],
+  };
+}
 
 type NativeMethod = 'write' | 'sync';
 type NativeIo = {
@@ -267,6 +343,14 @@ process.on(
     fault?: Arm;
     held?: boolean;
     io?: { method: NativeMethod; recording_id: string };
+    report?: {
+      binding: string;
+      run: string;
+      sequence: number;
+      values: Record<string, unknown>;
+      observed_at: string;
+      quality: string;
+    };
   }) => {
     if (message.operation === 'arm') {
       assert(!arm && !release);
@@ -290,6 +374,37 @@ process.on(
     } else if (message.operation === 'release-io') {
       releaseIo();
       process.send!({ event: 'actual-io-release-requested' });
+    } else if (message.operation === 'ordinary-report') {
+      assert(ordinaryReport && message.report);
+      const { binding, run: runId, ...report } = message.report;
+      void ordinaryReport(binding, runId, report).then(
+        (result) => process.send!({ event: 'ordinary-report-result', result }),
+        (error: unknown) =>
+          process.send!({
+            event: 'ordinary-report-error',
+            error_class: error instanceof Error ? error.name : 'ReportError',
+          }),
+      );
+    } else if (message.operation === 'pressure-observe') {
+      assert(!pressureTimer);
+      pressureTimer = setInterval(() => {
+        const started = performance.now();
+        for (const [ws, row] of viewers) {
+          if (!row.open) continue;
+          row.samples++;
+          row.max_buffer_bytes = Math.max(
+            row.max_buffer_bytes,
+            ws.bufferedAmount,
+          );
+        }
+        pressureObserverMillis += performance.now() - started;
+      }, 50);
+      process.send!({ event: 'pressure-observer-ready' });
+    } else if (message.operation === 'pressure-snapshot') {
+      process.send!(pressureSnapshot());
+    } else if (message.operation === 'pressure-stop') {
+      stopPressureObserver();
+      process.send!(pressureSnapshot());
     }
   },
 );
@@ -322,6 +437,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const)
     releaseExecution?.();
     ioArm = undefined;
     releaseIo();
+    stopPressureObserver();
     promises.open = originalOpen;
     syncBuiltinESMExports();
   });

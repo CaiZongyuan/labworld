@@ -110,9 +110,22 @@ export async function publicRecording(api: CoreHttp, lab: string, id: string) {
     );
     assert.equal(response.status, 200);
     const bytes = Buffer.from(await response.arrayBuffer());
-    assert.equal(bytes.length, segment.size);
-    assert.equal(digest(bytes), segment.sha256);
-    records.push(...readRecordingRecords(bytes));
+    if (segment.sealed) {
+      assert.equal(bytes.length, segment.size);
+      assert.equal(digest(bytes), segment.sha256);
+    } else {
+      // Each public request is its own confirmed-prefix snapshot. A growing
+      // unsealed segment must preserve every byte previously listed.
+      assert(bytes.length >= segment.size, 'Listed confirmed prefix shrank');
+      assert.equal(digest(bytes.subarray(0, segment.size)), segment.sha256);
+    }
+    // Validate even the newer returned suffix, then include only the earlier
+    // list snapshot in this readback's ordinal/byte oracle.
+    readRecordingRecords(bytes);
+    const listed = readRecordingRecords(bytes.subarray(0, segment.size));
+    assert.equal(listed[0]?.ordinal, segment.first_ordinal);
+    assert.equal(listed.at(-1)?.ordinal, segment.last_ordinal);
+    records.push(...listed);
     assert(records.length <= 10000);
   }
   records.forEach((record, index) =>

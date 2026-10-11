@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { once } from 'node:events';
-import { readFile, readlink } from 'node:fs/promises';
+import { readFile, readlink, appendFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { WebSocket, WebSocketServer } from 'ws';
 import type {
@@ -19,6 +19,13 @@ import { CoreHttp } from '../support/core-http.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
 import { ServerProcess } from '../support/server-process.ts';
 import {
+  processIdentity,
+  sameProcess,
+  type ProcessIdentity,
+} from '../support/server-resources.ts';
+import { launchMotionActor } from '../support/motion-actor.ts';
+import type { ChildProcess } from 'node:child_process';
+import {
   RecordingMachine,
   type RecordingAdmission,
 } from './recording-machine.ts';
@@ -29,6 +36,7 @@ import {
   nextPrefix,
   readRecordingRecords,
   sourcePacket,
+  frameBatch,
   recordedFrames,
   recordedSourcePackets,
   selectedFrame,
@@ -41,9 +49,227 @@ import {
   recordingForSession,
   recordingPath,
   recordingReceipt,
+  ownRecordingSocket,
   type RecordingEvent,
   type RecordingMetadata,
 } from './recording-public-support.ts';
+
+test(
+  'recording retained reads enforce identities, Lab binding and delete CSRF while preserving bytes',
+  { timeout: 120000 },
+  async () => {
+    const f = await fixture();
+    try {
+      const machine = await start(f);
+      await boundary(f, machine, 'stop', 1000000000n);
+      const retained = await complete(f, machine),
+        path = recordingPath(f.lab, retained.metadata.id);
+      const full = await f.api.json<CreatedApiKey>(
+        'POST',
+        '/api/v1/api-keys',
+        { name: 'Recording Agent', scopes: ['lab:full'], expires_in_days: 1 },
+        201,
+      );
+      const narrow = await f.api.json<CreatedApiKey>(
+        'POST',
+        '/api/v1/api-keys',
+        { name: 'Narrow Agent', scopes: ['profile:read'], expires_in_days: 1 },
+        201,
+      );
+      const agent = new CoreHttp(f.target.url, {
+        authorization: 'Bearer ' + full.secret,
+      });
+      const limited = new CoreHttp(f.target.url, {
+        authorization: 'Bearer ' + narrow.secret,
+      });
+      const anonymous = new CoreHttp(f.target.url),
+        wrongLab = await f.api.json<{ id: string }>(
+          'POST',
+          '/api/v1/lab/labs',
+          { name: 'Wrong Recording Lab' },
+          201,
+        );
+      const suffixes = [
+        '',
+        '/manifest',
+        '/segments',
+        '/events',
+        '/segments/' + retained.segments[0].id,
+      ];
+      for (const suffix of suffixes) {
+        for (const [reader, expected] of [
+          [anonymous, 401],
+          [limited, 403],
+          [f.sourceApi, 401],
+        ] as const) {
+          const response = await reader.response('GET', path + suffix);
+          assert.equal(response.status, expected);
+          await response.arrayBuffer();
+        }
+        const wrong = await f.api.response(
+          'GET',
+          recordingPath(wrongLab.id, retained.metadata.id) + suffix,
+        );
+        assert.equal(wrong.status, 404);
+        await wrong.arrayBuffer();
+        for (const reader of [f.api, agent]) {
+          const response = await reader.response('GET', path + suffix);
+          assert.equal(response.status, 200);
+          await response.arrayBuffer();
+        }
+      }
+      const noCsrf = new CoreHttp(f.target.url);
+      noCsrf.cookie = f.api.cookie;
+      const refused = await noCsrf.response('DELETE', path);
+      assert.equal(refused.status, 403);
+      await refused.arrayBuffer();
+      const narrowDelete = await limited.response('DELETE', path);
+      assert.equal(narrowDelete.status, 403);
+      await narrowDelete.arrayBuffer();
+      const unchanged = await publicRecording(
+        f.api,
+        f.lab,
+        retained.metadata.id,
+      );
+      assert.deepEqual(unchanged.segments, retained.segments);
+      assertSelectedBytes(
+        recordedSourcePackets(unchanged.records),
+        machine.packets.map((packet) => packet.bytes),
+      );
+      await agent.json('DELETE', path, undefined, 204);
+      assert.equal((await f.api.response('GET', path)).status, 404);
+      recordingReceipt('recording-permission-matrix', {
+        endpoints: suffixes.length,
+        memberAndFullAgentReads: true,
+        anonymousNarrowAndMachineDenied: true,
+        wrongLabDenied: true,
+        csrfFailurePreservedBytes: true,
+        explicitAgentDelete: true,
+      });
+    } finally {
+      await cleanup(f);
+    }
+  },
+);
+
+test(
+  'recording sparse trusted reports preserve independent microsecond watermarks and omit rejected facts',
+  { timeout: 120000 },
+  async () => {
+    const f = await fixture();
+    try {
+      await ipc(
+        f,
+        { operation: 'execution', held: true },
+        'execution-configured',
+      );
+      const device = await f.api.json<{ id: string }>(
+        'POST',
+        `/api/v1/lab/labs/${f.lab}/entities`,
+        {
+          name: 'Microsecond light',
+          definition_id: 'light',
+          definition_version: '1.0',
+          reality: 'simulated',
+          configuration: {},
+        },
+        201,
+      );
+      const path = `/api/v1/lab/labs/${f.lab}/entities/${device.id}`,
+        run = await f.api.json<{ id: string; binding_id: string }>(
+          'POST',
+          path + '/program/start',
+          undefined,
+          201,
+        );
+      const machine = await start(f);
+      await boundary(f, machine, 'pause', 1000000000n);
+      const second = new Date().toISOString().slice(0, 19),
+        later = second + '.123457Z',
+        earlier = second + '.123456Z';
+      const report = (
+        sequence: number,
+        values: Record<string, unknown>,
+        observed_at: string,
+      ) =>
+        ipc(
+          f,
+          {
+            operation: 'ordinary-report',
+            report: {
+              binding: run.binding_id,
+              run: run.id,
+              sequence,
+              values,
+              observed_at,
+              quality: 'good',
+            },
+          },
+          'ordinary-report-result',
+        );
+      assert.equal((await report(1, { on: true }, later))?.result, 'applied');
+      assert.equal(
+        (await report(2, { on: false }, earlier))?.result,
+        'out_of_order',
+      );
+      assert.equal(
+        (await report(2, { brightness: 37 }, earlier))?.result,
+        'applied',
+      );
+      const world = await f.api.json<{
+        entities: {
+          id: string;
+          observation: {
+            properties: Record<
+              string,
+              { value: unknown; observed_at: string; sequence: number }
+            >;
+          };
+        }[];
+      }>('GET', `/api/v1/lab/labs/${f.lab}/world`);
+      const observed = world.entities.find((entity) => entity.id === device.id)!
+        .observation.properties;
+      assert.equal(observed.on.value, true);
+      assert.equal(observed.on.observed_at, later);
+      assert.equal(observed.on.sequence, 1);
+      assert.equal(observed.brightness.value, 37);
+      assert.equal(observed.brightness.observed_at, earlier);
+      assert.equal(observed.brightness.sequence, 2);
+      await boundary(f, machine, 'stop', 1000000000n);
+      const readback = await complete(f, machine),
+        reports = readback.events.filter(
+          (event) =>
+            event.event_type === 'observation.report' &&
+            event.entity_id === device.id,
+        );
+      assert.equal(reports.length, 2);
+      assert.deepEqual(
+        reports.map((event) => event.event.values),
+        [{ on: true }, { brightness: 37 }],
+      );
+      assert(reports.every((event) => event.sim_time_ns === null));
+      const p = (
+          reports[0].event.properties as Record<string, Record<string, unknown>>
+        ).on,
+        q = (
+          reports[1].event.properties as Record<string, Record<string, unknown>>
+        ).brightness;
+      assert.equal(p.observed_at, later);
+      assert.equal(q.observed_at, earlier);
+      assert(!('on' in (reports[1].event.properties as object)));
+      recordingReceipt('recording-sparse-microseconds', {
+        rejectedOlderP: true,
+        independentOlderQAccepted: true,
+        exactTimes: [later, earlier],
+        appliedFacts: reports.length,
+      });
+    } finally {
+      if (f.target.child?.connected)
+        f.target.child.send({ operation: 'execution', held: false });
+      await cleanup(f);
+    }
+  },
+);
 
 const sessionPath = (lab: string, id?: string) =>
   `/api/v1/lab/labs/${lab}/sessions${id ? '/' + id : ''}`;
@@ -254,13 +480,27 @@ async function cleanup(f: Context) {
 function exactTime(value: unknown) {
   if (typeof value !== 'string') return value;
   const time =
-    /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(?:Z|\+00(?::00)?)$/.exec(
+    /^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2}:\d{2})(?:\.(\d{1,6}))?(Z|([+-])(\d{2})(?::?(\d{2}))?)$/.exec(
       value,
     );
-  return time
-    ? `${time[1]}T${time[2]}.${(time[3] ?? '').padEnd(6, '0')}Z`
-    : value;
+  if (!time) return value;
+  const minutes =
+    time[4] === 'Z'
+      ? 0
+      : (time[5] === '+' ? 1 : -1) *
+        (Number(time[6]) * 60 + Number(time[7] ?? 0));
+  // Date handles whole calendar seconds only. The original six-digit fraction
+  // remains text and never passes through millisecond precision.
+  const whole = Date.parse(`${time[1]}T${time[2]}Z`) - minutes * 60000;
+  assert(Number.isFinite(whole), 'Invalid timestamp in public DTO comparison');
+  return (
+    new Date(whole).toISOString().slice(0, 19) +
+    '.' +
+    (time[3] ?? '').padEnd(6, '0') +
+    'Z'
+  );
 }
+
 function compareDto(
   fact: Record<string, unknown>,
   actual: Record<string, unknown>,
@@ -634,6 +874,15 @@ for (const point of ['prepared', 'committed'] as const)
         const mandatory = machine.packets.map((packet) =>
           Buffer.from(packet.bytes),
         );
+        const markedRecording = await recordingForSession(
+          f.api,
+          f.lab,
+          machine.session.id,
+        );
+        const markedA = await publicRecording(f.api, f.lab, markedRecording.id);
+        assert(
+          markedA.records.some((record) => record.kind === 'business.commit'),
+        );
         await ipc(
           f,
           {
@@ -695,6 +944,13 @@ for (const point of ['prepared', 'committed'] as const)
           recordedSourcePackets(readback.records).slice(0, mandatory.length),
           mandatory,
         );
+        for (const marked of markedA.events) {
+          const retained = readback.events.filter(
+            (event) => event.event_id === marked.event_id,
+          );
+          assert.equal(retained.length, 1);
+          assert.deepEqual(retained[0], marked);
+        }
         const events = readback.events.filter(
           (event) => event.event_id === expected.event_id,
         );
@@ -715,6 +971,16 @@ for (const point of ['prepared', 'committed'] as const)
             )
           ).active_session_id,
           null,
+        );
+        await f.target.stop();
+        await f.target.start();
+        await f.api.login(f.email);
+        const again = await publicRecording(f.api, f.lab, recording.id);
+        assert.deepEqual(again.events, readback.events);
+        assert.deepEqual(again.segments, readback.segments);
+        assertSelectedBytes(
+          recordedSourcePackets(again.records).slice(0, mandatory.length),
+          mandatory,
         );
         recordingReceipt('recording-crash-' + point, {
           actualSigkill: true,
@@ -1255,6 +1521,26 @@ test(
 );
 
 test('recording oracle matches literal high-epoch packet and rejects altered ACK/content', async () => {
+  assert.equal(
+    exactTime('2026-10-11T11:16:14.123456+08:00'),
+    '2026-10-11T03:16:14.123456Z',
+  );
+  assert.notEqual(
+    exactTime('2026-10-11T11:16:14.123457+08:00'),
+    exactTime('2026-10-11T03:16:14.123456Z'),
+  );
+  assert.equal(
+    exactTime('2026-01-01T00:00:00.123456+08:00'),
+    '2025-12-31T16:00:00.123456Z',
+  );
+  assert.equal(
+    exactTime('2026-12-31T23:30:00.123456-05:30'),
+    '2027-01-01T05:00:00.123456Z',
+  );
+  assert.equal(
+    exactTime('2026-10-11 11:16:14.984+08'),
+    '2026-10-11T03:16:14.984000Z',
+  );
   const vector = JSON.parse(
     await readFile(
       'packages/contracts/src/recording/golden-vectors.json',
@@ -1368,6 +1654,12 @@ test(
       assert.equal(successor.status, 'interrupted');
       assert(successor.ended_at);
       assert.equal(successor.snapshot.hash, current.snapshot.hash);
+      const predecessor = await recordingForSession(f.api, f.lab, current.id);
+      const oldReadback = await publicRecording(f.api, f.lab, predecessor.id);
+      assertSelectedBytes(
+        recordedSourcePackets(oldReadback.records),
+        machine.packets.map((packet) => packet.bytes),
+      );
       const newStart = await f.api.response('POST', sessionPath(f.lab), {
         installation_id: f.installation.id,
         machine_id: f.credential.machine.id,
@@ -1715,6 +2007,437 @@ for (const method of ['write', 'sync'] as const)
           f.target.child.send({ operation: 'execution', held: false });
         }
         await pending?.catch(() => undefined);
+        await cleanup(f);
+      }
+    },
+  );
+
+test(
+  'recording formal cross-scope source attempt and machine revocation preserve valid-owner ACK prefix',
+  { timeout: 120000 },
+  async () => {
+    const f = await fixture();
+    try {
+      const machine = await start(f);
+      await boundary(f, machine, 'pause', 1000000000n);
+      const otherLab = await f.api.json<{ id: string }>(
+        'POST',
+        '/api/v1/lab/labs',
+        { name: 'Other Recording scope' },
+        201,
+      );
+      const installation = await f.api.json<SceneInstallation>(
+        'POST',
+        `/api/v1/lab/labs/${otherLab.id}/installations`,
+        { representation_id: f.asset.representation.id },
+        201,
+      );
+      const session = await f.api.json<SimulationSession>(
+        'POST',
+        sessionPath(otherLab.id),
+        {
+          installation_id: installation.id,
+          machine_id: f.credential.machine.id,
+        },
+        201,
+      );
+      const admissionB = await f.sourceApi.json<RecordingAdmission>(
+        'POST',
+        sessionPath(otherLab.id, session.id) + '/publisher-admissions',
+        { machine_id: f.credential.machine.id },
+        201,
+      );
+      const b = admissionB.recording;
+      const invalid = new WebSocket(
+        f.target.url.replace(/^http/, 'ws') +
+          `/api/v1/lab/recordings/${machine.scope.recording_id}/source`,
+      );
+      ownRecordingSocket(
+        invalid,
+        'wrong-recording-scope',
+        session.id,
+        b.recording_id,
+      );
+      let leakedReady = false;
+      invalid.on('error', () => {});
+      invalid.on('message', (data) => {
+        if (JSON.parse(String(data)).type === 'recording.ready')
+          leakedReady = true;
+      });
+      invalid.once('open', () =>
+        invalid.send(
+          JSON.stringify({
+            type: 'recording.hello',
+            version: 1,
+            codec: 'lwr1-source-v1',
+            ticket: b.ticket,
+            recording_id: b.recording_id,
+            session_id: b.session_id,
+            lease_id: b.lease_id,
+            epoch: b.epoch,
+            snapshot_hash: b.snapshot_hash,
+            manifest_sha256: b.manifest_sha256,
+            scene_hash: b.scene_hash,
+            mapping_revision: b.mapping_revision,
+            mapping_sha256: b.mapping_sha256,
+            source_header: {
+              source_kind: 'synthetic',
+              implementation: {
+                name: 'cross-scope-verifier',
+                version: '1',
+                sha256: null,
+              },
+              python_version: null,
+              dependencies: [],
+              capture_policy: b.capture_policy,
+            },
+          }),
+        ),
+      );
+      await recordingEventually(
+        () => invalid.readyState,
+        (state) => state === WebSocket.CLOSED,
+      );
+      assert.equal(leakedReady, false);
+      assert.equal(
+        (
+          await f.api.json<SimulationSession>(
+            'GET',
+            sessionPath(f.lab, machine.session.id),
+          )
+        ).status,
+        'paused',
+      );
+      assert.equal(machine.live.socket.readyState, WebSocket.OPEN);
+      assert.equal(machine.reliable.socket.readyState, WebSocket.OPEN);
+      const mandatory = machine.packets.map((packet) =>
+        Buffer.from(packet.bytes),
+      );
+      await f.api.json(
+        'POST',
+        `/api/v1/machines/${f.credential.machine.id}/revoke`,
+        undefined,
+        204,
+      );
+      await state(f, machine.session.id, 'interrupted');
+      await recordingEventually(
+        () =>
+          machine.live.socket.readyState === WebSocket.CLOSED &&
+          machine.reliable.socket.readyState === WebSocket.CLOSED,
+        Boolean,
+      );
+      const readback = await incomplete(f, machine.session.id);
+      assertSelectedBytes(recordedSourcePackets(readback.records), mandatory);
+      assert.equal(
+        machine.reliable.messages.filter(
+          (message) => message.type === 'recording.ack',
+        ).length,
+        0,
+      );
+      const again = await f.sourceApi.response(
+        'POST',
+        sessionPath(f.lab, machine.session.id) + '/publisher-admissions',
+        { machine_id: f.credential.machine.id },
+      );
+      assert.equal(again.status, 403);
+      await again.arrayBuffer();
+      recordingReceipt('recording-source-crossscope-revocation', {
+        crossRecordingAttemptDenied: true,
+        validOwnerStayedPaused: true,
+        bothSocketsRevoked: true,
+        exactPrefixPreserved: true,
+        laterAck: false,
+      });
+    } finally {
+      await cleanup(f);
+    }
+  },
+);
+
+// Explicit independent performance supplement: normal Node CI remains Python
+// independent. The dedicated command must enable this test and supply pinned
+// Python; missing pressure is a failure, never a fulfilled/skipped assertion.
+if (process.env.RECORDING_E2E_PRESSURE === 'true')
+  test(
+    'recording real TCP slow reader pressure preserves formal reliable selected prefix and fast Viewer',
+    { timeout: 210000 },
+    async () => {
+      assert.equal(
+        process.platform,
+        'linux',
+        'Actual SO_RCVBUF/PDEATHSIG pressure fixture is the Linux subset',
+      );
+      const python = process.env.MOTION_E2E_PYTHON;
+      assert(
+        python,
+        'Supply the pinned isolated Python executable for this explicit pressure experiment',
+      );
+      const f = await fixture();
+      let actor: ChildProcess | undefined,
+        actorProof: ProcessIdentity | undefined;
+      let stdout = '',
+        stderr = '';
+      const actorLedger = join(
+        process.env.RECORDING_E2E_OUTPUT ?? 'test-results',
+        'recording-pressure-actor.json',
+      );
+      const saveActor = async (state: string) => {
+        await writeFile(
+          actorLedger,
+          JSON.stringify({
+            owner_pid: process.pid,
+            purpose:
+              'Owned real TCP slow reader, explicit Linux pressure supplement',
+            source_server_ledger: join(
+              f.target.evidence,
+              'owned-resources.json',
+            ),
+            actor: actorProof,
+            state,
+            kernelReceiveBufferUnmodifiedByTarget: true,
+          }),
+        );
+      };
+      try {
+        const machine = await start(f);
+        const ticket = await f.api.json<{
+          ticket: string;
+          websocket_path: string;
+        }>(
+          'POST',
+          sessionPath(f.lab, machine.session.id) + '/viewer-tickets',
+          { preferred_rate_hz: 30 },
+          201,
+        );
+        const fastTicket = await f.api.json<{
+          ticket: string;
+          websocket_path: string;
+        }>(
+          'POST',
+          sessionPath(f.lab, machine.session.id) + '/viewer-tickets',
+          { preferred_rate_hz: 30 },
+          201,
+        );
+        const fast = new WebSocket(
+          f.target.url.replace(/^http/, 'ws') + fastTicket.websocket_path,
+          { origin: f.target.url },
+        );
+        ownRecordingSocket(
+          fast,
+          'fast-pressure-viewer',
+          machine.session.id,
+          machine.scope.recording_id,
+        );
+        let fastFrames = 0,
+          fastSequence = 0n,
+          fastReady = false;
+        fast.on('error', () => {});
+        fast.on('message', (data, binary) => {
+          if (binary) {
+            const bytes = Buffer.from(data as Buffer);
+            assert.equal(bytes.length, 632);
+            assert.equal(bytes.readBigUInt64LE(8), BigInt(machine.scope.epoch));
+            assert(bytes.readBigUInt64LE(16) > fastSequence);
+            fastSequence = bytes.readBigUInt64LE(16);
+            fastFrames++;
+          } else if (JSON.parse(String(data)).type === 'motion.welcome')
+            fastReady = true;
+        });
+        fast.once('open', () =>
+          fast.send(
+            JSON.stringify({
+              type: 'motion.hello',
+              version: 1,
+              codec: 'pose-f32-v1',
+              role: 'viewer',
+              session_id: machine.session.id,
+              ticket: fastTicket.ticket,
+              preferred_rate_hz: 30,
+            }),
+          ),
+        );
+        await recordingEventually(() => fastReady, Boolean);
+        await f.target.startInProcess(
+          'owned-Python-real-TCP-reader',
+          async () => {
+            actor = launchMotionActor(
+              python,
+              'tests/support/motion-slow-reader.py',
+              [
+                f.target.url.replace(/^http/, 'ws') + ticket.websocket_path,
+                f.target.url,
+                machine.session.id,
+              ],
+              process.env,
+            );
+            actor.stdout!.on('data', (chunk) => {
+              stdout += String(chunk);
+              assert(stdout.length < 8192);
+            });
+            actor.stderr!.on('data', (chunk) => {
+              stderr += String(chunk);
+              assert(stderr.length < 8192);
+            });
+            await once(actor, 'spawn');
+            actorProof = await processIdentity(actor.pid!);
+            assert(actorProof);
+            await saveActor('owned');
+            actor.stdin!.end(ticket.ticket + '\n');
+          },
+          async () => {
+            if (
+              actor?.pid &&
+              actor.exitCode === null &&
+              actor.signalCode === null
+            ) {
+              const current = await processIdentity(actor.pid);
+              assert(
+                !current || (actorProof && sameProcess(current, actorProof)),
+              );
+              const exit = once(actor, 'exit');
+              actor.kill('SIGTERM');
+              const timer = setTimeout(() => actor!.kill('SIGKILL'), 1000);
+              try {
+                await exit;
+              } finally {
+                clearTimeout(timer);
+              }
+            }
+            if (actorProof)
+              assert.equal(await processIdentity(actorProof.pid), undefined);
+            await saveActor('cleaned');
+          },
+        );
+        const admitted = await recordingEventually(
+          () =>
+            stdout
+              .split('\n')
+              .flatMap((line) => {
+                try {
+                  return [
+                    JSON.parse(line) as {
+                      event: string;
+                      local_port: number;
+                      receive_buffer_bytes: number;
+                    },
+                  ];
+                } catch {
+                  return [];
+                }
+              })
+              .find((line) => line.event === 'slow.admitted'),
+          Boolean,
+          10000,
+        );
+        assert(admitted);
+        assert(admitted.receive_buffer_bytes >= 4096);
+        await ipc(
+          f,
+          { operation: 'pressure-observe' },
+          'pressure-observer-ready',
+        );
+        const spool = join(
+          f.target.directory,
+          'pressure-selected-packets.jsonl',
+        );
+        for (const packet of machine.packets)
+          await appendFile(spool, packet.bytes.toString('base64') + '\n');
+        const started = performance.now();
+        let deadline = started,
+          sequence = 1n,
+          pressure: Record<string, unknown> | undefined,
+          peak = 0;
+        while (performance.now() - started < 180000) {
+          sequence++;
+          const frame = selectedFrame(
+            machine.session,
+            sequence,
+            (sequence - 1n) * 33333333n,
+            Number(sequence - 1n) / 5000,
+          );
+          const expected = sourcePacket(
+            machine.scope,
+            1,
+            BigInt(machine.packets.at(-1)!.receipt.source_packet_sequence) + 1n,
+            frameBatch([frame]),
+          );
+          await appendFile(spool, expected.bytes.toString('base64') + '\n'); // Independent input witness BEFORE source submission.
+          await machine.capture([frame]);
+          assert.deepEqual(machine.packets.at(-1)!.bytes, expected.bytes);
+          machine.liveFrame(frame);
+          // Only the external disk oracle grows; client outstanding/history memory stays bounded.
+          machine.selected.splice(0, machine.selected.length - 1);
+          machine.packets.splice(0, machine.packets.length - 1);
+          if (Number(sequence) % 30 === 0) {
+            const snapshot = await ipc(
+              f,
+              { operation: 'pressure-snapshot' },
+              'pressure-observer',
+            );
+            assert(snapshot);
+            const slow = (
+              snapshot.viewers as {
+                remote_port: number;
+                max_buffer_bytes: number;
+                close_reason: string | null;
+                open: boolean;
+              }[]
+            ).find((row) => row.remote_port === admitted.local_port);
+            assert(slow);
+            peak = Math.max(peak, slow.max_buffer_bytes);
+            await f.api.json('GET', `/api/v1/lab/labs/${f.lab}/world`);
+            if (
+              slow.max_buffer_bytes > 65536 &&
+              slow.close_reason === 'slow_viewer' &&
+              !slow.open
+            ) {
+              pressure = snapshot;
+              break;
+            }
+          }
+          deadline += 1000 / 30;
+          await new Promise((resolve) =>
+            setTimeout(resolve, Math.max(0, deadline - performance.now())),
+          );
+        }
+        recordingReceipt('recording-real-pressure-measurement', {
+          realSocket: admitted,
+          peakServerBufferedBytes: peak,
+          elapsedMillis: performance.now() - started,
+          actualPressureObserved: !!pressure,
+          observer: pressure,
+          actorStdout: stdout,
+          actorStderrClassOnly: stderr ? 'present' : null,
+          sourceRows: sequence.toString(),
+        });
+        assert(
+          pressure,
+          'Real TCP probe did not reach measured soft pressure/disconnection within180s; this is not pressure acceptance',
+        );
+        assert.equal(fast.readyState, WebSocket.OPEN);
+        assert(fastFrames > 30);
+        const retainedPacketCount = machine.packets.length;
+        await boundary(f, machine, 'stop', (sequence + 1n) * 33333333n);
+        for (const packet of machine.packets.slice(retainedPacketCount))
+          await appendFile(spool, packet.bytes.toString('base64') + '\n');
+        const expected = (await readFile(spool, 'utf8'))
+          .trim()
+          .split('\n')
+          .map((line) => Buffer.from(line, 'base64'));
+        const readback = await complete(f, machine);
+        assertSelectedBytes(recordedSourcePackets(readback.records), expected);
+        await ipc(f, { operation: 'pressure-stop' }, 'pressure-observer');
+        recordingReceipt('recording-real-pressure-proof', {
+          actualServerSoftExceeded: true,
+          slowReaderDisconnectedByExistingPolicy: true,
+          fastViewerFrames: fastFrames,
+          ordinaryHttpWorked: true,
+          selectedPacketCount: expected.length,
+          allExactBytesRetained: true,
+          externalSpoolOwnedAndRemovedByServerLedger: spool,
+          unchangedLimits: { soft: 65536, hard: 262144, slowMillis: 2000 },
+        });
+      } finally {
         await cleanup(f);
       }
     },
