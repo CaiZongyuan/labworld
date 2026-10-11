@@ -58,6 +58,8 @@ node tools/newton-motion/install_scene.mjs --server http://127.0.0.1:3000 \
 
 对照静止、实际夹起、释放后这三个时刻。使用独立的源状态与 Viewer 世界变换样本。必要时在启动 Node 前设置 `LAB_WORD_NEWTON_EVIDENCE_DIRECTORY` 为自己的验证目录。来源最多保留前 900 个原始采样见证，记录实际接触和状态。这个显式测量模式增加接触与速度读取，其开销单独记录。阶段名称只表达轨迹目标，不代表成功。
 
+当前 WIP 轨迹按原始有限接触面校准：试管盖中心位于试管局部 `z=0.094 m`，闭合关节目标为 `0.4349370575416981 rad`，抬升目标为 `0.03 m`。原 waypoint 与 4320 step 时序保留。approach 的离散分离检查仍有 UNKNOWN；该结果不证明侵入，也不证明运行时夹持。实际接触、至少 6 mm 抬升和保持结果须由 GPU 状态验证。
+
 源坐标为右手 Z-up、米和 XYZW。wire 使用右手 Y-up、米和 XYZW。转换把源 `(x,y,z)` 映射到 `(x,z,-y)`。GLB 的居中和贴底仍位于模型子节点；固定 `body_to_visual` 校正只组合一次。机器人有一个 Entity，各连杆拥有独立可视目标；试管、架和垫面保留各自身份。
 
 物理 step 为 240 Hz，控制与可靠源采样为 30 Hz。每次读取按固定 body/joint key 批量执行。读取、编码和 writer 独立。以同一初态分别 Start 两次，在 HTTP 请求中选择 `live_rate_hz: 15` 或 `30`，对照相同物理 step 的结果。15 Hz 只选择较少的直播帧；可靠源采样与 GPU readback 仍是 30 Hz。暂停、恢复和停止边界始终发送，并先取得可靠采集的精确 durable ACK。

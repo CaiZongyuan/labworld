@@ -1,120 +1,132 @@
 {
-  "method": "source-XML FK plus pinned original STL inner-tip triangles and full convex-envelope support separation",
-  "source_commit": "a758567c3978dfeefe282ede0500085a48fe8f78",
-  "open_jaw_angle": 0.7,
-  "closed_jaw_angle": 0.3326591784453432,
-  "initial_seed": 42,
-  "geometry_inputs": {
-    "scene.xml": "87f919ae124e3634329975c203e8129e8816f0dd7839828a103556e7a4a94501",
-    "wrist_roll_follower_so101_v1.stl": "4b17b410a12d64ec39554abc3e8054d8a97384b2dc4a8d95a5ecb2a93670f5f4",
-    "moving_jaw_so101_v1.stl": "785a9dded2f474bc1d869e0d3dae398a3dcd9c0c345640040472210d2861fa9d"
-  },
-  "contact_features": {
-    "fixed": {
-      "body": "gripper",
-      "distance_m": 0.00025537107393634913,
-      "triangle_index": 13552,
-      "triangle": [
-        [-0.00789999961853019, 0.004647013267146111, -0.09449560655960465],
-        [-0.00789999961853019, -0.0006120872843380421, -0.10337074561724091],
-        [-0.00789999961853019, -0.0004235491345239207, -0.10340479477056885]
-      ],
-      "closest_point_body": [
-        -0.00789999961853019, -0.0002287064617338833, -0.10299987437406272
-      ],
-      "normal_body": [1.0, 0.0, 0.0],
-      "mesh": "wrist_roll_follower_so101_v1.stl"
-    },
-    "moving": {
-      "body": "moving_jaw_so101_v1",
-      "distance_m": 0.0004999999999582983,
-      "triangle_index": 15094,
-      "triangle": [
-        [-0.01229867711663252, -0.08095921576023107, 0.01944118887055666],
-        [-0.012299999594688475, -0.08089474588632589, 0.01947619175640867],
-        [-0.012299999594688475, -0.08094415813684469, 0.019295454087993137]
-      ],
-      "closest_point_body": [
-        -0.012299752427775486, -0.08092158611410792, 0.01941554799192011
-      ],
-      "normal_body": [
-        -0.9996883277084173, -0.024081187093868514, 0.006583606283647524
-      ],
-      "mesh": "moving_jaw_so101_v1.stl"
-    }
-  },
-  "grasp": {
+  "approach": {
+    "axis_goal_error": 8.556497023059427e-13,
+    "closed_endpoint_reused": false,
+    "position_goal_error_m": 3.058494896113471e-14,
     "q": [
-      0.017106706914602296, -0.4673604170476681, 0.09473029106127216,
-      1.5640422958597955, -1.4714958586012177
+      0.020127678748878334, -1.1992675104171715, 1.6886817982443154,
+      -0.489330382452609, -1.5215021922152054
     ],
-    "nominal_convex_contact_overlap_m": 0.0005,
-    "actual_original_vertex_overlap_m": {
-      "fixed": 0.00031140547126041335,
-      "moving": 0.00037032718114570623
-    },
-    "residual": [
-      -9.003881618341314e-7, 1.2234371663630283e-5, 3.281917918555128e-5,
-      4.170231868161345e-14, 5.20521445762645e-6, 0.0003167567017533096
+    "single_seed": true
+  },
+  "calibration_target": {
+    "approach_retreat_m": 0.0025,
+    "cap_axis_gripper_local": [0, 1, 0],
+    "cap_centre_gripper_local": [
+      0.010400002811831687, -0.00022373665392051267, -0.07421819193340744
+    ],
+    "cap_centre_vial_local": [0, 0, 0.094],
+    "lift_goal_delta_m": [0, 0, 0.03],
+    "load_or_physical_hold_proven": false,
+    "settled_observation_step": 960,
+    "source_derived_tangent_jaw": 0.4349370575416981,
+    "vial_pose_xyzw": [
+      0.23099280893802643, -0.01700637862086296, 0.030501825734972954,
+      -0.0003093648992944509, 2.2197536964085884e-5, -0.08407629281282425,
+      0.9964592456817627
     ]
   },
-  "approach": {
-    "q": [
-      0.0018631282051085273, -0.46753051898486425, 0.08805697990644337,
-      1.5709256775519815, -1.4856556608760296
-    ],
-    "pose_residual": [
-      -4.1361552322038975e-8, -2.2200360593485624e-5, 2.4005797349957447e-13,
-      8.231463769383243e-6, 0.00022565982586560026, 1.3044995640590816e-13
-    ],
-    "cost": 2.574148586336925e-8
-  },
   "clearance_waypoint": {
-    "q": [
-      0.0019304980085747502, -0.38436576506676545, -0.2664820292675536,
-      1.6580617293335334, -1.485073874180842
-    ],
+    "cost": 2.9388924227526912e-5,
+    "end_step": 600,
     "pose_residual": [
       0.00029441790903009246, -3.291903154799963e-5, -0.0020809561372860386,
       0.007372753653822754, -4.698938170395459e-5, -5.703093879732327e-11
     ],
-    "cost": 2.9388924227526912e-5,
-    "end_step": 600
-  },
-  "lift": {
     "q": [
-      0.017108244425665182, -0.3998700151663676, -0.1801730396088531,
-      1.6580617293335334, -1.4714944621999666
+      0.0019304980085747502, -0.38436576506676545, -0.2664820292675536,
+      1.6580617293335334, -1.485073874180842
+    ]
+  },
+  "closed_jaw_angle": 0.4349370575416981,
+  "contact_features": {
+    "fixed": {
+      "body": "gripper",
+      "closest_point_body": [
+        -0.011599997188168312, -0.00022373665392051267, -0.07421819193340744
+      ],
+      "full_original_patch_triangles": 226,
+      "mesh": "wrist_roll_follower_so101_v1.stl",
+      "normal_body": [1.0, 0.0, 0.0],
+      "triangle": [
+        [-0.011599999852478421, -8.797786571768671e-5, -0.07259908034214402],
+        [-0.011599999852478421, -0.00012031935906953737, -0.07260437770494843],
+        [-0.011599999852478421, -0.0007927473037339151, -0.08194181783804322]
+      ],
+      "triangle_index": 13055,
+      "true_boundary_margin_m": 0.0016069989863094858
+    },
+    "moving": {
+      "body": "moving_jaw_so101_v1",
+      "closest_point_body": [
+        -0.00829999987035996, -0.04195758077064175, 0.019023736653920507
+      ],
+      "full_original_patch_triangles": 591,
+      "mesh": "moving_jaw_so101_v1.stl",
+      "normal_body": [-1.0, 2.648065317781357e-15, 4.058237987238354e-14],
+      "triangle": [
+        [-0.008299999870359955, -0.04224949702620512, 0.018997894640930466],
+        [-0.008299999870359955, -0.04225450381636625, 0.019030236134282317],
+        [-0.008299999870359955, -0.033426050096750315, 0.01947453330373392]
+      ],
+      "triangle_index": 23142,
+      "true_boundary_margin_m": 0.00029299123948683
+    }
+  },
+  "geometry_inputs": {
+    "moving_jaw_so101_v1.stl": "785a9dded2f474bc1d869e0d3dae398a3dcd9c0c345640040472210d2861fa9d",
+    "scene.xml": "87f919ae124e3634329975c203e8129e8816f0dd7839828a103556e7a4a94501",
+    "wrist_roll_follower_so101_v1.stl": "4b17b410a12d64ec39554abc3e8054d8a97384b2dc4a8d95a5ecb2a93670f5f4"
+  },
+  "grasp": {
+    "axis_goal_error": 7.57557038573532e-15,
+    "closed_endpoint_reused": true,
+    "position_goal_error_m": 8.22961300430296e-16,
+    "q": [
+      0.033110340687401034, -1.1935653288185089, 1.6874169932509964,
+      -0.49377574530676144, -1.5215011547268564
     ],
-    "pose_residual": [
-      0.00019998518781635943, -3.6540159715908738e-6, -0.0012710628801214652,
-      0.004529928204706575, -0.00022953454751731842, 2.1447739377560957e-11
+    "single_seed": true
+  },
+  "initial_seed": 42,
+  "lift": {
+    "axis_goal_error": 7.450962695144234e-12,
+    "closed_endpoint_reused": false,
+    "position_goal_error_m": 3.122809837170907e-12,
+    "q": [
+      0.03311034068850541, -1.441789243220639, 1.5108403636407075,
+      -0.0689752013017749, -1.521501154726223
     ],
-    "cost": 1.111427196035073e-5
+    "single_seed": true
   },
   "lower": {
     "q": [
-      0.017106706914602296, -0.4673604170476681, 0.09473029106127216,
-      1.5640422958597955, -1.4714958586012177
+      0.033110340687401034, -1.1935653288185089, 1.6874169932509964,
+      -0.49377574530676144, -1.5215011547268564
     ]
   },
+  "method": "Original finite source patches with settled cap centre/axis and single-seed source FK IK; WIP genuine-physics diagnostic candidate",
+  "open_jaw_angle": 0.7,
   "release": {
     "q": [
-      0.0018631282051085273, -0.46753051898486425, 0.08805697990644337,
-      1.5709256775519815, -1.4856556608760296
-    ],
-    "pose_residual": [
-      -4.1361552322038975e-8, -2.2200360593485624e-5, 2.4005797349957447e-13,
-      8.231463769383243e-6, 0.00022565982586560026, 1.3044995640590816e-13
-    ],
-    "cost": 2.574148586336925e-8
+      0.020127678748878334, -1.1992675104171715, 1.6886817982443154,
+      -0.489330382452609, -1.5215021922152054
+    ]
   },
+  "source_commit": "a758567c3978dfeefe282ede0500085a48fe8f78",
   "static_verification": {
-    "open_minimum_convex_envelope_separation_m": 0.0025682456013147344,
-    "tested_bodies": 7,
-    "tested_robot_collision_meshes": 13,
-    "approach_sample_count": 123,
-    "nonseparated_approach_samples": 0,
-    "scope": "Target FK/cap-vial-rack geometry only; sample clearance does not prove continuous path, dynamic tracking, grasp or rest."
+    "closed_local_CG_support_point_count": 13383,
+    "closed_local_MJ_fixed_cell_certificate_count": 11,
+    "expected_contact_tolerance_m": 1e-8,
+    "first_separator_unknown": {
+      "fraction": 0.8125,
+      "gap_m": -0.004552039763063653,
+      "object": "cap",
+      "shape": "moving_slab_03",
+      "stage": "approach"
+    },
+    "samples_per_stage": 17,
+    "scope": "Source closed finite geometry and IK goals only. First insufficient discrete separator is UNKNOWN, not proved intrusion. Continuous path, native tracking/contact, loaded lift/held and release remain unverified; this profile is a genuine-physics WIP candidate.",
+    "successful_discrete_path_samples": 47
   }
 }
