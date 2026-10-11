@@ -2483,6 +2483,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         for await (const chunk of await this.files.managedBytes(
           part.file_id,
           this.operation(),
+          { expectedSize: part.size, maximumBytes: 1024 * 1024 },
         )) {
           size += chunk.length;
           if (size > part.size || size > 1024 * 1024)
