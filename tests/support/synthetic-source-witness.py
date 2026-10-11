@@ -10,10 +10,19 @@ root = Path(__file__).resolve().parents[2]
 source = root / 'tools' / 'synthetic-motion'
 sys.path.insert(0, str(source))
 import recording_source
+from tls_pressure_measure import SourceFacts
 
 directory = Path(os.environ['SECURE_MOTION_SOURCE_WITNESS'])
 directory.mkdir(parents=True, exist_ok=True, mode=0o700)
 owned = {}
+pressure_facts = {}
+
+
+def pressure_owner(scope):
+    session = scope['session_id']
+    if session not in pressure_facts:
+        pressure_facts[session] = SourceFacts(session)
+    return pressure_facts[session]
 
 
 def append(scope, suffix, data):
@@ -42,11 +51,15 @@ def capture(self, frame, sequence, immediate=False):
     # Observe selection before the actual collector can accept, queue or fault.
     # The bytes and timing policy are never replaced by the witness.
     append(self.scope, 'frames', frame)
+    if os.environ.get('TLS_PRESSURE_PROBE_DIR'):
+        pressure_owner(self.scope).capture(frame, sequence)
     return original_capture(self, frame, sequence, immediate)
 
 
 async def send(self, packet):
     append(self.scope, 'packets', packet)
+    if os.environ.get('TLS_PRESSURE_PROBE_DIR'):
+        pressure_owner(self.scope).packet(packet)
     return await original_send(self, packet)
 
 

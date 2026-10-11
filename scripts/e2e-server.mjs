@@ -205,12 +205,23 @@ try {
       backend.evidence,
       'source-first-witness',
     );
+  if (secure)
+    motionEnv.TLS_PRESSURE_PROBE_DIR = join(
+      backend.evidence,
+      'tls-pressure-probe',
+    );
   if (secure) {
     resources.data.sourceWitness = {
       directory: motionEnv.SECURE_MOTION_SOURCE_WITNESS,
       owner: 'owned Synthetic source children and external source actor',
       purpose:
         'Retained private source-first frame and packet evidence; no keys or tickets',
+    };
+    resources.data.pressureProbe = {
+      directory: motionEnv.TLS_PRESSURE_PROBE_DIR,
+      owner: 'owned server observer, slow peer and Synthetic source',
+      purpose:
+        'private bounded passive cross-layer tuples; no transport settings change',
     };
     resources.save();
   }
@@ -229,6 +240,7 @@ try {
             'tests/support/synthetic-source-witness.py',
           ),
           SECURE_MOTION_SOURCE_WITNESS: motionEnv.SECURE_MOTION_SOURCE_WITNESS,
+          TLS_PRESSURE_PROBE_DIR: motionEnv.TLS_PRESSURE_PROBE_DIR,
           LAB_WORD_SYNTHETIC_MANAGED: 'true',
           LAB_WORD_MOTION_GRACE_MS: '5000',
           LAB_WORD_MOTION_ACK_MS: '3000',

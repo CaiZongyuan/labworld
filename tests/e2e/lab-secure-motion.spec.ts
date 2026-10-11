@@ -39,6 +39,7 @@ import { readSessionFrame } from './simulation-session-oracle';
 import { OwnedMotionActor } from './secure-motion-source';
 import { assertPrivateDenial } from './secure-motion-oracle';
 import { assertSourceWitness } from './secure-source-witness';
+import { pressureWindow, pressureFailure } from './tls-pressure-diagnostic';
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 
@@ -924,6 +925,7 @@ test('TLS slow reader pressure: actual encrypted TCP buffering stays bounded whi
     assert(admitted && admitted.receive_buffer_bytes <= 8192);
     let ordinaryReads = 0;
     const deadline = performance.now() + 180000;
+    pressureWindow(active.id, admitted.local_port);
     let pressure:
       ReturnType<typeof gatewayFacts>[number]['sockets'][number] | undefined;
     while (performance.now() < deadline) {
@@ -1009,6 +1011,9 @@ test('TLS slow reader pressure: actual encrypted TCP buffering stays bounded whi
       ordinaryReads,
     });
     active = undefined;
+  } catch (error) {
+    pressureFailure(error);
+    throw error;
   } finally {
     await slow.stop();
     await cleanupPeers();

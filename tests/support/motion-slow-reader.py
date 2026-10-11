@@ -9,6 +9,7 @@ import ssl
 import sys
 from urllib.parse import urlsplit
 from websockets.asyncio.client import connect
+from tls_pressure_measure import PeerFacts
 
 if ctypes.CDLL(None).prctl(1, signal.SIGKILL) != 0:
     sys.exit(1)
@@ -40,9 +41,15 @@ async def main():
                           'local_address': local[0], 'local_port': local[1],
                           'server_address': remote[0], 'server_port': remote[1],
                           'receive_buffer_bytes': peer.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)}), flush=True)
-        await asyncio.sleep(2)
-        print(json.dumps({'event': 'slow.pressure', 'transport_reading': ws.transport.is_reading()}), flush=True)
-        # Do not consume queued snapshots. The real TCP receive window will close.
-        await asyncio.sleep(700)
+        probe = asyncio.create_task(PeerFacts(session, ws, peer, local, remote).observe()) if os.environ.get('TLS_PRESSURE_PROBE_DIR') else None
+        try:
+            await asyncio.sleep(2)
+            print(json.dumps({'event': 'slow.pressure', 'transport_reading': ws.transport.is_reading()}), flush=True)
+            # Do not consume queued snapshots. The real TCP receive window will close.
+            await asyncio.sleep(700)
+        finally:
+            if probe:
+                probe.cancel()
+                await asyncio.gather(probe, return_exceptions=True)
 
 asyncio.run(main())

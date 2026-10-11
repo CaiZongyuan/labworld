@@ -3,6 +3,7 @@ import { createRequire } from 'node:module';
 import { dirname, resolve, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
+import { TlsPressureObserver } from './tls-pressure-observer.mjs';
 
 const entry = process.argv[1] ?? '';
 const controlledClockEntry = /\/tests\/support\/secure-expiry-server\.ts$/.test(
@@ -34,6 +35,9 @@ if (
   const target = join(directory, `${process.pid}.json`);
   const scope = new AsyncLocalStorage();
   const sockets = new Map();
+  const pressureProbe = process.env.TLS_PRESSURE_PROBE_DIR
+    ? new TlsPressureObserver(process.env.TLS_PRESSURE_PROBE_DIR, sockets)
+    : undefined;
   const gateways = new Set();
   const stats = {
     pid: process.pid,
@@ -113,6 +117,7 @@ if (
   WebSocket.prototype.send = function (data, ...args) {
     const row = sockets.get(this);
     if (row) {
+      pressureProbe?.sent(row, data);
       if (typeof data === 'string') {
         try {
           if (
@@ -215,6 +220,7 @@ if (
   const timer = setInterval(save, 1000);
   timer.unref();
   process.once('exit', () => {
+    pressureProbe?.stop();
     clearInterval(timer);
     save();
   });
