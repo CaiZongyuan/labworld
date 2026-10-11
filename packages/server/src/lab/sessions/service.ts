@@ -179,7 +179,7 @@ export class SimulationSessions {
   private recordingFault(id: string, reason: string) {
     const live = this.live.get(id);
     if (!live || live.session.ended_at) return;
-    live.fault = reason;
+    if (!this.terminalFault(live)) live.fault = reason;
     live.recordingFailed = true;
     this.fenceMotion(id);
     live.transport?.close(1008, 'recording_interrupted');
@@ -558,7 +558,7 @@ export class SimulationSessions {
       }
       live.source = owned;
     } catch (error) {
-      live.fault = 'source_unavailable';
+      if (!this.terminalFault(live)) live.fault = 'source_unavailable';
       this.log({
         event: 'sessions.source_failed',
         session_id: session.id,
@@ -574,7 +574,7 @@ export class SimulationSessions {
             tx,
             session.id,
             'interrupted',
-            'source_unavailable',
+            live.fault ?? 'source_unavailable',
             this.world.context.clock.now(),
           ),
       );
@@ -1067,7 +1067,7 @@ export class SimulationSessions {
         if (this.valid(live, lease, transport)) {
           live.connected = false;
           live.transport = undefined;
-          live.fault = 'publisher_disconnected';
+          if (!this.terminalFault(live)) live.fault = 'publisher_disconnected';
         }
       },
     };
@@ -1217,9 +1217,9 @@ export class SimulationSessions {
       deadline: performance.now() + this.options.ackMillis,
       baseline: live.last?.sequence,
     };
-    if (!live.transport?.open || live.transport.bufferedAmount > 64 * 1024)
-      live.fault = 'source_control_unavailable';
-    else live.transport.send(JSON.stringify(control));
+    if (!live.transport?.open || live.transport.bufferedAmount > 64 * 1024) {
+      if (!this.terminalFault(live)) live.fault = 'source_control_unavailable';
+    } else live.transport.send(JSON.stringify(control));
     return result;
   }
   async transition(
@@ -1617,9 +1617,7 @@ export class SimulationSessions {
       if (
         !live.session.ended_at &&
         live.authorityValidUntil <= performance.now() &&
-        live.fault !== 'machine_revoked' &&
-        live.fault !== 'machine_expired' &&
-        live.fault !== 'machine_auth_timeout'
+        !this.terminalFault(live)
       ) {
         this.invalidateMachine(live, 'machine_auth_timeout');
       }
@@ -1718,14 +1716,7 @@ export class SimulationSessions {
           const now = performance.now(),
             transition = live.transition;
           let target: Session['status'] | undefined, reason: string | undefined;
-          if (live.recordingFailed && live.fault) {
-            target = 'interrupted';
-            reason = live.fault;
-          } else if (
-            live.fault === 'machine_revoked' ||
-            live.fault === 'machine_expired' ||
-            live.fault === 'machine_auth_timeout'
-          ) {
+          if (this.terminalFault(live)) {
             target = 'interrupted';
             reason = live.fault;
           } else if (transition?.ack) {
@@ -1822,13 +1813,22 @@ export class SimulationSessions {
     const live = this.live.get(id);
     if (live && !live.session.ended_at) {
       live.connected = false;
-      live.fault = 'source_exited';
+      if (!this.terminalFault(live)) live.fault = 'source_exited';
     }
+  }
+  private terminalFault(live: Live) {
+    return (
+      live.recordingFailed ||
+      live.fault === 'machine_revoked' ||
+      live.fault === 'machine_expired' ||
+      live.fault === 'machine_auth_timeout'
+    );
   }
   private invalidateMachine(
     live: Live,
     reason: 'machine_revoked' | 'machine_expired' | 'machine_auth_timeout',
   ) {
+    if (this.terminalFault(live)) return;
     live.fault = reason;
     live.pong = 0;
     // Preserve the authority failure before asynchronous socket cleanup can

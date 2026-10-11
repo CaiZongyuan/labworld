@@ -440,8 +440,39 @@ test('a network close renews the ticket and mapping while definite access denial
       'failed',
     ),
   );
+  await act(async () => window.dispatchEvent(new Event('offline')));
+  expect(screen.getByLabelText('Motion reception')).toHaveTextContent('failed');
+  await act(async () => window.dispatchEvent(new Event('online')));
+  expect(screen.getByLabelText('Motion reception')).toHaveTextContent('failed');
+  expect(fixture.peers).toHaveLength(2);
   await fixture.cleanup();
   expect(fixture.peers).toHaveLength(2);
+});
+
+test('browser offline closes the owned live socket, freezes motion and online obtains a fresh ticket', async () => {
+  const fixture = await openSession();
+  await fixture.user.click(screen.getByRole('button', { name: 'Start' }));
+  await waitFor(() => expect(fixture.peers).toHaveLength(1));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'connected',
+    ),
+  );
+  await act(async () => window.dispatchEvent(new Event('offline')));
+  await waitFor(() =>
+    expect(fixture.peers[0].readyState).toBe(WebSocket.CLOSED),
+  );
+  expect(screen.getByLabelText('Motion reception')).toHaveTextContent('stale');
+  expect(fixture.viewerTickets).toHaveLength(1);
+  await act(async () => window.dispatchEvent(new Event('online')));
+  await waitFor(() => expect(fixture.peers).toHaveLength(2));
+  expect(new Set(fixture.viewerTickets).size).toBe(2);
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'connected',
+    ),
+  );
+  await fixture.cleanup();
 });
 
 test('fixed installation and real HTTP controls distinguish accepted transitions from observed shared state; Reset reauthorizes a successor', async () => {

@@ -1,5 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { configuration } from '../../apps/server/src/config.ts';
 import { transportLog } from '../../apps/server/src/transport.ts';
 import { parseMotionHello } from '../../packages/contracts/src/motion/index.ts';
@@ -7,6 +10,100 @@ import {
   assertPrivateDenial,
   denialEvidence,
 } from '../e2e/secure-motion-oracle.ts';
+import { assertSourceWitness } from '../e2e/secure-source-witness.ts';
+import {
+  frameBatch,
+  sourcePacket,
+  type RecordingIdentity,
+  type RecordingRecord,
+} from '../e2e/recording-wire-oracle.ts';
+
+test('incomplete Recording witness rejects lost confirmed packets and accepts only an exact retained prefix', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'secure-source-witness-'));
+  const previous = process.env.SECURE_MOTION_SOURCE_WITNESS;
+  process.env.SECURE_MOTION_SOURCE_WITNESS = directory;
+  const identity: RecordingIdentity = {
+    recording_id: '10000000-0000-0000-0000-000000000001',
+    session_id: '10000000-0000-0000-0000-000000000002',
+    lease_id: '10000000-0000-0000-0000-000000000003',
+    epoch: '1',
+    snapshot_hash: 'sha256:' + 'a'.repeat(64),
+    manifest_sha256: 'sha256:' + 'b'.repeat(64),
+    scene_hash: 'sha256:' + 'c'.repeat(64),
+    mapping_revision: 1,
+    mapping_sha256: 'sha256:' + 'd'.repeat(64),
+  };
+  const frames = [1n, 2n, 3n].map((sequence) => {
+    const frame = Buffer.alloc(632);
+    frame.write('LWM1');
+    frame.writeBigUInt64LE(sequence, 16);
+    return frame;
+  });
+  const packets = frames.map(
+    (frame, index) =>
+      sourcePacket(identity, 1, BigInt(index + 1), frameBatch([frame])).bytes,
+  );
+  const records = packets.map((packet, index): RecordingRecord => ({
+    ordinal: String(index + 1),
+    kind: 'source.packet',
+    recorded_at: '2026-10-11T00:00:00Z',
+    data: { packet_base64: packet.toString('base64') },
+  }));
+  function writeSpool(suffix: string, rows: Buffer[]) {
+    writeFileSync(
+      join(directory, identity.session_id + '.' + suffix),
+      Buffer.concat(
+        rows.flatMap((row) => {
+          const length = Buffer.alloc(4);
+          length.writeUInt32LE(row.length);
+          return [length, row];
+        }),
+      ),
+    );
+  }
+  try {
+    writeSpool('frames', frames);
+    writeSpool('packets', packets);
+    const confirmed = packets.slice(0, 2);
+    for (const truncated of [[], records.slice(0, 1)])
+      assert.throws(() =>
+        assertSourceWitness(identity.session_id, truncated, false, confirmed),
+      );
+    assert.throws(() =>
+      assertSourceWitness(identity.session_id, records, false),
+    );
+    assert.throws(() =>
+      assertSourceWitness(identity.session_id, records, false, []),
+    );
+    const retained = assertSourceWitness(
+      identity.session_id,
+      records.slice(0, 2),
+      false,
+      confirmed,
+    );
+    assert.equal(retained.confirmedPackets, 2);
+    assert.equal(retained.retainedPackets, 2);
+    assert.equal(retained.unconfirmedSelectedTail, 1);
+    assert.equal(
+      assertSourceWitness(identity.session_id, records, false, confirmed)
+        .retainedPackets,
+      3,
+    );
+    assertSourceWitness(identity.session_id, records, true);
+    const changed = Buffer.from(confirmed[0]);
+    changed[changed.length - 1] ^= 1;
+    assert.throws(() =>
+      assertSourceWitness(identity.session_id, records, false, [
+        changed,
+        confirmed[1],
+      ]),
+    );
+  } finally {
+    if (previous === undefined) delete process.env.SECURE_MOTION_SOURCE_WITNESS;
+    else process.env.SECURE_MOTION_SOURCE_WITNESS = previous;
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 test('denial oracle accepts a public refusal and rejects error-wrapped private mapping and frame leakage', () => {
   const error = {

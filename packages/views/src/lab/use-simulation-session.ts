@@ -192,6 +192,22 @@ export function useSimulationSession({
     let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
     const delays = [250, 500, 1000, 2000, 4000, 4000];
     let failures = 0;
+    let stopped = false,
+      offline = false;
+    function wentOffline() {
+      if (stopped || controller.signal.aborted) return;
+      offline = true;
+      controller.abort();
+      clearTimeout(reconnectTimer);
+      buffer.disconnect();
+      setMotionState('stale');
+      setMotionError(null);
+    }
+    function wentOnline() {
+      if (!offline) return;
+      offline = false;
+      setMotionRetry((value) => value + 1);
+    }
     async function connect() {
       if (controller.signal.aborted) return;
       setMotionState('connecting');
@@ -248,6 +264,7 @@ export function useSimulationSession({
           'sequence_regression',
         ].includes(reason ?? '');
         if (denied || failures >= delays.length) {
+          stopped = true;
           setMotionState('error');
           return;
         }
@@ -255,7 +272,10 @@ export function useSimulationSession({
         reconnectTimer = setTimeout(() => void connect(), delays[failures++]);
       }
     }
-    void connect();
+    window.addEventListener('offline', wentOffline);
+    window.addEventListener('online', wentOnline);
+    if (!navigator.onLine) wentOffline();
+    else void connect();
     const timer = setInterval(
       () =>
         setMotionState((previous) =>
@@ -267,6 +287,8 @@ export function useSimulationSession({
     );
     return () => {
       controller.abort();
+      window.removeEventListener('offline', wentOffline);
+      window.removeEventListener('online', wentOnline);
       clearTimeout(reconnectTimer);
       clearInterval(timer);
       buffer.freeze();

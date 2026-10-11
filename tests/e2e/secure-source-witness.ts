@@ -6,7 +6,7 @@ import {
   recordedFrames,
   recordedSourcePackets,
   type RecordingRecord,
-} from './recording-wire-oracle';
+} from './recording-wire-oracle.ts';
 
 function spool(session: string, suffix: string) {
   assert.match(session, /^[0-9a-f-]{36}$/);
@@ -35,6 +35,7 @@ export function assertSourceWitness(
   session: string,
   records: readonly RecordingRecord[],
   complete: boolean,
+  confirmedPackets?: readonly Uint8Array[],
 ) {
   const actual = recordedSourcePackets(records),
     selected = spool(session, 'frames'),
@@ -48,7 +49,14 @@ export function assertSourceWitness(
   }
   const packets = [...bySequence.values()];
   if (complete) assertSelectedBytes(actual, packets);
-  else assertSelectedBytes(actual, packets.slice(0, actual.length));
+  else {
+    assert(confirmedPackets?.length, 'Missing public before-fault prefix');
+    assertSelectedBytes(
+      actual.slice(0, confirmedPackets.length),
+      confirmedPackets,
+    );
+    assertSelectedBytes(actual, packets.slice(0, actual.length));
+  }
   const frames = recordedFrames(actual);
   selected.forEach((frame, index) => {
     assert.equal(frame.length, 632);
@@ -60,6 +68,7 @@ export function assertSourceWitness(
     selectedFrames: selected.length,
     retainedFrames: frames.length,
     selectedPackets: packets.length,
+    confirmedPackets: confirmedPackets?.length ?? actual.length,
     retainedPackets: actual.length,
     unconfirmedSelectedTail: selected.length - frames.length,
     exactByteEquality: true,

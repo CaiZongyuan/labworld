@@ -221,6 +221,11 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
   let active: SimulationSession | undefined;
   const contexts = [];
   let signed = 0;
+  let closedViewerSockets = 0;
+  page.on('websocket', (socket) => {
+    if (new URL(socket.url()).pathname.endsWith('/viewer'))
+      socket.on('close', () => closedViewerSockets++);
+  });
   page.on('response', (response) => {
     if (
       new URL(response.url()).pathname.endsWith('/viewer-tickets') &&
@@ -238,12 +243,21 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       await pixels(viewer, 'secure-motion-view-' + index);
     }
     const before = await pose(page, active.id),
-      firstTickets = signed;
+      firstTickets = signed,
+      closedBefore = closedViewerSockets;
+    const recoveryDialog = await dialog(page);
     await page.context().setOffline(true);
+    await expect.poll(() => closedViewerSockets).toBeGreaterThan(closedBefore);
+    await expect(
+      recoveryDialog.getByRole('status', { name: '运动接收' }),
+    ).toContainText('运动过期');
+    const frozen = await displayed(page);
+    assert(frozen && frozen.session_id === active.id);
     await eventually(
       async () => (await pose(f!.second, active!.id)).nodes[0].sequence,
       (sequence) => BigInt(sequence) > BigInt(before.nodes[0].sequence) + 5n,
     );
+    assert.deepEqual((await displayed(page))?.nodes, frozen.nodes);
     await page.context().setOffline(false);
     await expect.poll(() => signed).toBeGreaterThan(firstTickets);
     await eventually(
@@ -251,8 +265,12 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       (value) =>
         !!value &&
         value.session_id === active!.id &&
+        value.epoch === active!.epoch &&
         BigInt(value.nodes[0].sequence) > BigInt(before.nodes[0].sequence),
     );
+    await recoveryDialog
+      .getByRole('button', { name: '关闭', exact: true })
+      .click();
     assertSessionGeometry(await pose(page, active.id), active);
     await action(page, f.lab.id, active.id, 'Pause');
     const paused = await authority(f.api, f.lab.id, active.id, 'paused');
@@ -343,6 +361,8 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
         'local trusted TLS; production Synthetic; no remote/public/WAN proof',
       initialTickets: firstTickets,
       finalTickets: signed,
+      offlineViewerSocketClosed: closedViewerSockets > closedBefore,
+      offlinePoseFrozen: true,
       oldSourceFrames: frames.length,
       oldSourceEnded: oldRead.metadata.prefix.source_ended,
       oldSourceBytes: oldBytes,
@@ -512,6 +532,7 @@ test('external trusted source: real machine admission and Recording are fenced o
       session.id,
       retainedRead.records,
       false,
+      recordedSourcePackets(initialRead.records),
     );
     receipt('secure-wss-machine-expiry', {
       scope:
@@ -790,6 +811,15 @@ test('trusted WSS admission: private mapping stays hidden, account/ticket quotas
     assert(performance.now() - loggingOut <= 5000);
     await cookiePeer.close();
     assertSessionGeometry(await pose(f.second, active.id), active);
+    const beforeRevoke = await recordingForSession(f.api, f.lab.id, active.id);
+    const confirmedRead = await publicRecording(
+      f.api,
+      f.lab.id,
+      beforeRevoke.id,
+    );
+    assert(
+      recordedFrames(recordedSourcePackets(confirmedRead.records)).length > 1,
+    );
     const revokingMachine = performance.now();
     await owner.json(
       'POST',
@@ -823,6 +853,7 @@ test('trusted WSS admission: private mapping stays hidden, account/ticket quotas
       active.id,
       incompleteRead.records,
       false,
+      recordedSourcePackets(confirmedRead.records),
     );
     receipt('secure-wss-admission', {
       negativeCases: denials.length,
