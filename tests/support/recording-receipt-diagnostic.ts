@@ -120,7 +120,12 @@ const uuid = (value: unknown) =>
     : null;
 export function serverPhases(log: string) {
   const rows: number[][] = [];
-  for (const line of log.slice(-65536).split('\n').slice(-128)) {
+  const bytes = Buffer.from(log, 'utf8');
+  const start = Math.max(0, bytes.length - 65536);
+  const lines = bytes.subarray(start).toString('utf8').split('\n');
+  // A byte tail can start inside a multibyte character or a JSON line.
+  if (start > 0 && bytes[start - 1] !== 10) lines.shift();
+  for (const line of lines.slice(-128)) {
     try {
       const row = object(JSON.parse(line));
       const category =

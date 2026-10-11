@@ -180,6 +180,24 @@ test('same-response error classification and finite server projection retain no 
   assert.deepEqual(projected.at(-1), [2, 503, 0, 700, 0, 0, 1]);
 });
 
+test('server projection uses a UTF-8 byte tail and drops its truncated first line', () => {
+  const http = JSON.stringify({
+    event: 'http.request',
+    status: 503,
+    path: '/publisher-admissions',
+  });
+  const suffix = '界'.repeat(30000);
+  const outside = http + '\n' + suffix;
+  assert(Buffer.byteLength(outside, 'utf8') > 65536);
+  assert.deepEqual(serverPhases(outside), []);
+  assert.deepEqual(serverPhases(suffix + '\n' + http), [
+    [2, 503, 0, 0, 0, 0, 1],
+  ]);
+  const boundary =
+    http + '\n' + 'x'.repeat(65536 - Buffer.byteLength(http) - 1);
+  assert.deepEqual(serverPhases('界\n' + boundary), [[2, 503, 0, 0, 0, 0, 1]]);
+});
+
 test('critical trace methods perform no await, timer, IO or payload mutation', async () => {
   const helper = await readFile(
     new URL('../support/recording-receipt-diagnostic.ts', import.meta.url),
