@@ -35,7 +35,32 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     !['true', 'false'].includes(env.LAB_WORD_SYNTHETIC_SESSION)
   )
     throw new Error('LAB_WORD_SYNTHETIC_SESSION must be true or false');
-  if (syntheticSession && !['127.0.0.1', '::1', 'localhost'].includes(hostname))
+  const managedSynthetic = !env.LAB_WORD_SYNTHETIC_MANAGED
+    ? syntheticSession
+    : env.LAB_WORD_SYNTHETIC_MANAGED === 'true';
+  if (
+    !!env.LAB_WORD_SYNTHETIC_MANAGED &&
+    !['true', 'false'].includes(env.LAB_WORD_SYNTHETIC_MANAGED)
+  )
+    throw new Error('LAB_WORD_SYNTHETIC_MANAGED must be true or false');
+  if (managedSynthetic && !syntheticSession)
+    throw new Error('Managed Synthetic requires LAB_WORD_SYNTHETIC_SESSION');
+  if (!!env.LAB_WORD_TLS_CERT !== !!env.LAB_WORD_TLS_KEY)
+    throw new Error(
+      'LAB_WORD_TLS_CERT and LAB_WORD_TLS_KEY must be configured together',
+    );
+  const tls =
+    env.LAB_WORD_TLS_CERT && env.LAB_WORD_TLS_KEY
+      ? {
+          cert: resolve(env.LAB_WORD_TLS_CERT),
+          key: resolve(env.LAB_WORD_TLS_KEY),
+        }
+      : undefined;
+  if (
+    syntheticSession &&
+    !tls &&
+    !['127.0.0.1', '::1', 'localhost'].includes(hostname)
+  )
     throw new Error(
       'Development synthetic Sessions require a loopback LAB_WORD_HOST',
     );
@@ -93,6 +118,8 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
   if (!hostname || hostname.includes('/') || hostname.includes('\\'))
     throw new Error('LAB_WORD_HOST is invalid');
   const origin = new URL(env.APP_ORIGIN ?? 'http://127.0.0.1:5173');
+  if (tls && origin.protocol !== 'https:')
+    throw new Error('TLS requires an HTTPS APP_ORIGIN');
   const local = ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname);
   if (
     !(origin.protocol === 'https:' || (origin.protocol === 'http:' && local)) ||
@@ -178,6 +205,8 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     retention,
     motionFixture,
     syntheticSession,
+    managedSynthetic,
+    tls,
     syntheticPython,
     newtonSession,
     newtonManaged,
@@ -245,10 +274,28 @@ export function configurationFields() {
       '可选 Newton Publisher 绝对路径；默认使用随服务提供的来源。',
     ),
     field(
+      'LAB_WORD_TLS_CERT',
+      '',
+      'Optional PEM certificate chain for the single HTTPS/WSS listener; requires TLS key and HTTPS APP_ORIGIN.',
+      '单个 HTTPS/WSS 监听器的可选 PEM 证书链；需要 TLS 密钥和 HTTPS APP_ORIGIN。',
+    ),
+    field(
+      'LAB_WORD_TLS_KEY',
+      '',
+      'Optional PEM private key path paired with LAB_WORD_TLS_CERT; keep the file private.',
+      '与 LAB_WORD_TLS_CERT 配对的可选 PEM 私钥路径；限制文件读取权限。',
+    ),
+    field(
+      'LAB_WORD_SYNTHETIC_MANAGED',
+      value.managedSynthetic,
+      'Own a local Synthetic child; empty inherits the Synthetic Session flag. Set false for an external machine source.',
+      '监管本机 Synthetic 子进程；空值沿用合成会话开关。外部机器来源设为 false。',
+    ),
+    field(
       'LAB_WORD_SYNTHETIC_SESSION',
       value.syntheticSession,
-      'Enable owned development synthetic Sessions; requires loopback and an optional configured Python source.',
-      '启用开发合成会话；需要 loopback 和配置的可选 Python 来源。',
+      'Enable Synthetic Sessions with reliable Recording; requires loopback plaintext or configured TLS.',
+      '启用带可靠录制的 Synthetic 会话；需要回环明文或已配置的 TLS。',
     ),
     field(
       'LAB_WORD_SYNTHETIC_PYTHON',

@@ -64,6 +64,7 @@ export class ServerProcess {
   directory = '';
   evidence = '';
   port = 0;
+  scheme: 'http' | 'https' = 'http';
   child?: ChildProcess;
   logs = '';
   entry = 'apps/server/src/main.ts';
@@ -122,7 +123,7 @@ export class ServerProcess {
     }
   }
   get url() {
-    return `http://127.0.0.1:${this.port}`;
+    return `${this.scheme}://127.0.0.1:${this.port}`;
   }
   private ledger(): ServerLedger {
     return {

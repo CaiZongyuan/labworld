@@ -8,6 +8,7 @@ import json
 import math
 import os
 import signal
+import ssl
 import sys
 import threading
 import time
@@ -33,6 +34,11 @@ def transport_url(url):
         if not loopback:
             raise ValueError('Unencrypted WS is limited to loopback; use WSS elsewhere')
     return url
+
+
+def tls_options(url):
+    """Normal CA and hostname verification, including an owned SSL_CERT_FILE."""
+    return {'ssl': ssl.create_default_context()} if urlsplit(url).scheme == 'wss' else {}
 
 
 class LatestSnapshot:
@@ -130,7 +136,7 @@ async def publish_session(startup, duration=None):
     async with AsyncExitStack() as owner:
         websocket = await owner.enter_async_context(connect(url, open_timeout=3, close_timeout=3, ping_interval=20,
                                    ping_timeout=20, max_size=MAX_CONTROL_BYTES, max_queue=1,
-                                   write_limit=64 * 1024, compression=None, proxy=None))
+                                   write_limit=64 * 1024, compression=None, proxy=None, **tls_options(url)))
         hello = {'type': 'motion.hello', 'version': 1, 'role': 'publisher',
                  'session_id': startup.session_id, 'scene_hash': startup.scene_hash,
                  'codec': CODEC, 'ticket': startup.ticket, 'preferred_rate_hz': RATE_HZ}
@@ -152,7 +158,7 @@ async def publish_session(startup, duration=None):
         try:
             recording_socket = await owner.enter_async_context(connect(recording_url, open_timeout=3, close_timeout=3,
                        ping_interval=20, ping_timeout=20, max_size=16384, max_queue=1,
-                       write_limit=65536, compression=None, proxy=None))
+                       write_limit=65536, compression=None, proxy=None, **tls_options(recording_url)))
             recording = await admit_recording(recording_socket, startup.recording, welcome)
         except BaseException:
             websocket.transport.abort()
@@ -324,7 +330,7 @@ async def publish(url, ticket, session_id, scene_hash, duration):
     started = time.monotonic()
     async with connect(url, open_timeout=3, close_timeout=3, ping_interval=20,
                        ping_timeout=20, max_size=MAX_CONTROL_BYTES, max_queue=1,
-                       write_limit=64 * 1024, compression=None, proxy=None) as websocket:
+                       write_limit=64 * 1024, compression=None, proxy=None, **tls_options(url)) as websocket:
         hello = {'type': 'motion.hello', 'version': 1, 'role': 'publisher',
                  'session_id': session_id, 'scene_hash': scene_hash, 'codec': CODEC,
                  'ticket': ticket, 'preferred_rate_hz': RATE_HZ}

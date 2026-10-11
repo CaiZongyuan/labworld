@@ -60,7 +60,7 @@ interface MotionHelloBase {
   preferred_rate_hz: MotionRate;
 }
 export type MotionHello =
-  | (MotionHelloBase & { role: 'viewer' })
+  | (MotionHelloBase & { role: 'viewer'; scene_hash?: string })
   | (MotionHelloBase & { role: 'publisher'; scene_hash: string });
 
 export interface MotionTarget {

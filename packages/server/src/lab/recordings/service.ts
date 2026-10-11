@@ -1,4 +1,10 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import {
+  RecordingEventCursors,
+  recordingEventCursorKey,
+} from './event-cursor.ts';
+import { recordingEventPage, eventPosition } from './event-page.ts';
+import { eventWindow, type EventPart } from './event-window.ts';
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks';
 import { readFile } from 'node:fs/promises';
 import {
@@ -201,6 +207,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   private recovering = false;
   private resource = new AsyncResource('recording-io-owner');
   private admissionUnavailable?: string;
+  private eventCursors?: RecordingEventCursors;
   private fence: (id: string, reason: string) => void = () => {};
   private control: (id: string) => MotionSessionControl | undefined = () =>
     undefined;
@@ -2004,6 +2011,10 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     });
   }
   async initialize() {
+    // Lab cursor identity is published outside DB transactions under the Root lease.
+    this.eventCursors = new RecordingEventCursors(
+      await recordingEventCursorKey(this.files.directory),
+    );
     this.recovering = true;
     const rows = await this.world.context.db.read(
       this.operation('startup'),
@@ -2471,6 +2482,61 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       'recording_read_timeout',
     );
   }
+  private async eventWindow(id: string, after: string, points: string[]) {
+    if (points.length > 2) throw fail('recording_event_window_capacity');
+    const exact = points.map(
+      (ordinal) =>
+        sql`(first_ordinal<=${ordinal}::numeric and last_ordinal>=${ordinal}::numeric)`,
+    );
+    const archived = await this.world.context.db.read(this.operation(), (tx) =>
+      tx.execute<EventPart>(
+        sql`select id::text,index,file_id::text,size::float8,first_ordinal::text,last_ordinal::text,null::text as path from lab.recording_segments where recording_id=${id}::uuid and (index in(select index from lab.recording_segments where recording_id=${id}::uuid and last_ordinal>${after}::numeric order by index limit 2)${exact.length ? sql` or ${sql.join(exact, sql` or `)}` : sql``}) order by index limit 4`,
+      ),
+    );
+    const local = this.owners.get(id)?.journal.snapshot() ?? [];
+    const selectedLocal = local
+      .filter((part) => BigInt(part.last_ordinal) > BigInt(after))
+      .sort((a, b) => a.index - b.index)
+      .slice(0, 2);
+    for (const ordinal of points) {
+      const part = local.find(
+        (p) =>
+          BigInt(p.first_ordinal) <= BigInt(ordinal) &&
+          BigInt(p.last_ordinal) >= BigInt(ordinal),
+      );
+      if (part && !selectedLocal.some((p) => p.id === part.id))
+        selectedLocal.push(part);
+    }
+    const parts: EventPart[] = [
+      ...archived.rows,
+      ...selectedLocal
+        .filter((p) => !archived.rows.some((a) => a.id === p.id))
+        .map((p) => ({ ...p, file_id: null })),
+    ];
+    return eventWindow(after, parts, async (part) => {
+      if (part.file_id) {
+        const chunks: Uint8Array[] = [];
+        let size = 0;
+        for await (const chunk of await this.files.managedBytes(
+          part.file_id,
+          this.operation(),
+          { expectedSize: part.size, maximumBytes: 1024 * 1024 },
+        )) {
+          size += chunk.length;
+          if (size > part.size || size > 1024 * 1024)
+            throw fail('recording_segment_changed');
+          chunks.push(chunk);
+        }
+        if (size !== part.size) throw fail('recording_segment_changed');
+        return decodeJournalBytes(Buffer.concat(chunks));
+      }
+      if (!part.path) throw fail('recording_segment_changed');
+      const records: JournalRecord[] = [];
+      for await (const record of readJournal(part.path, part.size))
+        records.push(record);
+      return records;
+    });
+  }
   private async eventsBase(
     row: RecordingRow,
     id: string,
@@ -2478,84 +2544,37 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     limit: number,
     deadline: number,
   ) {
-    await this.readBarrier(id);
-    const after = cursor
-      ? this.cursor(cursor, id)
-      : { recording_id: id, ordinal: '0', index: -1 };
-    if (
-      after.recording_id !== id ||
-      !/^\d+$/.test(after.ordinal) ||
-      !Number.isInteger(after.index)
-    )
+    if (!this.eventCursors) throw fail('recording_unavailable');
+    let position: ReturnType<typeof eventPosition>;
+    try {
+      position = this.eventCursors.decode(cursor, id);
+    } catch {
       throw fail('recording_invalid_cursor', 'Invalid Recording cursor', 400);
-    const data: Array<Record<string, unknown>> = [];
-    const prepared = new Map<string, PreparedEventBatch>();
-    let bytes = 0,
-      last = after;
-    for await (const record of this.records(id)) {
-      if (performance.now() >= deadline) throw fail('recording_read_timeout');
-      let events: Array<Record<string, unknown>> = [];
-      if (record.kind === 'business.prepare')
-        prepared.set(
-          String(record.data.batch_id),
-          record.data as unknown as PreparedEventBatch,
-        );
-      else if (record.kind === 'business.commit') {
-        const batch = prepared.get(String(record.data.batch_id));
-        if (
-          Array.isArray(record.data.events) &&
-          journalDigest(Buffer.from(JSON.stringify(record.data.events))) ===
-            record.data.sha256
-        )
-          events = record.data.events as Array<Record<string, unknown>>;
-        else if (batch && batch.sha256 === record.data.sha256)
-          events = batch.events;
-        prepared.delete(String(record.data.batch_id));
-      } else if (record.kind === 'business.abort')
-        prepared.delete(String(record.data.batch_id));
-      else if (record.kind === 'business.event') events = [record.data];
-      else if (record.kind === 'source.packet') {
-        const packet = await decodeRecordingPacket(
-          Buffer.from(String(record.data.packet_base64), 'base64'),
-        );
-        if (packet.kind === 2) {
-          const event = parseSourceEvent(
-            new TextDecoder().decode(packet.payload),
-          );
-          events = [
-            {
-              event_id: event.event_id,
-              event_type: event.event_type,
-              entity_id: null,
-              recorded_at: record.recorded_at,
-              sim_time_ns: event.sim_time_ns,
-              event: event.event,
-            },
-          ];
-        }
-      }
-      for (let index = 0; index < events.length; index++) {
-        if (
-          BigInt(record.ordinal) < BigInt(after.ordinal) ||
-          (record.ordinal === after.ordinal && index <= after.index)
-        )
-          continue;
-        const entry = { ordinal: record.ordinal, ...events[index] },
-          size = Buffer.byteLength(JSON.stringify(entry));
-        if (data.length >= limit || bytes + size > 256 * 1024)
-          return {
-            data,
-            next_cursor: Buffer.from(JSON.stringify(last)).toString(
-              'base64url',
-            ),
-            integrity: this.metadata(row).integrity,
-          };
-        data.push(entry);
-        bytes += size;
-        last = { recording_id: id, ordinal: record.ordinal, index };
-      }
     }
-    return { data, next_cursor: null, integrity: this.metadata(row).integrity };
+    await this.readBarrier(id);
+    const page = await recordingEventPage(
+      id,
+      position,
+      limit,
+      (after, points) => this.eventWindow(id, after, points),
+      () => {
+        if (performance.now() >= deadline) throw fail('recording_read_timeout');
+      },
+    );
+    return {
+      data: page.data,
+      next_cursor: page.next_cursor
+        ? this.eventCursors.encode(
+            eventPosition(
+              JSON.parse(
+                Buffer.from(page.next_cursor, 'base64url').toString('utf8'),
+              ),
+              id,
+            ),
+          )
+        : null,
+      integrity: this.metadata(row).integrity,
+    };
   }
   async delete(headers: Headers, lab: string, id: string) {
     const row = await this.authorized(headers, id, lab, true);

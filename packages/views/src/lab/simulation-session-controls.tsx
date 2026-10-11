@@ -298,6 +298,7 @@ export function SimulationSessionControls({
             </Alert>
           ) : null}
           {!loading &&
+          !active &&
           !simulation.sessions.data?.development_synthetic_enabled &&
           !simulation.sessions.data?.newton_enabled ? (
             <Alert>

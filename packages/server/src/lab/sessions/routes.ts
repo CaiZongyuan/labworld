@@ -59,6 +59,7 @@ export function sessionRoutes(
   app: ReturnType<typeof createApp>,
   sessions: SimulationSessions,
   peer: (c: Context) => string | undefined = () => undefined,
+  secure: (c: Context) => boolean = () => false,
 ) {
   const root = '/api/v1/lab/labs/{lab_id}',
     base = root + '/sessions';
@@ -71,15 +72,19 @@ export function sessionRoutes(
     app.use(path, async (c, next) => {
       if (c.req.method === 'POST') {
         if (
-          !loopback(peer(c)) ||
-          ['forwarded', 'x-forwarded-for', 'x-real-ip'].some((name) =>
-            c.req.raw.headers.has(name),
-          )
+          !secure(c) &&
+          (!loopback(peer(c)) ||
+            [
+              'forwarded',
+              'x-forwarded-for',
+              'x-real-ip',
+              'x-forwarded-proto',
+            ].some((name) => c.req.raw.headers.has(name)))
         )
           throw new PublicFailure(
             404,
             'lab.synthetic_session_unavailable',
-            'Development synthetic Sessions require loopback',
+            'Simulation Sessions require secure transport or loopback debugging',
           );
         if (!c.req.path.endsWith('/archive'))
           await boundedJsonAt(4096)(c, async () => {});

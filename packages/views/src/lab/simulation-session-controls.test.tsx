@@ -36,6 +36,7 @@ async function openSession({
   moreAssets = [],
   waitForAssets,
   assetFailure = null,
+  preparing = false,
 }: {
   installed?: boolean;
   enabled?: boolean;
@@ -43,6 +44,7 @@ async function openSession({
   moreAssets?: LabAsset[];
   waitForAssets?: Promise<void>;
   assetFailure?: { code: string; status: number } | null;
+  preparing?: boolean;
 } = {}) {
   const sockets = new WebSocketServer({ host: '127.0.0.1', port: 0 });
   let unmount = () => {};
@@ -140,6 +142,7 @@ async function openSession({
     ? [sessionInstallation]
     : [];
   const requests: { action: string; body: unknown }[] = [];
+  const viewerTickets: string[] = [];
   let rejection: { code: string; status: number } | null = null;
   let catalogRejection = assetFailure;
   const assetPages: (string | null)[] = [];
@@ -240,12 +243,15 @@ async function openSession({
     ),
     http.post(
       'http://api.test/api/v1/lab/labs/shared/sessions/:session/viewer-tickets',
-      () =>
-        HttpResponse.json({
-          ticket: 'scoped_ticket_123456789',
+      () => {
+        const ticket = 'scoped_ticket_123456789_' + viewerTickets.length;
+        viewerTickets.push(ticket);
+        return HttpResponse.json({
+          ticket,
           expires_in_seconds: 30,
           websocket_path: websocketPath,
-        }),
+        });
+      },
     ),
     http.post(
       'http://api.test/api/v1/lab/labs/shared/sessions',
@@ -258,6 +264,7 @@ async function openSession({
             { status: rejection.status },
           );
         current = { ...simulationSession, status: 'starting', revision: 0 };
+        if (preparing) current = { ...current, lease_id: null, epoch: null };
         return HttpResponse.json(current, { status: 201 });
       },
     ),
@@ -355,6 +362,7 @@ async function openSession({
   return {
     user,
     requests,
+    viewerTickets,
     peers,
     emit,
     cleanup,
@@ -370,6 +378,102 @@ async function openSession({
     current: () => current,
   };
 }
+
+test('a prelease starting source waits for authoritative admission then subscribes from the SSE update', async () => {
+  const fixture = await openSession({ preparing: true });
+  await fixture.user.click(screen.getByRole('button', { name: 'Start' }));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'Waiting',
+    ),
+  );
+  expect(fixture.peers).toHaveLength(0);
+  expect(fixture.viewerTickets).toHaveLength(0);
+  await act(async () =>
+    fixture.emit({
+      ...fixture.current()!,
+      status: 'running',
+      epoch: motionWelcome.epoch,
+      lease_id: 'server-lease',
+      revision: 1,
+    }),
+  );
+  await waitFor(() => expect(fixture.peers).toHaveLength(1));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'connected',
+    ),
+  );
+  await fixture.cleanup();
+});
+
+test('a network close renews the ticket and mapping while definite access denial stops recovery', async () => {
+  const fixture = await openSession();
+  await fixture.user.click(screen.getByRole('button', { name: 'Start' }));
+  await waitFor(() => expect(fixture.peers).toHaveLength(1));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'connected',
+    ),
+  );
+  fixture.peers[0].terminate();
+  await waitFor(() => expect(fixture.peers).toHaveLength(2));
+  expect(new Set(fixture.viewerTickets).size).toBe(2);
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'connected',
+    ),
+  );
+  server.use(
+    http.post(
+      'http://api.test/api/v1/lab/labs/shared/sessions/:session/viewer-tickets',
+      () =>
+        HttpResponse.json(
+          { error: { code: 'auth.unauthorized' } },
+          { status: 401 },
+        ),
+    ),
+  );
+  fixture.peers[1].terminate();
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'failed',
+    ),
+  );
+  await act(async () => window.dispatchEvent(new Event('offline')));
+  expect(screen.getByLabelText('Motion reception')).toHaveTextContent('failed');
+  await act(async () => window.dispatchEvent(new Event('online')));
+  expect(screen.getByLabelText('Motion reception')).toHaveTextContent('failed');
+  expect(fixture.peers).toHaveLength(2);
+  await fixture.cleanup();
+  expect(fixture.peers).toHaveLength(2);
+});
+
+test('browser offline closes the owned live socket, freezes motion and online obtains a fresh ticket', async () => {
+  const fixture = await openSession();
+  await fixture.user.click(screen.getByRole('button', { name: 'Start' }));
+  await waitFor(() => expect(fixture.peers).toHaveLength(1));
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'connected',
+    ),
+  );
+  await act(async () => window.dispatchEvent(new Event('offline')));
+  await waitFor(() =>
+    expect(fixture.peers[0].readyState).toBe(WebSocket.CLOSED),
+  );
+  expect(screen.getByLabelText('Motion reception')).toHaveTextContent('stale');
+  expect(fixture.viewerTickets).toHaveLength(1);
+  await act(async () => window.dispatchEvent(new Event('online')));
+  await waitFor(() => expect(fixture.peers).toHaveLength(2));
+  expect(new Set(fixture.viewerTickets).size).toBe(2);
+  await waitFor(() =>
+    expect(screen.getByLabelText('Motion reception')).toHaveTextContent(
+      'connected',
+    ),
+  );
+  await fixture.cleanup();
+});
 
 test('fixed installation and real HTTP controls distinguish accepted transitions from observed shared state; Reset reauthorizes a successor', async () => {
   const fixture = await openSession({ installed: false });

@@ -158,6 +158,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "recording",
+      "next": "secure-motion"
+    },
+    {
+      "id": "secure-motion",
+      "source": "docs/tutorials/secure-motion.md",
+      "sourceEn": "docs/tutorials/secure-motion.en.md",
+      "route": "tutorials/secure-motion.md",
+      "title": "安全观看、重新订阅与部署 WSS",
+      "titleEn": "Watch securely, resubscribe and deploy WSS",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "newton-motion",
       "next": "spatial-workbench"
     },
     {

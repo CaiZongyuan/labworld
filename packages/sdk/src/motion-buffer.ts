@@ -29,6 +29,7 @@ export class MotionBuffer {
   private stopped = false;
   private sourceState: MotionStatus['state'] | null = null;
   private pausedSequence = -1n;
+  private accepting = true;
 
   get welcome() {
     return this.metadata;
@@ -39,6 +40,17 @@ export class MotionBuffer {
 
   freeze() {
     this.stopped = true;
+  }
+
+  /** Discard queued facts on disconnect while retaining the last displayed pose. */
+  disconnect() {
+    this.frames = [];
+    this.lastSequence = -1n;
+    this.lastReceived = -Infinity;
+    this.pausedSequence = -1n;
+    this.sourceState = 'stale';
+    this.stopped = true;
+    this.accepting = false;
   }
 
   /** Receipt of cached or queued data cannot overrule authoritative source status. */
@@ -90,12 +102,14 @@ export class MotionBuffer {
     this.stopped = false;
     this.sourceState = null;
     this.pausedSequence = -1n;
+    this.accepting = true;
   }
 
   push(snapshot: MotionSnapshot, received: number): boolean {
     const welcome = this.metadata;
     if (
       !welcome ||
+      !this.accepting ||
       !Number.isFinite(received) ||
       received < this.lastReceived ||
       snapshot.epoch !== BigInt(welcome.epoch) ||
@@ -150,7 +164,9 @@ export class MotionBuffer {
   }
 
   sample(now: number): MotionSample | null {
-    if (!this.anchor || !this.output || !this.frames.length) return null;
+    if (!this.anchor || !this.output) return null;
+    if (this.stopped) return this.output;
+    if (!this.frames.length) return null;
     if (this.stopped || this.freshness(now) === 'stale') return this.output;
     const elapsed = Math.max(0, now - this.anchor.received - this.delayMs);
     const target =

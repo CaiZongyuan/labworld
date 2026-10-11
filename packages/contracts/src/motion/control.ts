@@ -136,7 +136,14 @@ export function parseMotionHello(input: string): MotionHello {
     ticket,
     preferred_rate_hz: rate(value.preferred_rate_hz),
   } as const;
-  if (value.role === 'viewer') return { ...common, role: 'viewer' };
+  if (value.role === 'viewer')
+    return {
+      ...common,
+      role: 'viewer',
+      ...(value.scene_hash === undefined
+        ? {}
+        : { scene_hash: sceneHash(value.scene_hash) }),
+    };
   if (value.role === 'publisher')
     return {
       ...common,
