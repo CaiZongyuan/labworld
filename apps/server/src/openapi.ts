@@ -1,3 +1,5 @@
+import { motionRoutes } from '../../../packages/server/src/lab/motion/routes.ts';
+import type { MotionFixtures } from '../../../packages/server/src/lab/motion/fixture.ts';
 import { readFileSync } from 'node:fs';
 import { coreApp } from './app.ts';
 import { configuration } from './config.ts';
@@ -32,6 +34,7 @@ const app = coreApp(
 );
 assetRoutes(app, undefined as unknown as FileService);
 worldRoutes(app, undefined as unknown as WorldService);
+motionRoutes(app, undefined as unknown as MotionFixtures);
 progressRoutes(app, undefined as unknown as ProgressService);
 lifecycleRoutes(app, undefined as unknown as WorldService);
 deviceRoutes(app, undefined as unknown as DeviceService);

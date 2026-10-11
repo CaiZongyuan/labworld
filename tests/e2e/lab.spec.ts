@@ -1,3 +1,4 @@
+import { expectInitialSceneReady } from './initial-scene-ready';
 import {
   expect,
   test,
@@ -440,7 +441,7 @@ test('members and an Agent share persistent GLB assets across browser contexts a
     page.getByRole('heading', { name: '资产查看', exact: true }),
   ).toBeVisible();
   await expect(page.locator('canvas')).toBeVisible();
-  await expect(page.locator('.lab-page')).toHaveAttribute('aria-busy', 'false');
+  await expectInitialSceneReady(page.locator('.lab-page'));
   await expect(page.locator('.lab-loading')).toHaveCount(0);
   await expect(page.locator('.lab-asset-copy')).toContainText('工业显微镜');
 
@@ -528,10 +529,7 @@ test('members and an Agent share persistent GLB assets across browser contexts a
   await other
     .getByRole('button', { name: '在 Lab 中打开 cube', exact: true })
     .click();
-  await expect(other.locator('.lab-page')).toHaveAttribute(
-    'aria-busy',
-    'false',
-  );
+  await expectInitialSceneReady(other.locator('.lab-page'));
   await expect(other.locator('.lab-asset-copy')).toContainText('cube.glb');
   await expectCanvasPixels(other);
   await other.reload();
@@ -623,10 +621,7 @@ test('persistent Draco, Meshopt and Basis models render at their original scale 
   );
   try {
     await page.goto('/lab/asset');
-    await expect(page.locator('.lab-page')).toHaveAttribute(
-      'aria-busy',
-      'false',
-    );
+    await expectInitialSceneReady(page.locator('.lab-page'));
   } catch (error) {
     await initialFailure().catch(() => {});
     throw error;

@@ -30,6 +30,7 @@ import type {
   LabWorld,
   SceneNode,
   Placement,
+  MotionBuffer,
 } from '@labos-threejs/sdk';
 import type { ModelAsset } from './catalog';
 import { useLoadedModel, disposeModel } from './model-loader';
@@ -45,6 +46,10 @@ import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
 import { readEntityObservations } from './observation-state';
 import { frameBounds } from './camera-framing';
 import { WorldLabels } from './world-labels';
+import {
+  MotionSceneController,
+  type MotionDiagnosticCanvas,
+} from './motion-scene';
 
 type Tuple = [number, number, number];
 function Block({
@@ -240,6 +245,7 @@ const NodeModel = memo(function NodeModel({
   active,
   onTarget,
   onLocate,
+  motionScene,
 }: {
   node: SceneNode;
   entity: LabEntity;
@@ -253,9 +259,19 @@ const NodeModel = memo(function NodeModel({
   active: boolean;
   onTarget: (id: string, object: Group | null) => void;
   onLocate: (nodeId: string) => void;
+  motionScene: MotionSceneController;
 }) {
   const group = useRef<Group>(null);
   const outer = useRef<Group>(null);
+  useEffect(() => {
+    if (!outer.current) return;
+    return motionScene.register(
+      node.id,
+      entity.id,
+      outer.current,
+      node.placement,
+    );
+  }, [motionScene, node.id, entity.id, node.placement]);
   const appearance = appearanceKey(node, entity);
   useEffect(() => {
     if (!active || !outer.current) return;
@@ -265,6 +281,20 @@ const NodeModel = memo(function NodeModel({
   const [bounds, setBounds] = useState<{ center: Tuple; size: Tuple } | null>(
     null,
   );
+  const userData = useMemo(
+    () => ({
+      nodeId: node.id,
+      entityId: entity.id,
+      labelAnchor: bounds
+        ? new Vector3(
+            bounds.center[0],
+            bounds.center[1] + bounds.size[1] / 2 + 0.1,
+            bounds.center[2],
+          )
+        : undefined,
+    }),
+    [node.id, entity.id, bounds],
+  );
   const measure = useCallback(() => {
     if (!group.current) return;
     group.current.updateWorldMatrix(true, true);
@@ -273,12 +303,6 @@ const NodeModel = memo(function NodeModel({
     const worldScale = group.current.getWorldScale(new Vector3());
     const size = box.getSize(new Vector3()).divide(worldScale);
     setBounds({ center: center.toArray(), size: size.toArray() });
-    if (outer.current)
-      outer.current.userData.labelAnchor = new Vector3(
-        center.x,
-        center.y + size.y / 2 + 0.1,
-        center.z,
-      );
     onReady(node.id, appearance);
   }, [onReady, node.id, appearance]);
   useEffect(() => {
@@ -288,6 +312,7 @@ const NodeModel = memo(function NodeModel({
     <group
       ref={outer}
       name={node.id}
+      userData={userData}
       position={node.placement.position as Tuple}
       rotation={node.placement.rotation as Tuple}
       scale={node.placement.scale as Tuple}
@@ -351,6 +376,7 @@ function Scene({
   onPlacement,
   onOpenRecentMinute,
   onLocate,
+  motion,
 }: {
   world: LabWorld;
   connected: boolean;
@@ -372,10 +398,24 @@ function Scene({
   onPlacement: (id: string, placement: Placement) => void;
   onOpenRecentMinute?: (entityId: string) => void;
   onLocate: (nodeId: string) => void;
+  motion?: MotionBuffer | null;
 }) {
+  const motionScene = useMemo(() => new MotionSceneController(), []);
+  useFrame(() => motionScene.update(motion ?? null, performance.now()));
+  useEffect(() => () => motionScene.reset(), [motionScene]);
   const root = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
-  const { camera, size } = useThree();
+  const { camera, size, gl } = useThree();
+  useEffect(() => {
+    if (!motion) return;
+    const canvas = gl.domElement as MotionDiagnosticCanvas;
+    const inspect = () => (motion.welcome ? motionScene.inspect() : null);
+    canvas.getMotionDiagnostics = inspect;
+    return () => {
+      if (canvas.getMotionDiagnostics === inspect)
+        delete canvas.getMotionDiagnostics;
+    };
+  }, [gl, motion, motionScene]);
   const [loaded, setLoaded] = useState(0);
   const transition = useRef<{
     from: Vector3;
@@ -564,6 +604,7 @@ function Scene({
               active={!!transformMode && node.id === activeNodeId}
               onTarget={targetReady}
               onLocate={onLocate}
+              motionScene={motionScene}
             />
           );
         })}
@@ -634,6 +675,7 @@ export default function WorldViewport(props: {
   performance: boolean;
   onMetrics: (metrics: RenderMetrics) => void;
   onBusy: (busy: boolean) => void;
+  motion?: MotionBuffer | null;
 }) {
   const message = useAppMessage('lab');
   const [reducedMotion, setReducedMotion] = useState(false);

@@ -1,5 +1,31 @@
 export const labMessages = {
   zh: {
+    'motion.title': '合成运动',
+    'motion.description':
+      '连接本机测试会话，查看确定性运动。三维运动不改写已保存的布局或登记位置。',
+    'motion.disconnected': '未连接',
+    'motion.connecting': '正在连接',
+    'motion.waiting': '等待发布者',
+    'motion.live': '运动已连接',
+    'motion.stale': '运动过期 · 位姿已冻结',
+    'motion.interrupted': '运动中断',
+    'motion.closed': '会话已关闭',
+    'motion.error': '连接失败',
+    'motion.rate': '接收频率',
+    'motion.model': '测试对象的 GLB 模型',
+    'motion.noModel': '请先导入 GLB 资产',
+    'motion.prepareHint':
+      '准备会话会登记 20 个测试对象。已有会话可直接加入；修改布局前请离开运动。',
+    'motion.join': '加入已有会话',
+    'motion.prepare': '准备并加入测试会话',
+    'motion.leave': '离开运动',
+    'motion.close': '关闭',
+    'motion.disabled':
+      '服务尚未启用本机合成运动测试。请按教程显式启用 fixture 后重试。',
+    'motion.notFound':
+      '此实验室还没有测试会话。选择 GLB 模型并准备会话后重试。',
+    'motion.denied': '无法加入会话。请重新登录并检查实验室访问权限。',
+    'motion.failure': '连接已停止，最后可信位姿将冻结。请离开后重新加入会话。',
     'operations.overview': '运行总览',
     'operations.devices': '设备',
     'operations.summary': '运行汇总',
@@ -485,6 +511,33 @@ export const labMessages = {
     'import.single': '一次导入一个 GLB 文件。',
   },
   en: {
+    'motion.title': 'Synthetic motion',
+    'motion.description':
+      'Join a local test session to view deterministic motion. Motion does not change saved Placement or Registered Location.',
+    'motion.disconnected': 'Disconnected',
+    'motion.connecting': 'Connecting',
+    'motion.waiting': 'Waiting for publisher',
+    'motion.live': 'Motion connected',
+    'motion.stale': 'Motion stale · pose frozen',
+    'motion.interrupted': 'Motion interrupted',
+    'motion.closed': 'Session closed',
+    'motion.error': 'Connection failed',
+    'motion.rate': 'Receive rate',
+    'motion.model': 'GLB model for test objects',
+    'motion.noModel': 'Import a GLB asset first',
+    'motion.prepareHint':
+      'Preparing a session registers 20 test objects. Join an existing session directly; leave motion before editing Placement.',
+    'motion.join': 'Join existing session',
+    'motion.prepare': 'Prepare and join test session',
+    'motion.leave': 'Leave motion',
+    'motion.close': 'Close',
+    'motion.disabled':
+      'Local synthetic motion is disabled on the server. Enable the fixture explicitly as described in the guide, then retry.',
+    'motion.notFound':
+      'This Lab has no test session yet. Select a GLB model and prepare a session, then retry.',
+    'motion.denied': 'Unable to join. Sign in again and check Lab access.',
+    'motion.failure':
+      'The connection stopped; the last trusted pose will freeze. Leave and rejoin the session to recover.',
     'operations.overview': 'Overview',
     'operations.devices': 'Devices',
     'operations.summary': 'Operations summary',

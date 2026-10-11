@@ -81,7 +81,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Install Chromium for actual Web/WebGL journeys
         run: pnpm exec playwright install --with-deps chromium
-      - name: Owned retained desktop Web journeys
+      - name: Install the pinned optional synthetic Publisher environment
+        run: |
+          python3.12 -m venv .scratch/motion-python
+          .scratch/motion-python/bin/python -m pip install -r tools/synthetic-motion/requirements.txt
+      - name: Owned retained desktop Web journeys and synthetic motion smoke
         run: pnpm test:e2e
       - name: Built production same-origin application journeys
         env:

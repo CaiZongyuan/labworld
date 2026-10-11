@@ -18,7 +18,11 @@ const args = process.argv.slice(2),
     : readdirSync(join(root, 'tests/e2e'))
         .filter((name) => name.endsWith('.spec.ts'))
         .sort()
-        .map((name) => ['tests/e2e/' + name]),
+        .map((name) =>
+          name === 'lab-synthetic-motion.spec.ts'
+            ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
+            : ['tests/e2e/' + name],
+        ),
   resources = new ContractResources(
     join(
       root,

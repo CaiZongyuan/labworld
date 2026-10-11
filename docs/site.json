@@ -115,6 +115,16 @@
       "next": "spatial-workbench"
     },
     {
+      "id": "synthetic-motion",
+      "source": "docs/tutorials/synthetic-motion.md",
+      "sourceEn": "docs/tutorials/synthetic-motion.en.md",
+      "route": "tutorials/synthetic-motion.md",
+      "title": "合成运动与两个 Viewer",
+      "titleEn": "Synthetic motion and two Viewers",
+      "group": "实验室",
+      "type": "tutorial"
+    },
+    {
       "id": "spatial-workbench",
       "source": "docs/tutorials/spatial-workbench.md",
       "sourceEn": "docs/tutorials/spatial-workbench.en.md",

@@ -501,6 +501,35 @@ export type LabWorld = {
     relationships: Array<EntityRelationship>;
 };
 
+export type MotionFixture = {
+    session_id: string;
+    lab_id: string;
+    scene_hash: string;
+    mapping_revision: number;
+    pose_keys: Array<string>;
+    joint_keys: Array<string>;
+    targets: Array<{
+        pose_key: string;
+        entity_id: string;
+        node_id: string;
+        visual_target: 'node-root';
+    }>;
+};
+
+export type CreateMotionFixture = {
+    representation_id: string;
+};
+
+export type MotionTicket = {
+    ticket: string;
+    expires_in_seconds: number;
+    websocket_path: string;
+};
+
+export type RequestMotionTicket = {
+    preferred_rate_hz: 15 | 30;
+};
+
 export type LabGuideProgressRead = {
     current_guide_version: string;
     compatibility: LabGuideCompatibility;
@@ -1754,6 +1783,116 @@ export type GetLabWorldResponses = {
 };
 
 export type GetLabWorldResponse = GetLabWorldResponses[keyof GetLabWorldResponses];
+
+export type GetLabMotionFixtureData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/motion-fixture';
+};
+
+export type GetLabMotionFixtureErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabMotionFixtureError = GetLabMotionFixtureErrors[keyof GetLabMotionFixtureErrors];
+
+export type GetLabMotionFixtureResponses = {
+    200: MotionFixture;
+};
+
+export type GetLabMotionFixtureResponse = GetLabMotionFixtureResponses[keyof GetLabMotionFixtureResponses];
+
+export type CreateLabMotionFixtureData = {
+    body: CreateMotionFixture;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/motion-fixture';
+};
+
+export type CreateLabMotionFixtureErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabMotionFixtureError = CreateLabMotionFixtureErrors[keyof CreateLabMotionFixtureErrors];
+
+export type CreateLabMotionFixtureResponses = {
+    201: MotionFixture;
+};
+
+export type CreateLabMotionFixtureResponse = CreateLabMotionFixtureResponses[keyof CreateLabMotionFixtureResponses];
+
+export type CreateLabMotionViewerTicketData = {
+    body: RequestMotionTicket;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/motion-fixture/{session_id}/viewer-tickets';
+};
+
+export type CreateLabMotionViewerTicketErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabMotionViewerTicketError = CreateLabMotionViewerTicketErrors[keyof CreateLabMotionViewerTicketErrors];
+
+export type CreateLabMotionViewerTicketResponses = {
+    201: MotionTicket;
+};
+
+export type CreateLabMotionViewerTicketResponse = CreateLabMotionViewerTicketResponses[keyof CreateLabMotionViewerTicketResponses];
+
+export type CreateLabMotionPublisherTicketData = {
+    body: RequestMotionTicket;
+    path: {
+        lab_id: string;
+        session_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/motion-fixture/{session_id}/publisher-tickets';
+};
+
+export type CreateLabMotionPublisherTicketErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabMotionPublisherTicketError = CreateLabMotionPublisherTicketErrors[keyof CreateLabMotionPublisherTicketErrors];
+
+export type CreateLabMotionPublisherTicketResponses = {
+    201: MotionTicket;
+};
+
+export type CreateLabMotionPublisherTicketResponse = CreateLabMotionPublisherTicketResponses[keyof CreateLabMotionPublisherTicketResponses];
 
 export type GetLabGuideProgressData = {
     body?: never;

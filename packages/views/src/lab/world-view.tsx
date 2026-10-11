@@ -84,6 +84,8 @@ import RecordsPanel from './records-panel';
 import OperationsView from './operations-view';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
 import RelationshipPanel from './relationship-panel';
+import { useMotion } from './use-motion';
+import { MotionControls } from './motion-controls';
 import { useLabWorkbench } from './workbench-context';
 import {
   layoutDraft,
@@ -168,6 +170,14 @@ export default function WorldView() {
   const message = useAppMessage('lab');
   const { locale, resolvedTheme } = usePreferences();
   const client = useQueryClient();
+  const motion = useMotion({
+    apiClient,
+    labId: labId ?? null,
+    csrfToken: identity.csrf_token,
+    onFixtureCreated: () => {
+      void world.refetch();
+    },
+  });
   const definitions = useQuery({
     queryKey: [...key, 'definitions'],
     queryFn: async ({ signal }) =>
@@ -711,6 +721,12 @@ export default function WorldView() {
         </TabsList>
       </Tabs>
       <div className="world-layout-toolbar" hidden={!spaceView}>
+        <MotionControls
+          key={labId}
+          motion={motion}
+          world={world.data}
+          disabled={readOnly || editing || !!draft || layoutPending}
+        />
         <Tabs
           value={editing ? 'layout' : 'runtime'}
           onValueChange={(value) => setEditing(value === 'layout')}
@@ -1012,6 +1028,9 @@ export default function WorldView() {
                     performance={performance && spaceView}
                     onMetrics={setMetrics}
                     onBusy={setRenderBusy}
+                    motion={
+                      editing || !motion.buffer.welcome ? null : motion.buffer
+                    }
                   />
                 </Suspense>
               </ViewportBoundary>

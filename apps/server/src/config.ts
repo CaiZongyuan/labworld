@@ -20,6 +20,14 @@ const fileFields = [
 export function configuration(env: NodeJS.ProcessEnv = process.env) {
   const bind = env.APP_BIND?.match(/^(.*):(\d+)$/);
   const hostname = env.LAB_WORD_HOST ?? bind?.[1] ?? '127.0.0.1';
+  const motionFixture = env.LAB_WORD_MOTION_FIXTURE === 'true';
+  if (
+    env.LAB_WORD_MOTION_FIXTURE !== undefined &&
+    !['true', 'false'].includes(env.LAB_WORD_MOTION_FIXTURE)
+  )
+    throw new Error('LAB_WORD_MOTION_FIXTURE must be true or false');
+  if (motionFixture && !['127.0.0.1', '::1', 'localhost'].includes(hostname))
+    throw new Error('Motion fixture requires a loopback LAB_WORD_HOST');
   const port = Number(env.SERVER_PORT ?? bind?.[2] ?? 3000);
   if (!Number.isSafeInteger(port) || port < 1 || port > 65535)
     throw new Error('SERVER_PORT must be an integer from 1 to 65535');
@@ -109,6 +117,7 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
       ? resolve(env.LAB_WORD_WEB_DIR)
       : undefined,
     retention,
+    motionFixture,
     hostname,
     port,
     rate,
@@ -142,6 +151,12 @@ export function configurationFields() {
     descriptionZh,
   });
   return [
+    field(
+      'LAB_WORD_MOTION_FIXTURE',
+      value.motionFixture,
+      'Enable the authenticated synthetic motion fixture; requires a loopback bind.',
+      '启用经过认证的合成运动测试 fixture；必须监听 loopback。',
+    ),
     field(
       'LAB_WORD_WEB_DIR',
       value.webDirectory ?? '',
