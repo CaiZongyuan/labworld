@@ -9,6 +9,7 @@ from coordinates import native_pose, wire_pose
 from facts_owner import PhysicsOwner
 from scene_loader import archive_bytes, extract_scene, supported_profile
 from prepare import prepare
+from budget import NativeBudgetError, validate_native_budget
 
 
 class Run:
@@ -18,6 +19,14 @@ class Run:
 
 
 class PortableTests(unittest.TestCase):
+    def test_native_budget_rejects_actual_sdk_growth_unknown_counts_and_substep_overflow(self):
+        valid={'nworld':1,'naconmax':256,'njmax':512,'nacon':12,'ncollision':8,'nefc':10,'overflow':0,'cpu_ncon':12,'cpu_nefc':10}
+        validate_native_budget(valid,'constructor',initial=True)
+        for change in [{'naconmax':267,'nacon':267},{'ncollision':257},{'nefc':513},{'overflow':1}]:
+            with self.assertRaises(NativeBudgetError):validate_native_budget({**valid,**change},'actual-native-substep',initial=True)
+        unknown={k:v for k,v in valid.items() if k!='ncollision'}
+        with self.assertRaisesRegex(NativeBudgetError,'missing actual getters'):
+            validate_native_budget(unknown,'constructor',initial=True)
     def test_production_package_extracts_exact_maker_and_derived_allowlist_without_solver(self):
         import hashlib
         import json

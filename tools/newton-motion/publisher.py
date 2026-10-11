@@ -172,6 +172,7 @@ async def publish(run, value):
             try:
                 owner.close()
             finally:
+                run.close()
                 live.transport.abort(); reliable.transport.abort()
                 for task in tasks:
                     task.cancel()

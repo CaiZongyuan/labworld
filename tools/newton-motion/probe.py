@@ -26,6 +26,7 @@ def main():
     scene=extract_scene(args.base_glb,cache/'tmp',profile)
     progress=args.output.with_suffix('.progress.json')
     progress.write_text(json.dumps({'phase':'constructing','completed_steps':0,'selected_batches':0}))
+    run=None
     try:
         from physics import NewtonRun
         run=NewtonRun(profile,scene)
@@ -47,6 +48,7 @@ def main():
         args.output.write_text(json.dumps(report,indent=2))
         print(json.dumps({'output':str(args.output),'steps':run.step_count,'scope':report['scope']}))
     finally:
+        if run is not None:run.close()
         shutil.rmtree(scene)
 
 

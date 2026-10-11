@@ -14,3 +14,7 @@ maker STLs. The exact derived OBJ, modification notices and provenance are retai
 in the pinned base GLB physics archive. The production profile is a #73 WIP candidate;
 actual compiled coverage/support, loaded grasp and Viewer/Recording acceptance remain
 pending. This source registration does not certify physical fidelity or issue delivery.
+
+Discovery candidate: explicit builder gap0m with unchanged activation margin0m.
+Actual capacities/counts fail closed at constructor and each native step; compiled
+267-record classification and paired active-contact equality are pending verification.

@@ -10,6 +10,17 @@ import warp as wp
 import newton
 
 from coordinates import wire_pose, native_pose
+from budget import NativeBudgetError, validate_native_budget
+
+
+@wp.kernel
+def observe_budget(nacon: wp.array(dtype=wp.int32), ncollision: wp.array(dtype=wp.int32),
+                   nefc: wp.array(dtype=wp.int32), overflow: wp.array(dtype=wp.int32),
+                   peaks: wp.array(dtype=wp.int32)):
+    wp.atomic_max(peaks,0,nacon[0])
+    wp.atomic_max(peaks,1,ncollision[0])
+    wp.atomic_max(peaks,2,nefc[0])
+    wp.atomic_max(peaks,3,overflow[0])
 
 
 @wp.kernel
@@ -43,6 +54,9 @@ def resolve(labels, keys):
 class NewtonRun:
     def __init__(self, profile, directory):
         self.profile = profile
+        self._budget_failed = False
+        self._previous_contact_filter = None
+        self.graphs = []
         self.directory = Path(directory).resolve()
         from scene_loader import supported_profile
         actual = supported_profile()
@@ -77,12 +91,16 @@ class NewtonRun:
                 body.set('quat',' '.join(map(str,(w,x,y,z))))
             tree.write(self.directory/'instance.xml',encoding='utf-8',xml_declaration=True)
             builder = newton.ModelBuilder(up_axis=newton.Axis.Z)
+            builder.rigid_gap = profile['collision_discovery']['shape_gap_m']
             builder.add_mjcf(str(self.directory/'instance.xml'), collapse_fixed_joints=False,
                              enable_self_collisions=True)
             indices = resolve(builder.joint_label, profile['joint_order'])
             for index, value in zip(indices, profile['initial_joints'], strict=True):
                 builder.joint_q[builder.joint_q_start[index]] = value
             self.model = builder.finalize()
+            if np.any(self.model.shape_gap.numpy() != 0) or np.any(self.model.shape_margin.numpy() != 0):
+                self.close()
+                raise ValueError('Fixed discovery gap must be zero; activation margin must remain zero')
             self.state = self.model.state()
             self.other = self.model.state()
             self.control = self.model.control()
@@ -101,7 +119,16 @@ class NewtonRun:
             self.gather_joints = wp.array(self.coord_indices, dtype=wp.int32)
             self.sample_buffer = wp.empty(len(self.body_indices)*7+len(self.coord_indices), dtype=wp.float32)
             self.solver = newton.solvers.SolverMuJoCo(self.model, **profile['solver_configuration'])
-            self.contacts = newton.Contacts(self.solver.mjw_data.naconmax, 0, device=self.device,
+            try:
+                self.initial_native_budget = self.check_native_budget('constructor',initial=True)
+                if np.any(self.solver.mj_model.geom_gap != 0) or np.any(self.solver.mj_model.geom_margin != 0):
+                    raise ValueError('Compiled geom discovery/activation parameters differ from fixed candidate')
+                if np.any(self.solver.mj_model.pair_gap != 0) or np.any(self.solver.mj_model.pair_margin != 0):
+                    raise ValueError('Compiled explicit pair discovery/activation parameters differ')
+            except BaseException:
+                self.close()
+                raise
+            self.contacts = newton.Contacts(256, 0, device=self.device,
                                            requested_attributes={'force'})
             initial = self.sample()
             for actual_pose, expected in zip(initial['poses'], profile['initial_poses'], strict=True):
@@ -110,13 +137,19 @@ class NewtonRun:
                         raise ValueError('Newton t0 disagrees with independently authored scene FK')
             if any(abs(a-b) > .00001 for a,b in zip(initial['joints'], profile['initial_joints'],strict=True)):
                 raise ValueError('Newton t0 joints disagree with snapshot')
-            # Capture only fixed solver work; readback and network are outside the graph.
+            # A collision-pass observer retains peaks before sleeping-pass counters reset.
+            self.budget_peaks = wp.zeros(4,dtype=wp.int32,device=self.device)
+            self._previous_contact_filter = self.solver.mjw_model.callback.contactfilter
+            self.solver.mjw_model.callback.contactfilter = self.observe_collision_pass
             self.set_control(profile['initial_joints'])
-            with wp.ScopedCapture(device=self.device) as capture:
-                for _ in range(8):
-                    self.solver.step(self.state, self.other, self.control, None, 1/240)
-                    self.state, self.other = self.other, self.state
-            self.graph = capture.graph
+            # Each graph contains one actual native step. Host rejection occurs
+            # before the next substep, while a public sample still spans eight steps.
+            for state_in,state_out in [(self.state,self.other),(self.other,self.state)]:
+                with wp.ScopedCapture(device=self.device) as capture:
+                    self.budget_peaks.zero_()
+                    self.solver.step(state_in,state_out,self.control,None,1/240)
+                    self.launch_budget_observer(self.solver.mjw_data)
+                self.graphs.append(capture.graph)
             self.physical_sample()
         self.metrics['setup_ms'] = (time.monotonic()-setup)*1000
 
@@ -140,20 +173,75 @@ class NewtonRun:
         return previous
 
     def step(self):
+        if self._budget_failed:
+            raise RuntimeError('Newton native budget is latched closed')
         with wp.ScopedDevice(self.device):
             control_started=time.monotonic()
             self.set_control(self.control_values())
             self.metrics['control_ms'].append((time.monotonic()-control_started)*1000)
             self.metrics['control_ms']=self.metrics['control_ms'][-900:]
             started = time.monotonic()
-            wp.capture_launch(self.graph)
-            wp.synchronize_device(self.device)
+            for substep in range(8):
+                wp.capture_launch(self.graphs[self.step_count % 2])
+                wp.synchronize_device(self.device)
+                self.step_count += 1
+                try:
+                    self.check_native_budget('native-step-' + str(self.step_count),peaks=True)
+                except BaseException:
+                    self._budget_failed = True
+                    raise
             self.metrics['step_ms'].append((time.monotonic()-started)*1000)
             self.metrics['step_ms'] = self.metrics['step_ms'][-900:]
             self.metrics['step_batches'] += 1
-        self.step_count += 8
+
+    def launch_budget_observer(self,data):
+        wp.launch(observe_budget,dim=1,inputs=[data.nacon,data.ncollision,data.nefc,data.overflow],outputs=[self.budget_peaks])
+
+    def observe_collision_pass(self,model,data):
+        self.launch_budget_observer(data)
+        if self._previous_contact_filter is not None:
+            self._previous_contact_filter(model,data)
+            self.launch_budget_observer(data)
+
+    def check_native_budget(self,phase,initial=False,peaks=False):
+        try:
+            data=self.solver.mjw_data
+            snapshot={key:int(getattr(data,key)) for key in ['nworld','naconmax','njmax']}
+            for key in ['nacon','ncollision','nefc','overflow']:
+                values=getattr(data,key).numpy().reshape(-1)
+                if len(values)!=1:
+                    raise ValueError('Expected one logical native count for ' + key)
+                snapshot[key]=int(values[0])
+            if initial:
+                snapshot.update(cpu_ncon=int(self.solver.mj_data.ncon),cpu_nefc=int(self.solver.mj_data.nefc))
+            if peaks:
+                values=self.budget_peaks.numpy().tolist()
+                if len(values)!=4:raise ValueError('Missing actual collision-pass peaks')
+                for key,value in zip(['nacon','ncollision','nefc','overflow'],values,strict=True):
+                    snapshot[key]=max(snapshot[key],int(value))
+        except (AttributeError,TypeError,ValueError) as error:
+            self._budget_failed=True
+            raise NativeBudgetError(phase,{},'actual native getter unavailable: ' + str(error)) from error
+        try:
+            validate_native_budget(snapshot,phase,initial)
+        except NativeBudgetError:
+            self._budget_failed=True
+            raise
+        self.last_native_budget=snapshot
+        return snapshot
+
+    def close(self):
+        self._budget_failed=True
+        solver=getattr(self,'solver',None)
+        if solver is not None:
+            solver.mjw_model.callback.contactfilter=self._previous_contact_filter
+            solver.close_mujoco_viewer()
+        self.graphs.clear()
+        for name in ['contacts','solver','model','state','other','control','budget_peaks','sample_buffer','gather_bodies','gather_joints']:
+            setattr(self,name,None)
 
     def sample(self, diagnostic=False):
+        if self._budget_failed:raise RuntimeError('Newton native budget is latched closed')
         with wp.ScopedDevice(self.device):
             started = time.monotonic()
             wp.launch(gather_state, dim=len(self.sample_buffer),
@@ -181,6 +269,7 @@ class NewtonRun:
 
     def physical_sample(self):
         """Explicit diagnostic scope; contact/velocity readback is separate from live pose readback."""
+        if self._budget_failed:raise RuntimeError('Newton native budget is latched closed')
         started=time.monotonic()
         with wp.ScopedDevice(self.device):
             self.solver.update_contacts(self.contacts, self.state)

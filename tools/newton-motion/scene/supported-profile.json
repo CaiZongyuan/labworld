@@ -11,6 +11,12 @@
     "rack",
     "mat"
   ],
+  "collision_discovery": {
+    "activation_margin_m": 0.0,
+    "entrypoint": "ModelBuilder.rigid_gap before add_mjcf; authored gap overrides must remain zero",
+    "guard": "one native step per captured graph; collision-pass peak observer; before Contacts/capture and before next native step",
+    "shape_gap_m": 0.0
+  },
   "control_hz": 30,
   "coordinate_frame": "rh-y-up-m",
   "criteria": {
@@ -24,7 +30,7 @@
     "unsafe_rack_force": 20,
     "upright_alignment": 0.9
   },
-  "hash": "sha256:f9fa824ae95e56098534ada5362c1dc22fa3827ff606c7e7329a586a6c576751",
+  "hash": "sha256:6af46edc2115e6fb3c8c14e76ca05106eddc1f2f233e6d40ced5811bbf5b7317",
   "initial_joints": [0, 0, 0, 0, 0, 0.7],
   "initial_poses": [
     { "position": [0.0, 0.0, 0.0], "quaternion": [0.0, 0.0, 0.0, 1.0] },
