@@ -49,7 +49,14 @@ jobs:
       - name: Discover exactly one diagnostic case without runtime
         run: |
           pnpm exec playwright test --config .scratch/camera-prefix-ci/playwright.config.ts .scratch/camera-prefix-ci/camera-prefix.spec.ts --list --reporter=list | tee .scratch/camera-prefix-ci-evidence/discovery.txt
-          rg '^Total: 1 test in 1 file$' .scratch/camera-prefix-ci-evidence/discovery.txt
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const summaries = readFileSync('.scratch/camera-prefix-ci-evidence/discovery.txt', 'utf8')
+            .split(/\r?\n/)
+            .filter((line) => line.startsWith('Total:'));
+          if (summaries.length !== 1 || summaries[0] !== 'Total: 1 test in 1 file')
+            throw new Error('Expected exactly one diagnostic test in one file');
+          NODE
       - name: Run the original camera prefix once
         run: node .scratch/camera-prefix-ci/run.mjs
       - name: Reconcile owned resources after success, failure or cancellation
