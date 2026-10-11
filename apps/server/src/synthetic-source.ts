@@ -187,7 +187,9 @@ export class SyntheticSources {
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
           try {
             await readdir(ledger.cache_directory);
-            throw new Error('Newton cache has no ownership receipt');
+            throw new Error('Newton cache has no ownership receipt', {
+              cause: error,
+            });
           } catch (missing) {
             if ((missing as NodeJS.ErrnoException).code !== 'ENOENT')
               throw missing;
