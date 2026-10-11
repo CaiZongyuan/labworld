@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { CurrentSession } from '../../packages/contracts/src/generated/types.gen.ts';
+import { captureRecordingReadFailure } from './recording-read-receipt.ts';
 export class CoreHttp {
   cookie?: string;
   csrf?: string;
@@ -38,6 +39,7 @@ export class CoreHttp {
     extra: Record<string, string> = {},
   ): Promise<T> {
     const response = await this.response(method, path, body, extra);
+    await captureRecordingReadFailure(response, method, path, status);
     assert.equal(response.status, status, `${method} ${path.split('?')[0]}`);
     return status === 204 ? (undefined as T) : ((await response.json()) as T);
   }
