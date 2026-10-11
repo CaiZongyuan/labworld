@@ -14,18 +14,22 @@ test('the landing, its entries and the switcher survive a custom base', async ({
 }) => {
   await go(page);
   await expect(page).toHaveTitle(/Lab Word/);
+  await page.locator('.shot img').scrollIntoViewIfNeeded();
   await expect
     .poll(() =>
       page
-        .locator('.lab-home img')
+        .locator('.shot img')
         .evaluate((img: HTMLImageElement) => img.naturalWidth),
     )
     .toBe(1440);
-  await expect(
-    page.getByRole('heading', { level: 1, name: 'Lab Word' }),
-  ).toBeVisible();
-  await expect(page.locator('.VPNavBarMenuLink')).toHaveCount(4);
-  await page.locator('.VPNavBarMenuLink', { hasText: '文档' }).click();
+  await expect(page.locator('.hero-head h1')).toBeVisible();
+  await page.locator('#lang').click();
+  await expect(page).toHaveURL(/\/ui16-custom-base\/en\/$/);
+  await page.locator('#lang').click();
+  await page
+    .locator('.hero-meta .cta')
+    .getByRole('link', { name: '阅读文档' })
+    .click();
   await expect(page).toHaveURL(/\/ui16-custom-base\/docs\/$/);
   await expect(
     page.getByRole('heading', { name: 'Lab Word 项目文档', level: 1 }),

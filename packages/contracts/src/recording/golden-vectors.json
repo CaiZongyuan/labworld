@@ -1,0 +1,59 @@
+{
+  "source_header": {
+    "source_kind": "synthetic",
+    "implementation": {
+      "name": "lab-word-synthetic",
+      "version": "1",
+      "sha256": null
+    },
+    "python_version": "3.12.0",
+    "dependencies": [
+      {
+        "name": "websockets",
+        "version": "15.0.1",
+        "sha256": null
+      }
+    ],
+    "capture_policy": {
+      "selection": "all-selected",
+      "sample_hz": 30,
+      "motion_codec": "pose-f32-v1",
+      "first_source_sequence": "1",
+      "first_source_event_sequence": "1"
+    }
+  },
+  "canonical_source_header": "{\"source_kind\":\"synthetic\",\"implementation\":{\"name\":\"lab-word-synthetic\",\"version\":\"1\",\"sha256\":null},\"python_version\":\"3.12.0\",\"dependencies\":[{\"name\":\"websockets\",\"version\":\"15.0.1\",\"sha256\":null}],\"capture_policy\":{\"selection\":\"all-selected\",\"sample_hz\":30,\"motion_codec\":\"pose-f32-v1\",\"first_source_sequence\":\"1\",\"first_source_event_sequence\":\"1\"}}",
+  "source_header_sha256": "sha256:9796028102f4a7e7ef71fe4a624c3fdeaee8e1e6938fa909f828735ab57b607f",
+  "identity": {
+    "recording_id": "12345678-1234-1234-1234-123456789abc",
+    "session_id": "12345678-1234-1234-1234-123456789def",
+    "lease_id": "12345678-1234-1234-1234-123456789012",
+    "epoch": "9007199254740993",
+    "snapshot_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "manifest_sha256": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "scene_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "mapping_revision": 7,
+    "mapping_sha256": "sha256:1294e6b6390f7e7764afccb88908edf22b2a5c0979865363720ae8fc00492498"
+  },
+  "pose_keys": ["saved/body"],
+  "joint_keys": ["saved/joint"],
+  "mapping_sha256": "sha256:1294e6b6390f7e7764afccb88908edf22b2a5c0979865363720ae8fc00492498",
+  "source_prefix_seed": "sha256:868a72559e788b933f63792fcdd4d30431617e1150f765a63878ae4b6eebf2e1",
+  "motion_frame_hex": "4c574d310101000001000000000020000100000000000000000000000000000007000000010000000100000020000000000080c000000040000000410000000000000000000000000000803f0000803e",
+  "frame_packet_hex": "4c5752310101000012345678123412341234123456789abc12345678123412341234123456789def0100000000002000010000000000000060000000000000004ab6d03a9210d8bafbe7f075dae56ad2b23fedefb93fb9ae6c64b00a819abcae010000000000000001000000500000004c574d310101000001000000000020000100000000000000000000000000000007000000010000000100000020000000000080c000000040000000410000000000000000000000000000803f0000803e",
+  "packet_sha256": "sha256:4ab6d03a9210d8bafbe7f075dae56ad2b23fedefb93fb9ae6c64b00a819abcae",
+  "ack": {
+    "type": "recording.ack",
+    "version": 1,
+    "recording_id": "12345678-1234-1234-1234-123456789abc",
+    "session_id": "12345678-1234-1234-1234-123456789def",
+    "lease_id": "12345678-1234-1234-1234-123456789012",
+    "epoch": "9007199254740993",
+    "source_packet_sequence": "1",
+    "packet_sha256": "sha256:4ab6d03a9210d8bafbe7f075dae56ad2b23fedefb93fb9ae6c64b00a819abcae",
+    "source_prefix_sha256": "sha256:0b489aa0239d5190a65fd3fbd9918f41df9a99f3ed2c1209aac4f830a5c38748",
+    "durable_source_sequence": "1",
+    "durable_source_event_sequence": "0",
+    "source_ended": false
+  }
+}

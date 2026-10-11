@@ -48,6 +48,10 @@ const expectedMigrations = journal.entries.map((entry) => ({
 }));
 
 export class Database {
+  /** An injected use case can preserve its caller's operation category without retaining a DB capability. */
+  get operationKind() {
+    return this.operations.getStore()?.measurement.kind;
+  }
   private client?: MeteredPGlite;
   private directory?: string;
   private tail: Promise<unknown> = Promise.resolve();

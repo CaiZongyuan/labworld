@@ -1,6 +1,7 @@
 import {
   randomUUID,
   randomBytes,
+  createHash,
   createHmac,
   timingSafeEqual,
 } from 'node:crypto';
@@ -8,7 +9,11 @@ import { link, mkdir, open, readFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { and, eq } from 'drizzle-orm';
 import type { FoundationContext } from '../../platform/context.ts';
-import { sql, type DbSession } from '../../platform/db/index.ts';
+import {
+  sql,
+  type DbSession,
+  type DbOperation,
+} from '../../platform/db/index.ts';
 import { utcInstant } from '../../platform/db/instant.ts';
 import { canonicalUuid } from '../../platform/uuid.ts';
 import {
@@ -541,6 +546,95 @@ export class FileService {
       .insert(fileReferences)
       .values({ fileId: row.id, ...reference })
       .onConflictDoNothing();
+  }
+  /** Trusted runtime publication. This capability is never exposed by an HTTP route. */
+  async publishManaged<T>(
+    operation: DbOperation,
+    creatorId: string,
+    input: { file_name: string; content_type: string; bytes: Uint8Array },
+    reference: FileReference,
+    publish: (tx: DbSession, file: FileInfo) => Promise<T>,
+  ): Promise<T> {
+    const sha256 = createHash('sha256').update(input.bytes).digest('hex');
+    const normalized = normalizeUpload(
+      { ...input, size: input.bytes.byteLength, sha256 },
+      this.policy,
+    );
+    if (!normalized || normalized === 'too_large')
+      throw failure(413, 'too_large', 'Managed content exceeds file policy');
+    if (!canonicalUuid(creatorId))
+      throw failure(400, 'invalid_input', 'Use an existing creator identity');
+    const content = input.bytes;
+    const staged = await this.blobs.stage(
+      (async function* () {
+        yield content;
+      })(),
+      this.policy.maxBytes,
+    );
+    try {
+      return await this.blobs.withHash(sha256, async () => {
+        const key = await this.blobs.adopt(staged.key, sha256);
+        return this.context.db.transaction(operation, async (tx) => {
+          const id = randomUUID(),
+            candidateId = randomUUID();
+          const now = this.context.clock.now();
+          await tx.insert(files).values({
+            id,
+            createdBy: creatorId,
+            fileName: normalized.file_name,
+            contentType: normalized.content_type,
+            declaredSize: normalized.size,
+            sha256: Buffer.from(sha256, 'hex'),
+            state: 'pending_upload',
+            stagingKey: staged.key,
+            expiresAt: now,
+          });
+          await tx.insert(fileCandidates).values({
+            id: candidateId,
+            fileId: id,
+            objectKey: `candidates/${candidateId}`,
+            state: 'adopted',
+          });
+          await tx
+            .update(files)
+            .set({
+              state: 'ready',
+              readyKey: key,
+              readyCandidateId: candidateId,
+              actualSize: normalized.size,
+              updatedAt: now,
+            })
+            .where(eq(files.id, id));
+          await this.pin(tx, id, reference);
+          return publish(tx, {
+            id,
+            file_name: normalized.file_name,
+            content_type: normalized.content_type,
+            size: normalized.size,
+            sha256,
+            created_at: utcInstant(now),
+            previewable: false,
+          });
+        });
+      });
+    } finally {
+      await this.blobs.remove(staged.key);
+    }
+  }
+  /** Internal verified byte read; public callers must authorize through their owning use case. */
+  async managedBytes(id: string, operation: DbOperation) {
+    const row = await this.context.db.read(operation, (tx) =>
+      this.load(tx, id),
+    );
+    if (row.state !== 'ready')
+      throw failure(404, 'not_found', 'Ready file not found');
+    const actual = await this.blobs.inspect(row.readyKey!, row.actualSize!);
+    if (
+      actual.sha256 !== row.sha256.toString('hex') ||
+      actual.size !== row.actualSize
+    )
+      throw unavailable();
+    return this.blobs.read(row.readyKey!);
   }
   async release(tx: DbSession, id: string, reference: FileReference) {
     await tx

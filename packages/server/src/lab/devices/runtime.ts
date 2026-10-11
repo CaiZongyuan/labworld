@@ -1,6 +1,15 @@
 import { randomUUID } from 'node:crypto';
 import type { FoundationContext } from '../../platform/context.ts';
-import { sql, type DbSession } from '../../platform/db/index.ts';
+import {
+  sql,
+  type DbOperation,
+  type DbSession,
+} from '../../platform/db/index.ts';
+import { utcInstant } from '../../platform/db/instant.ts';
+import type {
+  RecordingCapture,
+  RecordingCaptureScope,
+} from '../recordings/capture.ts';
 import { addSeconds, instantNanoseconds } from '../time.ts';
 import {
   object,
@@ -18,6 +27,7 @@ type Source = {
   program_id: string;
   sequence: number;
   configuration: Record<string, unknown>;
+  next_sample_at: string | null;
 };
 type State = {
   values: Record<string, unknown>;
@@ -27,6 +37,8 @@ type State = {
 export class DeviceRuntime {
   readonly context: FoundationContext;
   readonly log: (event: Record<string, unknown>) => void;
+  readonly capture?: RecordingCapture;
+  private executionGate?: () => Promise<void>;
   generation = 0;
   ready = false;
   private stopped = false;
@@ -36,11 +48,16 @@ export class DeviceRuntime {
   constructor(
     context: FoundationContext,
     log: (event: Record<string, unknown>) => void = () => {},
+    capture?: RecordingCapture,
+    executionGate?: () => Promise<void>,
   ) {
     this.context = context;
     this.log = log;
+    this.capture = capture;
+    this.executionGate = executionGate;
   }
   async initialize() {
+    if (this.capture?.hasActiveRecordings()) return this.initializeCaptured();
     const generation = await this.context.db.transaction(
       { id: 'devices:recover:' + randomUUID(), kind: 'startup' },
       async (tx) => {
@@ -76,6 +93,55 @@ export class DeviceRuntime {
     this.generation = generation;
     this.ready = !this.stopped;
   }
+  private async initializeCaptured() {
+    const operation = {
+      id: 'devices:recover:' + randomUUID(),
+      kind: 'startup' as const,
+    };
+    // Inventory every unfinished identity before any status changes. Completed
+    // results remain untouched, including when their Run is still running.
+    const recovery = await this.context.db.transaction(
+      operation,
+      async (tx) => {
+        const entities = await tx.execute<{ entity_id: string }>(
+          sql`select entity_id::text from lab.program_runs where status='running' union select entity_id::text from lab.device_tasks where status in('pending','preparing','running','decelerating') union select entity_id::text from lab.device_commands where status in('accepted','executing')`,
+        );
+        const generation = await tx.execute<{ generation: number }>(
+          sql`update lab.runtime_generation set generation=generation+1 where singleton returning generation`,
+        );
+        return {
+          entities: entities.rows,
+          generation: Number(generation.rows[0].generation),
+        };
+      },
+    );
+    for (const { entity_id } of recovery.entities)
+      await this.transaction(operation, { entity: entity_id }, async (tx) => {
+        await tx.execute(
+          sql`update lab.program_runs set status='interrupted',ended_at=now() where entity_id=${entity_id}::uuid and status='running'`,
+        );
+        await tx.execute(
+          sql`update lab.device_task_results set status='interrupted',reason='runtime_interrupted',ended_at=now() where task_id in(select id from lab.device_tasks where entity_id=${entity_id}::uuid and status in('pending','preparing','running','decelerating'))`,
+        );
+        await tx.execute(
+          sql`update lab.device_tasks set status='interrupted',ended_at=now() where entity_id=${entity_id}::uuid and status in('pending','preparing','running','decelerating')`,
+        );
+        await tx.execute(
+          sql`update lab.device_commands set status='unknown',result=jsonb_build_object('reason','runtime_interrupted'),updated_at=now() where entity_id=${entity_id}::uuid and status in('accepted','executing')`,
+        );
+      });
+    this.generation = recovery.generation;
+    this.ready = !this.stopped;
+  }
+  private transaction<T>(
+    operation: DbOperation,
+    scope: RecordingCaptureScope,
+    work: (tx: DbSession) => Promise<T>,
+  ) {
+    return this.capture
+      ? this.capture.transaction(operation, scope, work)
+      : this.context.db.transaction(operation, work);
+  }
   start() {
     if (!this.ready || this.timer || this.stopped) return;
     const loop = async () => {
@@ -92,19 +158,25 @@ export class DeviceRuntime {
     if (this.stopped || !this.ready) return;
     if (this.current) return this.current;
     const id = 'devices:tick:' + randomUUID();
-    this.current = this.context.db
-      .operation({ id, kind: 'background' }, async () => {
+    const execute = () =>
+      this.context.db.operation({ id, kind: 'background' }, async () => {
         await this.processNext(id);
         await this.sampleDue(id);
         await this.expire(id);
-      })
-      .catch((error) => {
-        this.log({
-          event: 'devices.tick_failed',
-          message:
-            error instanceof Error ? error.message : 'Device tick failed',
-        });
       });
+    // The test entry can hold accepted commands without holding a DB operation.
+    this.current = (
+      this.executionGate
+        ? this.executionGate().then(() => {
+            if (!this.stopped) return execute();
+          })
+        : execute()
+    ).catch((error) => {
+      this.log({
+        event: 'devices.tick_failed',
+        message: error instanceof Error ? error.message : 'Device tick failed',
+      });
+    });
     try {
       await this.current;
     } finally {
@@ -120,7 +192,7 @@ export class DeviceRuntime {
   }
   private async sourceIn(tx: DbSession, run: string) {
     const rows = await tx.execute<Source>(
-      sql`select r.entity_id::text,r.id::text as run_id,r.binding_id::text,b.source,b.program_id,r.sequence,r.configuration from lab.program_runs r join lab.runtime_bindings b on b.id=r.binding_id and b.entity_id=r.entity_id and b.current join lab.runtime_generation g on g.singleton and g.generation=r.generation where r.id=${run}::uuid and r.status='running' and r.generation=${this.generation}`,
+      sql`select r.entity_id::text,r.id::text as run_id,r.binding_id::text,b.source,b.program_id,r.sequence,r.configuration,r.next_sample_at from lab.program_runs r join lab.runtime_bindings b on b.id=r.binding_id and b.entity_id=r.entity_id and b.current join lab.runtime_generation g on g.singleton and g.generation=r.generation where r.id=${run}::uuid and r.status='running' and r.generation=${this.generation}`,
     );
     return rows.rows[0];
   }
@@ -129,7 +201,7 @@ export class DeviceRuntime {
     if (this.stopped || !this.ready) return 'stale_run';
     const id = 'devices:report:' + randomUUID();
     const admitted = this.context.db.operation({ id, kind: 'background' }, () =>
-      this.context.db.transaction({ id, kind: 'background' }, async (tx) => {
+      this.transaction({ id, kind: 'background' }, { run }, async (tx) => {
         const source = await this.sourceIn(tx, run);
         if (!source || source.binding_id !== binding) return 'stale_run';
         if (report.sequence <= Number(source.sequence)) return 'out_of_order';
@@ -159,23 +231,26 @@ export class DeviceRuntime {
     }
   }
   private async processNext(id: string) {
-    const command = await this.context.db.transaction(
-      { id, kind: 'background' },
-      async (tx) => {
-        const rows = await tx.execute<{ id: string; run_id: string }>(
-          sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation where c.status='accepted' and r.status='running' and r.generation=${this.generation} order by c.created_at,c.id limit 1`,
+    const command = this.capture?.hasActiveRecordings()
+      ? await this.claimCaptured(id)
+      : await this.context.db.transaction(
+          { id, kind: 'background' },
+          async (tx) => {
+            const rows = await tx.execute<{ id: string; run_id: string }>(
+              sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation where c.status='accepted' and r.status='running' and r.generation=${this.generation} order by c.created_at,c.id limit 1`,
+            );
+            if (!rows.rows[0]) return undefined;
+            await tx.execute(
+              sql`update lab.device_commands set status='executing',updated_at=now() where id=${rows.rows[0].id}::uuid`,
+            );
+            return rows.rows[0];
+          },
         );
-        if (!rows.rows[0]) return undefined;
-        await tx.execute(
-          sql`update lab.device_commands set status='executing',updated_at=now() where id=${rows.rows[0].id}::uuid`,
-        );
-        return rows.rows[0];
-      },
-    );
     if (!command) return;
     try {
-      await this.context.db.transaction(
+      await this.transaction(
         { id, kind: 'background' },
+        { run: command.run_id },
         async (tx) => {
           const source = await this.sourceIn(tx, command.run_id);
           if (!source) return;
@@ -227,8 +302,9 @@ export class DeviceRuntime {
         },
       );
     } catch (error) {
-      await this.context.db.transaction(
+      await this.transaction(
         { id, kind: 'background' },
+        { run: command.run_id },
         async (tx) => {
           const uncertain = await tx.execute<{ task_id: string | null }>(
             sql`update lab.device_commands set status='unknown',result=jsonb_build_object('reason','execution_uncertain'),updated_at=now() where id=${command.id}::uuid and status='executing' returning task_id::text`,
@@ -248,6 +324,29 @@ export class DeviceRuntime {
       );
       throw error;
     }
+  }
+  private async claimCaptured(id: string) {
+    const operation = { id, kind: 'background' as const };
+    const selected = await this.context.db.transaction(
+      operation,
+      async (tx) => {
+        const rows = await tx.execute<{ id: string; run_id: string }>(
+          sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation where c.status='accepted' and r.status='running' and r.generation=${this.generation} order by c.created_at,c.id limit 1`,
+        );
+        return rows.rows[0];
+      },
+    );
+    if (!selected) return undefined;
+    return this.transaction(operation, { run: selected.run_id }, async (tx) => {
+      const rows = await tx.execute<{ id: string; run_id: string }>(
+        sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation where c.id=${selected.id}::uuid and c.status='accepted' and r.status='running' and r.generation=${this.generation}`,
+      );
+      if (!rows.rows[0]) return undefined;
+      await tx.execute(
+        sql`update lab.device_commands set status='executing',updated_at=now() where id=${rows.rows[0].id}::uuid`,
+      );
+      return rows.rows[0];
+    });
   }
   private async observeIn(
     tx: DbSession,
@@ -333,6 +432,7 @@ export class DeviceRuntime {
     return true;
   }
   private async sampleDue(id: string) {
+    if (this.capture?.hasActiveRecordings()) return this.sampleDueCaptured(id);
     const now = this.context.clock.now();
     await this.context.db.transaction(
       { id, kind: 'background' },
@@ -343,33 +443,58 @@ export class DeviceRuntime {
         for (const run of due.rows) {
           const source = await this.sourceIn(tx, run.id);
           if (!source) continue;
-          if (source.program_id === 'centrifuge.v1') {
-            await this.sampleCentrifuge(tx, source, now);
-            await tx.execute(
-              sql`update lab.program_runs set next_sample_at=${addSeconds(now, 1)}::timestamptz where id=${source.run_id}::uuid`,
-            );
-            continue;
-          }
-          const sequence = Number(source.sequence) + 1,
-            baseline = Number(source.configuration.baseline_temperature ?? 22);
-          const values = {
-            temperature:
-              Math.round((baseline + Math.sin(sequence * 0.2) * 0.5) * 10) / 10,
-          };
-          if (
-            !(await this.observeIn(
-              tx,
-              source,
-              { sequence, values, observed_at: now, quality: 'good' },
-              now,
-            ))
-          )
-            continue;
-          await tx.execute(
-            sql`update lab.program_runs set next_sample_at=${addSeconds(now, 1)}::timestamptz where id=${source.run_id}::uuid`,
-          );
+          await this.sampleRunIn(tx, source, now);
         }
       },
+    );
+  }
+  private async sampleDueCaptured(id: string) {
+    const operation = { id, kind: 'background' as const },
+      selectedAt = this.context.clock.now();
+    const due = await this.context.db.transaction(operation, (tx) =>
+      tx.execute<{ id: string }>(
+        sql`select r.id::text from lab.program_runs r join lab.runtime_bindings b on b.id=r.binding_id and b.current join lab.runtime_generation g on g.singleton and g.generation=r.generation where r.status='running' and r.generation=${this.generation} and b.program_id in('sensor.v1','centrifuge.v1') and (r.next_sample_at is null or r.next_sample_at<=${selectedAt}::timestamptz) order by r.id`,
+      ),
+    );
+    for (const run of due.rows)
+      await this.transaction(operation, { run: run.id }, async (tx) => {
+        const source = await this.sourceIn(tx, run.id),
+          now = this.context.clock.now();
+        if (
+          !source ||
+          !['sensor.v1', 'centrifuge.v1'].includes(source.program_id) ||
+          (source.next_sample_at !== null &&
+            instantNanoseconds(utcInstant(source.next_sample_at)) >
+              instantNanoseconds(now))
+        )
+          return;
+        // Read the real clock for each admitted sample. File waits do not pause
+        // ordinary Task elapsed time or generate a burst of catch-up samples.
+        await this.sampleRunIn(tx, source, now);
+      });
+  }
+  private async sampleRunIn(tx: DbSession, source: Source, now: string) {
+    if (source.program_id === 'centrifuge.v1') {
+      await this.sampleCentrifuge(tx, source, now);
+    } else {
+      const sequence = Number(source.sequence) + 1,
+        baseline = Number(source.configuration.baseline_temperature ?? 22),
+        values = {
+          temperature:
+            Math.round((baseline + Math.sin(sequence * 0.2) * 0.5) * 10) / 10,
+        };
+      if (
+        !(await this.observeIn(
+          tx,
+          source,
+          { sequence, values, observed_at: now, quality: 'good' },
+          now,
+        ))
+      )
+        return;
+    }
+    await tx.execute(
+      sql`update lab.program_runs set next_sample_at=${addSeconds(now, 1)}::timestamptz where id=${source.run_id}::uuid`,
     );
   }
 

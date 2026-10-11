@@ -1,5 +1,6 @@
 import DefaultTheme from 'vitepress/theme';
 import DocsLayout from './DocsLayout.vue';
+import LandingPage from './LandingPage.vue';
 import './custom.css';
 
 // The documentation site shares the application's neutral visual: a
@@ -11,4 +12,7 @@ import './custom.css';
 export default {
   extends: DefaultTheme,
   Layout: DocsLayout,
+  enhanceApp({ app }) {
+    app.component('LandingPage', LandingPage);
+  },
 };

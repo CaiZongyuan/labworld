@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sessionApiParts } from '../../scripts/lib/session-api.ts';
+import { recordingApiParts } from '../../scripts/lib/recording-api.ts';
 import { motionApiParts } from '../../scripts/lib/motion-api.ts';
 import { guideProgressApiParts } from '../../scripts/lib/guide-progress-api.ts';
 import { semanticDifferences } from '../../scripts/lib/contract-openapi.ts';
@@ -19,7 +20,7 @@ const sessionAddition = JSON.parse(
 );
 const path = '/api/v1/lab/guides/{guide_id}/{guide_version}/progress';
 function differences(document) {
-  const sessions = sessionApiParts(document);
+  const sessions = sessionApiParts(recordingApiParts(document).existing);
   const parts = guideProgressApiParts(
     motionApiParts(sessions.existing).existing,
   );

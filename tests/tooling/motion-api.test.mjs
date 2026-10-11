@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { sessionApiParts } from '../../scripts/lib/session-api.ts';
+import { recordingApiParts } from '../../scripts/lib/recording-api.ts';
 import { motionApiParts } from '../../scripts/lib/motion-api.ts';
 import { guideProgressApiParts } from '../../scripts/lib/guide-progress-api.ts';
 import { semanticDifferences } from '../../scripts/lib/contract-openapi.ts';
@@ -13,7 +14,7 @@ const progressBaseline = read('tests/contract/guide-progress-api.json');
 const sessionBaseline = read('tests/contract/session-api.json');
 const path = '/api/v1/lab/labs/{lab_id}/motion-fixture';
 function differences(document) {
-  const sessions = sessionApiParts(document);
+  const sessions = sessionApiParts(recordingApiParts(document).existing);
   const motion = motionApiParts(sessions.existing);
   const progress = guideProgressApiParts(motion.existing);
   return [

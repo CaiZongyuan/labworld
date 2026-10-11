@@ -1,13 +1,21 @@
 <script setup lang="ts">
 import DefaultTheme from 'vitepress/theme';
+import { Content, useData } from 'vitepress';
 import DocsLocaleSwitch from './DocsLocaleSwitch.vue';
 import DocsAppearanceSwitch from './DocsAppearanceSwitch.vue';
 
 const { Layout } = DefaultTheme;
+const { page, lang } = useData();
 </script>
 
 <template>
-  <Layout>
+  <Content
+    v-if="
+      page.relativePath === 'index.md' || page.relativePath === 'en/index.md'
+    "
+    :key="lang"
+  />
+  <Layout v-else>
     <template #nav-bar-content-before>
       <DocsLocaleSwitch class="docs-locale-nav" />
     </template>

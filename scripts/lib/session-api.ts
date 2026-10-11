@@ -58,6 +58,16 @@ export function sessionApiParts(document: Json) {
   }
   existing.paths = paths;
   addition.paths = addedPaths;
+  // #72 owns only this optional extension. Required-field or other admission
+  // changes remain visible against the immutable #71 baseline.
+  const schemas = object(object(addition.components).schemas);
+  const admission = object(schemas.PublisherAdmission);
+  if (Array.isArray(admission.allOf)) {
+    const fields = admission.allOf.find(
+      (part) => object(part).type === 'object',
+    );
+    delete object(object(fields).properties).recording;
+  }
   return {
     existing: retainedOpenApi(existing),
     addition: retainedOpenApi(addition),

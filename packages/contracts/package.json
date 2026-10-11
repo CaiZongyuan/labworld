@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/generated/types.gen.ts",
     "./lab-representations": "./src/lab-representations.ts",
-    "./motion": "./src/motion/index.ts"
+    "./motion": "./src/motion/index.ts",
+    "./recording": "./src/recording/index.ts"
   }
 }

@@ -147,6 +147,30 @@ export const PublisherAdmission = SessionMotionTicket.extend({
   lease_id: z.string().uuid(),
   epoch: z.string(),
   bootstrap: PublisherBootstrap,
+  recording: z
+    .object({
+      recording_id: z.string().uuid(),
+      session_id: z.string().uuid(),
+      lease_id: z.string().uuid(),
+      epoch: z.string(),
+      snapshot_hash: z.string(),
+      manifest_sha256: z.string(),
+      scene_hash: z.string(),
+      mapping_revision: z.number().int(),
+      mapping_sha256: z.string(),
+      websocket_path: z.string(),
+      ticket: z.string(),
+      expires_in_seconds: z.literal(30),
+      capture_policy: z.object({
+        selection: z.literal('all-selected'),
+        sample_hz: z.literal(30),
+        motion_codec: z.literal('pose-f32-v1'),
+        first_source_sequence: z.literal('1'),
+        first_source_event_sequence: z.literal('1'),
+      }),
+      limits: z.record(z.string(), z.number().int()),
+    })
+    .optional(),
 }).openapi('PublisherAdmission');
 export const SimulationSessionEvent = z
   .object({ type: z.literal('session'), session: SimulationSession })

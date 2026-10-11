@@ -1,9 +1,33 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { Database } from '../../packages/server/src/platform/db/index.ts';
 import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
+
+// Approved #72 Recording append: schema 4. The c80 Session baseline's first
+// three migration identities remain immutable; these expectations are literals,
+// independent of the running build's schemaVersion calculation.
+const approvedHistory = [
+  {
+    hash: '1385b5d42f0f497877192ba56d953fc1864948a165946061ff15adaad3c92e53',
+    created_at: '1791273889002',
+  },
+  {
+    hash: '928c1425e0f1cbd82cd7224c66cc5d196a9d59d1497691c04186d1401f5d6034',
+    created_at: '1791436317560',
+  },
+  {
+    hash: '598fc65ec18fc2054c56c73c00c85b202c7082443df80f3cb3bb404735e70495',
+    created_at: '1791665433443',
+  },
+  {
+    hash: '63c83437ec7487eb4797a902288fae41f007dbf3fe4be7ec03f2698790129e7c',
+    created_at: '1791681569129',
+  },
+];
 
 test(
   'the immutable baseline and approved append migrate once and preserve identity and applied history across startup and reopening',
@@ -46,6 +70,35 @@ test(
       return rows;
     }
     try {
+      const journal = JSON.parse(
+        await readFile(
+          new URL(
+            '../../packages/server/migrations/meta/_journal.json',
+            import.meta.url,
+          ),
+          'utf8',
+        ),
+      );
+      assert.deepEqual(journal.entries.at(-1), {
+        idx: 3,
+        version: '7',
+        when: 1791681569129,
+        tag: '0003_reliable_recording',
+        breakpoints: true,
+      });
+      assert.equal(
+        createHash('sha256')
+          .update(
+            await readFile(
+              new URL(
+                '../../packages/server/migrations/0003_reliable_recording.sql',
+                import.meta.url,
+              ),
+            ),
+          )
+          .digest('hex'),
+        approvedHistory[3].hash,
+      );
       target.entry = 'apps/server/src/cli.ts';
       target.args = ['migrate'];
       await target.spawn();
@@ -59,7 +112,7 @@ test(
       );
       assert.deepEqual(JSON.parse(target.logs.trim()), {
         status: 'migrated',
-        schemaVersion: 3,
+        schemaVersion: 4,
       });
       await target.stop();
       target.entry = 'apps/server/src/main.ts';
@@ -71,10 +124,11 @@ test(
         'GET',
         '/api/v1/system/status',
       );
-      assert.equal(status.schema_version, 3);
+      assert.equal(status.schema_version, 4);
       await target.stop();
       const first = await history('baseline.first-history');
-      assert.equal(first.length, 3);
+      assert.equal(first.length, 4);
+      assert.deepEqual(first, approvedHistory);
       await target.start();
       assert.equal(
         (await new CoreHttp(target.url).login('baseline@example.test')).user.id,
