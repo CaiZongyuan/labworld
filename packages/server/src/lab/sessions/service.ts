@@ -45,9 +45,26 @@ import {
 } from './store.ts';
 export type SessionOptions = {
   enabled: boolean;
+  managedSynthetic?: boolean;
   graceMillis: number;
   ackMillis: number;
 };
+export type SessionViewerAdmission = {
+  bind: (close: () => void) => { leave: () => void };
+};
+type ViewerAccess = {
+  actor: AccessActor;
+  session: string;
+  close: () => void;
+  validUntil: number;
+};
+export const sessionAccessBudgets = Object.freeze({
+  viewersPerAccount: 8,
+  ticketsPerAccount: 16,
+  ticketsPerSession: 32,
+  recheckMillis: 1000,
+  verifiedMillis: 4000,
+});
 export type SourceStart = {
   session: Session;
   ticket: string;
@@ -81,6 +98,7 @@ type Live = {
   fault?: string;
   recordingFailed?: boolean;
   initial: boolean;
+  authorityValidUntil: number;
 };
 type Ticket = {
   session: Session;
@@ -105,11 +123,13 @@ export class SimulationSessions {
   private live = new Map<string, Live>();
   private tickets = new Map<string, Ticket>();
   private subscribers = new Set<Subscriber>();
+  private viewers = new Set<ViewerAccess>();
   private timer?: ReturnType<typeof setInterval>;
   private current?: Promise<void>;
   private stopping = false;
   private stopped = false;
   private checkedSubscribersAt = 0;
+  private checkedAccessAt = 0;
   private resource = new AsyncResource('simulation-session-owner');
   private launcher?: (input: SourceStart) => Promise<OwnedSource>;
   private recording?: RecordingService;
@@ -352,7 +372,8 @@ export class SimulationSessions {
         return {
           data,
           active_session_id: data.find((s) => !s.ended_at)?.id ?? null,
-          development_synthetic_enabled: this.options.enabled,
+          development_synthetic_enabled:
+            this.options.managedSynthetic ?? this.options.enabled,
         };
       },
     );
@@ -397,6 +418,15 @@ export class SimulationSessions {
           true,
         );
         this.enabled();
+        if (
+          !(this.options.managedSynthetic ?? this.options.enabled) &&
+          !input.machine_id
+        )
+          throw sessionFailure(
+            'machine_required',
+            'External Sessions require a provisioned machine',
+            400,
+          );
         const installation = await installationIn(
             tx,
             lab,
@@ -475,6 +505,7 @@ export class SimulationSessions {
         connected: false,
         owned: !!credential,
         initial: false,
+        authorityValidUntil: now + sessionAccessBudgets.verifiedMillis,
       };
     this.live.set(session.id, live);
     if (this.stopping) {
@@ -555,6 +586,10 @@ export class SimulationSessions {
     }
     return live.session;
   }
+  private expireTickets() {
+    for (const [key, ticket] of this.tickets)
+      if (ticket.expires <= performance.now()) this.tickets.delete(key);
+  }
   private issueTicket(record: Omit<Ticket, 'expires'>) {
     if (this.stopping)
       throw sessionFailure(
@@ -562,9 +597,17 @@ export class SimulationSessions {
         'Simulation Sessions are stopping',
         503,
       );
-    for (const [key, ticket] of this.tickets)
-      if (ticket.expires <= performance.now()) this.tickets.delete(key);
-    if (this.tickets.size + (this.recording?.ticketCount ?? 0) >= 256)
+    this.expireTickets();
+    const pending = [...this.tickets.values()];
+    if (
+      this.tickets.size + (this.recording?.ticketCount ?? 0) >= 256 ||
+      pending.filter((ticket) => ticket.session.id === record.session.id)
+        .length >= sessionAccessBudgets.ticketsPerSession ||
+      (record.actor &&
+        pending.filter(
+          (ticket) => ticket.actor?.user.id === record.actor!.user.id,
+        ).length >= sessionAccessBudgets.ticketsPerAccount)
+    )
       throw sessionFailure(
         'session_ticket_capacity',
         'Motion admission capacity reached',
@@ -604,6 +647,12 @@ export class SimulationSessions {
           throw sessionFailure(
             'session_closed',
             'Simulation Session has ended',
+          );
+        if (session.lease_id === null || session.epoch === null)
+          throw sessionFailure(
+            'publisher_preparing',
+            'The source has not obtained a Publisher lease yet',
+            503,
           );
         return { actor, session };
       },
@@ -677,6 +726,7 @@ export class SimulationSessions {
     const live = this.live.get(id);
     if (live && !live.session.ended_at) live.session = session;
     this.broadcast(session);
+    this.expireTickets();
     const recording = this.recording
       ? await this.recording.bootstrap(session, this.tickets.size)
       : undefined;
@@ -699,6 +749,49 @@ export class SimulationSessions {
   }
   ownsTicket(ticket: string) {
     return ticket.startsWith('s_');
+  }
+  private viewerAdmission(
+    actor: AccessActor,
+    session: string,
+  ): SessionViewerAdmission {
+    let used = false;
+    return {
+      bind: (close) => {
+        if (used || this.stopping)
+          throw sessionFailure(
+            'publisher_unauthorized',
+            'Motion admission failed',
+            403,
+          );
+        used = true;
+        if (
+          [...this.viewers].filter(
+            (viewer) => viewer.actor.user.id === actor.user.id,
+          ).length >= sessionAccessBudgets.viewersPerAccount
+        )
+          throw sessionFailure(
+            'session_viewer_capacity',
+            'Viewer account capacity reached',
+            429,
+          );
+        const viewer = {
+          actor,
+          session,
+          close,
+          validUntil: performance.now() + sessionAccessBudgets.verifiedMillis,
+        };
+        this.viewers.add(viewer);
+        return {
+          leave: () => {
+            this.viewers.delete(viewer);
+          },
+        };
+      },
+    };
+  }
+  private closeViewer(viewer: ViewerAccess) {
+    if (!this.viewers.delete(viewer)) return;
+    viewer.close();
   }
   async consume(ticket: string, id: string, role: 'viewer' | 'publisher') {
     const record = this.tickets.get(ticket);
@@ -732,6 +825,12 @@ export class SimulationSessions {
             'session_closed',
             'Simulation Session has ended',
             403,
+          );
+        if (current.lease_id === null || current.epoch === null)
+          throw sessionFailure(
+            'publisher_preparing',
+            'The source has not obtained a Publisher lease yet',
+            503,
           );
         if (role === 'publisher') {
           const valid = await tx.execute(
@@ -775,9 +874,10 @@ export class SimulationSessions {
     return {
       metadata,
       rate: record.rate,
+      viewer: record.actor ? this.viewerAdmission(record.actor, id) : undefined,
       authority: {
         lease_id: session.lease_id,
-        epoch: session.epoch ?? '0',
+        epoch: session.epoch!,
         state:
           session.status === 'paused' || session.status === 'resuming'
             ? ('paused' as const)
@@ -1369,6 +1469,8 @@ export class SimulationSessions {
     }
   }
   private async release(live: Live) {
+    for (const viewer of this.viewers)
+      if (viewer.session === live.session.id) this.closeViewer(viewer);
     this.fenceMotion(live.session.id);
     live.transport?.close(1000, 'session_closed');
     live.transport = undefined;
@@ -1507,9 +1609,88 @@ export class SimulationSessions {
   }
   async tick() {
     if (this.stopping) return;
+    // The finite authority deadline also runs while a serial DB read is queued.
+    // Late results cannot renew a removed registration.
+    for (const viewer of this.viewers)
+      if (viewer.validUntil <= performance.now()) this.closeViewer(viewer);
+    for (const live of this.live.values())
+      if (
+        !live.session.ended_at &&
+        live.authorityValidUntil <= performance.now() &&
+        live.fault !== 'machine_revoked' &&
+        live.fault !== 'machine_expired' &&
+        live.fault !== 'machine_auth_timeout'
+      ) {
+        this.invalidateMachine(live, 'machine_auth_timeout');
+      }
     if (this.current) return this.current;
     this.current = this.resource
       .runInAsyncScope(async () => {
+        if (
+          performance.now() - this.checkedAccessAt >=
+          sessionAccessBudgets.recheckMillis
+        ) {
+          this.checkedAccessAt = performance.now();
+          this.expireTickets();
+          for (const viewer of this.viewers) {
+            try {
+              await this.world.context.db.read(
+                {
+                  id: 'sessions:motion-access:' + randomUUID(),
+                  kind: 'background',
+                },
+                (tx) =>
+                  revalidateIn(
+                    tx,
+                    this.world.context,
+                    this.world.policy,
+                    viewer.actor,
+                    'lab:full',
+                  ),
+              );
+              if (
+                this.viewers.has(viewer) &&
+                viewer.validUntil > performance.now()
+              )
+                viewer.validUntil =
+                  performance.now() + sessionAccessBudgets.verifiedMillis;
+              else this.closeViewer(viewer);
+            } catch {
+              this.closeViewer(viewer);
+            }
+          }
+          for (const live of this.live.values()) {
+            if (live.session.ended_at) continue;
+            const validity = await this.world.context.db.read(
+              {
+                id: 'sessions:machine-access:' + randomUUID(),
+                kind: 'background',
+              },
+              (tx) =>
+                tx.execute<{
+                  revoked: boolean;
+                  expired: boolean;
+                  lease_valid: boolean;
+                }>(
+                  sql`select revoked_at is not null as revoked,expires_at<=${this.world.context.clock.now()}::timestamptz as expired,(${live.session.lease_id === null} or exists(select 1 from lab.publisher_leases where id=${live.session.lease_id}::uuid and machine_id=${live.session.machine_id}::uuid and session_id=${live.session.id}::uuid and ended_at is null)) as lease_valid from labos_threejs_core.machines where id=${live.session.machine_id}::uuid`,
+                ),
+            );
+            const valid = validity.rows[0];
+            if (
+              !valid ||
+              valid.revoked ||
+              valid.expired ||
+              !valid.lease_valid
+            ) {
+              this.invalidateMachine(
+                live,
+                valid?.expired ? 'machine_expired' : 'machine_revoked',
+              );
+            } else if (live.authorityValidUntil > performance.now())
+              live.authorityValidUntil =
+                performance.now() + sessionAccessBudgets.verifiedMillis;
+          }
+        }
         if (performance.now() - this.checkedSubscribersAt >= 5000) {
           this.checkedSubscribersAt = performance.now();
           for (const subscriber of this.subscribers)
@@ -1540,9 +1721,13 @@ export class SimulationSessions {
           if (live.recordingFailed && live.fault) {
             target = 'interrupted';
             reason = live.fault;
-          } else if (live.fault === 'machine_revoked') {
+          } else if (
+            live.fault === 'machine_revoked' ||
+            live.fault === 'machine_expired' ||
+            live.fault === 'machine_auth_timeout'
+          ) {
             target = 'interrupted';
-            reason = 'machine_revoked';
+            reason = live.fault;
           } else if (transition?.ack) {
             target =
               transition.control.action === 'pause'
@@ -1640,12 +1825,22 @@ export class SimulationSessions {
       live.fault = 'source_exited';
     }
   }
+  private invalidateMachine(
+    live: Live,
+    reason: 'machine_revoked' | 'machine_expired' | 'machine_auth_timeout',
+  ) {
+    live.fault = reason;
+    live.pong = 0;
+    // Preserve the authority failure before asynchronous socket cleanup can
+    // report a secondary disconnect. Both source roles are fenced together.
+    this.recording?.faultSession(live.session.id, reason);
+    this.fenceMotion(live.session.id);
+    live.transport?.close(1008, 'unauthorized');
+  }
   async machineRevoked(id: string) {
     for (const live of this.live.values())
       if (live.session.machine_id === id && !live.session.ended_at) {
-        live.fault = 'machine_revoked';
-        live.pong = 0;
-        live.transport?.close(1008, 'unauthorized');
+        this.invalidateMachine(live, 'machine_revoked');
       }
     await this.resource.runInAsyncScope(() => this.tick());
   }
@@ -1676,6 +1871,7 @@ export class SimulationSessions {
         await this.release(live);
       }
     this.tickets.clear();
+    for (const viewer of this.viewers) this.closeViewer(viewer);
     for (const subscriber of this.subscribers) this.endSubscriber(subscriber);
     this.resource.emitDestroy();
   }
@@ -1683,6 +1879,7 @@ export class SimulationSessions {
     this.stopping = true;
     clearInterval(this.timer);
     this.tickets.clear();
+    for (const viewer of this.viewers) this.closeViewer(viewer);
     for (const live of this.live.values()) {
       this.fenceMotion(live.session.id);
       live.transport?.close(1001, 'server_shutdown');

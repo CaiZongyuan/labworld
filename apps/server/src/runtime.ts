@@ -4,6 +4,9 @@ import { MachineService } from '../../../packages/server/src/core/machines/use-c
 import { machineRoutes } from '../../../packages/server/src/core/machines/routes.ts';
 import { SyntheticSources } from './synthetic-source.ts';
 import { serve } from '@hono/node-server';
+import { createServer as createHttpsServer } from 'node:https';
+import { createSecureContext } from 'node:tls';
+import { secureTransport, transportLog } from './transport.ts';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Server } from 'node:http';
 import { MotionWebSockets } from './motion-ws.ts';
@@ -66,6 +69,7 @@ export type RuntimeControl = {
   ownStop: (stop: () => Promise<void>) => void;
 };
 export type RuntimeOptions = {
+  clock?: FoundationContext['clock'];
   recordingFaults?: RecordingFaults;
   deviceExecutionGate?: () => Promise<void>;
 };
@@ -77,8 +81,16 @@ export async function run(
   options: RuntimeOptions = {},
 ): Promise<RuntimeControl | undefined> {
   const config = configuration();
+  const tls = config.tls
+    ? {
+        cert: readFileSync(config.tls.cert),
+        key: readFileSync(config.tls.key),
+        minVersion: 'TLSv1.2' as const,
+      }
+    : undefined;
+  if (tls) createSecureContext(tls);
   const log = (entry: Record<string, unknown>) =>
-    console.log(JSON.stringify(entry));
+    console.log(JSON.stringify(transportLog(entry)));
   const lease = await DirectoryLease.acquire(config.directory);
   const db = new Database(lease, (measurement) =>
     log({ event: 'database.operation', ...measurement }),
@@ -188,7 +200,10 @@ export async function run(
       await closing;
       return;
     }
-    const context = { db, clock: { now: () => new Date().toISOString() } };
+    const context = {
+      db,
+      clock: options.clock ?? { now: () => new Date().toISOString() },
+    };
     const prepareCore = async () => {
       const owners: {
         recording?: RecordingService;
@@ -271,6 +286,7 @@ export async function run(
         world,
         {
           enabled: config.syntheticSession,
+          managedSynthetic: config.managedSynthetic,
           graceMillis: config.motionGraceMillis,
           ackMillis: config.motionAckMillis,
         },
@@ -281,7 +297,12 @@ export async function run(
       await sessions.initialize();
       await recording.recoverLegacy();
       recordingRoutes(app, recording);
-      sessionRoutes(app, sessions, (c) => getConnInfo(c).remote.address);
+      sessionRoutes(
+        app,
+        sessions,
+        (c) => getConnInfo(c).remote.address,
+        (c) => secureTransport(c.env?.incoming),
+      );
       machineRoutes(
         app,
         new MachineService(context, config.auth, 'lab:full', (id) =>
@@ -313,14 +334,16 @@ export async function run(
           directory: config.directory,
           python: config.syntheticPython,
           publisher: config.syntheticPublisher,
-          url: `http://${config.hostname === '::1' ? '[::1]' : config.hostname}:${config.port}`,
+          url: tls
+            ? config.auth.origin
+            : `http://${config.hostname === '::1' ? '[::1]' : config.hostname}:${config.port}`,
           port: config.port,
         },
         (id) => sessions.sourceExited(id),
         log,
       );
       owners.sources = sources;
-      await sources.initialize(config.syntheticSession);
+      await sources.initialize(config.managedSynthetic);
       sessions.configure(
         (input) => sources.launch(input),
         (id) => {
@@ -399,6 +422,7 @@ export async function run(
         },
         hostname: config.hostname,
         port: config.port,
+        ...(tls ? { createServer: createHttpsServer, serverOptions: tls } : {}),
       },
       () =>
         log({

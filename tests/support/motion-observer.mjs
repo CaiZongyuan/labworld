@@ -5,11 +5,17 @@ import { pathToFileURL } from 'node:url';
 import { mkdirSync, writeFileSync, renameSync } from 'node:fs';
 
 const entry = process.argv[1] ?? '';
+const controlledClockEntry = /\/tests\/support\/secure-expiry-server\.ts$/.test(
+  entry,
+);
 if (
-  /\/apps\/server\/src\/main\.(js|ts)$/.test(entry) &&
+  (/\/apps\/server\/src\/main\.(js|ts)$/.test(entry) || controlledClockEntry) &&
   process.env.MOTION_E2E_OBSERVER_DIR
 ) {
-  const root = resolve(dirname(entry), '../../..');
+  const root = resolve(
+    dirname(entry),
+    controlledClockEntry ? '../..' : '../../..',
+  );
   const extension = entry.endsWith('.js') ? 'js' : 'ts';
   const require = createRequire(join(root, 'apps/server/package.json'));
   const { WebSocket, WebSocketServer } = require('ws');
@@ -54,12 +60,19 @@ if (
       const row = {
         id: ++stats.socketCount,
         role: request.url?.split('/').at(-1),
+        scopeId: request.url?.match(
+          /[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}/,
+        )?.[0],
+        encrypted: request.socket.encrypted === true,
         admitted: false,
         remoteAddress: request.socket.remoteAddress,
         remotePort: request.socket.remotePort,
         localAddress: request.socket.localAddress,
         localPort: request.socket.localPort,
         maxBufferBytes: 0,
+        softCrossedAt: null,
+        closeRequestedAt: null,
+        closedAt: null,
         bufferReads: 0,
         sends: 0,
         sentBytes: 0,
@@ -70,6 +83,7 @@ if (
       stats.sockets.push(row);
       ws.once('close', () => {
         row.open = false;
+        row.closedAt = performance.now();
         sockets.delete(ws);
       });
       return callback(ws, ...args);
@@ -88,6 +102,8 @@ if (
       if (row) {
         row.bufferReads++;
         row.maxBufferBytes = Math.max(row.maxBufferBytes, value);
+        if (value > 65536 && row.softCrossedAt === null)
+          row.softCrossedAt = performance.now();
       }
       stats.observerMs += performance.now() - started;
       return value;
@@ -99,7 +115,12 @@ if (
     if (row) {
       if (typeof data === 'string') {
         try {
-          if (JSON.parse(data).type === 'motion.welcome') row.admitted = true;
+          if (
+            ['motion.welcome', 'recording.ready'].includes(
+              JSON.parse(data).type,
+            )
+          )
+            row.admitted = true;
         } catch {
           // Non-JSON traffic is not an authenticated WELCOME.
         }
@@ -115,9 +136,12 @@ if (
   const close = WebSocket.prototype.close;
   WebSocket.prototype.close = function (code, reason, ...args) {
     const row = sockets.get(this);
-    if (row)
+    if (row) {
+      if (row.closeRequestedAt === null)
+        row.closeRequestedAt = performance.now();
       row.closeReason =
         typeof reason === 'string' ? reason : String(reason ?? '');
+    }
     return close.call(this, code, reason, ...args);
   };
   const joinGateway = MotionGateway.prototype.join;

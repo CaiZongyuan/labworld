@@ -172,6 +172,8 @@ export async function subscribeMotion(
         url.toString(),
         {
           open: () =>
+            !settled &&
+            !options.signal.aborted &&
             transport?.send(
               JSON.stringify({
                 type: 'motion.hello',
@@ -179,6 +181,7 @@ export async function subscribeMotion(
                 codec: 'pose-f32-v1',
                 role: 'viewer',
                 session_id: options.sessionId,
+                scene_hash: options.sceneHash,
                 ticket: ticket.ticket,
                 preferred_rate_hz: options.rateHz,
               }),

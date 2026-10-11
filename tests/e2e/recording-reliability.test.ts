@@ -2251,6 +2251,7 @@ if (process.env.RECORDING_E2E_PRESSURE === 'true')
               codec: 'pose-f32-v1',
               role: 'viewer',
               session_id: machine.session.id,
+              scene_hash: machine.session.snapshot.installation.scene_hash,
               ticket: fastTicket.ticket,
               preferred_rate_hz: 30,
             }),
@@ -2267,6 +2268,7 @@ if (process.env.RECORDING_E2E_PRESSURE === 'true')
                 f.target.url.replace(/^http/, 'ws') + ticket.websocket_path,
                 f.target.url,
                 machine.session.id,
+                machine.session.snapshot.installation.scene_hash,
               ],
               process.env,
             );

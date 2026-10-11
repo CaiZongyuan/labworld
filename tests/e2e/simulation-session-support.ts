@@ -492,7 +492,7 @@ export class SessionRawViewer {
   welcome?: Record<string, unknown>;
   constructor(session: SimulationSession, ticket: SessionMotionTicket) {
     this.socket = new WebSocket(
-      process.env.E2E_API_URL!.replace('http:', 'ws:') + ticket.websocket_path,
+      process.env.E2E_API_URL!.replace(/^http/, 'ws') + ticket.websocket_path,
       { origin: process.env.E2E_WEB_URL! },
     );
     ownSessionSocket(this.socket, 'raw-viewer', session.id);
@@ -519,6 +519,7 @@ export class SessionRawViewer {
           codec: 'pose-f32-v1',
           role: 'viewer',
           session_id: session.id,
+          scene_hash: session.snapshot.installation.scene_hash,
           ticket: ticket.ticket,
           preferred_rate_hz: 30,
         }),

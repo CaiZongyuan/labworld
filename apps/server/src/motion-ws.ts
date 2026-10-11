@@ -12,12 +12,10 @@ import {
   MotionGateway,
   type MotionTransport,
 } from '../../../packages/server/src/lab/motion/gateway.ts';
-import {
-  MotionFixtures,
-  loopback,
-} from '../../../packages/server/src/lab/motion/fixture.ts';
+import { MotionFixtures } from '../../../packages/server/src/lab/motion/fixture.ts';
 import type { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
 import type { RecordingWebSockets } from './recording-ws.ts';
+import { localTransport, motionTransportAllowed } from './transport.ts';
 function bytes(data: RawData) {
   if (Array.isArray(data)) return Buffer.concat(data);
   return data instanceof ArrayBuffer
@@ -84,10 +82,7 @@ export class MotionWebSockets {
       this.stopping ||
       this.quiescing ||
       (!this.fixtures.enabled && !this.sessions?.options.enabled) ||
-      !loopback(request.socket.remoteAddress) ||
-      ['forwarded', 'x-forwarded-for', 'x-real-ip'].some(
-        (name) => request.headers[name] !== undefined,
-      ) ||
+      !motionTransportAllowed(request) ||
       this.connections + (this.recording?.connections ?? 0) >= 128 ||
       (request.headers.origin !== undefined &&
         request.headers.origin !== this.origin) ||
@@ -97,7 +92,12 @@ export class MotionWebSockets {
       return;
     }
     this.ws.handleUpgrade(request, socket, head, (ws) =>
-      this.connection(ws, match[1], match[2] as 'viewer' | 'publisher'),
+      this.connection(
+        ws,
+        match[1],
+        match[2] as 'viewer' | 'publisher',
+        localTransport(request),
+      ),
     );
   };
   attach(server: Server) {
@@ -110,6 +110,7 @@ export class MotionWebSockets {
     ws: WebSocket,
     session: string,
     role: 'viewer' | 'publisher',
+    fixtureAllowed: boolean,
   ) {
     const transport: MotionTransport = {
       get bufferedAmount() {
@@ -138,7 +139,10 @@ export class MotionWebSockets {
     };
     let joined: ReturnType<MotionGateway['join']>;
     let binding: ReturnType<SimulationSessions['bind']> | undefined;
+    let viewerBinding: { leave: () => void } | undefined;
     let formal = false;
+    let controlTokens = 16,
+      controlAt = performance.now();
     const heartbeat = setInterval(() => {
       if (admitted && ws.readyState === WebSocket.OPEN) ws.ping();
     }, 1000);
@@ -167,6 +171,7 @@ export class MotionWebSockets {
       this.deadlines.delete(ws);
       joined?.leave();
       binding?.leave();
+      viewerBinding?.leave();
       // ws owns its client-tracking close listener. Remove only our callbacks.
       ws.off('message', receive);
       ws.off('error', terminate);
@@ -197,12 +202,16 @@ export class MotionWebSockets {
             if (hello.role !== role || hello.session_id !== session)
               throw new Error('Wrong admission scope');
             formal = !!this.sessions?.ownsTicket(hello.ticket);
+            if (!formal && !fixtureAllowed)
+              throw new Error('Fixture requires loopback');
             const admission = formal
               ? await this.sessions!.consume(hello.ticket, session, role)
               : await this.fixtures.consume(hello.ticket, session, role);
             const { metadata, rate } = admission;
             if (
-              hello.role === 'publisher' &&
+              (hello.role === 'publisher' ||
+                formal ||
+                hello.scene_hash !== undefined) &&
               hello.scene_hash !== metadata.scene_hash
             ) {
               this.gateway.reject(
@@ -227,6 +236,10 @@ export class MotionWebSockets {
                 authority.lease_id,
                 transport,
               );
+            if (formal && role === 'viewer')
+              viewerBinding = (
+                admission as Awaited<ReturnType<SimulationSessions['consume']>>
+              ).viewer?.bind(() => transport.close(1008, 'unauthorized'));
             joined = this.gateway.join(
               metadata,
               role,
@@ -241,15 +254,16 @@ export class MotionWebSockets {
                   }
                 : undefined,
             );
-            if (!joined) binding?.leave();
+            if (!joined) {
+              binding?.leave();
+              viewerBinding?.leave();
+            }
             admitted = !!joined;
             clearTimeout(timeout);
-          } catch (error) {
+          } catch {
             this.log({
               event: 'motion.admission_failed',
-              session_id: session,
-              reason:
-                error instanceof Error ? error.message : 'Admission failed',
+              code: 'unauthorized',
             });
             this.gateway.reject(
               transport,
@@ -264,6 +278,14 @@ export class MotionWebSockets {
       }
       if (!binary && formal && role === 'publisher') {
         try {
+          const now = performance.now();
+          controlTokens = Math.min(
+            16,
+            controlTokens + ((now - controlAt) * 64) / 1000,
+          );
+          controlAt = now;
+          if (controlTokens < 1) throw new Error('Control rate exceeded');
+          controlTokens -= 1;
           if (data.byteLength > 4096) throw new Error('Oversize lifecycle ACK');
           binding?.ack(
             parseMotionSessionAck(

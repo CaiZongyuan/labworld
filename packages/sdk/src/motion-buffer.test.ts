@@ -5,6 +5,33 @@ import {
   motionSnapshot,
 } from '../../../tests/frontend/motion-fixture';
 
+test('disconnect removes old queued facts but freezes the rendered pose until a fresh mapping and complete Snapshot', () => {
+  const buffer = new MotionBuffer();
+  buffer.configure(motionWelcome);
+  buffer.setSourceState('live');
+  const first = motionSnapshot({
+    poses: [{ position: [7, 8, 9], quaternion: [0, 0, 0, 1] }],
+  });
+  buffer.push(first, 1000);
+  const displayed = structuredClone(buffer.sample(1100));
+  buffer.disconnect();
+  expect(buffer.size).toBe(0);
+  expect(buffer.sample(90_000)).toEqual(displayed);
+  expect(buffer.freshness(90_000)).toBe('stale');
+  expect(buffer.push(first, 90_000)).toBe(false);
+  const epoch = BigInt(motionWelcome.epoch) + 1n;
+  buffer.configure({ ...motionWelcome, epoch: String(epoch) });
+  expect(buffer.sample(90_000)).toBeNull();
+  expect(buffer.push(first, 90_000)).toBe(false);
+  const fresh = motionSnapshot({
+    epoch,
+    sequence: 1n,
+    poses: [{ position: [2, 3, 4], quaternion: [0, 0, 0, 1] }],
+  });
+  expect(buffer.push(fresh, 90_000)).toBe(true);
+  expect(buffer.sample(90_000)?.poses[0].position).toEqual([2, 3, 4]);
+});
+
 test('receive-clock interpolation preserves u64 time and uses normalized shortest quaternion path', () => {
   const buffer = new MotionBuffer();
   buffer.configure(motionWelcome);
