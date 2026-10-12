@@ -8,6 +8,7 @@ import {
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { observeBrowserSeam } from './lab-browser-facts';
+import { geometryFact, predicateFact } from './original-predicate-facts';
 import {
   showObjectDirectory,
   showEntityDetails,
@@ -236,7 +237,9 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   await expect
     .poll(async () => Number((await triangles.innerText()).replaceAll(',', '')))
     .toBeGreaterThanOrEqual(36);
-  const baseline = Number(await geometries.innerText());
+  const baseline = Number(
+    await geometryFact(geometries, 'first-page-baseline'),
+  );
   await page.screenshot({
     path: 'test-results/lab-foundation/t02-world-desktop.png',
     fullPage: true,
@@ -345,9 +348,19 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     'false',
   );
   await expect
-    .poll(async () => Number(await otherGeometries.innerText()))
+    .poll(async () =>
+      Number(
+        await geometryFact(
+          otherGeometries,
+          'first-loaded-greater-than-baseline',
+        ),
+      ),
+    )
     .toBeGreaterThan(baseline);
-  const loadedCount = await otherGeometries.innerText();
+  const loadedCount = await geometryFact(
+    otherGeometries,
+    'first-loaded-reference',
+  );
   expect(Number(loadedCount)).toBeGreaterThan(baseline);
   await other.getByRole('button', { name: '创建 Lab' }).click();
   await other
@@ -364,9 +377,13 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   const emptyId = await other.getByLabel('打开 Lab').inputValue();
   await other.getByRole('button', { name: '性能', exact: true }).click();
   await expect
-    .poll(async () => Number(await otherGeometries.innerText()))
+    .poll(async () =>
+      Number(
+        await geometryFact(otherGeometries, 'empty-less-than-first-loaded'),
+      ),
+    )
     .toBeLessThan(Number(loadedCount));
-  const emptyCount = await otherGeometries.innerText();
+  const emptyCount = await geometryFact(otherGeometries, 'empty-reference');
   for (let i = 0; i < 3; i++) {
     await other.getByLabel('打开 Lab').selectOption(labId);
     await expect(other.locator('.world-page')).toHaveAttribute(
@@ -375,14 +392,39 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     );
     await other.getByRole('button', { name: '性能', exact: true }).click();
     await expect
-      .poll(async () => Number(await otherGeometries.innerText()))
+      .poll(async () =>
+        Number(
+          await geometryFact(
+            otherGeometries,
+            'loop-loaded-greater-than-baseline',
+            i,
+          ),
+        ),
+      )
       .toBeGreaterThan(baseline);
     await expect
-      .poll(async () => Number(await otherGeometries.innerText()))
+      .poll(async () =>
+        Number(
+          await geometryFact(
+            otherGeometries,
+            'loop-loaded-original-ceiling',
+            i,
+          ),
+        ),
+      )
       .toBeLessThanOrEqual(Number(loadedCount));
     await other.getByLabel('打开 Lab').selectOption(emptyId);
     await other.getByRole('button', { name: '性能', exact: true }).click();
+    predicateFact('geometries', {
+      stage: 'loop-empty-before-original-equality',
+      loop: i,
+      expected: Number(emptyCount),
+    });
     await expect(otherGeometries).toHaveText(emptyCount);
+    predicateFact('geometries', {
+      stage: 'loop-empty-original-equality-passed',
+      loop: i,
+    });
   }
   await other.getByLabel('打开 Lab').selectOption(labId);
   await showObjectDirectory(other);

@@ -7,6 +7,7 @@ import {
 } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { predicateFact } from './original-predicate-facts';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -220,6 +221,13 @@ test('the real spatial workbench gives the canvas most of the business area and 
     const business = (await page.locator('.world-page').boundingBox())!;
     const ratio =
       (canvas.width * canvas.height) / (business.width * business.height);
+    predicateFact('layout', {
+      stage: 'original-ratio-before-assertion',
+      width,
+      canvas,
+      business,
+      ratio,
+    });
     expect(ratio).toBeGreaterThanOrEqual(0.65);
     await canvasPixels(page);
     rectangles.push({ width, canvas, business, ratio });
