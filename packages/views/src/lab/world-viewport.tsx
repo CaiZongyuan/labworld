@@ -924,10 +924,21 @@ export default function WorldViewport(props: {
       failed[node.id] === appearanceKey(node, entity)
     );
   });
+  const hasVisibleCentrifuge = props.world.nodes.some((node) => {
+    const entity = entityById.get(node.entity_id);
+    return (
+      entity && !entity.archived_at && entity.definition_id === 'centrifuge'
+    );
+  });
   useEffect(() => onBusy(pending), [pending, onBusy]);
   return (
     <>
       <Canvas
+        frameloop={
+          pending && !props.motion && !hasVisibleCentrifuge
+            ? 'demand'
+            : 'always'
+        }
         camera={{ position: [4, 3, 5], fov: 38 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true }}
