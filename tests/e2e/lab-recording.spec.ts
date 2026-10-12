@@ -3,10 +3,12 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { isDeepStrictEqual } from 'node:util';
 import {
   processIdentity,
   type ProcessIdentity,
 } from '../support/server-resources.ts';
+import { utcInstant } from '../../packages/server/src/platform/db/instant.ts';
 import type {
   DeviceCommand,
   DeviceTask,
@@ -36,6 +38,7 @@ import {
   recordingPath,
   recordingReceipt,
   recordingStage,
+  type RecordingEvent,
   type RecordingMetadata,
 } from './recording-public-support';
 import {
@@ -146,12 +149,19 @@ test('recording journey: real Python and two WebGL views preserve paused physics
     assert.notEqual(recordingB.id, recordingA.id);
     const manifestB = await f.api.json<{
       snapshot_hash: string;
-      capture_baseline: { entities: { id: string; task?: DeviceTask }[] };
+      capture_baseline: {
+        entities: {
+          id: string;
+          task?: DeviceTask;
+          task_result?: DeviceTaskResult;
+        }[];
+      };
     }>('GET', recordingPath(f.lab.id, recordingB.id) + '/manifest');
     assert.equal(manifestB.snapshot_hash, running.snapshot.hash);
-    const capturedTask = manifestB.capture_baseline.entities.find(
+    const capturedEntity = manifestB.capture_baseline.entities.find(
       (entity) => entity.id === device.id,
-    )?.task;
+    );
+    const capturedTask = capturedEntity?.task;
     assert(capturedTask);
     assert.equal(capturedTask.id, task.id);
     assert(capturedTask.elapsed_seconds >= progressed.elapsed_seconds);
@@ -211,14 +221,125 @@ test('recording journey: real Python and two WebGL views preserve paused physics
           event.event.action === 'stop',
       ),
     );
-    assert(
-      b.events.some(
-        (event) =>
-          event.event_type === 'task.changed' &&
-          (event.event.result as { status?: string } | undefined)?.status ===
-            'completed',
-      ),
+    const sameTask = (value: Partial<DeviceTask> | null | undefined) =>
+      value?.id === task.id &&
+      value.id === command.task_id &&
+      value.entity_id === device.id &&
+      value.run_id === command.run_id &&
+      value.command_id === command.id &&
+      value.result_id === task.result_id;
+    const sameResult = (
+      value: Partial<DeviceTaskResult> | null | undefined,
+    ) => {
+      if (
+        !value ||
+        value.id !== result.id ||
+        value.task_id !== finished.id ||
+        value.status !== 'completed' ||
+        (value.reason ?? null) !== (result.reason ?? null) ||
+        typeof value.ended_at !== 'string' ||
+        typeof result.ended_at !== 'string'
+      )
+        return false;
+      try {
+        return utcInstant(value.ended_at) === utcInstant(result.ended_at);
+      } catch {
+        return false;
+      }
+    };
+    const completedTaskEvent = (event: RecordingEvent) =>
+      event.event_type === 'task.changed' &&
+      event.entity_id === device.id &&
+      sameTask(event.event.task as Partial<DeviceTask> | undefined) &&
+      (event.event.task as Partial<DeviceTask>).status === 'completed' &&
+      sameResult(event.event.result as Partial<DeviceTaskResult> | undefined);
+    const originalBPredicate = b.events.some(
+      (event) =>
+        event.event_type === 'task.changed' &&
+        (event.event.result as { status?: string } | undefined)?.status ===
+          'completed',
     );
+    const completionInA = a.events.some(completedTaskEvent),
+      completionInB = b.events.some(completedTaskEvent);
+    const baselineCompleted = capturedTask.status === 'completed',
+      baselineTaskMatchesFinished = isDeepStrictEqual(capturedTask, finished),
+      baselineResultMatchesPublic = isDeepStrictEqual(
+        capturedEntity?.task_result,
+        result,
+      ),
+      baselineReadbacksAgree = isDeepStrictEqual(
+        b.manifest.capture_baseline,
+        manifestB.capture_baseline,
+      );
+    const taskEventsA = a.events.filter(
+        (event) => event.event_type === 'task.changed',
+      ),
+      taskEventsB = b.events.filter(
+        (event) => event.event_type === 'task.changed',
+      );
+    const status = (value: unknown) =>
+      typeof value === 'string' &&
+      [
+        'pending',
+        'preparing',
+        'running',
+        'decelerating',
+        'completed',
+        'cancelled',
+        'failed',
+        'unknown',
+        'interrupted',
+      ].includes(value)
+        ? value
+        : null;
+    const taskEventFacts = (events: RecordingEvent[]) =>
+      events.slice(0, 64).map((event) => {
+        const eventTask = event.event.task as Partial<DeviceTask> | undefined,
+          eventResult = event.event.result as
+            Partial<DeviceTaskResult> | undefined;
+        return {
+          taskStatus: status(eventTask?.status),
+          resultStatus: status(eventResult?.status),
+          entityMatches: event.entity_id === device.id,
+          taskIdentityMatches: sameTask(eventTask),
+          resultMatchesPublic: sameResult(eventResult),
+        };
+      });
+    try {
+      recordingReceipt('recording-task-completion-boundary', {
+        baselineStatus: status(capturedTask.status),
+        baselineElapsedSeconds: Number.isFinite(capturedTask.elapsed_seconds)
+          ? capturedTask.elapsed_seconds
+          : null,
+        baselineTaskIdentityMatches: sameTask(capturedTask),
+        baselineTaskMatchesFinished,
+        baselineResultMatchesPublic,
+        baselineReadbacksAgree,
+        originalBPredicate,
+        completionInA,
+        completionInB,
+        aTaskEvents: taskEventFacts(taskEventsA),
+        bTaskEvents: taskEventFacts(taskEventsB),
+        aTaskEventsTruncated: taskEventsA.length > 64,
+        bTaskEventsTruncated: taskEventsB.length > 64,
+      });
+    } catch {
+      // Evidence cannot replace the original public assertions.
+    }
+    assert(sameTask(finished));
+    assert.equal(result.id, finished.result_id);
+    assert.equal(result.task_id, finished.id);
+    if (baselineCompleted) {
+      // Reset cannot require a completed ordinary Task to complete again in B.
+      assert(sameTask(capturedTask));
+      assert(baselineTaskMatchesFinished);
+      assert(baselineResultMatchesPublic);
+      assert(baselineReadbacksAgree);
+      assert(completionInA, 'A must contain this Task and Result completing');
+    } else {
+      assert(originalBPredicate);
+      assert(completionInB, 'B must contain this Task and Result completing');
+    }
     assert(
       [...a.events, ...b.events]
         .filter((event) => event.entity_id === device.id)
