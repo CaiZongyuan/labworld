@@ -5,6 +5,8 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { WebSocket } from 'ws';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
@@ -52,6 +54,168 @@ type Admission = {
     initial_poses: Session['snapshot']['initial_poses'];
   };
 };
+
+/** Failure-only body projection; never exports the envelope or changes admission. */
+async function admissionFailureCode(
+  response: Response | undefined,
+  budget: number,
+) {
+  const started = performance.now();
+  const unknown = (status: string) => ({
+    status,
+    code: 'UNKNOWN',
+    elapsedMs: performance.now() - started,
+  });
+  if (
+    !response ||
+    response.status === 201 ||
+    response.bodyUsed ||
+    !response.body ||
+    budget <= 0
+  )
+    return unknown('not-observed');
+  const reader = response.body.getReader();
+  let finished = false,
+    timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      (async () => {
+        const chunks: Uint8Array[] = [];
+        let bytes = 0;
+        while (!finished) {
+          const part = await reader.read();
+          if (finished) return unknown('timeout');
+          if (part.done) break;
+          bytes += part.value.byteLength;
+          if (bytes > 4096) return unknown('size-limit');
+          chunks.push(part.value);
+        }
+        const text = new TextDecoder().decode(Buffer.concat(chunks));
+        const code: unknown = JSON.parse(text)?.error?.code;
+        const allowed = [
+          'lab.recording_gate_timeout',
+          'lab.recording_event_prepare_timeout',
+          'lab.recording_read_timeout',
+          'lab.recording_event_commit_timeout',
+          'lab.recording_prepare_timeout',
+          'lab.synthetic_session_disabled',
+          'lab.session_unavailable',
+          'lab.publisher_capacity',
+        ];
+        return typeof code === 'string' && allowed.includes(code)
+          ? { status: 'ack', code, elapsedMs: performance.now() - started }
+          : unknown('unclassified-code');
+      })().catch(() => unknown('read-or-parse-error')),
+      new Promise<ReturnType<typeof unknown>>((resolve) => {
+        timer = setTimeout(
+          () => resolve(unknown('timeout')),
+          Math.min(250, budget),
+        );
+      }),
+    ]);
+  } finally {
+    finished = true;
+    clearTimeout(timer);
+    void reader.cancel().catch(() => {});
+    try {
+      reader.releaseLock();
+    } catch {
+      /* A pending read may still hold it. */
+    }
+  }
+}
+
+/** Scope the existing client method to this one original call; restore its descriptor. */
+async function observedUnsignedAdmission(
+  client: CoreHttp,
+  call: () => Promise<Admission>,
+  before: Session,
+  evidence: string,
+  testDeadline: number,
+) {
+  const descriptor = Object.getOwnPropertyDescriptor(client, 'response');
+  const original = client.response;
+  const started = performance.now();
+  let response: Response | undefined,
+    responseElapsedMs: number | null = null;
+  const safeDecimal = (value: unknown) =>
+    (typeof value === 'string' || typeof value === 'number') &&
+    /^\d{1,20}$/.test(String(value))
+      ? String(value)
+      : null;
+  const record = (
+    verdict: string,
+    body: object | null,
+    admissionElapsedMs: number,
+  ) => {
+    try {
+      writeFileSync(
+        join(evidence, 'unsigned-admission-observer.json'),
+        JSON.stringify(
+          {
+            phase: 'valid-admission-after-expired403-and-unchanged-session',
+            verdict,
+            status: response?.status ?? null,
+            admissionElapsedMs,
+            responseElapsedMs,
+            body,
+            ownedLedgerBasename: 'owned-resources.json',
+            beforeSession: {
+              status: [
+                'starting',
+                'running',
+                'pausing',
+                'paused',
+                'resuming',
+                'stopping',
+                'stopped',
+                'interrupted',
+              ].includes(before.status)
+                ? before.status
+                : 'UNKNOWN',
+              revision: safeDecimal(before.revision),
+              leaseNull: before.lease_id === null,
+              epochString: safeDecimal(before.epoch),
+              ended: before.ended_at !== null,
+            },
+          },
+          null,
+          2,
+        ) + '\n',
+        { mode: 0o600 },
+      );
+    } catch {
+      /* Observer write failure never replaces the original verdict. */
+    }
+  };
+  client.response = async (...args: Parameters<CoreHttp['response']>) => {
+    const received = await original.apply(client, args);
+    response = received;
+    responseElapsedMs = performance.now() - started;
+    return received;
+  };
+  try {
+    const admission = await call();
+    record('original-admission-passed', null, performance.now() - started);
+    return admission;
+  } catch (error) {
+    const admissionElapsedMs = performance.now() - started;
+    let body: object = { status: 'observer-error', code: 'UNKNOWN' };
+    try {
+      body = await admissionFailureCode(
+        response,
+        Math.max(0, Math.min(250, testDeadline - performance.now() - 5)),
+      );
+    } catch {
+      /* Preserve even stream setup/cancellation errors. */
+    }
+    record('original-admission-failed', body, admissionElapsedMs);
+    throw error;
+  } finally {
+    if (descriptor) Object.defineProperty(client, 'response', descriptor);
+    else delete (client as Partial<CoreHttp>).response;
+  }
+}
 class Source {
   readonly session: Session;
   ws: WebSocket;
@@ -1072,6 +1236,7 @@ test(
   'persisted unsigned epoch above 2^53 survives HTTP and binary WS; expired independent machine cannot admit',
   { timeout: 60000 },
   async () => {
+    const testDeadline = performance.now() + 60000;
     const f = await fixture('session-u64'),
       peers: Source[] = [];
     try {
@@ -1125,7 +1290,13 @@ test(
         'identity.machine_unauthorized',
       );
       assert.deepEqual(await f.read(session), before);
-      const admission = await f.admit(session);
+      const admission = await observedUnsignedAdmission(
+        f.sourceClient,
+        () => f.admit(session),
+        before,
+        f.target.evidence,
+        testDeadline,
+      );
       assert.equal(admission.epoch, '9007199254740998');
       const source = new Source(f.target, session, admission);
       peers.push(source);

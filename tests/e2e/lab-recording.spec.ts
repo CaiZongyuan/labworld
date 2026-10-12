@@ -173,7 +173,7 @@ test('recording journey: real Python and two WebGL views preserve paused physics
     active = await authority(f.api, f.lab.id, next.id, 'running');
     await action(page, f.lab.id, next.id, 'Stop');
     active = await authority(f.api, f.lab.id, next.id, 'stopped');
-    for (const recording of [recordingA, recordingB])
+    for (const [index, recording] of [recordingA, recordingB].entries())
       await recordingEventually(
         () =>
           f.api.json<RecordingMetadata>(
@@ -182,6 +182,7 @@ test('recording journey: real Python and two WebGL views preserve paused physics
           ),
         (value) => value.status === 'complete',
         10000,
+        index === 0 ? 'A' : 'B',
       );
     const a = await publicRecording(f.api, f.lab.id, recordingA.id),
       b = await publicRecording(f.api, f.lab.id, recordingB.id);
