@@ -237,7 +237,7 @@ export class DeviceRuntime {
           { id, kind: 'background' },
           async (tx) => {
             const rows = await tx.execute<{ id: string; run_id: string }>(
-              sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation where c.status='accepted' and r.status='running' and r.generation=${this.generation} order by c.created_at,c.id limit 1`,
+              sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation join lab.runtime_bindings executor on executor.id=r.binding_id and executor.program_id in('light.v1','centrifuge.v1') where c.status='accepted' and r.status='running' and r.generation=${this.generation} order by c.created_at,c.id limit 1`,
             );
             if (!rows.rows[0]) return undefined;
             await tx.execute(
@@ -331,7 +331,7 @@ export class DeviceRuntime {
       operation,
       async (tx) => {
         const rows = await tx.execute<{ id: string; run_id: string }>(
-          sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation where c.status='accepted' and r.status='running' and r.generation=${this.generation} order by c.created_at,c.id limit 1`,
+          sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation join lab.runtime_bindings executor on executor.id=r.binding_id and executor.program_id in('light.v1','centrifuge.v1') where c.status='accepted' and r.status='running' and r.generation=${this.generation} order by c.created_at,c.id limit 1`,
         );
         return rows.rows[0];
       },
@@ -339,7 +339,7 @@ export class DeviceRuntime {
     if (!selected) return undefined;
     return this.transaction(operation, { run: selected.run_id }, async (tx) => {
       const rows = await tx.execute<{ id: string; run_id: string }>(
-        sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation where c.id=${selected.id}::uuid and c.status='accepted' and r.status='running' and r.generation=${this.generation}`,
+        sql`select c.id::text,c.run_id::text from lab.device_commands c join lab.program_runs r on r.id=c.run_id join lab.runtime_generation g on g.singleton and g.generation=r.generation join lab.runtime_bindings executor on executor.id=r.binding_id and executor.program_id in('light.v1','centrifuge.v1') where c.id=${selected.id}::uuid and c.status='accepted' and r.status='running' and r.generation=${this.generation}`,
       );
       if (!rows.rows[0]) return undefined;
       await tx.execute(

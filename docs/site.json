@@ -170,7 +170,18 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "newton-motion",
-      "next": "spatial-workbench"
+      "next": "robot-controls"
+    },
+    {
+      "id": "robot-controls",
+      "source": "docs/tutorials/robot-controls.md",
+      "sourceEn": "docs/tutorials/robot-controls.en.md",
+      "route": "tutorials/robot-controls.md",
+      "title": "控制机器人并确认任务结果",
+      "titleEn": "Control the robot and confirm task results",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "secure-motion"
     },
     {
       "id": "spatial-workbench",

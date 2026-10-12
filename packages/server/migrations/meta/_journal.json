@@ -29,6 +29,13 @@
       "when": 1791681569129,
       "tag": "0003_reliable_recording",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791844297546,
+      "tag": "0004_robot_controls",
+      "breakpoints": true
     }
   ]
 }

@@ -73,7 +73,11 @@ export async function createNewtonInstallationIn(
     [8, 'Four-hole rack', 'labware'],
     [9, 'Mat', 'model'],
   ] as const) {
-    const definition = catalog.find((item) => item.id === definitionId)!;
+    const definition = catalog.find(
+      (item) =>
+        item.id === definitionId &&
+        (definitionId !== 'robot' || item.version === '1.1'),
+    )!;
     await tx.execute(
       sql`insert into lab.entities(id,lab_id,name,kind,reality,definition_id,definition_version,definition,configuration,representation_id,created_by,updated_by) values(${entityIds[index]}::uuid,${lab}::uuid,${name},${definition.category},'simulated',${definition.id},${definition.version},${JSON.stringify(definition)}::jsonb,'{}'::jsonb,${representations[newtonProfile.body_order[index]]}::uuid,${actor}::uuid,${actor}::uuid)`,
     );
@@ -87,7 +91,7 @@ export async function createNewtonInstallationIn(
     id: randomUUID(),
     lab_id: lab,
     package_id: 'so101-vial',
-    package_version: '1',
+    package_version: '2',
     scene_hash:
       'sha256:' +
       createHash('sha256')

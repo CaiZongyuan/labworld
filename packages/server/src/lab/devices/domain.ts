@@ -1,3 +1,4 @@
+import newtonProfile from '../sessions/newton-profile.json' with { type: 'json' };
 export type DeviceCommand = {
   id: string;
   entity_id: string;
@@ -129,6 +130,28 @@ function numeric(value: unknown, min: number, max: number): value is number {
   );
 }
 export function validParameters(capability: string, parameters: unknown) {
+  if (capability.startsWith('robot.')) {
+    if (!object(parameters)) return false;
+    if (capability === 'robot.home' || capability === 'robot.cancel')
+      return Object.keys(parameters).length === 0;
+    if (capability === 'robot.set_gripper')
+      return (
+        Object.keys(parameters).length === 1 &&
+        numeric(
+          parameters.position,
+          ...(newtonProfile.joint_limits[5] as [number, number]),
+        )
+      );
+    return (
+      capability === 'robot.move_joints' &&
+      Object.keys(parameters).length === 1 &&
+      Array.isArray(parameters.joints) &&
+      parameters.joints.length === 6 &&
+      parameters.joints.every((v, i) =>
+        numeric(v, ...(newtonProfile.joint_limits[i] as [number, number])),
+      )
+    );
+  }
   if (capability.startsWith('light.'))
     return validLightParameters(capability, parameters);
   if (!object(parameters)) return false;

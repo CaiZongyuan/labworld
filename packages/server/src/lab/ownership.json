@@ -262,7 +262,14 @@
     "NEWTON_POSE_KEYS",
     "getLabRecordingResource",
     "readRecordingResource",
-    "NEWTON_SCENE_VISUALS"
+    "NEWTON_SCENE_VISUALS",
+    "ROBOT_CAPABILITIES",
+    "RobotCapability",
+    "RobotIdentity",
+    "RobotCommand",
+    "RobotSourceEvent",
+    "parseRobotSourceEvent",
+    "upgradeLabRobotControls"
   ],
   "contractSubpaths": [
     "@labos-threejs/contracts/motion",
@@ -280,7 +287,11 @@
     "tools/newton-motion/install_scene.mjs",
     "tools/newton-motion/probe.py",
     "tools/newton-motion/prepare.py",
-    "tools/newton-motion/scene_loader.py"
+    "tools/newton-motion/scene_loader.py",
+    "docs/tutorials/robot-controls.md",
+    "docs/tutorials/robot-controls.en.md",
+    "docs/examples/robot-controls.mjs",
+    "docs/examples/robot-controls.py"
   ],
   "testPaths": [
     "tests/server/session-authority.test.ts",
@@ -295,6 +306,8 @@
     "tests/e2e/recording-machine.ts",
     "tests/e2e/recording-public-support.ts",
     "tests/e2e/recording-wire-oracle.ts",
-    "tests/tooling/synthetic-source-shutdown.test.mjs"
+    "tests/tooling/synthetic-source-shutdown.test.mjs",
+    "packages/views/src/lab/robot-panel.test.tsx",
+    "tests/server/robot-controls.test.ts"
   ]
 }

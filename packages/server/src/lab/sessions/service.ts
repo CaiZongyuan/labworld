@@ -1,3 +1,4 @@
+import { catalog } from '../world/catalog.ts';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import type { RecordingBootstrap } from '../../../../contracts/src/recording/index.ts';
 import type { RecordingService } from '../recordings/service.ts';
@@ -363,6 +364,68 @@ export class SimulationSessions {
               );
         await this.audit(tx, actor, requestId, installation.id, 'install');
         return installation;
+      },
+    );
+  }
+  async upgradeRobotControls(
+    headers: Headers,
+    requestId: string,
+    lab: string,
+    id: string,
+  ) {
+    return this.world.context.db.transaction(
+      { id: requestId, kind: 'request' },
+      async (tx) => {
+        const actor = await accessIn(
+          tx,
+          this.world.context,
+          this.world.policy,
+          headers,
+          'lab:full',
+          true,
+        );
+        this.enabled('newton');
+        const installation = await installationIn(tx, lab, id);
+        if (
+          installation.package_id !== 'so101-vial' ||
+          installation.archived_at
+        )
+          throw sessionFailure(
+            'installation_unavailable',
+            'Use an active Newton scene installation',
+          );
+        const active = await tx.execute(
+          sql`select id from lab.simulation_sessions where installation_id=${id}::uuid and ended_at is null`,
+        );
+        if (active.rows.length)
+          throw sessionFailure(
+            'installation_busy',
+            'Stop the current Simulation Session before upgrading controls',
+          );
+        if (installation.package_version === '2') return installation;
+        const entity = installation.targets.find(
+          (t) => t.object_key === 'so101',
+        )!.entity_id;
+        const definition = catalog.find(
+          (d) => d.id === 'robot' && d.version === '1.1',
+        )!;
+        const compatible = await tx.execute(
+          sql`select id from lab.entities where id=${entity}::uuid and definition_id='robot' and definition_version='1.0' and archived_at is null`,
+        );
+        if (!compatible.rows.length)
+          throw sessionFailure(
+            'robot_upgrade_conflict',
+            'The installed robot definition changed; resolve it before upgrading',
+          );
+        await tx.execute(
+          sql`update lab.entities set definition_version=${definition.version},definition=${JSON.stringify(definition)}::jsonb,updated_by=${actor.user.id}::uuid,updated_at=now() where id=${entity}::uuid`,
+        );
+        const upgraded = { ...installation, package_version: '2' as const };
+        await tx.execute(
+          sql`update lab.scene_installations set metadata=${JSON.stringify(upgraded)}::jsonb where id=${id}::uuid`,
+        );
+        await this.audit(tx, actor, requestId, id, 'robot_controls_upgrade');
+        return upgraded;
       },
     );
   }

@@ -9,6 +9,7 @@ import {
   resumeLabSimulationSession,
   resetLabSimulationSession,
   stopLabSimulationSession,
+  upgradeLabRobotControls,
   subscribeSimulationSessions,
   subscribeSessionMotion,
   MotionBuffer,
@@ -316,6 +317,7 @@ export function useSimulationSession({
     action:
       | 'install'
       | 'install-newton'
+      | 'upgrade-controls'
       | 'start'
       | 'pause'
       | 'resume'
@@ -332,7 +334,16 @@ export function useSimulationSession({
     setFailure(null);
     try {
       const request = { ...options, signal: controller.signal };
-      if (action === 'install' || action === 'install-newton') {
+      if (action === 'upgrade-controls') {
+        await upgradeLabRobotControls({
+          ...request,
+          path: { lab_id: labId, installation_id: id! },
+          body: {},
+        });
+        if (controller.signal.aborted) return;
+        await client.invalidateQueries({ queryKey: [...key, 'installations'] });
+        installed.current();
+      } else if (action === 'install' || action === 'install-newton') {
         await createLabSceneInstallation({
           ...request,
           body: {

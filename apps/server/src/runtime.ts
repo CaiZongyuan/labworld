@@ -1,3 +1,4 @@
+import { RobotControls } from '../../../packages/server/src/lab/devices/robot.ts';
 import { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
 import { sessionRoutes } from '../../../packages/server/src/lab/sessions/routes.ts';
 import { MachineService } from '../../../packages/server/src/core/machines/use-cases.ts';
@@ -269,6 +270,7 @@ export async function run(
         options.recordingFaults,
       );
       owners.recording = recording;
+      recording.configureRobots(new RobotControls(context, recording.capture));
       // Resolve committed WAL witnesses while old capture owners still exist.
       await recording.initialize();
       const devices = new DeviceRuntime(

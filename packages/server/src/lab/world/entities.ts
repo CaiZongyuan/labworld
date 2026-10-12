@@ -27,7 +27,9 @@ export function entityValue(row: LabEntity): LabEntity {
           (definition) =>
             definition.id === row.definition_id && definition.version === '1.0',
         )?.capabilities ?? [])
-      : [];
+      : row.binding?.program_id === 'newton.so101.v1'
+        ? row.binding.definition.capabilities.filter((c) => c.implemented)
+        : [];
   const running = row.program_run?.status === 'running',
     busy =
       row.task &&
@@ -39,7 +41,11 @@ export function entityValue(row: LabEntity): LabEntity {
         (entry) => entry.id === capability.id,
       ),
       contract = implemented ?? capability;
-    const isBusy = capability.id === 'centrifuge.start' && busy;
+    const isBusy =
+      (capability.id === 'centrifuge.start' ||
+        (capability.id.startsWith('robot.') &&
+          capability.id !== 'robot.cancel')) &&
+      busy;
     return {
       id: capability.id,
       version: contract.version,

@@ -6,6 +6,9 @@ const operations = {
     get: 'listLabSceneInstallations',
     post: 'createLabSceneInstallation',
   },
+  '/api/v1/lab/labs/{lab_id}/installations/{installation_id}/robot-controls': {
+    post: 'upgradeLabRobotControls',
+  },
   '/api/v1/lab/labs/{lab_id}/installations/{installation_id}/archive': {
     post: 'archiveLabSceneInstallation',
   },
@@ -40,7 +43,7 @@ const operations = {
 };
 const object = (value: Json | undefined): { [key: string]: Json } =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
-/** Only approved #71 operations are separated; other additions remain semantic drift. */
+/** Approved Session operations, including the #75 explicit controls upgrade. */
 export function sessionApiParts(document: Json) {
   const existing = structuredClone(document) as { [key: string]: Json },
     addition = structuredClone(document) as { [key: string]: Json },

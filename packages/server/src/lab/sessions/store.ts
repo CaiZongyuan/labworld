@@ -223,6 +223,9 @@ export async function snapshotIn(
       ? {
           physics: {
             source_kind: 'newton' as const,
+            ...(installation.package_version === '2'
+              ? { control_mode: 'controlled' as const }
+              : {}),
             profile_id: 'so101-vial-v1' as const,
             profile_sha256: newtonProfile.hash,
             live_rate_hz: liveRate,

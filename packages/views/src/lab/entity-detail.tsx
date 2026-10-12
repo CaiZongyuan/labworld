@@ -14,6 +14,7 @@ import {
   TabsTrigger,
 } from '@labos-threejs/ui/components/tabs';
 import { useAppMessage } from '../shell/messages';
+import { robotReasonMessage } from './messages';
 import HistoryPanel from './history-panel';
 import RecordDetails from './record-details';
 import ObservationReading from './observation-reading';
@@ -76,6 +77,12 @@ export default function EntityDetail({
   recentMinuteRequest?: number;
 }) {
   const message = useAppMessage('lab');
+  const robot =
+    entity.binding?.program_id === 'newton.so101.v1' ||
+    entity.definition.capabilities.some(
+      (capability) => capability.id === 'robot.home',
+    );
+  const taskNamespace = robot ? 'robot.task' : 'task';
   const [view, setView] = useState({ tab: 'operations', recentMinuteRequest });
   const tab =
     editing || originalRecord
@@ -185,7 +192,7 @@ export default function EntityDetail({
                 <dt>{message('detail.taskStatus')}</dt>
                 <dd>
                   {entity.task
-                    ? message(`task.${entity.task.status}`)
+                    ? message(`${taskNamespace}.${entity.task.status}`)
                     : message('detail.noTask')}
                 </dd>
                 <dt>Command</dt>
@@ -201,7 +208,7 @@ export default function EntityDetail({
                 <dt>{message('task.resultStatus')}</dt>
                 <dd>
                   {entity.task_result
-                    ? message(`task.${entity.task_result.status}`)
+                    ? message(`${taskNamespace}.${entity.task_result.status}`)
                     : message('detail.noResult')}
                 </dd>
                 <dt>{message('detail.endedAt')}</dt>
@@ -211,7 +218,9 @@ export default function EntityDetail({
                 <dt>{message('task.reason')}</dt>
                 <dd>
                   {entity.task_result?.reason
-                    ? message(`task.reason.${entity.task_result.reason}`)
+                    ? robot
+                      ? robotReasonMessage(entity.task_result.reason, message)
+                      : message(`task.reason.${entity.task_result.reason}`)
                     : '-'}
                 </dd>
                 <dt>{message('detail.fixedParameters')}</dt>
@@ -231,6 +240,7 @@ export default function EntityDetail({
                 name={name}
                 reading={reading}
                 expanded
+                robot={robot}
               />
             ))}
           </section>

@@ -7,8 +7,8 @@ import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 
-// Approved #72 Recording append: schema 4. The c80 Session baseline's first
-// three migration identities remain immutable; these expectations are literals,
+// Approved #75 robot controls append: schema 5. All prior migration
+// identities remain immutable; these expectations are literals,
 // independent of the running build's schemaVersion calculation.
 const approvedHistory = [
   {
@@ -26,6 +26,10 @@ const approvedHistory = [
   {
     hash: '63c83437ec7487eb4797a902288fae41f007dbf3fe4be7ec03f2698790129e7c',
     created_at: '1791681569129',
+  },
+  {
+    hash: '39d30ede089dd4b438edd9968526354f99a78842eb5c1f465ba5fbfffbb33fa3',
+    created_at: '1791844297546',
   },
 ];
 
@@ -80,10 +84,10 @@ test(
         ),
       );
       assert.deepEqual(journal.entries.at(-1), {
-        idx: 3,
+        idx: 4,
         version: '7',
-        when: 1791681569129,
-        tag: '0003_reliable_recording',
+        when: 1791844297546,
+        tag: '0004_robot_controls',
         breakpoints: true,
       });
       assert.equal(
@@ -91,13 +95,13 @@ test(
           .update(
             await readFile(
               new URL(
-                '../../packages/server/migrations/0003_reliable_recording.sql',
+                '../../packages/server/migrations/0004_robot_controls.sql',
                 import.meta.url,
               ),
             ),
           )
           .digest('hex'),
-        approvedHistory[3].hash,
+        approvedHistory[4].hash,
       );
       target.entry = 'apps/server/src/cli.ts';
       target.args = ['migrate'];
@@ -112,7 +116,7 @@ test(
       );
       assert.deepEqual(JSON.parse(target.logs.trim()), {
         status: 'migrated',
-        schemaVersion: 4,
+        schemaVersion: 5,
       });
       await target.stop();
       target.entry = 'apps/server/src/main.ts';
@@ -124,10 +128,10 @@ test(
         'GET',
         '/api/v1/system/status',
       );
-      assert.equal(status.schema_version, 4);
+      assert.equal(status.schema_version, 5);
       await target.stop();
       const first = await history('baseline.first-history');
-      assert.equal(first.length, 4);
+      assert.equal(first.length, 5);
       assert.deepEqual(first, approvedHistory);
       await target.start();
       assert.equal(

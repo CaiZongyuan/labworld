@@ -204,7 +204,7 @@ export type SceneInstallation = {
     id: string;
     lab_id: string;
     package_id: 'development-synthetic' | 'so101-vial';
-    package_version: '1';
+    package_version: '1' | '2';
     scene_hash: string;
     mapping_revision: number;
     pose_keys: Array<string>;
@@ -269,6 +269,7 @@ export type SimulationSessionSnapshot = {
     initial_joints: Array<number>;
     physics?: {
         source_kind: 'newton';
+        control_mode?: 'controlled';
         profile_id: 'so101-vial-v1';
         profile_sha256: string;
         live_rate_hz: 15 | 30;
@@ -581,6 +582,7 @@ export type PublisherBootstrap = {
     parameters: SessionParameters;
     physics?: {
         source_kind: 'newton';
+        control_mode?: 'controlled';
         profile_id: 'so101-vial-v1';
         profile_sha256: string;
         live_rate_hz: 15 | 30;
@@ -1594,6 +1596,37 @@ export type CreateLabSceneInstallationResponses = {
 };
 
 export type CreateLabSceneInstallationResponse = CreateLabSceneInstallationResponses[keyof CreateLabSceneInstallationResponses];
+
+export type UpgradeLabRobotControlsData = {
+    body: {
+        [key: string]: never;
+    };
+    path: {
+        lab_id: string;
+        installation_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/installations/{installation_id}/robot-controls';
+};
+
+export type UpgradeLabRobotControlsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type UpgradeLabRobotControlsError = UpgradeLabRobotControlsErrors[keyof UpgradeLabRobotControlsErrors];
+
+export type UpgradeLabRobotControlsResponses = {
+    200: SceneInstallation;
+};
+
+export type UpgradeLabRobotControlsResponse = UpgradeLabRobotControlsResponses[keyof UpgradeLabRobotControlsResponses];
 
 export type ArchiveLabSceneInstallationData = {
     body?: never;

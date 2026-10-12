@@ -69,6 +69,12 @@ export class DeviceService {
       const entity = await loadEntity(tx, lab, id);
       if (entity.archived_at)
         deviceFailure(409, 'lab.entity_archived', 'This Entity is archived');
+      if (entity.binding?.program_id === 'newton.so101.v1')
+        deviceFailure(
+          409,
+          'lab.session_owned_program',
+          'Use the Simulation Session controls for this program',
+        );
       if (!entity.binding)
         deviceFailure(
           422,
@@ -119,6 +125,12 @@ export class DeviceService {
         true,
       );
       const entity = await loadEntity(tx, lab, id);
+      if (entity.binding?.program_id === 'newton.so101.v1')
+        deviceFailure(
+          409,
+          'lab.session_owned_program',
+          'Use the Simulation Session controls for this program',
+        );
       if (activeTask(entity.task))
         deviceFailure(
           409,
@@ -233,7 +245,30 @@ export class DeviceService {
           'lab.invalid_parameters',
           'Use the capability input types and allowed range',
         );
-      if (input.capability === 'centrifuge.start' && activeTask(entity.task))
+      if (entity.binding?.program_id === 'newton.so101.v1') {
+        const session = await tx.execute<{ status: string }>(
+          sql`select s.status from lab.session_device_runs m join lab.simulation_sessions s on s.id=m.session_id where m.run_id=${entity.program_run.id}::uuid and s.ended_at is null`,
+        );
+        if (
+          !session.rows[0] ||
+          !(
+            input.capability === 'robot.cancel'
+              ? ['running', 'paused']
+              : ['running']
+          ).includes(session.rows[0].status)
+        )
+          deviceFailure(
+            409,
+            'lab.session_not_running',
+            'Resume or Start the Simulation Session explicitly',
+          );
+      }
+      if (
+        (input.capability === 'centrifuge.start' ||
+          (input.capability.startsWith('robot.') &&
+            input.capability !== 'robot.cancel')) &&
+        activeTask(entity.task)
+      )
         deviceFailure(
           409,
           'lab.device_busy',
@@ -244,7 +279,11 @@ export class DeviceService {
       );
       const command = insertedCommand.rows[0].id;
       let task: string | null = null;
-      if (input.capability === 'centrifuge.start') {
+      if (
+        input.capability === 'centrifuge.start' ||
+        (input.capability.startsWith('robot.') &&
+          input.capability !== 'robot.cancel')
+      ) {
         const result = randomUUID();
         const insertedTask = await tx.execute<{ id: string }>(
           sql`insert into lab.device_tasks(id,entity_id,run_id,command_id,result_id,parameters,status) values(uuidv7(),${entity.id}::uuid,${entity.program_run.id}::uuid,${command}::uuid,${result}::uuid,${JSON.stringify(input.parameters)}::jsonb,'pending') returning id::text`,
@@ -254,7 +293,7 @@ export class DeviceService {
           sql`insert into lab.device_task_results(id,task_id,status) values(${result}::uuid,${task}::uuid,'pending')`,
         );
       } else if (
-        input.capability === 'centrifuge.stop' &&
+        ['centrifuge.stop', 'robot.cancel'].includes(input.capability) &&
         activeTask(entity.task)
       )
         task = String(entity.task!.id);

@@ -20,12 +20,12 @@ sys.path.insert(0,str(ROOT.parent/'synthetic-motion'))
 from motion_codec import CODEC, MAX_CONTROL_BYTES, MotionProtocolError, control_json, encode_snapshot, parse_session_control, parse_u64, parse_welcome
 from publisher import SessionOutbox, arm_parent_guard, run_owned, transport_url
 from recording_source import admit_recording
-from recording_codec import sha256
+from recording_codec import sha256, parse_robot_command
 from synthetic import parse_startup
 
 
 def source_header(run, physics):
-    files = sorted([ROOT/name for name in ('coordinates.py','facts_owner.py','physics.py','publisher.py','scene_loader.py')] +
+    files = sorted([ROOT/name for name in ('budget.py','controller.py','coordinates.py','facts_owner.py','physics.py','publisher.py','scene_loader.py')] +
                    [ROOT.parent/'synthetic-motion'/name for name in ('motion_codec.py','publisher.py','recording_codec.py','recording_source.py','synthetic.py')])
     chunks = []
     for path in files:
@@ -40,11 +40,15 @@ def source_header(run, physics):
         except importlib.metadata.PackageNotFoundError:
             version = None
         dependencies.append({'name':name_,'version':version,'sha256':None})
-    return {'source_kind':'newton','implementation':{'name':'lab-word-newton-so101','version':'1','sha256':sha256(b''.join(chunks))},
+    header = {'source_kind':'newton','implementation':{'name':'lab-word-newton-so101','version':'2','sha256':sha256(b''.join(chunks))},
             'python_version':'.'.join(map(str,sys.version_info[:3])), 'dependencies':dependencies,
             'capture_policy':{'selection':'all-selected','sample_hz':30,'motion_codec':CODEC,'first_source_sequence':'1','first_source_event_sequence':'1'},
             'runtime':{'device':str(run.device),'gpu':run.device.name,'driver':driver,'solver':'Newton SolverMuJoCo/MJWarp',
                        'profile_sha256':physics['profile_sha256'],'physics_step_hz':240,'control_hz':30,'live_rate_hz':physics['live_rate_hz']}}
+    if physics.get('control_mode') == 'controlled':
+        from controller import CAPABILITIES
+        header['robot_control'] = {'version':1,'mode':'controlled','capabilities':list(CAPABILITIES)}
+    return header
 
 
 async def publish(run, value):
@@ -82,6 +86,11 @@ async def publish(run, value):
         reliable = await sockets.enter_async_context(connect(recording_url,open_timeout=3,close_timeout=3,ping_interval=1,ping_timeout=3,
                                                             max_size=16384,max_queue=1,write_limit=65536,compression=None,proxy=None))
         recording = await admit_recording(reliable,startup.recording,welcome,source_header(run,physics))
+        controller = None
+        if physics.get('control_mode') == 'controlled':
+            from controller import RobotController
+            run.controlled()
+            controller = RobotController(run.profile,{'session_id':startup.session_id,**recording.robot})
         def encode(sample,sequence):
             nonlocal evidence_count
             started=time.monotonic()
@@ -94,7 +103,11 @@ async def publish(run, value):
                 evidence.write(json.dumps({'sequence':sequence,'sim_time_ns':sample['sim_time_ns'],'frame_sha256':sha256(frame),'native':native,'physical':physical},separators=(',',':'))+'\n')
                 evidence_count+=1
             return frame
-        owner = PhysicsOwner(run,encode,recording.limits)
+        owner = PhysicsOwner(run,encode,recording.limits,controller)
+        if controller is not None:
+            def command(message):
+                owner.enqueue(parse_robot_command(message,recording.scope,recording.robot,run.profile['joint_limits']))
+            recording.on_command = command
         async def pump():
             while True:
                 owner.ack(recording.durable_sequence)
@@ -104,6 +117,9 @@ async def publish(run, value):
                     continue
                 sequence,_,frame = fact
                 recording.capture(frame,sequence,not owner.running)
+                for encoded_event in owner.selected_events(sequence):
+                    recording.robot_event(json.loads(encoded_event))
+                owner.handoff_events(sequence)
                 if sequence==1:
                     initial.set_result(frame)
                 elif owner.running and (physics['live_rate_hz']==30 or sequence%2==0):
@@ -137,6 +153,8 @@ async def publish(run, value):
                 if (action=='pause' and not owner.running) or (action=='resume' and owner.running):
                     raise ValueError('Lifecycle state conflict')
                 deadline = received+recording.deadline_seconds
+                if action == 'stop':
+                    owner.stop_commands()
                 sequence,sim_time,boundary = await asyncio.to_thread(owner.boundary)
                 while recording.selected_sequence < sequence:
                     if time.monotonic()>=deadline:
@@ -153,6 +171,7 @@ async def publish(run, value):
                 last_revision = request['revision']
                 if action=='stop':
                     return
+                owner.release_boundary()
                 if action=='resume':
                     owner.resume()
             raise ValueError('Gateway disconnected')

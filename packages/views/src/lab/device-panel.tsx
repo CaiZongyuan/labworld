@@ -10,6 +10,7 @@ import {
   type DeviceCommand,
   type EntityAction,
   type LabEntity,
+  type SimulationSession,
 } from '@labos-threejs/sdk';
 import { errorCodeOf } from '@labos-threejs/core';
 import { Button } from '@labos-threejs/ui/components/button';
@@ -35,6 +36,7 @@ import { useAppMessage } from '../shell/messages';
 import ObservationReading from './observation-reading';
 import { readEntityObservations } from './observation-state';
 import CentrifugePanel, { activeTask } from './centrifuge-panel';
+import RobotPanel, { RobotTaskStatus } from './robot-panel';
 import CommandFeedback, { commandAttemptStatus } from './command-feedback';
 import { sessionKey } from '../identity/session';
 import { entityWithConfirmedRun, type SourceAttempt } from './source-state';
@@ -56,6 +58,8 @@ export type DeviceInput = {
   rpm: string;
   temperature: string;
   duration: string;
+  robotJoints?: string[];
+  robotGripper?: string;
 };
 export const defaultDeviceInput: DeviceInput = {
   brightness: '100',
@@ -76,6 +80,7 @@ export default function DevicePanel({
   sourceAttempt,
   onSourceAttempt,
   readingDetails,
+  simulationSession,
 }: {
   entity: LabEntity;
   apiClient: ApiClient;
@@ -89,6 +94,7 @@ export default function DevicePanel({
   sourceAttempt?: SourceAttempt;
   onSourceAttempt: (attempt: SourceAttempt) => void;
   readingDetails?: ReactNode;
+  simulationSession?: SimulationSession | null;
 }) {
   const message = useAppMessage('lab');
   const client = useQueryClient();
@@ -97,12 +103,19 @@ export default function DevicePanel({
       void client.invalidateQueries({ queryKey: sessionKey(apiClient) });
   }
   const errorCodes = {
-    'lab.device_busy': message('task.busy'),
+    'lab.device_busy': message(
+      entity.binding?.program_id === 'newton.so101.v1'
+        ? 'robot.busy'
+        : 'task.busy',
+    ),
     'lab.invalid_parameters': message('device.invalidParameters'),
     'lab.program_not_running': message('device.startRequired'),
     'lab.runtime_unavailable': message('device.runtimeUnavailable'),
     'idempotency.conflict': message('device.keyConflict'),
     'lab.command_expired': message('device.commandExpired'),
+    'lab.session_paused': message('robot.paused'),
+    'lab.robot_unavailable': message('robot.startRequired'),
+    'lab.capability_unavailable': message('robot.startRequired'),
   };
   const programPending = sourceAttempt?.phase === 'submitting';
   const programSubmission = useRef(false);
@@ -110,6 +123,18 @@ export default function DevicePanel({
   const path = { lab_id: entity.lab_id, entity_id: entity.id };
   const programRun = entityWithConfirmedRun(entity, sourceAttempt).program_run;
   const running = programRun?.status === 'running';
+  const newtonRobot = entity.binding?.program_id === 'newton.so101.v1';
+  const robotEntity =
+    newtonRobot ||
+    entity.definition.capabilities.some(
+      (capability) => capability.id === 'robot.home',
+    );
+  const robotImplemented =
+    newtonRobot &&
+    entity.capabilities.some(
+      (capability) =>
+        capability.id === 'robot.home' && capability.binding_implemented,
+    );
   const executableCapability = (id: string) =>
     running &&
     !programPending &&
@@ -119,6 +144,14 @@ export default function DevicePanel({
         capability.id === id &&
         capability.binding_implemented &&
         capability.executable,
+    ) &&
+    runtimeAvailable;
+  const retryCapability = (id: string) =>
+    running &&
+    !programPending &&
+    !entity.archived_at &&
+    entity.capabilities.some(
+      (capability) => capability.id === id && capability.binding_implemented,
     ) &&
     runtimeAvailable;
   const pendingAttempt = (value: CommandAttempt) => {
@@ -183,7 +216,9 @@ export default function DevicePanel({
   async function submit(input: EntityAction, previous?: CommandAttempt) {
     if (
       submission.current[input.capability] ||
-      !executableCapability(input.capability) ||
+      !(previous
+        ? retryCapability(input.capability)
+        : executableCapability(input.capability)) ||
       programPending ||
       (previous && previous.runId !== programRun?.id) ||
       (!previous &&
@@ -191,6 +226,7 @@ export default function DevicePanel({
         pendingAttempt(attempts[input.capability])) ||
       (!previous &&
         input.capability !== 'centrifuge.stop' &&
+        input.capability !== 'robot.cancel' &&
         (locked || Object.values(submission.current).some(Boolean)))
     )
       return;
@@ -257,7 +293,12 @@ export default function DevicePanel({
           {Object.entries(readings.properties)
             .filter(([name]) => name !== 'elapsed_seconds')
             .map(([name, reading]) => (
-              <ObservationReading key={name} name={name} reading={reading} />
+              <ObservationReading
+                key={name}
+                name={name}
+                reading={reading}
+                robot={robotEntity}
+              />
             ))}
         </div>
         {!Object.keys(readings.properties).length ? (
@@ -265,13 +306,18 @@ export default function DevicePanel({
         ) : null}
       </section>
       {readingDetails}
+      {robotEntity && !robotImplemented && entity.task ? (
+        <section className="lab-inspector-section">
+          <RobotTaskStatus entity={entity} />
+        </section>
+      ) : null}
       {entity.binding ? (
         <section
           className="lab-inspector-section device-panel"
           aria-label={message('device.program')}
         >
           <div className="lab-section-heading">
-            <h3>{message('device.program')}</h3>
+            <h3>{message(newtonRobot ? 'robot.title' : 'device.program')}</h3>
             <Badge variant="outline">
               {message(`device.${programRun?.status ?? 'not_started'}`)}
             </Badge>
@@ -284,25 +330,27 @@ export default function DevicePanel({
             </Alert>
           ) : null}
 
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={
-              !!entity.archived_at ||
-              programPending ||
-              !runtimeAvailable ||
-              activeTask(entity)
-            }
-            onClick={() => void program(running ? 'stop' : 'start')}
-          >
-            {running ? (
-              <Square data-icon="inline-start" />
-            ) : (
-              <Play data-icon="inline-start" />
-            )}
-            {message(running ? 'device.stop' : 'device.start')}
-          </Button>
-          {running ? (
+          {!newtonRobot ? (
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={
+                !!entity.archived_at ||
+                programPending ||
+                !runtimeAvailable ||
+                activeTask(entity)
+              }
+              onClick={() => void program(running ? 'stop' : 'start')}
+            >
+              {running ? (
+                <Square data-icon="inline-start" />
+              ) : (
+                <Play data-icon="inline-start" />
+              )}
+              {message(running ? 'device.stop' : 'device.start')}
+            </Button>
+          ) : null}
+          {running && !newtonRobot ? (
             <Dialog>
               <DialogTrigger
                 render={
@@ -467,6 +515,20 @@ export default function DevicePanel({
               }
             />
           ) : null}
+          {robotImplemented ? (
+            <RobotPanel
+              entity={entity}
+              session={simulationSession}
+              locked={locked || programPending}
+              available={running && runtimeAvailable}
+              executable={executableCapability}
+              submit={submit}
+              input={input}
+              onInput={onInput}
+            />
+          ) : newtonRobot ? (
+            <p>{message('robot.startRequired')}</p>
+          ) : null}
           {Object.values(attempts).map((value) => (
             <CommandFeedback
               key={value.key}
@@ -478,7 +540,7 @@ export default function DevicePanel({
               onRefresh={onRefresh}
               onRetry={() => void submit(value.input, value)}
               retryAvailable={
-                executableCapability(value.input.capability) &&
+                retryCapability(value.input.capability) &&
                 !programPending &&
                 value.runId === programRun?.id
               }

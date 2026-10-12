@@ -1,3 +1,4 @@
+import type { RobotControls } from '../devices/robot.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
 import {
   RecordingEventCursors,
@@ -32,6 +33,8 @@ import {
   decodeFrameBatch,
   parseSourceEvent,
   parseSourceEnd,
+  parseRobotSourceEvent,
+  type RobotSourceEvent,
   RECORDING_CAPTURE_POLICY,
   RECORDING_CODEC,
   type RecordingAck,
@@ -205,6 +208,10 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   private charged = 0;
   private stopping = false;
   private recovering = false;
+  private robots?: RobotControls;
+  configureRobots(robots: RobotControls) {
+    this.robots = robots;
+  }
   private resource = new AsyncResource('recording-io-owner');
   private admissionUnavailable?: string;
   private eventCursors?: RecordingEventCursors;
@@ -1321,6 +1328,12 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             scope.session.snapshot.physics.live_rate_hz))
     )
       throw fail('recording_scope_mismatch');
+    const controlled =
+      scope.session.snapshot.physics?.control_mode === 'controlled';
+    if (controlled && (!hello.source_header.robot_control || !this.robots))
+      throw fail('robot_control_not_supported');
+    if (!controlled && hello.source_header.robot_control)
+      throw fail('robot_scope_mismatch');
     const headerBytes = canonicalSourceHeader(hello.source_header),
       headerDigest = journalDigest(headerBytes);
     owner.identity = identity;
@@ -1344,9 +1357,13 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     owner.prefix.source_prefix_sha256 = prefix;
     if (owner.fault || owner.row.status !== 'open' || this.stopping)
       throw fail('recording_closed');
+    const robot = controlled
+      ? await this.robots!.bind(scope.session, owner.row.id)
+      : undefined;
     owner.connected = true;
     const ready: RecordingReady = {
       ...identity,
+      ...(robot ? { robot } : {}),
       type: 'recording.ready',
       version: 1,
       codec: RECORDING_CODEC,
@@ -1357,6 +1374,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     };
     return {
       ready,
+      ...(robot ? { commands: () => this.robots!.commands(identity) } : {}),
       receive: (raw) => this.receive(owner, raw),
       leave: (reason) => {
         owner.connected = false;
@@ -1458,6 +1476,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       sourceSequence = BigInt(owner.prefix.last_source_sequence),
       eventSequence = BigInt(owner.prefix.last_source_event_sequence),
       ended = false;
+    let robotEvent: RobotSourceEvent | undefined;
     if (packet.kind === 1) {
       const i = owner.session.snapshot.installation,
         frames = decodeFrameBatch(packet.payload, {
@@ -1524,6 +1543,20 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       )
         throw fail('recording_lifecycle_event_rejected');
       eventSequence++;
+    } else if (packet.kind === 4) {
+      robotEvent = parseRobotSourceEvent(
+        new TextDecoder('utf-8', { fatal: true }).decode(packet.payload),
+      );
+      if (
+        !this.robots ||
+        owner.session.snapshot.physics?.control_mode !== 'controlled' ||
+        robotEvent.source_event_sequence !== String(eventSequence + 1n) ||
+        !last ||
+        BigInt(robotEvent.sim_time_ns) > BigInt(last.time)
+      )
+        throw fail('recording_robot_event_rejected');
+      await this.robots.validate(owner.session.id, robotEvent);
+      eventSequence++;
     } else {
       const end = parseSourceEnd(
         new TextDecoder('utf-8', { fatal: true }).decode(packet.payload),
@@ -1561,6 +1594,8 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         ),
       'recording_ack_timeout',
     );
+    if (robotEvent)
+      await this.robots!.apply(owner.session.id, owner.row.id, robotEvent);
     owner.lastFrame = last;
     owner.initial = initial;
     owner.transition = event;
@@ -1917,6 +1952,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         );
       try {
         if (owner.inflight) await drain(owner.inflight.settled.catch(() => {}));
+        await this.robots?.end(session, !owner.fault);
         await drain(this.resolveCommitted(owner));
         await drain(owner.journal.barrier());
       } catch (error) {
@@ -1998,6 +2034,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         if (entry.scope.session.id === session.id) this.tickets.delete(ticket);
     }).catch(async (error) => {
       this.faultSession(session.id, 'recording_seal_failed');
+      await this.robots?.end(session, false);
       owner.row.status = 'incomplete';
       owner.row.reason = owner.fault ?? 'recording_seal_failed';
       owner.row.ended_at = this.now();
@@ -2125,6 +2162,14 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             );
             owner.prefix.last_source_event_sequence =
               owner.transition.source_event_sequence;
+          } else if (packet.kind === 4) {
+            const robotEvent = parseRobotSourceEvent(
+              new TextDecoder().decode(packet.payload),
+            );
+            if (!this.robots) throw fail('robot_control_not_supported');
+            await this.robots.apply(session.id, row.id, robotEvent);
+            owner.prefix.last_source_event_sequence =
+              robotEvent.source_event_sequence;
           } else owner.prefix.source_ended = true;
         } else if (record.kind === 'business.prepare') {
           const batch = record.data as unknown as PreparedEventBatch;
