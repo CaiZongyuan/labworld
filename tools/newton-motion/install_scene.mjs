@@ -86,7 +86,7 @@ for (const [index, visual] of profile.visuals.entries()) {
       name: visual.file,
       source: 'https://github.com/CaiZongyuan/labworld',
       license:
-        'Apache-2.0 original SO-ARM100 maker; Lab Word derived scene and collision package; locally authored labware',
+        'Apache-2.0 original SO-ARM100 maker; Lab World derived scene and collision package; locally authored labware',
       version: profile.profile_id,
       file: {
         file_name: visual.file,
