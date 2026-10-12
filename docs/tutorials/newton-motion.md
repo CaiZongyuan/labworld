@@ -16,7 +16,7 @@ PYTHONDONTWRITEBYTECODE=1 .scratch/newton-env/bin/python -B tools/newton-motion/
 
 `prepare.py` 核对仓库内十个固定 GLB，通过生产加载器恢复 base GLB 内的精确物理归档。归档保留 13 个原厂 STL、六个 follower 和五个 moving 派生碰撞文件、许可及来源清单。此步骤不访问网络或生成新碰撞体。输出必须是新的目录；保留失败目录用于检查。
 
-素材来自 [TheRobotStudio/SO-ARM100](https://github.com/TheRobotStudio/SO-ARM100/tree/a758567c3978dfeefe282ede0500085a48fe8f78/Simulation/SO101)。采用仓库发布的 Apache-2.0 描述与网格。试管、架和垫面由 Lab Word 编写。来源、许可、导出器与电机参数署名见 [NOTICE](../../tools/newton-motion/scene/NOTICE.md) 和 [LICENSE](../../tools/newton-motion/scene/LICENSE)。本章不使用许可尚未确认的 NVIDIA 转换资源，也不声称两种模型具有相同动力学。
+素材来自 [TheRobotStudio/SO-ARM100](https://github.com/TheRobotStudio/SO-ARM100/tree/a758567c3978dfeefe282ede0500085a48fe8f78/Simulation/SO101)。采用仓库发布的 Apache-2.0 描述与网格。试管、架和垫面由 Lab World 编写。来源、许可、导出器与电机参数署名见 [NOTICE](../../tools/newton-motion/scene/NOTICE.md) 和 [LICENSE](../../tools/newton-motion/scene/LICENSE)。本章不使用许可尚未确认的 NVIDIA 转换资源，也不声称两种模型具有相同动力学。
 
 ## 先验证实际 GPU
 

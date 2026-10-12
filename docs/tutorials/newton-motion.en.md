@@ -16,7 +16,7 @@ PYTHONDONTWRITEBYTECODE=1 .scratch/newton-env/bin/python -B tools/newton-motion/
 
 `prepare.py` checks the ten repository-owned GLBs and recovers the exact physics archive inside the base GLB through the production loader. The archive retains 13 original maker STLs, six follower and five moving derived collision files, licenses and provenance. This step uses no network or new collision generation. Use a new output directory and preserve a failed directory for diagnosis.
 
-Assets come from [TheRobotStudio/SO-ARM100](https://github.com/TheRobotStudio/SO-ARM100/tree/a758567c3978dfeefe282ede0500085a48fe8f78/Simulation/SO101). The checked-in descriptions and meshes use its Apache-2.0 publication. Lab Word authors the vial, rack and mat. See [NOTICE](../../tools/newton-motion/scene/NOTICE.md) and [LICENSE](../../tools/newton-motion/scene/LICENSE) for sources and credits. This chapter distributes no uncleared NVIDIA conversion and claims no equivalent dynamics.
+Assets come from [TheRobotStudio/SO-ARM100](https://github.com/TheRobotStudio/SO-ARM100/tree/a758567c3978dfeefe282ede0500085a48fe8f78/Simulation/SO101). The checked-in descriptions and meshes use its Apache-2.0 publication. Lab World authors the vial, rack and mat. See [NOTICE](../../tools/newton-motion/scene/NOTICE.md) and [LICENSE](../../tools/newton-motion/scene/LICENSE) for sources and credits. This chapter distributes no uncleared NVIDIA conversion and claims no equivalent dynamics.
 
 ## Check the actual GPU first
 
