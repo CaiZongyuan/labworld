@@ -316,7 +316,11 @@ try {
       '--host',
       '127.0.0.1',
     ];
-    web.env = { WEB_PORT: String(web.port), VITE_API_PROXY: backend.url };
+    web.env = {
+      WEB_PORT: String(web.port),
+      VITE_API_PROXY: backend.url,
+      LAB_WORLD_VITE_CACHE_DIR: join(web.directory, 'vite-cache'),
+    };
     await web.start();
   }
   const bootstrap = await new CoreHttp(origin).register(

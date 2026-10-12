@@ -132,7 +132,7 @@
   ],
   "live_rate_hz": 30,
   "physics_archive": {
-    "bytes": 6769288,
+    "bytes": 6769291,
     "members": [
       {
         "path": "LICENSE",
@@ -156,8 +156,8 @@
       },
       {
         "path": "assets/derived/follower-six-slab/NOTICE.txt",
-        "bytes": 388,
-        "sha256": "sha256:ba36e0b7e3d85e846210dd70a8ad6f34b22b5a31dc6fc4a387acc20efc90e3ed"
+        "bytes": 389,
+        "sha256": "sha256:cf026231e643da96dd3d151ee8a8cbe1dff8e0dbe772e84af02d339accf474c4"
       },
       {
         "path": "assets/derived/follower-six-slab/cell-00.obj",
@@ -196,8 +196,8 @@
       },
       {
         "path": "assets/derived/moving-five-y-slab/NOTICE.txt",
-        "bytes": 382,
-        "sha256": "sha256:43d17a8abfb09e17f2cc8bc1da2d9ceb96cd57812cb90d7be3d1ec6ae9e84b10"
+        "bytes": 383,
+        "sha256": "sha256:b22b0e1c97a93988860f1877c1493dd938d951a0711b5dc0ba838caa844c2b09"
       },
       {
         "path": "assets/derived/moving-five-y-slab/cell-00.obj",
@@ -286,13 +286,13 @@
       },
       {
         "path": "follower-compound.json",
-        "bytes": 3760,
-        "sha256": "sha256:bc35e9330a6ca5787cf92c9653f6e444d433ce66635eaeab7305f16045373be3"
+        "bytes": 3761,
+        "sha256": "sha256:f8d753d3d46aa1480c3c8fa9d6e17e1ee8c375186e5956e2772b571762cfd5eb"
       },
       {
         "path": "moving-compound.json",
-        "bytes": 2805,
-        "sha256": "sha256:90e1ee37198b0374a001e3989a3fe75d74ec9b4f389463f4406f73d003c14762"
+        "bytes": 2806,
+        "sha256": "sha256:9fb2fd46f0045856d66312645b15e5415e9bfeef0a73420a13068a6a5b738d1c"
       },
       {
         "path": "program.json",
@@ -315,7 +315,7 @@
         "sha256": "sha256:2ad923738b305d93380fe58b308bf6129efcfc66ec93d86e270f2c6b3891d57c"
       }
     ],
-    "sha256": "sha256:d86c6094aa74640872afd7ce3d659b47cfed121dd7ec88d60e465ccec77d5f59",
+    "sha256": "sha256:fcddb20fbe664cbeceee1c95cee24d4ccf9e4388b858d9808b7ed5a49e852e20",
     "visual_index": 0
   },
   "physics_step_hz": 240,
@@ -544,9 +544,9 @@
           -0.030982700000000002, -0.0023999999999997097, -0.05546248924125113
         ]
       },
-      "bytes": 11618120,
+      "bytes": 11618124,
       "file": "base.glb",
-      "sha256": "sha256:89f44fe3e067a7b87bdf00b370e963825836fd2fae323d0550aabf66353a1143"
+      "sha256": "sha256:1f914ad6176fd3a16e22c6c8c99f2dd09eef7fb253d68c8cc56ab02641e544de"
     },
     {
       "body_to_visual": {
@@ -563,9 +563,9 @@
           -0.05059919907612801, -0.06440000055432321, -0.028702684423986435
         ]
       },
-      "bytes": 4274468,
+      "bytes": 4274472,
       "file": "shoulder.glb",
-      "sha256": "sha256:23d9830c724fd2d116b34da1bab660692dd3a3d88a5b4ba2474a7431f0ee95d6"
+      "sha256": "sha256:f2ff510f80304b5d291e476bc6ba224dcbbddbffd8268b4845b53e39e27a803a"
     },
     {
       "body_to_visual": {
@@ -584,7 +584,7 @@
       },
       "bytes": 3252196,
       "file": "upper_arm.glb",
-      "sha256": "sha256:5534d2f09cedb5dde115fbf6aae398f77d39d8cf7eca571a99020b14a844cd42"
+      "sha256": "sha256:fa34d7e14c1ad2a2e185d66a88bd1d5893267bf02ffc6e3eb76b0800622e264c"
     },
     {
       "body_to_visual": {
@@ -603,7 +603,7 @@
       },
       "bytes": 5736076,
       "file": "lower_arm.glb",
-      "sha256": "sha256:189a5b59d19c0f2929c7403d3eb0b9b6cb58f0b680003fa8a1e849063396326e"
+      "sha256": "sha256:f830f0c1c29988e177f992689773cae26a6f906744fbb1d09eddec4fd1f0a00e"
     },
     {
       "body_to_visual": {
@@ -618,9 +618,9 @@
           -0.019999999552965164, -0.009000000530481339, -0.01199767825007439
         ]
       },
-      "bytes": 5135852,
+      "bytes": 5135856,
       "file": "wrist.glb",
-      "sha256": "sha256:3ecabb0165a92cffd41d23700c0bee6a805c200b1e1292b22527870400d22ede"
+      "sha256": "sha256:934276ddc39aafff7f676f8e654e71b33b64c187639aa889960cd7fa8aea5656"
     },
     {
       "body_to_visual": {
@@ -637,7 +637,7 @@
       },
       "bytes": 3448612,
       "file": "gripper.glb",
-      "sha256": "sha256:9ba090a3255d211d567dee136c4275fc4316217a71906f2d3939932af6150c9e"
+      "sha256": "sha256:d9d157121685a4192892e349c205fbe4c24261feeb0f2f992f949ca54e9b22f1"
     },
     {
       "body_to_visual": {
@@ -654,7 +654,7 @@
       },
       "bytes": 2036400,
       "file": "moving_jaw_so101_v1.glb",
-      "sha256": "sha256:f00b1c46e9bd5421f6310514d972d09f095cf72a7881cbd474bf7f77b8f94ccc"
+      "sha256": "sha256:b963c11bf304debeac8986310e5b6fe0738fca432e7a716a5ececf115af7fd4a"
     },
     {
       "body_to_visual": {
@@ -671,7 +671,7 @@
       },
       "bytes": 29148,
       "file": "vial.glb",
-      "sha256": "sha256:aeecb3397ffe7906e0f13c8691e1c05dd36598a0e281725b250803ddb5b1c15a"
+      "sha256": "sha256:51be8249d077391343da941512b757592d515b55a41332fc7cdb78002decdd4c"
     },
     {
       "body_to_visual": {
@@ -686,9 +686,9 @@
           -0.036000000000000004, 0.008000000000000004, -0.09600000000000003
         ]
       },
-      "bytes": 10348,
+      "bytes": 10352,
       "file": "rack.glb",
-      "sha256": "sha256:51e7581562c93918ef8578650936ec1b11300cc8d6fbbc4eff73a3ce22f94f44"
+      "sha256": "sha256:267416c4dc0c18c50f4cc18d2bf01eb4f1e02b45e180c9a625a84a0318aab0cd"
     },
     {
       "body_to_visual": {
@@ -701,8 +701,8 @@
       },
       "bytes": 1756,
       "file": "mat.glb",
-      "sha256": "sha256:0695df4ad71935279ed2d7c45f8be514f48190ab5fc8fdfc8237d97d7e649474"
+      "sha256": "sha256:81c577f75c2d1cc967e2f90ae9936854fbaccb5250146d85d931a37083e7df46"
     }
   ],
-  "hash": "sha256:f85a5bed3be68d1c901298e6c976d539030fe4458f24b621a3b921de10d97bb1"
+  "hash": "sha256:499280ca3f82a759c8d7730fff556c632be48c2bfc290c687d5ed488ddc117cc"
 }

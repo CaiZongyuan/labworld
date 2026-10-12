@@ -132,7 +132,18 @@ async function observedUnsignedAdmission(
   before: Session,
   evidence: string,
   testDeadline: number,
+  observer: 'unsigned' | 'snapshot-pins' = 'unsigned',
 ) {
+  const receipt =
+    observer === 'snapshot-pins'
+      ? {
+          filename: 'pins-admission-observer.json',
+          phase: 'snapshot-pins-initial-admission',
+        }
+      : {
+          filename: 'unsigned-admission-observer.json',
+          phase: 'valid-admission-after-expired403-and-unchanged-session',
+        };
   const descriptor = Object.getOwnPropertyDescriptor(client, 'response');
   const original = client.response;
   const started = performance.now();
@@ -150,10 +161,10 @@ async function observedUnsignedAdmission(
   ) => {
     try {
       writeFileSync(
-        join(evidence, 'unsigned-admission-observer.json'),
+        join(evidence, receipt.filename),
         JSON.stringify(
           {
-            phase: 'valid-admission-after-expired403-and-unchanged-session',
+            phase: receipt.phase,
             verdict,
             status: response?.status ?? null,
             admissionElapsedMs,
@@ -1124,11 +1135,23 @@ test(
   'public archived/unavailable Installation and snapshot asset pins retain exact signed download bytes',
   { timeout: 60000 },
   async () => {
+    const testDeadline = performance.now() + 60000;
     const f = await fixture('session-pins'),
       peers: Source[] = [];
     try {
       const session = await f.start(),
-        source = new Source(f.target, session, await f.admit(session));
+        source = new Source(
+          f.target,
+          session,
+          await observedUnsignedAdmission(
+            f.sourceClient,
+            () => f.admit(session),
+            session,
+            f.target.evidence,
+            testDeadline,
+            'snapshot-pins',
+          ),
+        );
       peers.push(source);
       await source.ready();
       await source.frame();

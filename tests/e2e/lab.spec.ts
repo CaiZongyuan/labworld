@@ -5,7 +5,8 @@ import {
   request as playwrightRequest,
   type Page,
 } from '@playwright/test';
-import { readFileSync } from 'node:fs';
+import { appendFileSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { observeBrowserSeam } from './lab-browser-facts';
 import { geometryFact, predicateFact } from './original-predicate-facts';
@@ -106,6 +107,95 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   test.setTimeout(150000);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.name));
+  let importFacts = 0,
+    catalogResponses = 0;
+  const importFact = (stage: string, fields: object = {}) => {
+    if (!process.env.LAB_NODE_EVIDENCE || importFacts++ >= 64) return;
+    try {
+      appendFileSync(
+        join(process.env.LAB_NODE_EVIDENCE, 'lab-first-import-facts.jsonl'),
+        JSON.stringify({
+          stage,
+          nodeMonotonicMs: performance.now(),
+          ...fields,
+        }) + '\n',
+        { mode: 0o600 },
+      );
+    } catch {
+      // Missing evidence cannot replace an original action or assertion.
+    }
+  };
+  const catalogProjection = (status: number, body: unknown) => {
+    const value = body as { max_upload_bytes?: unknown; data?: unknown } | null;
+    return {
+      status:
+        Number.isInteger(status) && status >= 100 && status <= 599
+          ? status
+          : null,
+      maxUploadBytes:
+        Number.isSafeInteger(value?.max_upload_bytes) &&
+        Number(value?.max_upload_bytes) >= 0
+          ? Number(value?.max_upload_bytes)
+          : null,
+      rowsCount: Array.isArray(value?.data) ? value.data.length : null,
+    };
+  };
+  page.on('response', (response) => {
+    if (
+      response.request().method() !== 'GET' ||
+      new URL(response.url()).pathname !== '/api/v1/lab/assets' ||
+      catalogResponses++ >= 8
+    )
+      return;
+    void response.json().then(
+      (body: unknown) =>
+        importFact(
+          'original-catalog-response',
+          catalogProjection(response.status(), body),
+        ),
+      () => importFact('original-catalog-response-unavailable'),
+    );
+  });
+  const importDOMFact = (stage: string) => {
+    importFact(stage);
+    if (!process.env.LAB_NODE_EVIDENCE) return Promise.resolve(null);
+    return page
+      .evaluate(() => {
+        const library = document.querySelector('.asset-library');
+        const visible = (element: Element | undefined) =>
+          !!element && element.getClientRects().length > 0;
+        const importButton = Array.from(
+          library?.querySelectorAll('button') ?? [],
+        ).find((button) => button.textContent?.trim() === '导入 GLB');
+        const publishButton = Array.from(
+          document.querySelectorAll('[role="dialog"] button'),
+        ).find((button) => button.textContent?.trim() === '发布资产');
+        const storageAlert = Array.from(
+          library?.querySelectorAll('[role="alert"]') ?? [],
+        ).find((alert) =>
+          alert.textContent?.includes('上传或发布未完成，请重试。'),
+        );
+        return {
+          browserMonotonicMs: performance.now(),
+          libraryPresent: !!library,
+          importVisible: visible(importButton),
+          importDisabled: importButton ? importButton.disabled : null,
+          fileInputPresent: !!library?.querySelector(
+            'input[type="file"][aria-label="GLB 文件"]',
+          ),
+          publishDialogVisible: visible(publishButton),
+          storageFeedbackVisible: visible(storageAlert),
+        };
+      })
+      .then((facts) => {
+        importFact(stage + '-dom', facts);
+        return facts;
+      })
+      .catch(() => {
+        importFact(stage + '-dom', { domUnavailable: true });
+        return null;
+      });
+  };
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/register');
   await page
@@ -116,15 +206,23 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     .fill('world-browser-test-password');
   await page.getByRole('button', { name: '创建账号' }).click();
   await expect(page).toHaveURL(/\/lab$/);
+  importFact('original-library-navigation-start');
   await page.getByRole('link', { name: '资产库', exact: true }).click();
-  await page
-    .getByLabel('GLB 文件')
-    .setInputFiles('tests/fixtures/lab/cube-draco.glb');
+  void importDOMFact('original-import-click-start');
+  const [chooser] = await Promise.all([
+    page.waitForEvent('filechooser'),
+    page.getByRole('button', { name: '导入 GLB', exact: true }).click(),
+  ]);
+  void importDOMFact('original-filechooser-opened');
+  await chooser.setFiles('tests/fixtures/lab/cube-draco.glb');
+  void importDOMFact('original-publish-click-start');
   await page
     .getByRole('dialog')
     .getByRole('button', { name: '发布资产' })
     .click();
+  void importDOMFact('original-publish-click-complete');
   await expect(page.getByText('cube-draco.glb', { exact: true })).toBeVisible();
+  void importDOMFact('original-first-import-complete');
   await page.getByRole('link', { name: 'Lab', exact: true }).click();
   await page.getByRole('button', { name: '创建 Lab' }).click();
   let dialog = page.getByRole('dialog');

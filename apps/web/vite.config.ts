@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
     process.env.VITE_API_PROXY ?? env.VITE_API_PROXY ?? 'http://127.0.0.1:3000';
   return {
     envDir: workspaceRoot,
+    cacheDir: process.env.LAB_WORLD_VITE_CACHE_DIR,
     plugins: [react(), tailwindcss()],
     optimizeDeps: {
       include: [

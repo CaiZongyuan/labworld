@@ -21,6 +21,8 @@
 
 新的应用截图和原始 JSON 放在 `.scratch/foundation-v1/application/`，不会被文档 Playwright 清空。公共首页截图 `apps/docs/public/lab-foundation-v1.png` 来自本次真实应用，不使用隔离预览。新旅程覆盖桌面中文/浅色、320px 英文/深色、离线/恢复和实际 Draco/Basis 像素。无页面错误或横向页面溢出。
 
+2026-10-13 名称勘误：截图中的产品名称已修正为 Lab World。此改动只修正原始截图的名称文字，其余像素保持不变；截图继续记录本次历史验收，不代表重新执行了该旅程。
+
 固定比较基准是 `preview/lab-foundation-v1@10c4c22f875b958c7adc30cf84c7a41d56a4589c`。正式 UI 延续对象目录、3D、Inspector、运行/布局模式及底部历史。正式流程没有 30x/120x 或场景故障工具条。后端 Run、Task、属性观测和 persistent World 替代预览模拟器。长 UUID 和真实来源留在 Inspector，不复制到目录标题。
 
 GLB loading/error/replacement 和 archived viewport 原证据保存在 `.worktrees/10-entity-lifecycle/.scratch/lifecycle-evidence/application/lab-foundation/`。本票窄屏 CSS 改动后重新验证受影响的实际生命周期桌面/窄屏场景及完整旅程。空/加载/WebGL 不可用、选择/指针、认证撤销、运行重启和保留/幂等语义继续由已有 HTTP、组件、SDK 与浏览器检查承担。输入未变的 pass 可复用；综合恢复 pass 不宣称修复 #8 曾出现的冷启动 timeout。

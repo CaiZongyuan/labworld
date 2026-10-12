@@ -2,42 +2,42 @@
 export const NEWTON_SCENE_VISUALS = [
   {
     pose_key: 'so101/base',
-    sha256: '89f44fe3e067a7b87bdf00b370e963825836fd2fae323d0550aabf66353a1143',
+    sha256: '1f914ad6176fd3a16e22c6c8c99f2dd09eef7fb253d68c8cc56ab02641e544de',
   },
   {
     pose_key: 'so101/shoulder',
-    sha256: '23d9830c724fd2d116b34da1bab660692dd3a3d88a5b4ba2474a7431f0ee95d6',
+    sha256: 'f2ff510f80304b5d291e476bc6ba224dcbbddbffd8268b4845b53e39e27a803a',
   },
   {
     pose_key: 'so101/upper_arm',
-    sha256: '5534d2f09cedb5dde115fbf6aae398f77d39d8cf7eca571a99020b14a844cd42',
+    sha256: 'fa34d7e14c1ad2a2e185d66a88bd1d5893267bf02ffc6e3eb76b0800622e264c',
   },
   {
     pose_key: 'so101/lower_arm',
-    sha256: '189a5b59d19c0f2929c7403d3eb0b9b6cb58f0b680003fa8a1e849063396326e',
+    sha256: 'f830f0c1c29988e177f992689773cae26a6f906744fbb1d09eddec4fd1f0a00e',
   },
   {
     pose_key: 'so101/wrist',
-    sha256: '3ecabb0165a92cffd41d23700c0bee6a805c200b1e1292b22527870400d22ede',
+    sha256: '934276ddc39aafff7f676f8e654e71b33b64c187639aa889960cd7fa8aea5656',
   },
   {
     pose_key: 'so101/gripper',
-    sha256: '9ba090a3255d211d567dee136c4275fc4316217a71906f2d3939932af6150c9e',
+    sha256: 'd9d157121685a4192892e349c205fbe4c24261feeb0f2f992f949ca54e9b22f1',
   },
   {
     pose_key: 'so101/moving_jaw_so101_v1',
-    sha256: 'f00b1c46e9bd5421f6310514d972d09f095cf72a7881cbd474bf7f77b8f94ccc',
+    sha256: 'b963c11bf304debeac8986310e5b6fe0738fca432e7a716a5ececf115af7fd4a',
   },
   {
     pose_key: 'vial',
-    sha256: 'aeecb3397ffe7906e0f13c8691e1c05dd36598a0e281725b250803ddb5b1c15a',
+    sha256: '51be8249d077391343da941512b757592d515b55a41332fc7cdb78002decdd4c',
   },
   {
     pose_key: 'rack',
-    sha256: '51e7581562c93918ef8578650936ec1b11300cc8d6fbbc4eff73a3ce22f94f44',
+    sha256: '267416c4dc0c18c50f4cc18d2bf01eb4f1e02b45e180c9a625a84a0318aab0cd',
   },
   {
     pose_key: 'mat',
-    sha256: '0695df4ad71935279ed2d7c45f8be514f48190ab5fc8fdfc8237d97d7e649474',
+    sha256: '81c577f75c2d1cc967e2f90ae9936854fbaccb5250146d85d931a37083e7df46',
   },
 ] as const;

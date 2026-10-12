@@ -1,9 +1,11 @@
 # Pinned Newton scene candidate
 
-The registered profile is `sha256:f85a5bed3be68d1c901298e6c976d539030fe4458f24b621a3b921de10d97bb1`.
-`representations/base.glb` retains the exact combined archive `sha256:d86c6094aa74640872afd7ce3d659b47cfed121dd7ec88d60e465ccec77d5f59`.
+The registered profile is `sha256:499280ca3f82a759c8d7730fff556c632be48c2bfc290c687d5ed488ddc117cc`.
+`representations/base.glb` retains the exact combined archive `sha256:fcddb20fbe664cbeceee1c95cee24d4ccf9e4388b858d9808b7ed5a49e852e20`.
 The ten original visual geometries, maker meshes/licenses, body inertias, materials and collision shapes are retained.
 Eleven locally derived collision members and their provenance remain in the fixed archive allowlist.
+
+The GPU measurements below were recorded with profile `sha256:f85a5bed3be68d1c901298e6c976d539030fe4458f24b621a3b921de10d97bb1`. The current profile corrects Lab World attribution metadata and its resource hashes; geometry, scene, program and solver inputs remain unchanged.
 
 The predefined program contains fourteen records. Cartesian descent stays 5 mm behind the final grip along its long axis, then enters horizontally at cap height. Closure pauses for one second. Joint targets close from 0.4 to 0.3 during lift, then 0.3 to 0.2 during held. These targets maintain contact without changing motor force or friction. The source lift goal is 12 mm; the acceptance threshold remains 6 mm.
 
