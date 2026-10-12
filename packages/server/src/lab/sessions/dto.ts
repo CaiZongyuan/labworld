@@ -24,7 +24,7 @@ export const SceneInstallation = z
       z.literal('development-synthetic'),
       z.literal('so101-vial'),
     ]),
-    package_version: z.literal('1'),
+    package_version: z.union([z.literal('1'), z.literal('2')]),
     scene_hash: z.string(),
     mapping_revision: z.number().int(),
     pose_keys: z.array(z.string()),
@@ -67,6 +67,7 @@ export const SimulationSessionSnapshot = z
     physics: z
       .object({
         source_kind: z.literal('newton'),
+        control_mode: z.literal('controlled').optional(),
         profile_id: z.literal('so101-vial-v1'),
         profile_sha256: z.string(),
         live_rate_hz: z.union([z.literal(15), z.literal(30)]),

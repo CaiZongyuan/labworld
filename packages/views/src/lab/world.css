@@ -255,6 +255,30 @@
   min-width: 0;
   flex: 1;
 }
+.robot-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-block: 12px;
+}
+.robot-joint-inputs {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 90px;
+  gap: 8px;
+  align-items: center;
+}
+.robot-joint-inputs input {
+  min-width: 0;
+}
+.robot-joint-inputs input[type='range'] {
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  accent-color: var(--primary);
+}
+.robot-task {
+  margin-top: 16px;
+}
 .device-command {
   display: flex;
   flex-direction: column;

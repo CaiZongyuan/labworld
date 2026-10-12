@@ -150,13 +150,13 @@ export async function encodeRecordingPacket(
       'invalid_packet',
       'Source packet u64 fields require BigInt',
     );
-  if (![1, 2, 3].includes(packet.kind))
+  if (![1, 2, 3, 4].includes(packet.kind))
     throw new RecordingProtocolError(
       'invalid_packet',
       'Unsupported source packet kind',
     );
   if (
-    (packet.kind === 2 &&
+    ((packet.kind === 2 || packet.kind === 4) &&
       packet.payload.byteLength > RECORDING_WIRE_LIMITS.event_bytes) ||
     (packet.kind === 3 &&
       packet.payload.byteLength > RECORDING_WIRE_LIMITS.end_bytes)
@@ -212,7 +212,7 @@ export async function decodeRecordingPacket(
   const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
   const kind = view.getUint8(5);
   if (
-    (kind === 2 &&
+    ((kind === 2 || kind === 4) &&
       input.byteLength - RECORDING_HEADER_BYTES >
         RECORDING_WIRE_LIMITS.event_bytes) ||
     (kind === 3 &&
@@ -226,7 +226,7 @@ export async function decodeRecordingPacket(
   if (
     view.getUint32(0, false) !== 0x4c575231 ||
     view.getUint8(4) !== 1 ||
-    ![1, 2, 3].includes(kind) ||
+    ![1, 2, 3, 4].includes(kind) ||
     view.getUint16(6, true) !== 0 ||
     view.getUint32(60, true) !== 0 ||
     view.getUint32(56, true) !== input.byteLength - RECORDING_HEADER_BYTES

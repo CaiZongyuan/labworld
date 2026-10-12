@@ -10,6 +10,7 @@ import { errorCodeOf } from '@labos-threejs/core';
 import { Button } from '@labos-threejs/ui/components/button';
 import { ErrorAlert } from '../shell/error-alert';
 import { useAppMessage } from '../shell/messages';
+import { robotReasonMessage } from './messages';
 import { sessionKey } from '../identity/session';
 import type { CommandAttempt } from './device-panel';
 
@@ -90,6 +91,7 @@ export default function CommandFeedback({
   const data = command.data ?? attempt.command;
   const status =
     attempt.phase === 'accepted' ? (data?.status ?? 'accepted') : attempt.phase;
+  const robot = attempt.input.capability.startsWith('robot.');
   const result = data?.result as { reason?: string } | undefined;
   return (
     <section
@@ -98,7 +100,9 @@ export default function CommandFeedback({
     >
       <h4>{message(`device.action.${attempt.input.capability}`)}</h4>
       <p role="status">
-        <strong>{message(`device.command.${status}`)}</strong>
+        <strong>
+          {message(`${robot ? 'robot.command' : 'device.command'}.${status}`)}
+        </strong>
       </p>
       <code>{data?.id ?? attempt.key}</code>
       <small>
@@ -106,7 +110,11 @@ export default function CommandFeedback({
         {JSON.stringify(attempt.input.parameters)}
       </small>
       {result?.reason ? (
-        <small>{message(`device.reason.${result.reason}`)}</small>
+        <small>
+          {robot
+            ? robotReasonMessage(result.reason, message)
+            : message(`device.reason.${result.reason}`)}
+        </small>
       ) : null}
       {attempt.error ? (
         <ErrorAlert

@@ -5,18 +5,27 @@ import { usePreferences } from '../shell/preferences';
 import type { PropertyReading } from './observation-state';
 
 export function observationValue(property: ObservationProperty) {
-  return `${String(property.value)}${property.unit ? ` ${property.unit}` : ''}`;
+  const value = Array.isArray(property.value)
+    ? property.value
+        .map((item) =>
+          typeof item === 'number' ? item.toFixed(3) : String(item),
+        )
+        .join(', ')
+    : String(property.value);
+  return `${value}${property.unit ? ` ${property.unit}` : ''}`;
 }
 export default function ObservationReading({
   name,
   reading,
   expanded = false,
   compact = false,
+  robot = false,
 }: {
   name: string;
   reading: PropertyReading;
   expanded?: boolean;
   compact?: boolean;
+  robot?: boolean;
 }) {
   const { property } = reading;
   const message = useAppMessage('lab');
@@ -28,6 +37,8 @@ export default function ObservationReading({
     speed: 'task.actualRpm',
     phase: 'task.phase',
     elapsed_seconds: 'task.elapsed',
+    joints: 'robot.actualJoints',
+    velocity: 'robot.actualVelocity',
   };
   const label = labels[name] ? message(labels[name]) : name;
   const time = (value: string | null | undefined) =>
@@ -44,7 +55,7 @@ export default function ObservationReading({
       : typeof property.value === 'boolean'
         ? message(property.value ? 'device.on' : 'device.off')
         : name === 'phase'
-          ? message(`task.${property.value}`)
+          ? message(`${robot ? 'robot.phase' : 'task'}.${property.value}`)
           : observationValue(property);
   const status = (
     <>

@@ -35,11 +35,16 @@ export function readEntityObservations(entity: LabEntity, connected = true) {
         ? expected.enum.includes(value)
         : expected?.type === 'number'
           ? typeof value === 'number' && Number.isFinite(value)
-          : expected?.type
-            ? typeof value === expected.type
-            : typeof value === 'boolean' ||
-              typeof value === 'string' ||
-              (typeof value === 'number' && Number.isFinite(value)));
+          : expected?.type === 'array'
+            ? Array.isArray(value) &&
+              value.every(
+                (item) => typeof item === 'number' && Number.isFinite(item),
+              )
+            : expected?.type
+              ? typeof value === expected.type
+              : typeof value === 'boolean' ||
+                typeof value === 'string' ||
+                (typeof value === 'number' && Number.isFinite(value)));
     const reason =
       !hasValue || !property
         ? 'unknown'

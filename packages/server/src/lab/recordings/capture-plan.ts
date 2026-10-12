@@ -37,6 +37,8 @@ export interface CaptureHost {
   failed(reason: string, recordingIds?: string[]): void;
 }
 const tables = {
+  bindings: 'lab.runtime_bindings',
+  sessionRuns: 'lab.session_device_runs',
   runs: 'lab.program_runs',
   commands: 'lab.device_commands',
   tasks: 'lab.device_tasks',
@@ -47,7 +49,13 @@ const tables = {
   audit: 'labos_threejs_core.audit_events',
 } as const;
 const key = (kind: string, row: Row) =>
-  String(kind === 'observations' ? row.entity_id : row.id);
+  String(
+    kind === 'observations'
+      ? row.entity_id
+      : kind === 'sessionRuns'
+        ? row.run_id
+        : row.id,
+  );
 const encoded = (value: unknown) => JSON.stringify(value);
 class PlannedRollback<T> extends Error {
   readonly value: T;
@@ -74,6 +82,7 @@ async function stateIn(
   const rows = await tx.execute<{ state: State }>(sql`select jsonb_build_object(
     'entities',(select coalesce(jsonb_agg(to_jsonb(x) order by x.id),'[]'::jsonb) from lab.entities x where x.id ${filter}),
     'bindings',(select coalesce(jsonb_agg(to_jsonb(x) order by x.id),'[]'::jsonb) from lab.runtime_bindings x where x.entity_id ${filter}),
+    'sessionRuns',(select coalesce(jsonb_agg(to_jsonb(x) order by x.run_id),'[]'::jsonb) from lab.session_device_runs x where x.entity_id ${filter}),
     'generation',(select coalesce(jsonb_agg(to_jsonb(x)),'[]'::jsonb) from lab.runtime_generation x),
     'runs',(select coalesce(jsonb_agg(to_jsonb(x) order by x.id),'[]'::jsonb) from(select * from lab.program_runs where entity_id ${filter} order by id limit 4097)x),
     'commands',(select coalesce(jsonb_agg(to_jsonb(x) order by x.id),'[]'::jsonb) from(select * from lab.device_commands where entity_id ${filter} order by id limit 4097)x),
@@ -187,7 +196,12 @@ async function put(
   kind: string,
 ) {
   const name = table.split('.'),
-    identity = kind === 'observations' ? 'entity_id' : 'id';
+    identity =
+      kind === 'observations'
+        ? 'entity_id'
+        : kind === 'sessionRuns'
+          ? 'run_id'
+          : 'id';
   if (insert) {
     await tx.execute(
       sql`insert into ${sql.identifier(name[0])}.${sql.identifier(name[1])} select x.* from jsonb_populate_record(null::${sql.identifier(name[0])}.${sql.identifier(name[1])},${encoded(row)}::jsonb)x`,
@@ -206,7 +220,9 @@ async function apply(tx: DbSession, before: State, after: State) {
   // Preserve the precise transition IDs/times produced by the planning transaction.
   await tx.execute(sql`select set_config('lab.recording_apply','on',true)`);
   for (const kind of [
+    'bindings',
     'runs',
+    'sessionRuns',
     'commands',
     'tasks',
     'results',

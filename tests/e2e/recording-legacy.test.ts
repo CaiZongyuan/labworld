@@ -334,7 +334,7 @@ test(
       );
       await f.target.stop();
       const after = await custody(f.target);
-      assert.equal(after.schemaVersion, 4);
+      assert.equal(after.schemaVersion, 5);
       assert.deepEqual(after.history.slice(0, 3), before.history);
       assert.deepEqual(after.sessionAssets, []);
       assert.deepEqual(
@@ -429,7 +429,7 @@ test(
       await dependencyBytes(f);
       await f.target.stop();
       const refused = await custody(f.target);
-      assert.equal(refused.schemaVersion, 4);
+      assert.equal(refused.schemaVersion, 5);
       assert.deepEqual(refused.history.slice(0, 3), before.history);
       originalPins(f, refused);
       assert.deepEqual(refused.references, before.references);

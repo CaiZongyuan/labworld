@@ -880,6 +880,10 @@
           },
           "physics": {
             "properties": {
+              "control_mode": {
+                "enum": ["controlled"],
+                "type": "string"
+              },
               "live_rate_hz": {
                 "anyOf": [
                   {
@@ -1013,8 +1017,16 @@
             ]
           },
           "package_version": {
-            "enum": ["1"],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": ["1"],
+                "type": "string"
+              },
+              {
+                "enum": ["2"],
+                "type": "string"
+              }
+            ]
           },
           "pose_keys": {
             "items": {
@@ -1349,6 +1361,10 @@
           },
           "physics": {
             "properties": {
+              "control_mode": {
+                "enum": ["controlled"],
+                "type": "string"
+              },
               "live_rate_hz": {
                 "anyOf": [
                   {
@@ -1714,6 +1730,136 @@
         ],
         "responses": {
           "204": {
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "413": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": ["Lab"]
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/installations/{installation_id}/robot-controls": {
+      "post": {
+        "operationId": "upgradeLabRobotControls",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "installation_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "lab_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": false,
+                "properties": {},
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneInstallation"
+                }
+              }
+            },
             "description": ""
           },
           "400": {

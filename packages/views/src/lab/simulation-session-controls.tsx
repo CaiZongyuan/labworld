@@ -65,9 +65,12 @@ export function SimulationSessionControls({
   )
     ? installationId
     : (installations[0]?.id ?? '');
-  const selectedPackage = installations.find(
+  const installation = installations.find(
     (item) => item.id === selectedInstallation,
-  )?.package_id;
+  );
+  const selectedPackage = installation?.package_id;
+  const legacyRobot =
+    selectedPackage === 'so101-vial' && installation?.package_version === '1';
   const newtonRepresentations = Object.fromEntries(
     NEWTON_POSE_KEYS.map((key) => [
       key,
@@ -204,6 +207,35 @@ export function SimulationSessionControls({
               <FieldDescription>
                 {message('session.layoutHint')}
               </FieldDescription>
+              {selectedPackage === 'so101-vial' ? (
+                <FieldDescription>
+                  {message(
+                    legacyRobot
+                      ? 'session.robotDemo'
+                      : 'session.robotControlled',
+                  )}
+                </FieldDescription>
+              ) : null}
+              {legacyRobot ? (
+                <>
+                  <FieldDescription>
+                    {message('session.robotUpgradeHint')}
+                  </FieldDescription>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={controlsDisabled || busy || loading || active}
+                    onClick={() =>
+                      void simulation.write(
+                        'upgrade-controls',
+                        selectedInstallation,
+                      )
+                    }
+                  >
+                    {message('session.robotUpgrade')}
+                  </Button>
+                </>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="session-model">

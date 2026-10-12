@@ -1,6 +1,7 @@
 import {
   decodeRecordingPacket,
   parseSourceEvent,
+  parseRobotSourceEvent,
 } from '../../../../contracts/src/recording/index.ts';
 import { journalDigest, type JournalRecord } from './journal.ts';
 
@@ -195,18 +196,23 @@ export async function recordingEventPage(
       const packet = await decodeRecordingPacket(
         Buffer.from(String(record.data.packet_base64), 'base64'),
       );
-      if (packet.kind === 2) {
-        const event = parseSourceEvent(
-          new TextDecoder().decode(packet.payload),
-        );
+      if (packet.kind === 2 || packet.kind === 4) {
+        const event =
+          packet.kind === 2
+            ? parseSourceEvent(new TextDecoder().decode(packet.payload))
+            : parseRobotSourceEvent(new TextDecoder().decode(packet.payload));
         events = [
           {
             event_id: event.event_id,
             event_type: event.event_type,
-            entity_id: null,
+            entity_id:
+              'entity_id' in event.subject ? event.subject.entity_id : null,
             recorded_at: record.recorded_at,
             sim_time_ns: event.sim_time_ns,
-            event: event.event,
+            event:
+              packet.kind === 4
+                ? { ...event.event, subject: event.subject }
+                : event.event,
           },
         ];
       }

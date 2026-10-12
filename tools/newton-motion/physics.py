@@ -25,7 +25,8 @@ def observe_budget(nacon: wp.array(dtype=wp.int32), ncollision: wp.array(dtype=w
 
 @wp.kernel
 def gather_state(body: wp.array(dtype=wp.transform), joint: wp.array(dtype=wp.float32),
-                 bodies: wp.array(dtype=wp.int32), joints: wp.array(dtype=wp.int32),
+                 velocity: wp.array(dtype=wp.float32), bodies: wp.array(dtype=wp.int32),
+                 joints: wp.array(dtype=wp.int32), dofs: wp.array(dtype=wp.int32),
                  output: wp.array(dtype=wp.float32)):
     i = wp.tid()
     if i < bodies.shape[0] * 7:
@@ -36,8 +37,10 @@ def gather_state(body: wp.array(dtype=wp.transform), joint: wp.array(dtype=wp.fl
             output[i] = wp.transform_get_translation(transform)[component]
         else:
             output[i] = wp.transform_get_rotation(transform)[component - 3]
-    else:
+    elif i < bodies.shape[0] * 7 + joints.shape[0]:
         output[i] = joint[joints[i - bodies.shape[0] * 7]]
+    else:
+        output[i] = velocity[dofs[i - bodies.shape[0] * 7 - joints.shape[0]]]
 
 
 def resolve(labels, keys):
@@ -77,6 +80,7 @@ class NewtonRun:
         if not self.device.is_cuda:
             raise ValueError('Newton profile requires CUDA')
         self.step_count = 0
+        self.control_mode = 'demo'
         self.last_phase = 'static'
         self.metrics = {'setup_ms': 0, 'step_batches': 0, 'step_ms': [], 'control_ms': [], 'readback_ms': [], 'physical_readback_ms': [], 'encode_ms': []}
         setup = time.monotonic()
@@ -112,12 +116,17 @@ class NewtonRun:
             self.coord_indices = [starts[i] for i in joint_indices]
             if any(types[i] != int(newton.JointType.REVOLUTE) or starts[i+1]-starts[i] != 1 for i in joint_indices):
                 raise ValueError('Fixed profile joints must resolve to one angular coordinate')
+            dof_starts = self.model.joint_qd_start.numpy().tolist()
+            self.dof_indices = [dof_starts[i] for i in joint_indices]
+            if any(dof_starts[i+1]-dof_starts[i] != 1 for i in joint_indices):
+                raise ValueError('Fixed profile joints must resolve to one angular velocity')
             target_starts = self.model.joint_target_q_start.numpy().tolist()
             self.target_indices = [target_starts[i] for i in joint_indices]
             self.target = self.control.joint_target_q.numpy().copy()
             self.gather_bodies = wp.array(self.body_indices, dtype=wp.int32)
             self.gather_joints = wp.array(self.coord_indices, dtype=wp.int32)
-            self.sample_buffer = wp.empty(len(self.body_indices)*7+len(self.coord_indices), dtype=wp.float32)
+            self.gather_dofs = wp.array(self.dof_indices, dtype=wp.int32)
+            self.sample_buffer = wp.empty(len(self.body_indices)*7+2*len(self.coord_indices), dtype=wp.float32)
             self.solver = newton.solvers.SolverMuJoCo(self.model, **profile['solver_configuration'])
             try:
                 self.initial_native_budget = self.check_native_budget('constructor',initial=True)
@@ -160,6 +169,12 @@ class NewtonRun:
             self.target[index] = value
         self.control.joint_target_q.assign(self.target)
 
+    def controlled(self):
+        if self.step_count:
+            raise ValueError('Control mode must be selected before stepping')
+        self.control_mode = 'controlled'
+        self.last_phase = 'idle'
+
     def control_values(self):
         begin = 0
         previous = self.profile['initial_joints']
@@ -177,7 +192,8 @@ class NewtonRun:
             raise RuntimeError('Newton native budget is latched closed')
         with wp.ScopedDevice(self.device):
             control_started=time.monotonic()
-            self.set_control(self.control_values())
+            if self.control_mode == 'demo':
+                self.set_control(self.control_values())
             self.metrics['control_ms'].append((time.monotonic()-control_started)*1000)
             self.metrics['control_ms']=self.metrics['control_ms'][-900:]
             started = time.monotonic()
@@ -237,7 +253,7 @@ class NewtonRun:
             solver.mjw_model.callback.contactfilter=self._previous_contact_filter
             solver.close_mujoco_viewer()
         self.graphs.clear()
-        for name in ['contacts','solver','model','state','other','control','budget_peaks','sample_buffer','gather_bodies','gather_joints']:
+        for name in ['contacts','solver','model','state','other','control','budget_peaks','sample_buffer','gather_bodies','gather_joints','gather_dofs']:
             setattr(self,name,None)
 
     def sample(self, diagnostic=False):
@@ -245,7 +261,7 @@ class NewtonRun:
         with wp.ScopedDevice(self.device):
             started = time.monotonic()
             wp.launch(gather_state, dim=len(self.sample_buffer),
-                      inputs=[self.state.body_q,self.state.joint_q,self.gather_bodies,self.gather_joints],
+                      inputs=[self.state.body_q,self.state.joint_q,self.state.joint_qd,self.gather_bodies,self.gather_joints,self.gather_dofs],
                       outputs=[self.sample_buffer])
             values = self.sample_buffer.numpy().copy()
             if not diagnostic:
@@ -253,9 +269,12 @@ class NewtonRun:
                 self.metrics['readback_ms'] = self.metrics['readback_ms'][-900:]
         if not np.isfinite(values).all():
             raise ValueError('Nonfinite Newton state')
+        joint_start = len(self.body_indices)*7
+        joint_end = joint_start+len(self.coord_indices)
         self.last_native = {'step':self.step_count,'phase':self.last_phase,
                             'poses':values[:len(self.body_indices)*7].reshape((-1,7)).tolist(),
-                            'joints':values[len(self.body_indices)*7:].tolist()}
+                            'joints':values[joint_start:joint_end].tolist(),
+                            'velocity':values[joint_end:].tolist()}
         poses = []
         for i, expected in enumerate(self.profile['initial_poses']):
             native = values[i*7:(i+1)*7].tolist()
@@ -264,7 +283,8 @@ class NewtonRun:
             if sum(a*b for a,b in zip(pose['quaternion'],expected['quaternion'],strict=True)) < 0:
                 pose['quaternion'] = tuple(-v for v in pose['quaternion'])
             poses.append(pose)
-        return {'poses': poses, 'joints': values[len(poses)*7:].tolist(),
+        return {'poses': poses, 'joints': values[joint_start:joint_end].tolist(),
+                'velocity':values[joint_end:].tolist(),
                 'sim_time_ns': self.step_count*1_000_000_000//240}
 
     def physical_sample(self):
@@ -304,7 +324,7 @@ class NewtonRun:
         self.metrics['physical_readback_ms'].append((time.monotonic()-started)*1000)
         self.metrics['physical_readback_ms']=self.metrics['physical_readback_ms'][-900:]
         return {'step': self.step_count, 'phase': self.last_phase, 'native_poses': native[self.body_indices].tolist(),
-                'joints': sample['joints'], 'forces': totals, 'upright': float(upright),
+                'joints': sample['joints'], 'velocity':sample['velocity'], 'forces': totals, 'upright': float(upright),
                 'released': released, 'seated': bool(seated), 'vial_z': vial_pose[2],
                 'bilateral': totals['fixed'] > 1e-6 and totals['moving'] > 1e-6}
 

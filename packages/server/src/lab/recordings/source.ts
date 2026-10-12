@@ -21,6 +21,9 @@ export type RecordingSourceConnection = {
   /** All ACKs come from the journal's actual synced contiguous prefix. */
   receive: (raw: Uint8Array) => Promise<RecordingAck>;
   /** Admitted connection loss fences its own experiment, never another Session. */
+  commands?: () => Promise<
+    import('../../../../contracts/src/recording/robot.ts').RobotCommand[]
+  >;
   leave: (reason: string) => void;
 };
 

@@ -146,6 +146,35 @@ export function sessionRoutes(
   app.openapi(
     createRoute({
       method: 'post',
+      path: root + '/installations/{installation_id}/robot-controls',
+      operationId: 'upgradeLabRobotControls',
+      tags: ['Lab'],
+      request: {
+        params: z.object({
+          lab_id: z.string().uuid(),
+          installation_id: z.string().uuid(),
+        }),
+        body: body(z.object({}).strict()),
+      },
+      responses: { 200: json(SceneInstallation), ...errors },
+    }),
+    async (c) => {
+      const p = c.req.valid('param');
+      return c.json(
+        await sessions.upgradeRobotControls(
+          c.req.raw.headers,
+          c.get('requestId'),
+          p.lab_id,
+          p.installation_id,
+        ),
+        200,
+      );
+    },
+    validate,
+  );
+  app.openapi(
+    createRoute({
+      method: 'post',
       path: root + '/installations/{installation_id}/archive',
       operationId: 'archiveLabSceneInstallation',
       tags: ['Lab'],

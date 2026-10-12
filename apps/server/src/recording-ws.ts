@@ -105,6 +105,48 @@ export class RecordingWebSockets {
       if (scope) this.authority.fault(scope, reason);
       this.close(ws);
     };
+    let dispatching = false;
+    const sent = new Map<string, { at: number; last: number }>();
+    const commands = setInterval(() => {
+      if (
+        !admitted ||
+        faulted ||
+        closed ||
+        dispatching ||
+        !binding?.commands ||
+        ws.readyState !== WebSocket.OPEN
+      )
+        return;
+      dispatching = true;
+      const dispatch = (async () => {
+        try {
+          const pending = await binding!.commands!();
+          if (faulted || closed || ws.readyState !== WebSocket.OPEN) return;
+          const ids = new Set(pending.map((c) => c.command_id));
+          for (const id of sent.keys()) if (!ids.has(id)) sent.delete(id);
+          for (const command of pending) {
+            const now = Date.now(),
+              old = sent.get(command.command_id);
+            if (
+              old &&
+              now - old.at > binding!.ready.limits.lifecycle_ack_timeout_ms
+            )
+              throw new Error('ack_timeout');
+            if (old && now - old.last < 500) continue;
+            if (ws.bufferedAmount > 65536) throw new Error('recorder_capacity');
+            ws.send(JSON.stringify(command));
+            sent.set(command.command_id, { at: old?.at ?? now, last: now });
+          }
+        } catch (error) {
+          fail(error instanceof Error ? error.message : 'invalid_packet');
+        } finally {
+          dispatching = false;
+        }
+      })();
+      this.receives.add(dispatch);
+      void dispatch.finally(() => this.receives.delete(dispatch));
+    }, 100);
+    commands.unref();
     const timeout = setTimeout(() => fail('source_disconnected'), 3000);
     const heartbeat = setInterval(() => {
       if (!admitted || faulted || ws.readyState !== WebSocket.OPEN) return;
@@ -127,6 +169,7 @@ export class RecordingWebSockets {
       closed = true;
       clearTimeout(timeout);
       clearInterval(heartbeat);
+      clearInterval(commands);
       clearTimeout(this.closeTimers.get(ws));
       this.closeTimers.delete(ws);
       this.scopes.delete(ws);

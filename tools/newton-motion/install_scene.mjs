@@ -9,6 +9,7 @@ const { values } = parseArgs({
     lab: { type: 'string' },
     directory: { type: 'string' },
     output: { type: 'string' },
+    'upgrade-installation': { type: 'string' },
   },
 });
 if (
@@ -69,6 +70,26 @@ async function request(path, body, key) {
   if (!response.ok)
     throw new Error('Scene API rejected request with HTTP ' + response.status);
   return response.json();
+}
+if (values['upgrade-installation']) {
+  const installation = await request(
+    '/api/v1/lab/labs/' +
+      values.lab +
+      '/installations/' +
+      values['upgrade-installation'] +
+      '/robot-controls',
+    {},
+  );
+  ledger.installation_id = installation.id;
+  await save();
+  console.log(
+    JSON.stringify({
+      installation_id: installation.id,
+      package_version: installation.package_version,
+      scene_hash: installation.scene_hash,
+    }),
+  );
+  process.exit(0);
 }
 await save();
 const representations = {};

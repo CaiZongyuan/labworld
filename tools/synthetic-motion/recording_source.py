@@ -8,9 +8,9 @@ from collections import deque
 from pathlib import Path
 
 from motion_codec import MotionProtocolError
-from recording_codec import (CODEC, advance_prefix, canonical,
+from recording_codec import (CODEC, advance_prefix, canonical, control,
                              encode_frame_batch, encode_packet, identity, parse_ack,
-                             parse_source_end, parse_source_event, sha256, verify_ready)
+                             parse_source_end, parse_source_event, parse_robot_event, sha256, verify_ready)
 
 
 def implementation_header():
@@ -38,6 +38,8 @@ class ReliableRecording:
         self.websocket = websocket
         self.scope = bootstrap
         self.limits = ready['limits']
+        self.robot = ready.get('robot')
+        self.on_command = None
         self.prefix = ready['source_prefix_sha256']
         self.facts = deque()
         self.retained_bytes = 0
@@ -66,7 +68,7 @@ class ReliableRecording:
         if self.ending or self.ended:
             raise MotionProtocolError('source_capacity', 'No facts after source end')
         count_frames = self.frames + (kind == 1)
-        count_events = self.events + (kind == 2)
+        count_events = self.events + (kind in (2,4))
         if (count_frames > self.limits['source_frames'] or count_events > self.limits['source_events']
                 or self.retained_bytes + len(payload) > self.limits['source_bytes']):
             raise MotionProtocolError('source_capacity', 'Selected source retention exhausted')
@@ -103,6 +105,19 @@ class ReliableRecording:
         payload = canonical(value)
         parse_source_end(payload.decode('utf-8'))
         self.offer(3, payload, self.selected_sequence, self.event_sequence, True)
+
+    def robot_event(self, fact):
+        if self.robot is None:
+            raise MotionProtocolError('scope_mismatch', 'Robot events require admitted control capability')
+        event_sequence = self.event_sequence+1
+        value = {'source_event_sequence':str(event_sequence),'event_id':str(uuid.uuid4()),**fact}
+        payload = canonical(value)
+        parsed = parse_robot_event(payload.decode('utf-8'))
+        if (parsed['subject']['session_id'] != self.scope['session_id'] or
+                any(parsed['subject'][name]!=self.robot[name] for name in self.robot)):
+            raise MotionProtocolError('scope_mismatch', 'Robot event outside admitted authority')
+        self.offer(4,payload,self.selected_sequence,event_sequence,True)
+        self.event_sequence = event_sequence
 
     def transport_bytes(self):
         size = self.websocket.transport.get_write_buffer_size()
@@ -190,7 +205,7 @@ class ReliableRecording:
                 for fact in selected:
                     if self.facts.popleft() is not fact:
                         raise RuntimeError('Reliable collector ownership changed')
-                    self.retained_bytes -= len(fact[1]); self.frames -= fact[0] == 1; self.events -= fact[0] == 2
+                    self.retained_bytes -= len(fact[1]); self.frames -= fact[0] == 1; self.events -= fact[0] in (2,4)
                 self.changed.set()
             finally:
                 self.inflight = None
@@ -204,6 +219,12 @@ class ReliableRecording:
 
     async def read(self):
         async for message in self.websocket:
+            value = control(message,16384)
+            if isinstance(value,dict) and value.get('type') == 'robot.command':
+                if self.on_command is None or self.ending or self.ended:
+                    raise MotionProtocolError('scope_mismatch','Robot command outside controlled source')
+                self.on_command(message)
+                continue
             receipt = parse_ack(message)
             if self.last_ack is not None and receipt == self.last_ack:
                 continue

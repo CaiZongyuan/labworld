@@ -83,6 +83,11 @@ export interface RecordingSourceHeader {
   python_version: string | null;
   dependencies: readonly RecordingImplementation[];
   capture_policy: RecordingCapturePolicy;
+  robot_control?: {
+    version: 1;
+    mode: 'controlled';
+    capabilities: readonly string[];
+  };
   runtime?: {
     device: string;
     gpu: string;
@@ -120,6 +125,7 @@ export interface RecordingHello extends RecordingIdentity {
   source_header: RecordingSourceHeader;
 }
 export interface RecordingReady extends RecordingIdentity {
+  robot?: import('./robot.ts').RobotIdentity;
   type: 'recording.ready';
   version: 1;
   codec: typeof RECORDING_CODEC;
@@ -128,7 +134,7 @@ export interface RecordingReady extends RecordingIdentity {
   capture_policy: RecordingCapturePolicy;
   limits: RecordingLimits;
 }
-export type RecordingPacketKind = 1 | 2 | 3;
+export type RecordingPacketKind = 1 | 2 | 3 | 4;
 export interface RecordingPacket {
   kind: RecordingPacketKind;
   recording_id: string;

@@ -54,6 +54,8 @@ const retained = [
   'lab.program_runs',
   'lab.runtime_bindings',
   'lab.runtime_generation',
+  'lab.robot_source_events',
+  'lab.session_device_runs',
   'lab.scene_nodes',
   'lab.world_clock',
 ];
