@@ -98,6 +98,16 @@ test('robot HTTP requests reserve one task, enforce auth/idempotency and use onl
       f.context,
       new DeviceRecordingCapture(f.db, host),
     );
+    // Stop before source admission calls cleanup while the real HTTP database
+    // operation is still active, even though no robot Run was created.
+    await f.db.operation(
+      { id: 'robot:unadmitted-stop-request', kind: 'request' },
+      () =>
+        controls.end(
+          { ...session, status: 'stopped', ended_at: f.context.clock.now() },
+          false,
+        ),
+    );
     const identity = await controls.bind(session, recording);
     assert.deepEqual(await controls.bind(session, recording), identity);
     assert(captured.includes('program.changed'));
@@ -270,14 +280,18 @@ test('robot HTTP requests reserve one task, enforce auth/idempotency and use onl
     const confirmed = event('completed', home2.id, home2.task_id);
     // A source packet can be synced before projection. Recover its confirmed
     // physical result after an interrupted projection; never dispatch it again.
-    await controls.end(
-      {
-        ...session,
-        status: 'interrupted',
-        ended_at: f.context.clock.now(),
-        reason: 'source_disconnected',
-      },
-      false,
+    await f.db.operation(
+      { id: 'robot:active-stop-request', kind: 'request' },
+      () =>
+        controls.end(
+          {
+            ...session,
+            status: 'interrupted',
+            ended_at: f.context.clock.now(),
+            reason: 'source_disconnected',
+          },
+          true,
+        ),
     );
     assert.equal(
       (await f.task(entity.id, home2.task_id!)).status,

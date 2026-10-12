@@ -100,12 +100,8 @@
           "tableFrom": "api_keys",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -115,9 +111,7 @@
         "api_keys_secret_hash_unique": {
           "name": "api_keys_secret_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "secret_hash"
-          ]
+          "columns": ["secret_hash"]
         }
       },
       "policies": {},
@@ -320,12 +314,8 @@
           "tableFrom": "audit_events",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "actor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -425,12 +415,8 @@
           "tableFrom": "file_candidates",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -440,9 +426,7 @@
         "file_candidates_object_key_unique": {
           "name": "file_candidates_object_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "object_key"
-          ]
+          "columns": ["object_key"]
         }
       },
       "policies": {},
@@ -521,12 +505,8 @@
           "tableFrom": "file_references",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -534,11 +514,7 @@
       "compositePrimaryKeys": {
         "file_references_file_id_owner_type_owner_id_pk": {
           "name": "file_references_file_id_owner_type_owner_id_pk",
-          "columns": [
-            "file_id",
-            "owner_type",
-            "owner_id"
-          ]
+          "columns": ["file_id", "owner_type", "owner_id"]
         }
       },
       "uniqueConstraints": {},
@@ -708,12 +684,8 @@
           "tableFrom": "files",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -723,16 +695,12 @@
         "files_staging_key_unique": {
           "name": "files_staging_key_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "staging_key"
-          ]
+          "columns": ["staging_key"]
         },
         "files_ready_candidate_id_unique": {
           "name": "files_ready_candidate_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "ready_candidate_id"
-          ]
+          "columns": ["ready_candidate_id"]
         }
       },
       "policies": {},
@@ -848,12 +816,8 @@
           "tableFrom": "object_cleanup",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -862,12 +826,8 @@
           "tableFrom": "object_cleanup",
           "tableTo": "file_candidates",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "candidate_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["candidate_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -943,12 +903,8 @@
           "tableFrom": "idempotency_records",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "actor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -956,11 +912,7 @@
       "compositePrimaryKeys": {
         "idempotency_records_actor_id_scope_request_key_pk": {
           "name": "idempotency_records_actor_id_scope_request_key_pk",
-          "columns": [
-            "actor_id",
-            "scope",
-            "request_key"
-          ]
+          "columns": ["actor_id", "scope", "request_key"]
         }
       },
       "uniqueConstraints": {},
@@ -992,12 +944,8 @@
           "tableFrom": "credentials",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1075,12 +1023,8 @@
           "tableFrom": "sessions",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1090,9 +1034,7 @@
         "sessions_secret_hash_unique": {
           "name": "sessions_secret_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "secret_hash"
-          ]
+          "columns": ["secret_hash"]
         }
       },
       "policies": {},
@@ -1143,9 +1085,7 @@
         "users_normalized_email_unique": {
           "name": "users_normalized_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "normalized_email"
-          ]
+          "columns": ["normalized_email"]
         }
       },
       "policies": {},
@@ -1208,12 +1148,8 @@
           "tableFrom": "machines",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1223,9 +1159,7 @@
         "machines_credential_hash_unique": {
           "name": "machines_credential_hash_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "credential_hash"
-          ]
+          "columns": ["credential_hash"]
         }
       },
       "policies": {},
@@ -1281,12 +1215,8 @@
           "tableFrom": "memberships",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1295,12 +1225,8 @@
           "tableFrom": "memberships",
           "tableTo": "organizations",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "organization_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["organization_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1411,12 +1337,8 @@
           "tableFrom": "asset_uploads",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "upload_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["upload_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1425,12 +1347,8 @@
           "tableFrom": "asset_uploads",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1440,9 +1358,7 @@
         "asset_uploads_asset_id_unique": {
           "name": "asset_uploads_asset_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "asset_id"
-          ]
+          "columns": ["asset_id"]
         }
       },
       "policies": {},
@@ -1518,12 +1434,8 @@
           "tableFrom": "assets",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1532,12 +1444,8 @@
           "tableFrom": "assets",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1608,12 +1516,8 @@
           "tableFrom": "asset_representations",
           "tableTo": "assets",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "asset_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["asset_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
@@ -1622,12 +1526,8 @@
           "tableFrom": "asset_representations",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1637,16 +1537,12 @@
         "asset_representations_asset_id_unique": {
           "name": "asset_representations_asset_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "asset_id"
-          ]
+          "columns": ["asset_id"]
         },
         "asset_representations_file_id_unique": {
           "name": "asset_representations_file_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "file_id"
-          ]
+          "columns": ["file_id"]
         }
       },
       "policies": {},
@@ -1732,12 +1628,8 @@
           "tableFrom": "runtime_bindings",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1747,9 +1639,7 @@
         "runtime_bindings_source_unique": {
           "name": "runtime_bindings_source_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "source"
-          ]
+          "columns": ["source"]
         }
       },
       "policies": {},
@@ -1798,12 +1688,8 @@
           "tableFrom": "command_receipts",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "actor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -1812,12 +1698,8 @@
           "tableFrom": "command_receipts",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -1825,20 +1707,14 @@
       "compositePrimaryKeys": {
         "command_receipts_actor_id_entity_id_request_key_pk": {
           "name": "command_receipts_actor_id_entity_id_request_key_pk",
-          "columns": [
-            "actor_id",
-            "entity_id",
-            "request_key"
-          ]
+          "columns": ["actor_id", "entity_id", "request_key"]
         }
       },
       "uniqueConstraints": {
         "command_receipts_command_id_unique": {
           "name": "command_receipts_command_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "command_id"
-          ]
+          "columns": ["command_id"]
         }
       },
       "policies": {},
@@ -2020,12 +1896,8 @@
           "tableFrom": "device_commands",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2034,12 +1906,8 @@
           "tableFrom": "device_commands",
           "tableTo": "program_runs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2048,12 +1916,8 @@
           "tableFrom": "device_commands",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "actor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2162,12 +2026,8 @@
           "tableFrom": "current_observations",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2176,12 +2036,8 @@
           "tableFrom": "current_observations",
           "tableTo": "program_runs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2244,12 +2100,8 @@
           "tableFrom": "robot_source_events",
           "tableTo": "recordings",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "recording_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recording_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2257,10 +2109,7 @@
       "compositePrimaryKeys": {
         "robot_source_events_recording_id_event_id_pk": {
           "name": "robot_source_events_recording_id_event_id_pk",
-          "columns": [
-            "recording_id",
-            "event_id"
-          ]
+          "columns": ["recording_id", "event_id"]
         }
       },
       "uniqueConstraints": {},
@@ -2399,12 +2248,8 @@
           "tableFrom": "program_runs",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2413,12 +2258,8 @@
           "tableFrom": "program_runs",
           "tableTo": "runtime_bindings",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "binding_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["binding_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2427,12 +2268,8 @@
           "tableFrom": "program_runs",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "started_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["started_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2522,12 +2359,8 @@
           "tableFrom": "session_device_runs",
           "tableTo": "simulation_sessions",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2536,12 +2369,8 @@
           "tableFrom": "session_device_runs",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2550,12 +2379,8 @@
           "tableFrom": "session_device_runs",
           "tableTo": "runtime_bindings",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "binding_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["binding_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2564,12 +2389,8 @@
           "tableFrom": "session_device_runs",
           "tableTo": "program_runs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2578,12 +2399,8 @@
           "tableFrom": "session_device_runs",
           "tableTo": "recordings",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "recording_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recording_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2591,19 +2408,14 @@
       "compositePrimaryKeys": {
         "session_device_runs_session_id_entity_id_pk": {
           "name": "session_device_runs_session_id_entity_id_pk",
-          "columns": [
-            "session_id",
-            "entity_id"
-          ]
+          "columns": ["session_id", "entity_id"]
         }
       },
       "uniqueConstraints": {
         "session_device_runs_run_id_unique": {
           "name": "session_device_runs_run_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "run_id"
-          ]
+          "columns": ["run_id"]
         }
       },
       "policies": {},
@@ -2653,12 +2465,8 @@
           "tableFrom": "device_task_results",
           "tableTo": "device_tasks",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "task_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["task_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -2668,9 +2476,7 @@
         "device_task_results_task_id_unique": {
           "name": "device_task_results_task_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "task_id"
-          ]
+          "columns": ["task_id"]
         }
       },
       "policies": {},
@@ -2819,12 +2625,8 @@
           "tableFrom": "device_tasks",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2833,12 +2635,8 @@
           "tableFrom": "device_tasks",
           "tableTo": "program_runs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -2848,16 +2646,12 @@
         "device_tasks_command_id_unique": {
           "name": "device_tasks_command_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "command_id"
-          ]
+          "columns": ["command_id"]
         },
         "device_tasks_result_id_unique": {
           "name": "device_tasks_result_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "result_id"
-          ]
+          "columns": ["result_id"]
         }
       },
       "policies": {},
@@ -2955,12 +2749,8 @@
           "tableFrom": "device_events",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -2969,12 +2759,8 @@
           "tableFrom": "device_events",
           "tableTo": "program_runs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3062,12 +2848,8 @@
           "tableFrom": "observation_history",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3076,12 +2858,8 @@
           "tableFrom": "observation_history",
           "tableTo": "program_runs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "run_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["run_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3128,12 +2906,8 @@
           "tableFrom": "history_bounds",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3141,10 +2915,7 @@
       "compositePrimaryKeys": {
         "history_bounds_entity_id_record_type_pk": {
           "name": "history_bounds_entity_id_record_type_pk",
-          "columns": [
-            "entity_id",
-            "record_type"
-          ]
+          "columns": ["entity_id", "record_type"]
         }
       },
       "uniqueConstraints": {},
@@ -3252,12 +3023,8 @@
           "tableFrom": "guide_progress",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "actor_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["actor_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -3265,11 +3032,7 @@
       "compositePrimaryKeys": {
         "guide_progress_actor_id_guide_id_guide_version_pk": {
           "name": "guide_progress_actor_id_guide_id_guide_version_pk",
-          "columns": [
-            "actor_id",
-            "guide_id",
-            "guide_version"
-          ]
+          "columns": ["actor_id", "guide_id", "guide_version"]
         }
       },
       "uniqueConstraints": {},
@@ -3360,12 +3123,8 @@
           "tableFrom": "recording_event_commits",
           "tableTo": "recordings",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "recording_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recording_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3373,10 +3132,7 @@
       "compositePrimaryKeys": {
         "recording_event_commits_recording_id_batch_id_pk": {
           "name": "recording_event_commits_recording_id_batch_id_pk",
-          "columns": [
-            "recording_id",
-            "batch_id"
-          ]
+          "columns": ["recording_id", "batch_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3419,12 +3175,8 @@
           "tableFrom": "recording_resources",
           "tableTo": "recordings",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "recording_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recording_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3433,12 +3185,8 @@
           "tableFrom": "recording_resources",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3446,10 +3194,7 @@
       "compositePrimaryKeys": {
         "recording_resources_recording_id_file_id_pk": {
           "name": "recording_resources_recording_id_file_id_pk",
-          "columns": [
-            "recording_id",
-            "file_id"
-          ]
+          "columns": ["recording_id", "file_id"]
         }
       },
       "uniqueConstraints": {},
@@ -3539,12 +3284,8 @@
           "tableFrom": "recording_segments",
           "tableTo": "recordings",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "recording_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["recording_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3553,12 +3294,8 @@
           "tableFrom": "recording_segments",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3641,12 +3378,8 @@
           "tableFrom": "recording_stages",
           "tableTo": "labs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3655,12 +3388,8 @@
           "tableFrom": "recording_stages",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3669,12 +3398,8 @@
           "tableFrom": "recording_stages",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "manifest_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["manifest_file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3684,9 +3409,7 @@
         "recording_stages_session_id_unique": {
           "name": "recording_stages_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "session_id"
-          ]
+          "columns": ["session_id"]
         }
       },
       "policies": {},
@@ -3799,12 +3522,8 @@
           "tableFrom": "recordings",
           "tableTo": "simulation_sessions",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3813,12 +3532,8 @@
           "tableFrom": "recordings",
           "tableTo": "labs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3827,12 +3542,8 @@
           "tableFrom": "recordings",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3841,12 +3552,8 @@
           "tableFrom": "recordings",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "manifest_file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["manifest_file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -3856,9 +3563,7 @@
         "recordings_session_id_unique": {
           "name": "recordings_session_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "session_id"
-          ]
+          "columns": ["session_id"]
         }
       },
       "policies": {},
@@ -3963,12 +3668,8 @@
           "tableFrom": "entity_relationships",
           "tableTo": "labs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3977,12 +3678,8 @@
           "tableFrom": "entity_relationships",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "registered_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["registered_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -3991,14 +3688,8 @@
           "tableFrom": "entity_relationships",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id",
-            "source_id"
-          ],
-          "columnsTo": [
-            "lab_id",
-            "id"
-          ],
+          "columnsFrom": ["lab_id", "source_id"],
+          "columnsTo": ["lab_id", "id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4007,14 +3698,8 @@
           "tableFrom": "entity_relationships",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id",
-            "target_id"
-          ],
-          "columnsTo": [
-            "lab_id",
-            "id"
-          ],
+          "columnsFrom": ["lab_id", "target_id"],
+          "columnsTo": ["lab_id", "id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4024,12 +3709,7 @@
         "relationship_unique": {
           "name": "relationship_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "lab_id",
-            "source_id",
-            "target_id",
-            "kind"
-          ]
+          "columns": ["lab_id", "source_id", "target_id", "kind"]
         }
       },
       "policies": {},
@@ -4099,12 +3779,8 @@
           "tableFrom": "scene_installations",
           "tableTo": "labs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4113,12 +3789,8 @@
           "tableFrom": "scene_installations",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4232,12 +3904,8 @@
           "tableFrom": "publisher_leases",
           "tableTo": "simulation_sessions",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4246,12 +3914,8 @@
           "tableFrom": "publisher_leases",
           "tableTo": "machines",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "machine_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["machine_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4261,9 +3925,7 @@
         "publisher_leases_epoch_unique": {
           "name": "publisher_leases_epoch_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "epoch"
-          ]
+          "columns": ["epoch"]
         }
       },
       "policies": {},
@@ -4305,12 +3967,8 @@
           "tableFrom": "session_assets",
           "tableTo": "simulation_sessions",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4319,12 +3977,8 @@
           "tableFrom": "session_assets",
           "tableTo": "asset_representations",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "representation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["representation_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4333,12 +3987,8 @@
           "tableFrom": "session_assets",
           "tableTo": "files",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "file_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["file_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4346,10 +3996,7 @@
       "compositePrimaryKeys": {
         "session_assets_session_id_representation_id_pk": {
           "name": "session_assets_session_id_representation_id_pk",
-          "columns": [
-            "session_id",
-            "representation_id"
-          ]
+          "columns": ["session_id", "representation_id"]
         }
       },
       "uniqueConstraints": {},
@@ -4387,12 +4034,8 @@
           "tableFrom": "session_objects",
           "tableTo": "simulation_sessions",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "session_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["session_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4401,12 +4044,8 @@
           "tableFrom": "session_objects",
           "tableTo": "scene_nodes",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "node_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["node_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4415,12 +4054,8 @@
           "tableFrom": "session_objects",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "entity_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["entity_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4428,10 +4063,7 @@
       "compositePrimaryKeys": {
         "session_objects_session_id_node_id_pk": {
           "name": "session_objects_session_id_node_id_pk",
-          "columns": [
-            "session_id",
-            "node_id"
-          ]
+          "columns": ["session_id", "node_id"]
         }
       },
       "uniqueConstraints": {},
@@ -4555,12 +4187,8 @@
           "tableFrom": "simulation_sessions",
           "tableTo": "labs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4569,12 +4197,8 @@
           "tableFrom": "simulation_sessions",
           "tableTo": "scene_installations",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "installation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["installation_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4583,12 +4207,8 @@
           "tableFrom": "simulation_sessions",
           "tableTo": "machines",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "machine_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["machine_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4597,12 +4217,8 @@
           "tableFrom": "simulation_sessions",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "started_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["started_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4753,12 +4369,8 @@
           "tableFrom": "entities",
           "tableTo": "labs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4767,12 +4379,8 @@
           "tableFrom": "entities",
           "tableTo": "asset_representations",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "representation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["representation_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4781,12 +4389,8 @@
           "tableFrom": "entities",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4795,12 +4399,8 @@
           "tableFrom": "entities",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "updated_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["updated_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4810,10 +4410,7 @@
         "entities_lab_identity": {
           "name": "entities_lab_identity",
           "nullsNotDistinct": false,
-          "columns": [
-            "lab_id",
-            "id"
-          ]
+          "columns": ["lab_id", "id"]
         }
       },
       "policies": {},
@@ -4874,12 +4471,8 @@
           "tableFrom": "labs",
           "tableTo": "users",
           "schemaTo": "labos_threejs_core",
-          "columnsFrom": [
-            "created_by"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["created_by"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }
@@ -4960,12 +4553,8 @@
           "tableFrom": "scene_nodes",
           "tableTo": "labs",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["lab_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4974,12 +4563,8 @@
           "tableFrom": "scene_nodes",
           "tableTo": "asset_representations",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "representation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["representation_id"],
+          "columnsTo": ["id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         },
@@ -4988,14 +4573,8 @@
           "tableFrom": "scene_nodes",
           "tableTo": "entities",
           "schemaTo": "lab",
-          "columnsFrom": [
-            "lab_id",
-            "entity_id"
-          ],
-          "columnsTo": [
-            "lab_id",
-            "id"
-          ],
+          "columnsFrom": ["lab_id", "entity_id"],
+          "columnsTo": ["lab_id", "id"],
           "onDelete": "no action",
           "onUpdate": "no action"
         }

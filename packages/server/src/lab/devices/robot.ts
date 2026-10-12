@@ -59,7 +59,7 @@ export class RobotControls {
     if (session.snapshot.physics?.control_mode !== 'controlled') return;
     const operation = {
       id: 'robot:end:' + randomUUID(),
-      kind: 'background' as const,
+      kind: this.context.db.operationKind ?? 'background',
     };
     const rows = await this.context.db.read(operation, (tx) =>
       tx.execute<RobotIdentity>(
