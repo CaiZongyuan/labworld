@@ -30,9 +30,15 @@ const profiles =
           .filter((name) => name.endsWith('.spec.ts'))
           .sort()
           .map((name) =>
-            name === 'lab-synthetic-motion.spec.ts'
-              ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
-              : ['tests/e2e/' + name],
+            name === 'lab-secure-motion.spec.ts'
+              ? [
+                  'tests/e2e/' + name,
+                  '--grep',
+                  'trusted WSS|external trusted source',
+                ]
+              : name === 'lab-synthetic-motion.spec.ts'
+                ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
+                : ['tests/e2e/' + name],
           )
           .filter((_, index) => shard === null || index % 2 === shard - 1),
   resources = new ContractResources(
@@ -75,7 +81,15 @@ try {
     const intent = resources.planConsumer('owned-node-browser-profile');
     active = launch(
       process.execPath,
-      ['--experimental-strip-types', 'scripts/e2e-server.mjs', ...profile],
+      [
+        '--experimental-strip-types',
+        profile.some((argument) =>
+          argument.includes('lab-secure-motion.spec.ts'),
+        )
+          ? 'scripts/e2e-wss.mjs'
+          : 'scripts/e2e-server.mjs',
+        ...profile,
+      ],
       {
         ...process.env,
         CONTRACT_RUN_ID: resources.data.runId,
@@ -112,6 +126,10 @@ try {
     if (closed) throw new Error('Browser suite was cancelled');
     if (
       closure?.cleanupCompleted !== true ||
+      (profile.some((argument) =>
+        argument.includes('lab-secure-motion.spec.ts'),
+      ) &&
+        closure.tlsCleanupCompleted !== true) ||
       !Array.isArray(closure.serviceLedgers) ||
       (closure.browserLedger !== null &&
         typeof closure.browserLedger !== 'string') ||

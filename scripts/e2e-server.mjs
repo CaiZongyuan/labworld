@@ -16,13 +16,15 @@ if (process.platform !== 'linux')
 const backend = new ServerProcess(),
   web = new ServerProcess();
 const args = process.argv.slice(2),
+  secure = process.env.E2E_TLS === 'true',
   motion = args.some((argument) =>
     argument.includes('lab-synthetic-motion.spec.ts'),
   ),
   session = args.some(
     (argument) =>
       argument.includes('lab-simulation-session.spec.ts') ||
-      argument.includes('lab-recording.spec.ts'),
+      argument.includes('lab-recording.spec.ts') ||
+      argument.includes('lab-secure-motion.spec.ts'),
   ),
   production = motion || session || process.env.E2E_WEB_MODE === 'production',
   statusControl = args.some((argument) => argument.includes('status.spec.ts')),
@@ -169,6 +171,7 @@ try {
     };
   }
   await backend.create();
+  if (secure) backend.scheme = 'https';
   await web.create();
   resources = new ContractResources(
     join(backend.evidence, 'browser-owned-resources.json'),
@@ -180,6 +183,15 @@ try {
     join(backend.evidence, 'owned-resources.json'),
     join(web.evidence, 'owned-resources.json'),
   ];
+  if (process.env.WSS_CHILD_LEDGER_POINTER)
+    await writeFile(
+      process.env.WSS_CHILD_LEDGER_POINTER,
+      JSON.stringify({
+        browserLedger: resources.path,
+        serviceLedgers: resources.data.serviceLedgers,
+      }),
+      { mode: 0o600 },
+    );
   resources.save();
   resources.snapshot('start');
   const origin = production ? backend.url : web.url;
@@ -188,13 +200,40 @@ try {
       backend.evidence,
       'motion-observer',
     );
+  if (secure)
+    motionEnv.SECURE_MOTION_SOURCE_WITNESS = join(
+      backend.evidence,
+      'source-first-witness',
+    );
+  if (secure) {
+    resources.data.sourceWitness = {
+      directory: motionEnv.SECURE_MOTION_SOURCE_WITNESS,
+      owner: 'owned Synthetic source children and external source actor',
+      purpose:
+        'Retained private source-first frame and packet evidence; no keys or tickets',
+    };
+    resources.save();
+  }
   backend.env = {
+    LAB_WORD_TLS_CERT: secure ? process.env.LAB_WORD_TLS_CERT : '',
+    LAB_WORD_TLS_KEY: secure ? process.env.LAB_WORD_TLS_KEY : '',
     APP_ORIGIN: origin,
     FILE_PUBLIC_ORIGIN: origin,
     LAB_WORD_WEB_DIR: '',
     RATE_LIMIT_ENABLED: rate ? 'true' : 'false',
     LAB_WORD_MOTION_FIXTURE: motion ? 'true' : 'false',
     LAB_WORD_SYNTHETIC_SESSION: session ? 'true' : 'false',
+    ...(secure
+      ? {
+          LAB_WORD_SYNTHETIC_PUBLISHER: resolveRoot(
+            'tests/support/synthetic-source-witness.py',
+          ),
+          SECURE_MOTION_SOURCE_WITNESS: motionEnv.SECURE_MOTION_SOURCE_WITNESS,
+          LAB_WORD_SYNTHETIC_MANAGED: 'true',
+          LAB_WORD_MOTION_GRACE_MS: '5000',
+          LAB_WORD_MOTION_ACK_MS: '3000',
+        }
+      : {}),
     ...(session
       ? { LAB_WORD_SYNTHETIC_PYTHON: motionEnv.MOTION_E2E_PYTHON }
       : {}),
@@ -215,7 +254,10 @@ try {
       ? { LAB_OBSERVATION_RETENTION_SECS: '2', LAB_RECORD_RETENTION_SECS: '20' }
       : {}),
   };
-  if (statusControl || reference) {
+  if (secure) {
+    backend.entry = 'tests/support/secure-expiry-server.ts';
+    backend.ipc = true;
+  } else if (statusControl || reference) {
     backend.entry = 'tests/support/server-status-control.ts';
     backend.ipc = true;
   } else if (history) {
@@ -251,7 +293,7 @@ try {
       ),
     );
     await web.stop();
-    if (!statusControl && !reference)
+    if (!secure && !statusControl && !reference)
       backend.entry = join(web.directory, 'server/apps/server/src/main.js');
     backend.env.LAB_WORD_WEB_DIR = join(web.directory, 'web');
     web.port = backend.port;
@@ -281,7 +323,7 @@ try {
     throw new Error('Isolated browser Owner was not initialized');
   const controlFile = join(backend.evidence, 'service-control.json'),
     replyFile = join(backend.evidence, 'service-control-reply.json');
-  if (statusControl || reference) {
+  if (secure || statusControl || reference) {
     let handled = 0,
       controlling = Promise.resolve();
     await writeFile(controlFile, JSON.stringify({ revision: 0 }));
@@ -309,6 +351,18 @@ try {
           backend.child.kill('SIGKILL');
           await once(backend.child, 'exit');
           await restarting;
+        } else if (
+          secure &&
+          ['expire-machine-clock', 'reset-machine-clock'].includes(
+            request.action,
+          )
+        ) {
+          const acknowledged = once(backend.child, 'message');
+          backend.child.send({ action: request.action });
+          const [message] = await acknowledged;
+          if (message.event !== 'machine-clock-advanced')
+            throw new Error('Owned expiry clock control failed');
+          facts = { domain_now: message.now };
         } else throw new Error('Unknown owned browser control');
         await writeFile(
           replyFile + '.next',
@@ -331,8 +385,10 @@ try {
     E2E_OWNER_EMAIL: ownerEmail,
     E2E_OWNER_PASSWORD: ownerPassword,
     E2E_API_PID_FILE: join(backend.evidence, 'api.pid'),
-    E2E_SERVICE_CONTROL: statusControl || reference ? controlFile : '',
-    E2E_SERVICE_CONTROL_REPLY: statusControl || reference ? replyFile : '',
+    E2E_SERVICE_CONTROL:
+      secure || statusControl || reference ? controlFile : '',
+    E2E_SERVICE_CONTROL_REPLY:
+      secure || statusControl || reference ? replyFile : '',
     LAB_WORD_MIGRATION_DESKTOP:
       process.env.LAB_WORD_MIGRATION_DESKTOP ?? 'true',
     ...(history

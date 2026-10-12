@@ -96,6 +96,10 @@ These reads require an active Member identity for the Lab, or an Agent key with 
 
 All suffixes follow `/api/v1/lab/labs/{lab_id}`. List `limit` defaults to 20 and accepts 1 to 100. Event pages also have a 256 KiB budget. Keep `next_cursor` and send it as `cursor` to the same list. Segment and event cursors bind the current Recording. Start at the first page when changing Labs, Recordings or filters.
 
+Each event request scans one confirmed segment of at most 1 MiB. An older commit may require at most two exact additional segments. A pose-only range can return empty `data` with a non-null `next_cursor`. Follow that cursor until it is null. Empty data does not end the query. Open recordings expose the confirmed prefix of that read. Continue later appends from a retained cursor. The example accepts the previous event cursor as its third argument.
+
+A separate Lab key signs new event cursors and survives normal service restarts. Backups exclude keys. After restoring into a new data directory, restart the query at its first page. Recording history remains unchanged.
+
 The generated SDK provides the same list and read methods. [readRecordingSegment](../../packages/sdk/src/recording.ts) verifies one sealed segment, with a 1 MiB limit. The caller owns the AbortSignal and decides when to replace the current page. Do not combine an entire Recording's segments in memory.
 
 ## Delete Independently

@@ -622,19 +622,36 @@ export class FileService {
     }
   }
   /** Internal verified byte read; public callers must authorize through their owning use case. */
-  async managedBytes(id: string, operation: DbOperation) {
+  async managedBytes(
+    id: string,
+    operation: DbOperation,
+    bounds?: { expectedSize: number; maximumBytes: number },
+  ) {
     const row = await this.context.db.read(operation, (tx) =>
       this.load(tx, id),
     );
     if (row.state !== 'ready')
       throw failure(404, 'not_found', 'Ready file not found');
-    const actual = await this.blobs.inspect(row.readyKey!, row.actualSize!);
+    if (
+      bounds &&
+      (!Number.isSafeInteger(bounds.expectedSize) ||
+        !Number.isSafeInteger(bounds.maximumBytes) ||
+        bounds.expectedSize < 0 ||
+        bounds.maximumBytes < bounds.expectedSize ||
+        row.actualSize !== bounds.expectedSize)
+    )
+      throw unavailable();
+    const actual = await this.blobs.inspect(
+      row.readyKey!,
+      row.actualSize!,
+      bounds?.expectedSize,
+    );
     if (
       actual.sha256 !== row.sha256.toString('hex') ||
       actual.size !== row.actualSize
     )
       throw unavailable();
-    return this.blobs.read(row.readyKey!);
+    return this.blobs.read(row.readyKey!, bounds?.expectedSize);
   }
   async release(tx: DbSession, id: string, reference: FileReference) {
     await tx

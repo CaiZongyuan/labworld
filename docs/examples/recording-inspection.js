@@ -43,6 +43,7 @@ async function recordingReadBytes(response, maximum) {
 globalThis.inspectRecording = async function inspectRecording(
   labId,
   recordingId,
+  eventsCursor = null,
 ) {
   const path = `/api/v1/lab/labs/${recordingUUID(labId)}/recordings/${recordingUUID(recordingId)}`;
   const read = async (suffix, maximum = 256 * 1024) =>
@@ -54,7 +55,10 @@ globalThis.inspectRecording = async function inspectRecording(
   const metadata = await read('');
   const manifest = await read('/manifest', 2 * 1024 * 1024);
   const segments = await read('/segments?limit=5');
-  const events = await read('/events?limit=5');
+  const events = await read(
+    '/events?limit=5' +
+      (eventsCursor ? '&cursor=' + encodeURIComponent(eventsCursor) : ''),
+  );
   const segment = segments.data.find((item) => item.sealed);
   const records = [];
   if (segment) {

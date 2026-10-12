@@ -142,9 +142,7 @@ class Peer {
           session_id: session.id,
           ticket: ticket.ticket,
           preferred_rate_hz: 30,
-          ...(role === 'publisher'
-            ? { scene_hash: session.snapshot.installation.scene_hash }
-            : {}),
+          scene_hash: session.snapshot.installation.scene_hash,
         }),
       ),
     );

@@ -25,7 +25,7 @@ import {
   recordingForSession,
   recordingPath,
   recordingReceipt,
-  type RecordingEvent,
+  recordingEvents,
 } from './recording-public-support.ts';
 import { digest, selectedFrame } from './recording-wire-oracle.ts';
 import {
@@ -602,16 +602,10 @@ test(
         'Active capture must include the real planning rollback in its whole HTTP receipt',
       );
       const recording = await recordingForSession(f.api, f.lab, session.id);
-      const page = await f.api.json<{
-        data: RecordingEvent[];
-        next_cursor: string | null;
-      }>('GET', recordingPath(f.lab, recording.id) + '/events?limit=100');
+      const page = {
+        data: await recordingEvents(f.api, recordingPath(f.lab, recording.id)),
+      };
       assert(page.data.length <= 100);
-      assert.equal(
-        page.next_cursor,
-        null,
-        'This bounded fixture must inspect its entire admitted event prefix',
-      );
       const acceptedEvents = page.data.filter(
         (event) =>
           event.event_type === 'command.changed' &&
