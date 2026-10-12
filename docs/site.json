@@ -1,8 +1,8 @@
 {
-  "title": "Lab Word",
-  "titleEn": "Lab Word",
-  "description": "Lab Word 实验室数字孪生：项目启动、设备模型预览、业务边界与开发验证。",
-  "descriptionEn": "Lab Word laboratory digital twin: setup, equipment model preview, module boundaries and development checks.",
+  "title": "Lab World",
+  "titleEn": "Lab World",
+  "description": "Lab World 实验室数字孪生：项目启动、设备模型预览、业务边界与开发验证。",
+  "descriptionEn": "Lab World laboratory digital twin: setup, equipment model preview, module boundaries and development checks.",
   "repository": "CaiZongyuan/labworld",
   "groupLabels": {
     "开始": "Start",
@@ -22,10 +22,10 @@
       "titleEn": "Home",
       "group": "公开站",
       "layout": "page",
-      "pageTitle": "Lab Word — 实验室数字孪生，附一块实时等距实验台",
-      "pageTitleEn": "Lab Word — laboratory digital twin with a live isometric lab",
-      "pageDescription": "Lab Word 是一个实验室数字孪生：持久化的实验室、资产与对象运行在 Three.js 工作台之上，设备程序由服务端持有，关闭浏览器后仍在继续。人类与 Agent 共用同一套 HTTP/SSE 契约。",
-      "pageDescriptionEn": "Lab Word is a laboratory digital twin: persistent Labs, assets and entities in a Three.js workbench, with server-owned device programs that keep running after the browser closes. Humans and Agents share one HTTP/SSE contract."
+      "pageTitle": "Lab World — 实验室数字孪生，附一块实时等距实验台",
+      "pageTitleEn": "Lab World — laboratory digital twin with a live isometric lab",
+      "pageDescription": "Lab World 是一个实验室数字孪生：持久化的实验室、资产与对象运行在 Three.js 工作台之上，设备程序由服务端持有，关闭浏览器后仍在继续。人类与 Agent 共用同一套 HTTP/SSE 契约。",
+      "pageDescriptionEn": "Lab World is a laboratory digital twin: persistent Labs, assets and entities in a Three.js workbench, with server-owned device programs that keep running after the browser closes. Humans and Agents share one HTTP/SSE contract."
     },
     {
       "id": "blog",
@@ -38,8 +38,8 @@
       "layout": "page",
       "pageTitle": "博客 · 即将推出",
       "pageTitleEn": "Blog · Coming soon",
-      "pageDescription": "Lab Word 博客尚未开始实现。",
-      "pageDescriptionEn": "The Lab Word blog is not implemented yet."
+      "pageDescription": "Lab World 博客尚未开始实现。",
+      "pageDescriptionEn": "The Lab World blog is not implemented yet."
     },
     {
       "id": "downloads",
@@ -52,8 +52,8 @@
       "layout": "page",
       "pageTitle": "下载 · 即将推出",
       "pageTitleEn": "Downloads · Coming soon",
-      "pageDescription": "Lab Word 安装包发布尚未开始实现。",
-      "pageDescriptionEn": "Lab Word installer releases are not implemented yet."
+      "pageDescription": "Lab World 安装包发布尚未开始实现。",
+      "pageDescriptionEn": "Lab World installer releases are not implemented yet."
     },
     {
       "id": "documentation",

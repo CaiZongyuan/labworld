@@ -168,7 +168,7 @@ function localizedReferenceTexts() {
       currentApiTitle:
         '\n\n## 当前 TypeScript 服务\n\n下表直接来自 Node 服务的 Zod/OpenAPI。字节 capability 的 `/objects/:id` 由 FileService 返回；Lab 资产、世界与布局见 [Node 世界指南](../guides/server-world.md)。',
       currentConfigTitle:
-        '\n\n## 当前 Lab Word Server\n\n默认值由 [config.ts]({{serverConfig}}) 的实际解析器生成。Web 的 `WEB_PORT` 和 `VITE_API_PROXY` 由开发入口和 Vite 读取。',
+        '\n\n## 当前 Lab World Server\n\n默认值由 [config.ts]({{serverConfig}}) 的实际解析器生成。Web 的 `WEB_PORT` 和 `VITE_API_PROXY` 由开发入口和 Vite 读取。',
 
       apiIntro: (version) =>
         `# API 合同\n\n正式 Node OpenAPI 与生成 SDK（版本 ${version}）。保留的 HTTP 合同与迁移基准一致；已移除的模块不再生成客户端。用法见 [TypeScript 服务基础](../guides/server-foundation.md)。`,
@@ -191,7 +191,7 @@ function localizedReferenceTexts() {
       currentApiTitle:
         '\n\n## Current TypeScript service\n\nThis table comes directly from the Node Zod/OpenAPI source. FileService returns byte capabilities at `/objects/:id`. See [Node World](../guides/server-world.md) for migrated assets, World and layouts.',
       currentConfigTitle:
-        '\n\n## Current Lab Word Server\n\nDefaults come from the running parser in [config.ts]({{serverConfig}}). The development entrypoint and Vite read `WEB_PORT` and `VITE_API_PROXY`.',
+        '\n\n## Current Lab World Server\n\nDefaults come from the running parser in [config.ts]({{serverConfig}}). The development entrypoint and Vite read `WEB_PORT` and `VITE_API_PROXY`.',
 
       apiIntro: (version) =>
         `# API contract\n\nOfficial Node OpenAPI and generated SDK (version ${version}). Retained HTTP semantics match the migration baseline; removed modules no longer generate client operations. See [TypeScript service foundation](../guides/server-foundation.md).`,

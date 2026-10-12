@@ -1,6 +1,6 @@
 # Appearance And Language
 
-Goal: switch Lab Word language and appearance and verify device preferences persist. Start the application with [quick start](../getting-started/quickstart.md)first.
+Goal: switch Lab World language and appearance and verify device preferences persist. Start the application with [quick start](../getting-started/quickstart.md)first.
 
 ## Operation And Result
 

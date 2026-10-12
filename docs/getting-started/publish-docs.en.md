@@ -1,6 +1,6 @@
 # Publish Documentation
 
-Goal: publish validated bilingual Lab Word documentation to your GitHub Pages. Source push permission is required; first-time Pages setup requires repository administration. These steps push static artifacts; a local build does not publish.
+Goal: publish validated bilingual Lab World documentation to your GitHub Pages. Source push permission is required; first-time Pages setup requires repository administration. These steps push static artifacts; a local build does not publish.
 
 ## 1. Check Repository And Build
 

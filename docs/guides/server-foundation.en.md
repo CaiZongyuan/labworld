@@ -1,6 +1,6 @@
 # Start the TypeScript service foundation
 
-This guide is for developers of Lab Word Server. The current foundation provides health, system status, error envelopes, a persistent database and contract generation. Identity, memberships, API keys, audit, limits and file capabilities are implemented. The Web app can use Core identity, persistent assets, Labs, Entities, Scene Nodes and layouts. Device programs, business subscriptions, history, records, trends and lifecycle are implemented. Continue with [Node devices](server-devices.en.md). Continue with [Platform Core](server-platform.md).
+This guide is for developers of Lab World Server. The current foundation provides health, system status, error envelopes, a persistent database and contract generation. Identity, memberships, API keys, audit, limits and file capabilities are implemented. The Web app can use Core identity, persistent assets, Labs, Entities, Scene Nodes and layouts. Device programs, business subscriptions, history, records, trends and lifecycle are implemented. Continue with [Node devices](server-devices.en.md). Continue with [Platform Core](server-platform.md).
 
 ## Get the first result
 

@@ -2,9 +2,9 @@
 status: accepted
 ---
 
-# Lab Word Server 使用 PGlite 作为嵌入式数据库
+# Lab World Server 使用 PGlite 作为嵌入式数据库
 
-决定日期：2026-10-06。采用锁定的 PGlite 0.5.8、Drizzle ORM 0.45.3 和 Node 24.18.0，使用 PGlite 的 NodeFS 持久目录。数据库在 Lab Word Server 进程内运行，没有 PostgreSQL 附属进程。M1 的已批准判据已经实际通过，因此不启用 npm 分发原生 PostgreSQL 的备选。
+决定日期：2026-10-06。采用锁定的 PGlite 0.5.8、Drizzle ORM 0.45.3 和 Node 24.18.0，使用 PGlite 的 NodeFS 持久目录。数据库在 Lab World Server 进程内运行，没有 PostgreSQL 附属进程。M1 的已批准判据已经实际通过，因此不启用 npm 分发原生 PostgreSQL 的备选。
 
 PGlite 保留 PostgreSQL 方言、限定 schema、JSONB、UUID、约束、索引、CTE 与 RETURNING。一个数据库实例对应一个串行执行器，全部读取、写入、迁移与后台操作都进入队列。布局与世界版本等冲突语义仍由显式版本检查承担；事务内不等待网络、文件或定时器。数据库驱动只由 `platform/db` 拥有，领域规则与 Platform Core 的依赖边界保持原决定。
 

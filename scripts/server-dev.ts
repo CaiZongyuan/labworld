@@ -141,7 +141,7 @@ if (!closing) {
     `http://${config.hostname}:${config.port}/health/ready`,
   ).catch(() => undefined);
   if (!ready?.ok) {
-    console.error('Lab Word Server did not become ready');
+    console.error('Lab World Server did not become ready');
     await close(1);
   } else {
     launch(
@@ -158,7 +158,7 @@ if (!closing) {
       await new Promise<void>(() => {});
     await record();
     console.log(
-      `Lab Word: http://127.0.0.1:${process.env.WEB_PORT ?? 5173}; Platform Core is available; Lab endpoints are pending migration.`,
+      `Lab World: http://127.0.0.1:${process.env.WEB_PORT ?? 5173}; Platform Core is available; Lab endpoints are pending migration.`,
     );
   }
 }

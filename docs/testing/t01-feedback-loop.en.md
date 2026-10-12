@@ -1,6 +1,6 @@
 # Development And Validation
 
-Goal: select public checks that observe your Lab Word change. Run from the repository root. The [testing strategy](strategy.md)defines responsibilities.
+Goal: select public checks that observe your Lab World change. Run from the repository root. The [testing strategy](strategy.md)defines responsibilities.
 
 ## Choose An Entry
 

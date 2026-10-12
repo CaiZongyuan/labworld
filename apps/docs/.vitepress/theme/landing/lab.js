@@ -1,4 +1,4 @@
-/* Lab Word — live isometric lab plate.
+/* Lab World — live isometric lab plate.
    Hairline isometric renderer on Canvas 2D in the Factory Yard / ai-iso-skill language:
    flat unlit facets, 1px lines, two greys plus one --live colour reserved for what is live,
    and a day that turns to night. The device programs mirror the server-owned ones in the

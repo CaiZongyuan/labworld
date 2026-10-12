@@ -1,6 +1,6 @@
 # 项目结构
 
-Lab Word 使用一个 TypeScript 服务与 Web 应用。持久 Lab、资产、布局、设备程序、观测、记录与趋势通过用户/Agent 共用 HTTP 合同访问。
+Lab World 使用一个 TypeScript 服务与 Web 应用。持久 Lab、资产、布局、设备程序、观测、记录与趋势通过用户/Agent 共用 HTTP 合同访问。
 
 ```text
 apps/

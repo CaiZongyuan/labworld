@@ -1,4 +1,4 @@
-# Lab Word vNext 开发与迁移总纲
+# Lab World vNext 开发与迁移总纲
 
 > 版本：v2.0
 > 日期：2026-10-05
@@ -11,11 +11,11 @@
 
 ## 0. 一页结论
 
-Lab Word 是实验室数字孪生产品，核心是 **Lab World Model** 与 **实验室运行信息底座**：组织实验室对象、关系、能力、状态与操作记录，供人和 Agent 理解及访问同一个实验室世界。真实设备控制、机器人执行属于后续阶段，现阶段不以控制平面定位。
+Lab World 是实验室数字孪生产品，核心是 **Lab World Model** 与 **实验室运行信息底座**：组织实验室对象、关系、能力、状态与操作记录，供人和 Agent 理解及访问同一个实验室世界。真实设备控制、机器人执行属于后续阶段，现阶段不以控制平面定位。
 
 本计划分三段，每段有独立门禁：
 
-1. **迁移**：Rust 后端换成单个 TypeScript 服务进程 **Lab Word Server**，删除 Rust、Docker 及全部相关内容。只验收“行为一致”，不加新功能。→ Migration Gate
+1. **迁移**：Rust 后端换成单个 TypeScript 服务进程 **Lab World Server**，删除 Rust、Docker 及全部相关内容。只验收“行为一致”，不加新功能。→ Migration Gate
 2. **产品恢复**：在新架构上完成 #29–#40。→ Product Completion Gate
 3. **数字孪生**：本计划只记录方向；开始前单独走 grill → spec → tickets。
 
@@ -25,7 +25,7 @@ Lab Word 是实验室数字孪生产品，核心是 **Lab World Model** 与 **�
 | --- | --- |
 | 语言 | TypeScript；Python 只用于未来的 Isaac Sim 扩展 |
 | Web | React + TanStack Router + TanStack Query + Three.js（现有，保留） |
-| 服务 | 单个 Node 24 进程 Lab Word Server；Hono 只作为 HTTP 适配层 |
+| 服务 | 单个 Node 24 进程 Lab World Server；Hono 只作为 HTTP 适配层 |
 | 合同 | Zod 声明 → OpenAPI → `@hey-api/openapi-ts` 生成 SDK（沿用现有生成链路） |
 | 数据访问 | Drizzle，PostgreSQL 方言 |
 | 数据库 | PGlite + Node 文件系统（ADR 0011，proposed）；spike 失败则改用随 npm 分发的原生 PostgreSQL |
@@ -36,7 +36,7 @@ Lab Word 是实验室数字孪生产品，核心是 **Lab World Model** 与 **�
 | 限流 | 进程内实现，沿用现有限额 |
 | 邮件 | 移除；密码由服务端命令重置 |
 | 部署 | 默认只监听 `127.0.0.1`；团队访问由部署方提供 HTTPS 反向代理；不提供镜像 |
-| 桌面 | Electron 壳连接 Lab Word Server（现状） |
+| 桌面 | Electron 壳连接 Lab World Server（现状） |
 | 移除 | Rust、Cargo、Redis、PostgreSQL 服务器、RustFS、Mailpit、Caddy、可观测性栈、全部 Docker 配置、`just` |
 | 推迟 | Browser Standalone、Electron 内嵌服务、Cloudflare、数字孪生实现 |
 
@@ -57,7 +57,7 @@ pnpm dev
 
 | # | 决策 | 记录 |
 | --- | --- | --- |
-| 1 | 产品名保持 Lab Word，`labworld` 只是仓库名；定位用 Lab World Model + 实验室运行信息底座，不用 Control Plane | CONTEXT |
+| 1 | 产品名保持 Lab World，`labworld` 只是仓库名；定位用 Lab World Model + 实验室运行信息底座，不用 Control Plane | CONTEXT |
 | 2 | 只保留 Lab 与 Platform Core；移除知识库、示例组装与删例、通知、通用任务队列、邮件；彻底移除 Rust、Docker 及相关内容 | [ADR 0009](../adr/0009-lab-word-product-only.md)、[ADR 0010](../adr/0010-single-typescript-lab-word-server.md) |
 | 3 | 设备程序完全沿用 ADR 0006：服务端运行、按程序频率持久化 Observation、重启后标记 interrupted、由用户显式重启 | ADR 0006 |
 | 4 | 模拟与真实设备保持独立 Entity，用“模拟对应”关系关联 | [ADR 0007](../adr/0007-separate-simulated-and-physical-entity-identities.md) |
@@ -67,7 +67,7 @@ pnpm dev
 | 8 | 先写 TypeScript 黑盒 HTTP 合同测试并在 Rust 栈跑绿，再让新实现通过同一套测试 | §6 M0、§7 |
 | 9 | 数字孪生只记录方向，DT0 前单独 grill → spec → tickets | §10 |
 | 10 | SaaS Core 改称 Platform Core，Core 不引用 Lab | CONTEXT |
-| 11 | 服务进程命名为 Lab Word Server | CONTEXT |
+| 11 | 服务进程命名为 Lab World Server | CONTEXT |
 | 12 | 默认只监听 `127.0.0.1`，团队访问用部署方的 HTTPS 反代，不提供镜像 | ADR 0010 |
 | 13 | Electron 保持壳形态；内嵌服务的一体化桌面版是 Gate 之后的产品票 | §6 M5、§9 |
 | 14 | 移除邮件密码重置，Gate 内提供服务端命令重置密码 | ADR 0009 |
@@ -156,14 +156,14 @@ pnpm dev
 
 ## 4. 目标架构
 
-### 4.1 Lab Word Server
+### 4.1 Lab World Server
 
 ```text
 Browser / Electron 壳 / Agent
             │  HTTP + SSE（生成 SDK 或 API key）
             ▼
 ┌────────────────────────────────────────────┐
-│ Lab Word Server（单个 Node 进程）             │
+│ Lab World Server（单个 Node 进程）             │
 │                                            │
 │  Hono：会话/CSRF、校验、OpenAPI、错误映射、SSE  │
 │  Platform Core 模块                         │
@@ -177,7 +177,7 @@ Browser / Electron 壳 / Agent
           data/
 ```
 
-Lab Word Server 是权威状态与安全边界。浏览器关闭不影响设备程序；服务重启按 ADR 0006 处理中断。
+Lab World Server 是权威状态与安全边界。浏览器关闭不影响设备程序；服务重启按 ADR 0006 处理中断。
 
 ### 4.2 网络与部署
 
@@ -232,7 +232,7 @@ lab/       assets  world  layout  relationships  devices  runtime  sync
 
 ### 4.5 Hono 的定位
 
-Hono 是 Lab Word Server 的 HTTP 适配层，负责：
+Hono 是 Lab World Server 的 HTTP 适配层，负责：
 
 - HTTP 路由；
 - 会话与 CSRF；
@@ -427,7 +427,7 @@ PGlite spike 的判据：
 - 从 Hono OpenAPI 重新生成 SDK，与 `api-baseline.json` 的差异必须为空（被移除模块除外）。
 - 移除知识库、通知、密码重置相关的视图与路由。其余 UI 路由和登录后的默认入口保持现有用户可见行为；组装点简化为 Lab 直接注册。
 - 生产由服务同源托管 Web，开发由 Vite 代理。
-- Electron 壳连接 Lab Word Server，`desktop-smoke` 通过。
+- Electron 壳连接 Lab World Server，`desktop-smoke` 通过。
 - 保留的 Playwright spec 全部通过。
 
 ### M6 — 删除旧栈与文档收尾
@@ -443,7 +443,7 @@ PGlite spike 的判据：
 
 以下全部满足才算通过：
 
-- 新克隆的仓库执行 `pnpm install && pnpm dev`，即可启动完整的 Lab Word Server 与 Web。Docker、PostgreSQL 服务器、Redis、RustFS、Mailpit、Rust 工具链和 `just` 都不参与。
+- 新克隆的仓库执行 `pnpm install && pnpm dev`，即可启动完整的 Lab World Server 与 Web。Docker、PostgreSQL 服务器、Redis、RustFS、Mailpit、Rust 工具链和 `just` 都不参与。
 - M0 的合同测试在新栈全绿。
 - OpenAPI 与基线的差异为空（被移除模块除外）。
 - 保留的 Playwright 旅程和 desktop smoke 通过。
@@ -585,7 +585,7 @@ no World side effects
 
 数字孪生需要的轴向等字段不在 #31 中提前实现；几何合同采用版本化结构，以后可以扩展。
 
-**#36 浏览器布局草稿恢复**：草稿按部署（API base）、用户、Lab、格式版本隔离；草稿只属于当前浏览器，保存后的布局才是 Lab Word Server 中的权威状态。只有确认保存或明确丢弃后才清除草稿；冲突时显式恢复；数值必须是有限值且在有效范围内。
+**#36 浏览器布局草稿恢复**：草稿按部署（API base）、用户、Lab、格式版本隔离；草稿只属于当前浏览器，保存后的布局才是 Lab World Server 中的权威状态。只有确认保存或明确丢弃后才清除草稿；冲突时显式恢复；数值必须是有限值且在有效范围内。
 
 ### Wave C — #32、#33、#34
 
@@ -593,7 +593,7 @@ no World side effects
 
 **#33 记录、活动与 CSV**：有界筛选；游标分页；固定上界；失败时保留当前页；显示真实的操作者身份；当前页 CSV 安全处理（引号、换行、公式前缀）。
 
-**#34 创建与登记的安全重试和初始摆放**：这是以后 Agent 操作 Lab Word 的重要事务边界。要求：
+**#34 创建与登记的安全重试和初始摆放**：这是以后 Agent 操作 Lab World 的重要事务边界。要求：
 
 ```text
 idempotency key
@@ -631,7 +631,7 @@ business receipt + association atomic
 
 以下需要用户批准后再发布：
 
-- 内嵌 Lab Word Server 的一体化 Electron 桌面版；
+- 内嵌 Lab World Server 的一体化 Electron 桌面版；
 - 管理员在界面中重置成员密码；
 - 把浏览器重计算移入 Worker（资产解析、降采样）；
 - Browser Standalone 的独立 spec。
@@ -649,7 +649,7 @@ business receipt + association atomic
 ### 10.2 已确定的原则
 
 - **状态权威**：
-  - 设计状态归 Lab Word：Lab、资产与 Entity 身份、布局、关系、能力、仿真配置；
+  - 设计状态归 Lab World：Lab、资产与 Entity 身份、布局、关系、能力、仿真配置；
   - 仿真状态归当前的仿真后端：位姿、关节、速度、接触、传感器；
   - 物理状态归真实设备与传感器；
   - Three.js 只负责呈现，不拥有任何事实。
@@ -665,7 +665,7 @@ business receipt + association atomic
 | DT0 | 几何与资产表示合同：在 #31 的版本化几何上扩展单位、轴向、原点、边界、支撑面；GLB 与 USD 表示共享身份；冻结 Placement 坐标含义 |
 | DT1 | 仿真会话概念：把现有设备程序与将来的外部仿真后端纳入同一个会话模型；是否需要浏览器内逻辑后端，取决于 Browser Standalone spec |
 | DT2 | Isaac 连接器：connect/health、load world、spawn/remove、set/get transform、play/pause/reset/step、状态增量推送 |
-| DT3 | 双向往返：Lab Word 摆放同步到 Isaac；Isaac 物理状态同步到 Three.js；断线后用快照 + 版本恢复；不逐帧写库 |
+| DT3 | 双向往返：Lab World 摆放同步到 Isaac；Isaac 物理状态同步到 Three.js；断线后用快照 + 版本恢复；不逐帧写库 |
 | DT4 | PhysX 稳定基线；Newton smoke test，并明确标注为实验状态 |
 | DT5 | 优先使用 Isaac 的 ROS 2 Simulation Control 标准能力；接入一个机器人关节状态和一个相机或传感器 |
 
@@ -675,9 +675,9 @@ business receipt + association atomic
 
 - **World**：持久 Lab，包含真实的 Entity、Scene Node、Relationship；GLB 与 USD 表示有正式映射。
 - **Runtime**：可以启动仿真会话；现有设备程序与 Isaac 后端都可用；Runtime Binding 能定位 Isaac Prim。
-- **Sync**：Lab Word → Isaac 的摆放同步；Isaac → Three.js 的状态同步；快照 + 版本重连；不逐帧写库。
+- **Sync**：Lab World → Isaac 的摆放同步；Isaac → Three.js 的状态同步；快照 + 版本重连；不逐帧写库。
 - **Device**：至少一台设备（建议离心机）完成 Command → Simulation → Observation → UI → History。
-- **Robot**：至少一个机器人或可动关节物体可以被 Isaac 加载，在 Lab Word 中有 Entity 身份，关节或位姿状态至少一种可观测。
+- **Robot**：至少一个机器人或可动关节物体可以被 Isaac 加载，在 Lab World 中有 Entity 身份，关节或位姿状态至少一种可观测。
 - **Recovery**：Isaac 重启、浏览器刷新、服务重启后，都不会产生新的 Entity 身份，也不会重复执行已提交的 Command。
 
 ### 10.5 更远阶段
@@ -795,7 +795,7 @@ Browser Standalone 相关的事实（浏览器 VFS、OPFS、多 tab worker、WAS
 
 ```text
 旧：多容器、多进程、按服务器 SaaS 模板组织的底座
-新：单进程 Lab Word Server + 模块化领域代码 + 可执行的合同基准
+新：单进程 Lab World Server + 模块化领域代码 + 可执行的合同基准
 ```
 
 保留的是产品行为与领域合同，换掉的是运行时与基础设施。迁移结束后，主线开发围绕以下方向推进：

@@ -1,6 +1,6 @@
 # Product Scope And Architecture
 
-Lab Word is a laboratory digital twin. The application provides persistent Labs, independent Entities, multi-node scenes, a server Asset Library and versioned definitions. Users can edit layouts, register manual relationships and run backend lighting, temperature and centrifuge programs. See the [glossary](../../CONTEXT.md).
+Lab World is a laboratory digital twin. The application provides persistent Labs, independent Entities, multi-node scenes, a server Asset Library and versioned definitions. Users can edit layouts, register manual relationships and run backend lighting, temperature and centrifuge programs. See the [glossary](../../CONTEXT.md).
 
 ## Models And Equipment
 

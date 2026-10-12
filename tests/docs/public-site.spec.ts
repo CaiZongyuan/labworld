@@ -15,7 +15,7 @@ test('the landing offers section navigation and local documentation actions', as
   page,
 }) => {
   await go(page);
-  await expect(page).toHaveTitle(/Lab Word/);
+  await expect(page).toHaveTitle(/Lab World/);
   await expect(page.locator('.topnav nav a[href="#devices"]')).toHaveText(
     '设备',
   );
@@ -36,7 +36,7 @@ test('the landing offers section navigation and local documentation actions', as
   ).toHaveAttribute('href', /\/downloads\/$/);
   await expect(page.locator('.demo-note')).toContainText('未连接你的 Lab');
   await expect(page.locator('#architecture')).toContainText('后续方向');
-  await expect(page.locator('.labword-landing')).not.toContainText(
+  await expect(page.locator('.labworld-landing')).not.toContainText(
     /Rust API|PostgreSQL|legacy-rust-final|此前 · 服务群/,
   );
 });
@@ -51,10 +51,10 @@ test('the primary CTA enters the Chinese documentation and old deep links keep w
     .click();
   await expect(page).toHaveURL(/\/docs\/$/);
   await expect(
-    page.getByRole('heading', { name: 'Lab Word 项目文档', level: 1 }),
+    page.getByRole('heading', { name: 'Lab World 项目文档', level: 1 }),
   ).toBeVisible();
   await expect(page.locator('html')).not.toHaveClass(
-    /labword-landing-mode|after-dark/,
+    /labworld-landing-mode|after-dark/,
   );
   await go(page, '/getting-started/quickstart');
   await expect(
@@ -311,10 +311,10 @@ test('the interactive landing survives document navigation and shares the saved 
     .locator('.hero-meta .cta')
     .getByRole('link', { name: '阅读文档' })
     .click();
-  await expect(page.locator('.vp-doc h1')).toHaveText('Lab Word 项目文档');
+  await expect(page.locator('.vp-doc h1')).toHaveText('Lab World 项目文档');
   await expect.poll(intervals).toBe(0);
   await expect(page.locator('html')).not.toHaveClass(
-    /labword-landing-mode|after-dark/,
+    /labworld-landing-mode|after-dark/,
   );
   await page.locator('.VPNavBarMenuLink').filter({ hasText: '首页' }).click();
   await expect(page.locator('#readout')).toContainText('实时');
