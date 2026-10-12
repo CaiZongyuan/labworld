@@ -19,6 +19,7 @@ import {
   type ServerLedger,
   type LaunchIntent,
 } from './server-resources.ts';
+import type { RestartPhase, RestartObservation } from './windows-four-probe.ts';
 const owned = new Set<ServerProcess>();
 let interrupted = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const)
@@ -74,6 +75,35 @@ export class ServerProcess {
   env: Record<string, string> = {};
   // Harness fault seam: lets the owned creator proof exercise slow Windows identity lookup.
   beforeIdentity?: () => Promise<void>;
+  // Enabled only by the pins case; observes existing operations, never queries.
+  windowsRestartObservation?: (
+    phase: RestartPhase,
+    value: RestartObservation,
+  ) => void;
+  private probeHealthPolls = 0;
+  private probeLastHealthStatus: number | null = null;
+  private probeLastHealthError: RestartObservation['lastHealthError'] = null;
+  private observeRestart(phase: RestartPhase) {
+    if (!this.windowsRestartObservation) return;
+    try {
+      this.windowsRestartObservation(phase, {
+        exitCode: this.child?.exitCode ?? null,
+        signalCode: this.child?.signalCode ?? null,
+        claimedOwnerProof: !!this.launchIntent,
+        kernelProof: !!this.childProof,
+        proofPidMatches:
+          !!this.childProof && this.childProof.pid === this.child?.pid,
+        proofExecutableMatches:
+          !!this.childProof &&
+          this.childProof.executable === this.launchIntent?.executable,
+        healthPolls: this.probeHealthPolls,
+        lastHealthStatus: this.probeLastHealthStatus,
+        lastHealthError: this.probeLastHealthError,
+      });
+    } catch {
+      /* Observation must not replace the original result. */
+    }
+  }
   // This fault fixture must survive Windows' normal kill-on-parent-exit Job.
   detachedChildForRecoveryProof = false;
   private runId = randomUUID();
@@ -210,8 +240,11 @@ export class ServerProcess {
         this.logs += String(chunk);
       });
       await once(child, 'spawn');
+      this.observeRestart('spawn-event');
       await this.beforeIdentity?.();
+      this.observeRestart('identity-start');
       this.childProof = await processIdentity(child.pid!);
+      this.observeRestart('identity-complete');
       await this.record();
       this.assertOpen();
     })();
@@ -244,20 +277,54 @@ export class ServerProcess {
     this.assertOpen();
     await this.spawn();
     this.assertOpen();
-    await until(
-      async () => {
-        this.assertOpen();
-        if (this.child!.exitCode !== null) throw new Error(this.logs);
-        return fetch(`${this.url}/health/live`, {
-          signal: AbortSignal.timeout(1000),
-        });
-      },
-      (response) => response.ok,
-    );
+    this.probeHealthPolls = 0;
+    this.probeLastHealthStatus = null;
+    this.probeLastHealthError = null;
+    this.observeRestart('ready-wait');
+    try {
+      await until(
+        async () => {
+          this.assertOpen();
+          if (this.windowsRestartObservation) this.probeHealthPolls++;
+          if (this.child!.exitCode !== null) {
+            if (this.windowsRestartObservation)
+              this.probeLastHealthError = 'child-exited';
+            throw new Error(this.logs);
+          }
+          if (!this.windowsRestartObservation)
+            return fetch(`${this.url}/health/live`, {
+              signal: AbortSignal.timeout(1000),
+            });
+          try {
+            const response = await fetch(`${this.url}/health/live`, {
+              signal: AbortSignal.timeout(1000),
+            });
+            this.probeLastHealthStatus = response.status;
+            this.probeLastHealthError = null;
+            return response;
+          } catch (error) {
+            const name = error instanceof Error ? error.name : '';
+            this.probeLastHealthError =
+              name === 'AbortError' ||
+              name === 'TimeoutError' ||
+              name === 'TypeError'
+                ? name
+                : 'UNKNOWN';
+            throw error;
+          }
+        },
+        (response) => response.ok,
+      );
+    } catch (error) {
+      this.observeRestart('ready-failed');
+      throw error;
+    }
+    this.observeRestart('ready-passed');
     this.assertOpen();
     return this;
   }
   async stop(signal: NodeJS.Signals = 'SIGTERM') {
+    this.observeRestart('stop-requested');
     const child = this.child;
     if (child?.pid && child.exitCode === null && child.signalCode === null) {
       const exited = once(child, 'exit');
@@ -266,6 +333,7 @@ export class ServerProcess {
       await exited;
       clearTimeout(deadline);
     }
+    this.observeRestart('old-child-exited');
     if (this.evidence)
       await appendFile(join(this.evidence, 'server.log'), this.logs);
     this.child = undefined;

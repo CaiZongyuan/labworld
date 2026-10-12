@@ -10,6 +10,13 @@ import { join } from 'node:path';
 import { WebSocket } from 'ws';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
+import {
+  observedWindowsHttp,
+  windowsProbeEnabled,
+  writeWindowsProbe,
+  type RestartPhase,
+  type RestartObservation,
+} from '../support/windows-four-probe.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
 import { SessionEventReader } from '../support/session-event-reader.ts';
 import {
@@ -924,6 +931,7 @@ test(
   'formal machine admission rejects Users/wrong machine/session/reuse and preserves one lease; ACK needs a new boundary',
   { timeout: 60000 },
   async () => {
+    const testDeadline = performance.now() + 60000;
     const f = await fixture('session-admission'),
       peers: Source[] = [];
     try {
@@ -979,9 +987,19 @@ test(
       await until(async () => replay.controls[0], Boolean);
       assert.equal(replay.controls[0].type, 'motion.error');
       assert.equal((await f.read(session)).lease_id, admission.lease_id);
-      await f.client.json('POST', f.base + `/sessions/${session.id}/pause`, {
-        expected_revision: running.revision,
-      });
+      await observedWindowsHttp(
+        f.client,
+        () =>
+          f.client.json('POST', f.base + `/sessions/${session.id}/pause`, {
+            expected_revision: running.revision,
+          }),
+        200,
+        running,
+        f.target.evidence,
+        'formal-machine-pause',
+        testDeadline,
+        () => source.ws.readyState,
+      );
       const pause = await source.control('pause');
       await source.apply(pause, 10n);
       const paused = await f.state(session, 'paused');
@@ -1201,8 +1219,27 @@ test(
         (await f.read(session)).snapshot.hash,
         session.snapshot.hash,
       );
-      await f.target.stop();
-      await f.target.start();
+      const restartStarted = performance.now();
+      const restartPhases: Partial<
+        Record<RestartPhase, RestartObservation & { elapsedMs: number }>
+      > = {};
+      if (windowsProbeEnabled())
+        f.target.windowsRestartObservation = (phase, value) => {
+          restartPhases[phase] = {
+            ...value,
+            elapsedMs: performance.now() - restartStarted,
+          };
+        };
+      try {
+        await f.target.stop();
+        await f.target.start();
+      } finally {
+        f.target.windowsRestartObservation = undefined;
+        if (windowsProbeEnabled())
+          writeWindowsProbe(f.target.evidence, 'pins-restart', {
+            phases: restartPhases,
+          });
+      }
       const world = await f.client.json<Session['snapshot']['world']>(
         'GET',
         f.base + '/world',

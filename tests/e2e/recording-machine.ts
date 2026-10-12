@@ -1,4 +1,8 @@
 import assert from 'node:assert/strict';
+import type {
+  AckPhase,
+  AckObservation,
+} from '../support/windows-four-probe.ts';
 import { randomUUID } from 'node:crypto';
 import { WebSocket, type RawData } from 'ws';
 import type {
@@ -114,6 +118,26 @@ export class RecordingMachine {
   private pending = false;
   private pendingBytes?: Buffer;
   private ended = false;
+  windowsAckObservation?: (phase: AckPhase, value: AckObservation) => void;
+  private observeAck(
+    phase: AckPhase,
+    kind: number,
+    packet: bigint,
+    source: bigint,
+    event: bigint,
+  ) {
+    try {
+      this.windowsAckObservation?.(phase, {
+        kind,
+        packetSequence: Number(packet),
+        sourceSequence: Number(source),
+        eventSequence: Number(event),
+        socketState: this.reliable.socket.readyState,
+      });
+    } catch {
+      /* Preserve the original packet result. */
+    }
+  }
 
   constructor(
     session: SimulationSession,
@@ -216,6 +240,7 @@ export class RecordingMachine {
     this.pendingBytes = packet.bytes;
     const prefix = nextPrefix(this.prefix, packet.digest);
     try {
+      this.observeAck('send', kind, sequence, nextSource, nextEvent);
       this.reliable.socket.send(packet.bytes);
       const ack = (await this.reliable.take(
         'recording.ack',
@@ -229,6 +254,7 @@ export class RecordingMachine {
         eventSequence: nextEvent,
         ended: kind === 3,
       });
+      this.observeAck('ack', kind, sequence, nextSource, nextEvent);
       this.packetSequence = sequence;
       this.sourceSequence = nextSource;
       this.eventSequence = nextEvent;
@@ -240,6 +266,9 @@ export class RecordingMachine {
         'Verifier packet oracle exceeded bound',
       );
       return ack;
+    } catch (error) {
+      this.observeAck('boundary-failed', kind, sequence, nextSource, nextEvent);
+      throw error;
     } finally {
       this.pending = false;
       this.pendingBytes = undefined;

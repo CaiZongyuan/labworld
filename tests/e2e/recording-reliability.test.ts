@@ -16,6 +16,13 @@ import type {
   SimulationSession,
 } from '../../packages/contracts/src/generated/types.gen.ts';
 import { CoreHttp } from '../support/core-http.ts';
+import {
+  observedWindowsHttp,
+  windowsProbeEnabled,
+  writeWindowsProbe,
+  type AckPhase,
+  type AckObservation,
+} from '../support/windows-four-probe.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
 import { ServerProcess } from '../support/server-process.ts';
 import {
@@ -296,7 +303,10 @@ async function incomplete(f: Context, session: string) {
   return publicRecording(f.api, f.lab, recording.id);
 }
 
-async function fixture(ack = 3000): Promise<Context> {
+async function fixture(
+  ack = 3000,
+  probe?: 'native-sync-pause',
+): Promise<Context> {
   const target = await new ServerProcess().create();
   target.entry = 'tests/e2e/recording-fault-process.ts';
   target.ipc = true;
@@ -306,6 +316,9 @@ async function fixture(ack = 3000): Promise<Context> {
     RATE_LIMIT_ENABLED: 'false',
     LAB_WORD_SYNTHETIC_SESSION: 'true',
     LAB_WORD_MOTION_ACK_MS: String(ack),
+    ...(probe && windowsProbeEnabled()
+      ? { LAB_WORLD_WINDOWS_PROBE: probe }
+      : {}),
   };
   try {
     await target.start();
@@ -384,27 +397,40 @@ async function transition(f: Context, session: string, action: string) {
     { expected_revision: current.revision },
   );
 }
-async function admission(f: Context) {
+async function admission(f: Context, deadline?: number) {
   const starting = await f.api.json<SimulationSession>(
     'POST',
     sessionPath(f.lab),
     { installation_id: f.installation.id, machine_id: f.credential.machine.id },
     201,
   );
-  const admitted = await f.sourceApi.json<RecordingAdmission>(
-    'POST',
-    sessionPath(f.lab, starting.id) + '/publisher-admissions',
-    { machine_id: f.credential.machine.id },
-    201,
-  );
+  const call = () =>
+    f.sourceApi.json<RecordingAdmission>(
+      'POST',
+      sessionPath(f.lab, starting.id) + '/publisher-admissions',
+      { machine_id: f.credential.machine.id },
+      201,
+    );
+  const admitted =
+    deadline === undefined
+      ? await call()
+      : await observedWindowsHttp(
+          f.sourceApi,
+          call,
+          201,
+          starting,
+          f.target.evidence,
+          'task-initial-admission',
+          deadline,
+        );
   const session = await f.api.json<SimulationSession>(
     'GET',
     sessionPath(f.lab, starting.id),
   );
   return { admitted, session };
 }
-async function start(f: Context) {
-  const a = await admission(f),
+async function start(f: Context, deadline?: number) {
+  const a = await admission(f, deadline),
     machine = new RecordingMachine(a.session, a.admitted, f.target.url);
   await machine.ready();
   const initial = selectedFrame(a.session, 1n, 0n);
@@ -1161,6 +1187,7 @@ test(
   'recording completed Task survives actual kill before marker while physics stays paused at A=1000',
   { timeout: 120000 },
   async () => {
+    const testDeadline = performance.now() + 120000;
     const f = await fixture(1000);
     try {
       const device = await f.api.json<{ id: string }>(
@@ -1177,7 +1204,7 @@ test(
       );
       const path = `/api/v1/lab/labs/${f.lab}/entities/${device.id}`;
       await f.api.json('POST', path + '/program/start', undefined, 201);
-      const machine = await start(f);
+      const machine = await start(f, testDeadline);
       await boundary(f, machine, 'pause', 1000000000n);
       const pausedAt = performance.now(),
         mandatory = machine.packets.map((packet) => Buffer.from(packet.bytes));
@@ -1775,7 +1802,10 @@ for (const method of ['write', 'sync'] as const)
     `recording actual native ${method} completion hold bounds ordinary caller during idle Pause and retains owned writer`,
     { timeout: 120000 },
     async () => {
-      const f = await fixture(1000);
+      const f = await fixture(
+        1000,
+        method === 'sync' ? 'native-sync-pause' : undefined,
+      );
       let pending: Promise<Response> | undefined;
       try {
         await ipc(
@@ -1808,7 +1838,57 @@ for (const method of ['write', 'sync'] as const)
         await machine.capture([initial]);
         machine.liveFrame(initial);
         await state(f, a.session.id, 'running');
-        await boundary(f, machine, 'pause', 1000000000n);
+        const ackStarted = performance.now();
+        const ackRows: (AckObservation & {
+          phase: AckPhase;
+          elapsedMs: number;
+        })[] = [];
+        const observeAck = (phase: AckPhase, value: AckObservation) => {
+          if (ackRows.length < 16)
+            ackRows.push({
+              phase,
+              ...value,
+              elapsedMs: performance.now() - ackStarted,
+            });
+        };
+        const closed = (code: number) =>
+          observeAck('close', {
+            closeCode: code,
+            socketState: machine.reliable.socket.readyState,
+          });
+        const controlReceived = (data: Buffer, binary: boolean) => {
+          if (!binary && data.length <= 16384) {
+            try {
+              const value: unknown = JSON.parse(data.toString('utf8'));
+              if (
+                value &&
+                typeof value === 'object' &&
+                'type' in value &&
+                value.type === 'motion.session_control'
+              )
+                observeAck('control', {});
+            } catch {
+              /* The original Peer parser owns malformed input. */
+            }
+          }
+        };
+        if (method === 'sync' && windowsProbeEnabled()) {
+          machine.windowsAckObservation = observeAck;
+          machine.reliable.socket.on('close', closed);
+          machine.live.socket.on('message', controlReceived);
+        }
+        try {
+          await boundary(f, machine, 'pause', 1000000000n);
+        } finally {
+          machine.windowsAckObservation = undefined;
+          machine.reliable.socket.off('close', closed);
+          machine.live.socket.off('message', controlReceived);
+          if (method === 'sync' && windowsProbeEnabled())
+            writeWindowsProbe(f.target.evidence, 'native-sync-pause', {
+              rows: ackRows,
+              holdArmed: false,
+            });
+        }
         // Remove current appearance refs so retained asset access/refusal reflects
         // the experiment's custody rather than a current layout representation.
         for (const target of f.installation.targets)

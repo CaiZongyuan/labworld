@@ -5,6 +5,13 @@ import { syncBuiltinESMExports } from 'node:module';
 import { join, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { run } from '../../apps/server/src/runtime.ts';
+import { RecordingService } from '../../packages/server/src/lab/recordings/service.ts';
+import {
+  receiveCode,
+  writeWindowsProbe,
+  type AckPhase,
+  type AckObservation,
+} from '../support/windows-four-probe.ts';
 import { DeviceRuntime } from '../../packages/server/src/lab/devices/runtime.ts';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
@@ -27,6 +34,64 @@ let arm: Arm | undefined;
 let release: (() => void) | undefined;
 let executionHeld = false;
 let releaseExecution: (() => void) | undefined;
+
+// Local fixture-only observer. The exact returned receive promise is retained.
+const probeBind = RecordingService.prototype.bind;
+const probeFault = RecordingService.prototype.fault;
+const nativeProbe = process.env.LAB_WORLD_WINDOWS_PROBE === 'native-sync-pause';
+const receiveStarted = performance.now();
+let nativeHoldArmed = false;
+let nativeProbeStopped = false;
+const receiveRows: (AckObservation & { phase: AckPhase; elapsedMs: number })[] =
+  [];
+function observeReceive(phase: AckPhase, value: AckObservation) {
+  if (!nativeProbe || nativeProbeStopped || receiveRows.length >= 16) return;
+  try {
+    receiveRows.push({
+      phase,
+      ...value,
+      elapsedMs: performance.now() - receiveStarted,
+    });
+  } catch {
+    /* Never affect the original receive or fencing. */
+  }
+}
+if (nativeProbe) {
+  mkdirSync(resolve('.scratch/windows-four-receive'), { recursive: true });
+  RecordingService.prototype.bind = async function (...args) {
+    const connection = await probeBind.apply(this, args);
+    const originalReceive = connection.receive;
+    connection.receive = (raw) => {
+      const bytes = Buffer.from(raw.buffer, raw.byteOffset, raw.byteLength);
+      const counters = {
+        kind: bytes.length >= 56 && [1, 2, 3].includes(bytes[5]) ? bytes[5] : 0,
+        packetSequence:
+          bytes.length >= 56 && bytes.readBigUInt64LE(48) <= 32n
+            ? Number(bytes.readBigUInt64LE(48))
+            : 0,
+      };
+      observeReceive('receive-start', counters);
+      const work = originalReceive(raw);
+      void work
+        .then(
+          () => observeReceive('receive-ack', counters),
+          (error: unknown) =>
+            observeReceive('receive-failed', {
+              ...counters,
+              code: receiveCode(error),
+            }),
+        )
+        .catch(() => {});
+      return work;
+    };
+    return connection;
+  };
+  RecordingService.prototype.fault = function (scope, reason) {
+    const result = probeFault.call(this, scope, reason);
+    observeReceive('fault', { code: receiveCode({ code: reason }) });
+    return result;
+  };
+}
 
 // Private trusted ordinary-device ingress, captured from the unchanged real
 // runtime composition. No HTTP route, Row mutation or physics Task authority.
@@ -370,6 +435,7 @@ process.on(
       assert(!ioArm && heldIo.size === 0);
       assert(message.io && ['write', 'sync'].includes(message.io.method));
       ioArm = message.io;
+      if (nativeProbe) nativeHoldArmed = true;
       process.send!({ event: 'actual-io-armed', ...ioArm });
     } else if (message.operation === 'release-io') {
       releaseIo();
@@ -404,6 +470,12 @@ process.on(
       process.send!(pressureSnapshot());
     } else if (message.operation === 'pressure-stop') {
       stopPressureObserver();
+      if (nativeProbe)
+        writeWindowsProbe(
+          resolve('.scratch/windows-four-receive'),
+          'native-sync-pause',
+          { rows: receiveRows, holdArmed: nativeHoldArmed },
+        );
       process.send!(pressureSnapshot());
     }
   },
@@ -432,12 +504,21 @@ await run(undefined, {
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const)
   process.once(signal, () => {
+    nativeProbeStopped = true;
     arm = undefined;
     release?.();
     releaseExecution?.();
     ioArm = undefined;
     releaseIo();
     stopPressureObserver();
+    if (nativeProbe)
+      writeWindowsProbe(
+        resolve('.scratch/windows-four-receive'),
+        'native-sync-pause',
+        { rows: receiveRows, holdArmed: nativeHoldArmed },
+      );
+    RecordingService.prototype.bind = probeBind;
+    RecordingService.prototype.fault = probeFault;
     promises.open = originalOpen;
     syncBuiltinESMExports();
   });
