@@ -1,6 +1,6 @@
 # Replay the migration contract baseline
 
-This guide is for developers who migrate the Lab Word service. M0 records delivered Core, Foundation #2–#11, and #26–#28 behavior. The current runner replays those retained contracts against the compiled Node HTTP/SSE service. The original Rust evidence remains historical at `legacy-rust-final`. Product behavior in #29–#40 is outside this baseline.
+This guide is for developers who migrate the Lab World service. M0 records delivered Core, Foundation #2–#11, and #26–#28 behavior. The current runner replays those retained contracts against the compiled Node HTTP/SSE service. The original Rust evidence remains historical at `legacy-rust-final`. Product behavior in #29–#40 is outside this baseline.
 
 ## Get the first result
 

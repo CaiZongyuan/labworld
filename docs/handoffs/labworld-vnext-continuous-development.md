@@ -1,4 +1,4 @@
-# Lab Word vNext 连续开发交接
+# Lab World vNext 连续开发交接
 
 交接日期：2026-10-06。接手 PM 从 [#47](https://github.com/CaiZongyuan/labworld/issues/47) 开始，连续完成迁移 #47–#52，再自动恢复产品 #29–#40，直到两个 Gate 的结果实际集成。本次只整理交接；M0 已交付，其余开发尚未完成。
 

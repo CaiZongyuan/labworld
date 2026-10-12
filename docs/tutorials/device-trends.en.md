@@ -1,6 +1,6 @@
 # Read real trends in device details
 
-Continue in the same Lab from [Device details](device-details.md). You need a signed-in Member and a running Lab Word Server. Trends read retained property reports.
+Continue in the same Lab from [Device details](device-details.md). You need a signed-in Member and a running Lab World Server. Trends read retained property reports.
 
 ## Create temperature history
 

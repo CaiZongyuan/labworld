@@ -13,7 +13,7 @@ test('the landing, its entries and the switcher survive a custom base', async ({
   page,
 }) => {
   await go(page);
-  await expect(page).toHaveTitle(/Lab Word/);
+  await expect(page).toHaveTitle(/Lab World/);
   await page.locator('.shot img').scrollIntoViewIfNeeded();
   await expect
     .poll(() =>
@@ -32,7 +32,7 @@ test('the landing, its entries and the switcher survive a custom base', async ({
     .click();
   await expect(page).toHaveURL(/\/ui16-custom-base\/docs\/$/);
   await expect(
-    page.getByRole('heading', { name: 'Lab Word 项目文档', level: 1 }),
+    page.getByRole('heading', { name: 'Lab World 项目文档', level: 1 }),
   ).toBeVisible();
   await page.getByRole('banner').getByRole('link', { name: 'English' }).click();
   await expect(page).toHaveURL(/\/ui16-custom-base\/en\/docs\/$/);

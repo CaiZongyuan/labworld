@@ -1,6 +1,6 @@
 # 外观与语言
 
-目标：在 Lab Word 切换语言和外观，并确认本机偏好被保留。前提是已按[快速开始](../getting-started/quickstart.md)启动应用。
+目标：在 Lab World 切换语言和外观，并确认本机偏好被保留。前提是已按[快速开始](../getting-started/quickstart.md)启动应用。
 
 ## 操作与结果
 

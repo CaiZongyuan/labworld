@@ -1,4 +1,4 @@
-# Lab Word vNext PM 暂停交接 — 2026-10-09
+# Lab World vNext PM 暂停交接 — 2026-10-09
 
 本轮按用户要求完成当前修复的审查与发布，记录交接和复盘，然后停止开发。剩余产品工作未完成。本文件供后任 PM 接续；GitHub Issues、PR 和当前 head 的 CI 是事实来源。
 

@@ -820,7 +820,7 @@ export function assetShelf(b, x, y, id = null) {
   return b;
 }
 
-/* ---------------- the Lab Word server ---------------- */
+/* ---------------- the Lab World server ---------------- */
 export function serverCabinet(b, x, y, id = null) {
   const w = 1.3,
     d = 0.98,

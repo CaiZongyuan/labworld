@@ -13,7 +13,7 @@ export const coreMessages: {
 } = {
   zh: {
     ...graphicMessages.zh,
-    'app.name': 'Lab Word',
+    'app.name': 'Lab World',
     'app.description': '实验室数字孪生。',
 
     'shell.nav.mainMenu': '主菜单',
@@ -357,7 +357,7 @@ export const coreMessages: {
   },
   en: {
     ...graphicMessages.en,
-    'app.name': 'Lab Word',
+    'app.name': 'Lab World',
     'app.description': 'Laboratory digital twin.',
 
     'shell.nav.mainMenu': 'Main menu',

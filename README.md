@@ -1,4 +1,4 @@
-# Lab Word
+# Lab World
 
 Laboratory digital twin with a Three.js workbench and server-owned device programs.
 
@@ -49,6 +49,6 @@ scripts/       Development, validation and operations
 docs/          Guides, domain vocabulary, decisions and plans
 ```
 
-Lab Word builds on [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template). Internal identifiers retain `labos-threejs` for compatibility; the product is **Lab Word** and the repository slug is `labworld`.
+Lab World builds on [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template). The product is **Lab World** and the repository slug is `labworld`. Existing `labos-threejs` package identifiers, `LAB_WORD_*` configuration names, storage formats and published documentation routes retain their original spelling for compatibility.
 
 [MIT](LICENSE). Original template attribution is retained.

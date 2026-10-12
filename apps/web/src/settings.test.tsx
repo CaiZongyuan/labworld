@@ -55,7 +55,7 @@ function open(path = '/', session: 'anonymous' | CurrentSession = 'anonymous') {
 test('the settings page is reachable signed out and renames the document', async () => {
   open('/settings');
   expect(await screen.findByRole('heading', { name: '设置' })).toBeVisible();
-  expect(document.title).toBe('设置 · Lab Word');
+  expect(document.title).toBe('设置 · Lab World');
   // The appearance section keeps its tutorial deep link into the zh docs
   // chapter — never the site-root landing.
   expect(

@@ -27,7 +27,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="labword-landing" ref="root" :key="lang">
+  <div class="labworld-landing" ref="root" :key="lang">
     <header class="topnav" id="topnav">
       <a class="brand" href="#top">
         <svg
@@ -39,7 +39,7 @@ onBeforeUnmount(() => {
         >
           <path d="M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5"></path>
         </svg>
-        LAB WORD
+        LAB WORLD
       </a>
       <nav>
         <a href="#devices" v-html="t('nav.devices')"></a>
@@ -138,7 +138,7 @@ onBeforeUnmount(() => {
               >
                 <path d="M12 3 3 8l9 5 9-5-9-5ZM3 13l9 5 9-5"></path>
               </svg>
-              <b>Lab Word</b>
+              <b>Lab World</b>
               <span class="cap"
                 ><span v-html="t('plate.fig')"></span> ·
                 <span id="clock">08:00</span><span id="phase"></span
@@ -751,7 +751,7 @@ onBeforeUnmount(() => {
       <div class="wrap">
         <div class="grid">
           <div>
-            <h4>Lab Word</h4>
+            <h4>Lab World</h4>
             <p
               class="muted"
               style="font-size: 13px; margin: 0"

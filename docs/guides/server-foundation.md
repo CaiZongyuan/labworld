@@ -1,6 +1,6 @@
 # 启动 TypeScript 服务基础
 
-本指南面向开发 Lab Word Server 的开发者。当前服务基础提供健康、系统状态、错误信封、持久数据库与合同生成。身份、成员、API key、审计、限流与文件能力已经实现。Web 可以使用 Core 身份、持久资产、Lab、Entity、Scene Node 和布局；设备程序、业务订阅、历史、记录、趋势与生命周期已实现。继续阅读[Node 设备](server-devices.md)。继续阅读[平台指南](server-platform.md)。
+本指南面向开发 Lab World Server 的开发者。当前服务基础提供健康、系统状态、错误信封、持久数据库与合同生成。身份、成员、API key、审计、限流与文件能力已经实现。Web 可以使用 Core 身份、持久资产、Lab、Entity、Scene Node 和布局；设备程序、业务订阅、历史、记录、趋势与生命周期已实现。继续阅读[Node 设备](server-devices.md)。继续阅读[平台指南](server-platform.md)。
 
 ## 得到第一个结果
 

@@ -46,8 +46,8 @@ const T = {
   'plate.cardAria': ['Selection details', '选中对象详情'],
   'plate.close': ['Close details', '关闭详情'],
   'plate.aria': [
-    'Live isometric laboratory: benches with labware and an imported microscope, an asset shelf, two light stands, two temperature sensors, a centrifuge, a robot arm shuttling trays between an infeed station and a cart, a Lab Word Server cabinet and a technician walking the room. A day passes in four minutes and the lamps light at dusk. Drag to pan, scroll to zoom, click anything for its live details.',
-    '实时等距实验室：摆放器皿与导入显微镜的实验台、资产架、两盏灯架、两个温度传感器、一台离心机、一台在进料台与料车之间搬运周转盘的机械臂、Lab Word Server 机柜，以及一位在房间里走动的技术员。四分钟过完一天，黄昏时灯具亮起。拖动平移，滚轮缩放，点击任意对象查看实时详情。',
+    'Live isometric laboratory: benches with labware and an imported microscope, an asset shelf, two light stands, two temperature sensors, a centrifuge, a robot arm shuttling trays between an infeed station and a cart, a Lab World Server cabinet and a technician walking the room. A day passes in four minutes and the lamps light at dusk. Drag to pan, scroll to zoom, click anything for its live details.',
+    '实时等距实验室：摆放器皿与导入显微镜的实验台、资产架、两盏灯架、两个温度传感器、一台离心机、一台在进料台与料车之间搬运周转盘的机械臂、Lab World Server 机柜，以及一位在房间里走动的技术员。四分钟过完一天，黄昏时灯具亮起。拖动平移，滚轮缩放，点击任意对象查看实时详情。',
   ],
   'plate.dusk': [' · dusk', ' · 黄昏'],
   'plate.night': [' · night', ' · 夜间'],
@@ -62,7 +62,7 @@ const T = {
   'kind.entity': ['Entity', '实验室对象'],
   'kind.representation': ['Asset representation', '资产表示'],
   'kind.library': ['Asset library', '资产库'],
-  'kind.server': ['Lab Word Server', 'Lab Word Server'],
+  'kind.server': ['Lab World Server', 'Lab World Server'],
   'kind.member': ['Member', '成员'],
 
   'ent.lightA': ['Light A', '灯 A'],
@@ -75,7 +75,7 @@ const T = {
   'ent.microscope': ['Industrial Microscope', '工业显微镜'],
   'ent.labware': ['Labware set', '器皿组'],
   'ent.shelf': ['Asset shelf', '资产架'],
-  'ent.server': ['Lab Word Server', 'Lab Word Server'],
+  'ent.server': ['Lab World Server', 'Lab World Server'],
   'ent.tech': ['On-shift technician', '当班技术员'],
 
   'row.run': ['Run', '运行'],
@@ -162,8 +162,8 @@ const T = {
     '让人和 Agent<br>理解同一间实验室。',
   ],
   'product.lede': [
-    'Lab Word organizes equipment, digital assets, spatial relationships and device observations in one shared laboratory world model. People and Agents inspect the same facts, run virtual devices and trace results through the same interfaces.',
-    'Lab Word 把设备、数字资产、空间关系与设备观测组织成共享的实验室世界模型。人和 Agent 基于同一份事实查看实验室、运行虚拟设备，并追溯操作结果。',
+    'Lab World organizes equipment, digital assets, spatial relationships and device observations in one shared laboratory world model. People and Agents inspect the same facts, run virtual devices and trace results through the same interfaces.',
+    'Lab World 把设备、数字资产、空间关系与设备观测组织成共享的实验室世界模型。人和 Agent 基于同一份事实查看实验室、运行虚拟设备，并追溯操作结果。',
   ],
   'product.p1.idx': ['01 · Persistent world', '01 · 持久世界'],
   'product.p1.h3': [
@@ -192,7 +192,7 @@ const T = {
     'People sign in with email and password — the first account becomes Owner, later accounts Members. Agents authenticate with API keys scoped <code>lab:full</code> and perform the identical business operations. Example scripts ship for registering a world, editing a layout, controlling lights, observing temperature and running centrifuges.',
     '人用邮箱与密码登录——第一个账号成为 Owner，其后为 Member。Agent 使用作用域为 <code>lab:full</code> 的 API Key 认证，执行完全相同的业务操作。仓库附带示例脚本：注册世界、编辑布局、控制灯光、观测温度、运行离心机。',
   ],
-  'diagram.server': ['LAB WORD SERVER', 'LAB WORD 服务端'],
+  'diagram.server': ['LAB WORLD SERVER', 'LAB WORLD 服务端'],
   'diagram.browser': ['BROWSER', '浏览器'],
   'diagram.desktop': ['DESKTOP', '桌面端'],
   'diagram.agents': ['AGENTS', 'AGENTS'],
@@ -212,8 +212,8 @@ const T = {
   'prov.eyebrow': ['Provenance in every reading', '每个读数都带溯源'],
   'prov.h2': ['A command is not<br>an observation.', '指令不等于<br>观测。'],
   'prov.lede': [
-    'Lab Word never lets a requested target stand in for what a device actually reported. Commands, observations and placements are separate records, each with its own time, source and quality — and simulated readings stay distinguishable from real measurements at all times.',
-    'Lab Word 从不把“请求的目标值”当作设备实际上报的结果。指令、观测与三维摆放是彼此独立的记录，各自带有时间、来源与质量——模拟读数与真实测量在任何时刻都可区分。',
+    'Lab World never lets a requested target stand in for what a device actually reported. Commands, observations and placements are separate records, each with its own time, source and quality — and simulated readings stay distinguishable from real measurements at all times.',
+    'Lab World 从不把“请求的目标值”当作设备实际上报的结果。指令、观测与三维摆放是彼此独立的记录，各自带有时间、来源与质量——模拟读数与真实测量在任何时刻都可区分。',
   ],
   'prov.n1': [
     '<b>Device Command</b>“set intensity 80 %” · 202 Accepted',
@@ -260,8 +260,8 @@ const T = {
   ],
   'real.bar2': ['real-time sync', '实时同步'],
   'real.alt': [
-    'Lab Word Foundation V1: an object directory listing Light A, Light B, Sensor A, Sensor B and Tutorial centrifuge B, a multi-node 3D viewport with robot arms, lights and a centrifuge, an Inspector showing the selected Light B with its entity id, definition version light 1.0, runtime binding light.v1 and current observation, and a run history panel querying events, tasks, commands and observations.',
-    'Lab Word Foundation V1：对象目录列出灯 A、灯 B、传感器 A、传感器 B 与教程离心机 B；多节点三维视图中有机械臂、灯具与离心机；Inspector 显示选中的灯 B 及其对象 id、定义版本 light 1.0、运行绑定 light.v1 与当前观测；另有运行历史面板可查询事件、任务、指令与观测。',
+    'Lab World Foundation V1: an object directory listing Light A, Light B, Sensor A, Sensor B and Tutorial centrifuge B, a multi-node 3D viewport with robot arms, lights and a centrifuge, an Inspector showing the selected Light B with its entity id, definition version light 1.0, runtime binding light.v1 and current observation, and a run history panel querying events, tasks, commands and observations.',
+    'Lab World Foundation V1：对象目录列出灯 A、灯 B、传感器 A、传感器 B 与教程离心机 B；多节点三维视图中有机械臂、灯具与离心机；Inspector 显示选中的灯 B 及其对象 id、定义版本 light 1.0、运行绑定 light.v1 与当前观测；另有运行历史面板可查询事件、任务、指令与观测。',
   ],
   'real.caption': [
     'Foundation V1 on the real application stack — object directory, imported model, multi-node viewport, lighting Inspector and run history, with reproducible development data and built-in virtual devices.',
@@ -290,8 +290,8 @@ const T = {
     '可理解、可操作，<br>也可验证的工作环境。',
   ],
   'arch.lede': [
-    'Our direction is a work environment where Agents understand equipment, rehearse work and verify results. Today, Lab Word provides the shared information foundation and virtual devices. Physical execution and autonomous planning are future work.',
-    '我们希望让 Agent 理解设备与任务，在虚拟环境中预演，并通过证据验证结果。当前 Lab Word 提供共享信息底座与虚拟设备。真实设备执行和自主实验规划仍属后续方向。',
+    'Our direction is a work environment where Agents understand equipment, rehearse work and verify results. Today, Lab World provides the shared information foundation and virtual devices. Physical execution and autonomous planning are future work.',
+    '我们希望让 Agent 理解设备与任务，在虚拟环境中预演，并通过证据验证结果。当前 Lab World 提供共享信息底座与虚拟设备。真实设备执行和自主实验规划仍属后续方向。',
   ],
   'arch.t1.when': ['Available today', '当前可用'],
   'arch.t1.h3': ['A shared laboratory world model', '共享实验室世界模型'],
@@ -345,8 +345,8 @@ const T = {
     '第一个账号成为 <span class="hi">Owner</span>，其后账号为 <span class="hi">Member</span>。Agent 凭 API Key 加入。',
   ],
   'start.ready': [
-    '  Lab Word Server ready · 127.0.0.1:3000 · X-Lab-Runtime: ready\n',
-    '  Lab Word Server 就绪 · 127.0.0.1:3000 · X-Lab-Runtime: ready\n',
+    '  Lab World Server ready · 127.0.0.1:3000 · X-Lab-Runtime: ready\n',
+    '  Lab World Server 就绪 · 127.0.0.1:3000 · X-Lab-Runtime: ready\n',
   ],
   'start.open': ['  open ', '  打开 '],
   'start.first': [
@@ -377,8 +377,8 @@ const T = {
     '构建于 axum-saas-template 之上',
   ],
   'foot.fine1': [
-    'Lab Word · laboratory digital twin',
-    'Lab Word · 实验室数字孪生',
+    'Lab World · laboratory digital twin',
+    'Lab World · 实验室数字孪生',
   ],
   'foot.fine2': [
     'Fig 1 runs live in your browser',

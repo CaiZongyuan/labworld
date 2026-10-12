@@ -1,6 +1,6 @@
-# Lab Word Documentation
+# Lab World Documentation
 
-Lab Word is a laboratory digital twin. The application stores assets, Labs, objects and layouts. Backend programs provide device observations with sources and Tasks.
+Lab World is a laboratory digital twin. The application stores assets, Labs, objects and layouts. Backend programs provide device observations with sources and Tasks.
 
 ## Choose Your Task
 

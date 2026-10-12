@@ -1,6 +1,6 @@
 # 共享界面组件
 
-目标：开发 Lab Word 界面时复用现有组件与 token，并在组件展厅观察状态。先按[快速开始](../getting-started/quickstart.md)启动并登录应用。
+目标：开发 Lab World 界面时复用现有组件与 token，并在组件展厅观察状态。先按[快速开始](../getting-started/quickstart.md)启动并登录应用。
 
 ## 查看一个真实组件
 

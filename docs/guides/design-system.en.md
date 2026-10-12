@@ -1,6 +1,6 @@
 # Shared Interface Components
 
-Goal: reuse Lab Word components and tokens and inspect their states in the showroom. Start and sign in using [quick start](../getting-started/quickstart.md).
+Goal: reuse Lab World components and tokens and inspect their states in the showroom. Start and sign in using [quick start](../getting-started/quickstart.md).
 
 ## Inspect A Real Component
 
