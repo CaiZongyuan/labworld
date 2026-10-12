@@ -1,13 +1,13 @@
 # 现有平台能力
 
-目标：选择 Lab Word 当前 Platform Core 的真实入口。先按[服务基础](server-foundation.md)运行 Node 服务；开发不需要 Docker、Rust 或外部数据库。
+目标：选择 Lab World 当前 Platform Core 的真实入口。先按[服务基础](server-foundation.md)运行 Node 服务；开发不需要 Docker、Rust 或外部数据库。
 
 ```bash
 curl -i http://127.0.0.1:3000/api/v1/auth/session
 curl -i http://127.0.0.1:3000/api/openapi.json
 ```
 
-匿名 session 返回 401。OpenAPI 返回当前完整保留 Node 合同的 JSON，标题为 `Lab Word API`。当前身份、成员、API key、审计、幂等、限流与文件能力见[平台指南](server-platform.md)。文件字节与业务引用见[文件指南](server-files.md)。Lab 资产、世界写入与设备程序已使用该服务。
+匿名 session 返回 401。OpenAPI 返回当前完整保留 Node 合同的 JSON，标题为 `Lab World API`。当前身份、成员、API key、审计、幂等、限流与文件能力见[平台指南](server-platform.md)。文件字节与业务引用见[文件指南](server-files.md)。Lab 资产、世界写入与设备程序已使用该服务。
 
 Core 不引用 Lab。角色管理属于 Core；用户和有效 `lab:full` Agent 的完整 Lab 访问合同见 [ADR 0008](../adr/0008-full-lab-access-for-users-and-agents.md)。Lab 保留业务 validator、引用与提交回调的职责。
 

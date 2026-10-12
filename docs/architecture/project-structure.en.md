@@ -1,6 +1,6 @@
 # Project structure
 
-Lab Word runs one TypeScript service and a Web application. Persistent Labs, assets, layouts, device programs, observations, records and trends use the shared Member/Agent HTTP contract.
+Lab World runs one TypeScript service and a Web application. Persistent Labs, assets, layouts, device programs, observations, records and trends use the shared Member/Agent HTTP contract.
 
 ```text
 apps/

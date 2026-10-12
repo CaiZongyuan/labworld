@@ -120,6 +120,48 @@ test('real FileService returns a signed HTTP upload and publishes verified immut
       ready.sha256,
       createHash('sha256').update(bytes).digest('hex'),
     );
+    // A retained dependency read obtains real stream custody before its consumer releases the Core pin.
+    const historicalBytes = Buffer.alloc(512 * 1024, 0x3a);
+    const historical = await service.publishManaged(
+      { id: 'retained-read-publication', kind: 'request' },
+      actor.user.id,
+      {
+        file_name: 'retained.bin',
+        content_type: 'application/octet-stream',
+        bytes: historicalBytes,
+      },
+      { ownerType: 'owned-managed-read', ownerId: 'retained' },
+      async (_tx, file) => file,
+    );
+    const opened = await service.openManagedRead(
+      historical.id,
+      { id: 'retained-read-open', kind: 'request' },
+      async () => {},
+    );
+    const cancelled = await service.openManagedRead(
+      historical.id,
+      { id: 'retained-read-cancel', kind: 'request' },
+      async () => {},
+    );
+    await cancelled.bytes[Symbol.asyncIterator]().return?.();
+    await db.transaction(
+      { id: 'retained-read-release', kind: 'request' },
+      async (tx) => {
+        await service.release(tx, historical.id, {
+          ownerType: 'owned-managed-read',
+          ownerId: 'retained',
+        });
+        await service.dispose(tx, historical.id);
+      },
+    );
+    assert.ok(
+      (await service.cleanup('retained-read-cleanup')).deleted.includes(
+        historical.id,
+      ),
+    );
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of opened.bytes) chunks.push(chunk);
+    assert.deepEqual(Buffer.concat(chunks), historicalBytes);
     const download = await db.transaction(
       { id: 'file-download', kind: 'request' },
       (tx) => service.download(tx, actor, ready.id),

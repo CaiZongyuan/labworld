@@ -121,13 +121,22 @@ export function sessionRoutes(
       responses: { 201: json(SceneInstallation), ...errors },
     }),
     async (c) => {
-      if (duplicateStructField(c.req.raw, ['representation_id'])) invalid();
+      if (
+        duplicateStructField(c.req.raw, [
+          'representation_id',
+          'backend',
+          'representations',
+        ])
+      )
+        invalid();
       return c.json(
         await sessions.install(
           c.req.raw.headers,
           c.get('requestId'),
           c.req.valid('param').lab_id,
           c.req.valid('json').representation_id,
+          c.req.valid('json').backend,
+          c.req.valid('json').representations,
         ),
         201,
       );
@@ -195,6 +204,7 @@ export function sessionRoutes(
           'installation_id',
           'parameters',
           'machine_id',
+          'live_rate_hz',
         ])
       )
         invalid();

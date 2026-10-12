@@ -1,4 +1,4 @@
-# Lab Word 界面约定
+# Lab World 界面约定
 
 现有应用壳沿用[已接受的 Web 体验](web-experience.md)。Lab Viewer 已接入正式应用，验证见[体验记录](lab-viewer-experience.md)。下一阶段沿用[已接受的 Foundation v1 体验](lab-foundation-experience.md)，正式持久化与运行能力按实施票交付。
 
@@ -6,7 +6,7 @@
 
 壳提供导航、当前页面标题、身份、设置、通知与通用主题/语言入口。业务通过显式贡献提供页面、导航、双语文案与默认入口；壳不 import 设备或知识库专有规则。实际合同在 `packages/views/src/shell/`，路由适配在 Web。
 
-产品名统一为 Lab Word。已接受方向是 Lab 为首要业务入口与登录后默认入口，资产库替换主导航中的知识库入口。既有知识库路由与数据保留原义，正式 Lab 集成的验收另行记录。
+产品名统一为 Lab World。已接受方向是 Lab 为首要业务入口与登录后默认入口，资产库替换主导航中的知识库入口。既有知识库路由与数据保留原义，正式 Lab 集成的验收另行记录。
 
 ## 视觉与交互
 

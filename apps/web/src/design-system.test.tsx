@@ -80,7 +80,7 @@ test('the sidebar entry opens the showroom; the page renames the document', asyn
   expect(
     await screen.findByRole('heading', { name: '设计系统' }),
   ).toBeVisible();
-  expect(document.title).toBe('设计系统 · Lab Word');
+  expect(document.title).toBe('设计系统 · Lab World');
   await screen.findByRole('tab', { name: '基础' }, { timeout: 5000 });
   for (const tab of ['基础', '组件', '场景', '图标'])
     expect(

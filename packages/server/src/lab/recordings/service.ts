@@ -1312,7 +1312,13 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
           hello[k as keyof RecordingIdentity] !==
           identity[k as keyof RecordingIdentity],
       ) ||
-      hello.source_header.source_kind !== 'synthetic'
+      hello.source_header.source_kind !==
+        (scope.session.snapshot.physics ? 'newton' : 'synthetic') ||
+      (scope.session.snapshot.physics &&
+        (hello.source_header.runtime?.profile_sha256 !==
+          scope.session.snapshot.physics.profile_sha256 ||
+          hello.source_header.runtime.live_rate_hz !==
+            scope.session.snapshot.physics.live_rate_hz))
     )
       throw fail('recording_scope_mismatch');
     const headerBytes = canonicalSourceHeader(hello.source_header),
@@ -2285,6 +2291,37 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     ))
       parts.push(part);
     return JSON.parse(Buffer.concat(parts).toString('utf8'));
+  }
+  async dependency(headers: Headers, lab: string, id: string, fileId: string) {
+    return this.files.openManagedRead(
+      fileId,
+      this.operation('request'),
+      async (tx) => {
+        await accessIn(
+          tx,
+          this.world.context,
+          this.world.policy,
+          headers,
+          'lab:full',
+        );
+        const row = await this.rowIn(tx, lab, id);
+        if (row.status === 'deleting')
+          throw fail(
+            'recording_not_found',
+            'Recording resource not found',
+            404,
+          );
+        const membership = await tx.execute(
+          sql`select 1 from lab.recording_resources where recording_id=${id}::uuid and file_id=${worldId(fileId)}::uuid and role='dependency'`,
+        );
+        if (!membership.rows.length)
+          throw fail(
+            'recording_not_found',
+            'Recording resource not found',
+            404,
+          );
+      },
+    );
   }
   async segments(
     headers: Headers,

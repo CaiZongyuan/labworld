@@ -105,16 +105,49 @@ test('necessary actual DB close plus controlled adapter filesystem rejection exi
     target.args = ['--email', 'fault@example.test'];
     target.input = password + '\n';
     await target.spawn();
+    stage = 'wait-for-close-start';
+    // Cold PGlite startup owns a separate bounded prerequisite. The close
+    // regression still gets only 6500ms from its actual driver entry point.
+    const closing = await until(
+      async () =>
+        JSON.parse(await readFile(driverFacts, 'utf8')) as {
+          pid: number;
+          phases: Array<{ phase: string; at: string; code?: string }>;
+        },
+      (facts) =>
+        facts.pid === target.child!.pid &&
+        facts.phases.some((phase) => phase.phase === 'db-ready') &&
+        facts.phases.some((phase) => phase.phase === 'close-started'),
+      30000,
+    );
+    const closeStarted = closing.phases.find(
+      (phase) => phase.phase === 'close-started',
+    )!;
+    const closeDeadline = Date.parse(closeStarted.at) + 6500;
+    assert(Number.isFinite(closeDeadline));
+    assert(Date.now() < closeDeadline, 'Close exit deadline already expired');
     stage = 'wait-for-command-exit';
     await until(
       async () => target.child!.exitCode,
       (code) => code !== null,
-      6500,
+      closeDeadline - Date.now(),
     );
+    assert(Date.now() <= closeDeadline, 'Close exit deadline expired');
     stage = 'check-command-result';
     assert.equal(target.child!.exitCode, 1);
     assert.equal(target.logs.includes(password), false);
     assert.equal(target.logs.includes('auth.unavailable'), true);
+    const closed = JSON.parse(
+      await readFile(driverFacts, 'utf8'),
+    ) as typeof closing;
+    assert(closed.phases.some((phase) => phase.phase === 'db-closed'));
+    assert(
+      closed.phases.some(
+        (phase) =>
+          phase.phase === 'controlled-filesystem-rejection' &&
+          phase.code === 'ENOENT',
+      ),
+    );
     stage = 'check-directory-release';
     const lease = await DirectoryLease.acquire(target.directory);
     await lease.release();

@@ -1,6 +1,6 @@
 # Appearance And Language
 
-Goal: switch Lab Word language and appearance and verify device preferences persist. Start the application with [quick start](../getting-started/quickstart.md)first.
+Goal: switch Lab World language and appearance and verify device preferences persist. Start the application with [quick start](../getting-started/quickstart.md) first.
 
 ## Operation And Result
 
@@ -13,7 +13,7 @@ Preferences stay on this device and do not change permissions or business data. 
 
 ## Development And Validation
 
-[Preferences](../../packages/views/src/shell/preferences.tsx)owns state/storage and [Settings](../../packages/views/src/shell/settings-view.tsx)provides controls. [core-messages.ts](../../packages/views/src/shell/core-messages.ts)owns translations; shared tokens come from `packages/ui/src/styles.css`.
+[Preferences](../../packages/views/src/shell/preferences.tsx) owns state/storage and [Settings](../../packages/views/src/shell/settings-view.tsx) provides controls. [core-messages.ts](../../packages/views/src/shell/core-messages.ts) owns translations; shared tokens come from `packages/ui/src/styles.css`.
 
 Run from the repository root:
 

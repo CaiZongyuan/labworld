@@ -1,6 +1,6 @@
 # 在设备详情中查看真实趋势
 
-继续[设备详情](device-details.md)中的同一个 Lab。你需要已登录的 Member 身份和运行中的 Lab Word Server。趋势读取后端保留的属性报告。
+继续[设备详情](device-details.md)中的同一个 Lab。你需要已登录的 Member 身份和运行中的 Lab World Server。趋势读取后端保留的属性报告。
 
 ## 建立一份温度历史
 

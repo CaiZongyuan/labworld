@@ -11,3 +11,4 @@ export {
   parseMotionSessionControl,
   parseMotionSessionAck,
 } from './control.ts';
+export * from './newton-scene.ts';

@@ -203,7 +203,7 @@ export type SceneInstallationPage = {
 export type SceneInstallation = {
     id: string;
     lab_id: string;
-    package_id: 'development-synthetic';
+    package_id: 'development-synthetic' | 'so101-vial';
     package_version: '1';
     scene_hash: string;
     mapping_revision: number;
@@ -230,12 +230,18 @@ export type SessionPose = {
 
 export type CreateSceneInstallation = {
     representation_id: string;
+    backend?: 'synthetic' | 'newton';
+    representations?: {
+        [key: string]: string;
+    };
 };
 
 export type SimulationSessionPage = {
     data: Array<SimulationSession>;
     active_session_id: string | null;
     development_synthetic_enabled: boolean;
+    newton_enabled?: boolean;
+    managed_newton_enabled?: boolean;
 };
 
 export type SimulationSession = {
@@ -261,6 +267,15 @@ export type SimulationSessionSnapshot = {
     parameters: SessionParameters;
     initial_poses: Array<SessionPose>;
     initial_joints: Array<number>;
+    physics?: {
+        source_kind: 'newton';
+        profile_id: 'so101-vial-v1';
+        profile_sha256: string;
+        live_rate_hz: 15 | 30;
+        profile: {
+            [key: string]: unknown;
+        };
+    };
 };
 
 export type LabWorld = {
@@ -503,6 +518,7 @@ export type StartSimulationSession = {
         joint_amplitude?: number;
     };
     machine_id?: string;
+    live_rate_hz?: 15 | 30;
 };
 
 export type SimulationSessionEvent = {
@@ -563,6 +579,15 @@ export type PublisherBootstrap = {
     initial_poses: Array<SessionPose>;
     initial_joints: Array<number>;
     parameters: SessionParameters;
+    physics?: {
+        source_kind: 'newton';
+        profile_id: 'so101-vial-v1';
+        profile_sha256: string;
+        live_rate_hz: 15 | 30;
+        profile: {
+            [key: string]: unknown;
+        };
+    };
 };
 
 export type PublisherAdmissionRequest = {
@@ -2103,6 +2128,39 @@ export type GetLabRecordingSegmentResponses = {
 };
 
 export type GetLabRecordingSegmentResponse = GetLabRecordingSegmentResponses[keyof GetLabRecordingSegmentResponses];
+
+export type GetLabRecordingResourceData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        recording_id: string;
+        file_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/resources/{file_id}';
+};
+
+export type GetLabRecordingResourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabRecordingResourceError = GetLabRecordingResourceErrors[keyof GetLabRecordingResourceErrors];
+
+export type GetLabRecordingResourceResponses = {
+    /**
+     * Exact retained immutable Recording dependency.
+     */
+    200: Blob | File;
+};
+
+export type GetLabRecordingResourceResponse = GetLabRecordingResourceResponses[keyof GetLabRecordingResourceResponses];
 
 export type ProvisionMachineData = {
     body: ProvisionMachine;

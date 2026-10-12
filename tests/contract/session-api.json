@@ -114,9 +114,28 @@
       "CreateSceneInstallation": {
         "additionalProperties": false,
         "properties": {
+          "backend": {
+            "anyOf": [
+              {
+                "enum": ["newton"],
+                "type": "string"
+              },
+              {
+                "enum": ["synthetic"],
+                "type": "string"
+              }
+            ]
+          },
           "representation_id": {
             "format": "uuid",
             "type": "string"
+          },
+          "representations": {
+            "additionalProperties": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "type": "object"
           }
         },
         "required": ["representation_id"],
@@ -859,6 +878,45 @@
           "parameters": {
             "$ref": "#/components/schemas/SessionParameters"
           },
+          "physics": {
+            "properties": {
+              "live_rate_hz": {
+                "anyOf": [
+                  {
+                    "enum": [15],
+                    "type": "number"
+                  },
+                  {
+                    "enum": [30],
+                    "type": "number"
+                  }
+                ]
+              },
+              "profile": {
+                "additionalProperties": {},
+                "type": "object"
+              },
+              "profile_id": {
+                "enum": ["so101-vial-v1"],
+                "type": "string"
+              },
+              "profile_sha256": {
+                "type": "string"
+              },
+              "source_kind": {
+                "enum": ["newton"],
+                "type": "string"
+              }
+            },
+            "required": [
+              "live_rate_hz",
+              "profile_id",
+              "profile_sha256",
+              "profile",
+              "source_kind"
+            ],
+            "type": "object"
+          },
           "scene_hash": {
             "type": "string"
           },
@@ -943,8 +1001,16 @@
             "type": "integer"
           },
           "package_id": {
-            "enum": ["development-synthetic"],
-            "type": "string"
+            "anyOf": [
+              {
+                "enum": ["development-synthetic"],
+                "type": "string"
+              },
+              {
+                "enum": ["so101-vial"],
+                "type": "string"
+              }
+            ]
           },
           "package_version": {
             "enum": ["1"],
@@ -1243,6 +1309,12 @@
           },
           "development_synthetic_enabled": {
             "type": "boolean"
+          },
+          "managed_newton_enabled": {
+            "type": "boolean"
+          },
+          "newton_enabled": {
+            "type": "boolean"
           }
         },
         "required": [
@@ -1275,6 +1347,45 @@
           "parameters": {
             "$ref": "#/components/schemas/SessionParameters"
           },
+          "physics": {
+            "properties": {
+              "live_rate_hz": {
+                "anyOf": [
+                  {
+                    "enum": [15],
+                    "type": "number"
+                  },
+                  {
+                    "enum": [30],
+                    "type": "number"
+                  }
+                ]
+              },
+              "profile": {
+                "additionalProperties": {},
+                "type": "object"
+              },
+              "profile_id": {
+                "enum": ["so101-vial-v1"],
+                "type": "string"
+              },
+              "profile_sha256": {
+                "type": "string"
+              },
+              "source_kind": {
+                "enum": ["newton"],
+                "type": "string"
+              }
+            },
+            "required": [
+              "live_rate_hz",
+              "profile_id",
+              "profile_sha256",
+              "profile",
+              "source_kind"
+            ],
+            "type": "object"
+          },
           "world": {
             "$ref": "#/components/schemas/LabWorld"
           }
@@ -1295,6 +1406,18 @@
           "installation_id": {
             "format": "uuid",
             "type": "string"
+          },
+          "live_rate_hz": {
+            "anyOf": [
+              {
+                "enum": [15],
+                "type": "number"
+              },
+              {
+                "enum": [30],
+                "type": "number"
+              }
+            ]
           },
           "machine_id": {
             "format": "uuid",
@@ -1335,7 +1458,7 @@
     "license": {
       "name": ""
     },
-    "title": "Lab Word API",
+    "title": "Lab World API",
     "version": "0.1.0"
   },
   "openapi": "3.1.0",

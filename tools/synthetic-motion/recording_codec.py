@@ -98,7 +98,8 @@ def policy(value):
 
 
 def source_header(value):
-    fields(value, ('source_kind', 'implementation', 'python_version', 'dependencies', 'capture_policy'))
+    newton = isinstance(value, dict) and value.get('source_kind') == 'newton'
+    fields(value, ('source_kind', 'implementation', 'python_version', 'dependencies', 'capture_policy') + (('runtime',) if newton else ()))
     if value['source_kind'] not in ('synthetic', 'newton'):
         invalid()
 
@@ -119,9 +120,17 @@ def source_header(value):
     names = [entry['name'] for entry in dependencies]
     if names != sorted(set(names)):
         invalid()
+    runtime = {}
+    if newton:
+        actual = fields(value['runtime'], ('device','gpu','driver','solver','profile_sha256','physics_step_hz','control_hz','live_rate_hz'))
+        if (actual['device'] != 'cuda:0' or actual['solver'] != 'Newton SolverMuJoCo/MJWarp'
+                or actual['physics_step_hz'] != 240 or actual['control_hz'] != 30 or actual['live_rate_hz'] not in (15,30)):
+            invalid()
+        runtime = {'runtime': {name: text(actual[name]) for name in ('device','gpu','driver','solver')}}
+        runtime['runtime'].update(profile_sha256=digest(actual['profile_sha256']),physics_step_hz=240,control_hz=30,live_rate_hz=actual['live_rate_hz'])
     return {'source_kind': value['source_kind'], 'implementation': implementation(value['implementation']),
             'python_version': None if value['python_version'] is None else text(value['python_version']),
-            'dependencies': dependencies, 'capture_policy': policy(value['capture_policy'])}
+            'dependencies': dependencies, 'capture_policy': policy(value['capture_policy']), **runtime}
 
 
 def canonical_source_header(value):

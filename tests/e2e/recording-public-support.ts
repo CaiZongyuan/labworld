@@ -205,14 +205,123 @@ export async function recordingEventually<T>(
   read: () => T | Promise<T>,
   accepted: (value: T) => boolean,
   timeout = 5000,
+  diagnostic?: 'A' | 'B',
 ) {
   const deadline = performance.now() + timeout;
-  do {
-    const value = await read();
-    if (accepted(value)) return value;
-    await new Promise((resolve) => setTimeout(resolve, 20));
-  } while (performance.now() < deadline);
-  throw new Error('Recording public condition did not become ready');
+  let polls = 0,
+    last: unknown,
+    outcome = 'read-or-predicate-error';
+  try {
+    do {
+      const value = await read();
+      if (diagnostic) {
+        polls++;
+        last = recordingCompletionMetadata(value);
+      }
+      if (accepted(value)) {
+        outcome = 'accepted';
+        return value;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    } while (performance.now() < deadline);
+    outcome = 'timeout';
+    throw new Error('Recording public condition did not become ready');
+  } finally {
+    if (diagnostic)
+      try {
+        recordingReceipt(`recording-completion-${diagnostic}`, {
+          label: diagnostic,
+          outcome,
+          originalTimeoutMs: timeout,
+          elapsedMs: performance.now() - (deadline - timeout),
+          polls,
+          last: last ?? null,
+        });
+      } catch {
+        // Evidence cannot replace the original read/predicate/timeout result.
+      }
+  }
+}
+
+/** Last metadata from the original read only; identities and complete bodies stay private. */
+export function recordingCompletionMetadata(value: unknown) {
+  const body = value as RecordingMetadata & {
+    gaps?: unknown[];
+    seal?: {
+      source_ended?: boolean;
+      segment_count?: number;
+      integrity?: string;
+    };
+  };
+  const category = (item: unknown, allowed: string[]) =>
+    typeof item === 'string' && allowed.includes(item)
+      ? item
+      : item == null
+        ? null
+        : 'unknown';
+  const count = (item: unknown) =>
+    typeof item === 'string' && /^(0|[1-9][0-9]{0,19})$/.test(item)
+      ? item
+      : null;
+  return {
+    status: category(body?.status, [
+      'preparing',
+      'open',
+      'complete',
+      'incomplete',
+      'deleting',
+      'deleted',
+    ]),
+    integrity: category(body?.integrity, [
+      'recording',
+      'complete',
+      'incomplete',
+    ]),
+    reason: category(body?.reason, [
+      'stop_requested',
+      'reset_requested',
+      'stopped',
+      'source_ended',
+      'source_disconnected',
+      'source_failed',
+      'server_shutdown',
+      'server_restarted',
+      'recording_prepare_failed',
+      'recording_event_prepare_failed',
+      'recording_abort_failed',
+      'recording_drain_timeout',
+      'recording_seal_failed',
+      'live_boundary_digest_mismatch',
+      'recording_event_bytes_missing',
+      'integrity_unconfirmed',
+      'offline_archive_recovery',
+      'reset_source_drain_incomplete',
+      'reset_prepare_failed',
+    ]),
+    sourceEnded:
+      typeof body?.prefix?.source_ended === 'boolean'
+        ? body.prefix.source_ended
+        : null,
+    sourcePackets: count(body?.prefix?.source_packet_sequence),
+    sourceFrames: count(body?.prefix?.last_source_sequence),
+    sourceEvents: count(body?.prefix?.last_source_event_sequence),
+    lastSimTimeNs: count(body?.prefix?.last_sim_time_ns),
+    gapCount: Array.isArray(body?.gaps) ? body.gaps.length : null,
+    sealSourceEnded:
+      typeof body?.seal?.source_ended === 'boolean'
+        ? body.seal.source_ended
+        : null,
+    sealSegments:
+      Number.isSafeInteger(body?.seal?.segment_count) &&
+      body.seal!.segment_count! >= 0
+        ? body.seal!.segment_count
+        : null,
+    sealIntegrity: category(body?.seal?.integrity, [
+      'recording',
+      'complete',
+      'incomplete',
+    ]),
+  };
 }
 
 type SocketOwner = {

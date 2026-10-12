@@ -83,6 +83,16 @@ export interface RecordingSourceHeader {
   python_version: string | null;
   dependencies: readonly RecordingImplementation[];
   capture_policy: RecordingCapturePolicy;
+  runtime?: {
+    device: string;
+    gpu: string;
+    driver: string;
+    solver: string;
+    profile_sha256: string;
+    physics_step_hz: 240;
+    control_hz: 30;
+    live_rate_hz: 15 | 30;
+  };
 }
 export interface RecordingIdentity {
   recording_id: string;

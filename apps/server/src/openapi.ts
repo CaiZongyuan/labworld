@@ -54,7 +54,7 @@ trendRoutes(app, undefined as unknown as HistoryService);
 const document = app.getOpenAPI31Document({
   openapi: '3.1.0',
   info: {
-    title: 'Lab Word API',
+    title: 'Lab World API',
     description: '',
     license: { name: '' },
     version,

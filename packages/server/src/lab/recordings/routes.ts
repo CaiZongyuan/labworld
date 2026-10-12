@@ -203,4 +203,58 @@ export function recordingRoutes(
       return c.body(null, 204);
     },
   );
+  app.openapi(
+    createRoute({
+      method: 'get',
+      path: base + '/{recording_id}/resources/{file_id}',
+      operationId: 'getLabRecordingResource',
+      tags: ['Lab'],
+      request: { params: scope.extend({ file_id: z.string().uuid() }) },
+      responses: {
+        200: {
+          description: 'Exact retained immutable Recording dependency.',
+          content: {
+            'application/octet-stream': {
+              schema: z.string().openapi({ format: 'binary' }),
+            },
+          },
+        },
+        ...errors,
+      },
+    }),
+    async (c) => {
+      const p = c.req.valid('param'),
+        read = await recordings.dependency(
+          c.req.raw.headers,
+          p.lab_id,
+          p.recording_id,
+          p.file_id,
+        ),
+        iterator = read.bytes[Symbol.asyncIterator]();
+      return new Response(
+        new ReadableStream<Uint8Array>({
+          async pull(controller) {
+            try {
+              const next = await iterator.next();
+              if (next.done) controller.close();
+              else controller.enqueue(next.value);
+            } catch (error) {
+              controller.error(error);
+              await iterator.return?.();
+            }
+          },
+          async cancel() {
+            await iterator.return?.();
+          },
+        }),
+        {
+          headers: {
+            'content-type': 'application/octet-stream',
+            'content-length': String(read.size),
+            'cache-control': 'no-store',
+          },
+        },
+      );
+    },
+  );
 }

@@ -1,6 +1,6 @@
 # Product Scope And Architecture
 
-Lab Word is a laboratory digital twin. The application provides persistent Labs, independent Entities, multi-node scenes, a server Asset Library and versioned definitions. Users can edit layouts, register manual relationships and run backend lighting, temperature and centrifuge programs. See the [glossary](../../CONTEXT.md).
+Lab World is a laboratory digital twin. The application provides persistent Labs, independent Entities, multi-node scenes, a server Asset Library and versioned definitions. Users can edit layouts, register manual relationships and run backend lighting, temperature and centrifuge programs. See the [glossary](../../CONTEXT.md).
 
 ## Models And Equipment
 
@@ -22,7 +22,7 @@ This Foundation V1 identity relationship is implemented: an Equipment Model is a
 | Foundation V1                                    | Implemented combined journey and isolated 100 Entity / 20 device / two-browser report          | Evolve from recorded evidence               |
 | Physical devices and protocols                   | Future scope                                                                                   | Add source adapters and execution contracts |
 
-[ADR 0005](../adr/0005-lab-digital-twin-on-saas-foundation.md)chooses the existing SaaS foundation: Lab owns equipment and layout behavior while Core owns common identity and membership. See [project structure](project-structure.md) for integration locations.
+[ADR 0005](../adr/0005-lab-digital-twin-on-saas-foundation.md) chooses the existing SaaS foundation: Lab owns equipment and layout behavior while Core owns common identity and membership. See [project structure](project-structure.md) for integration locations.
 
 ## Presentation Boundaries
 

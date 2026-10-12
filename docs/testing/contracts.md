@@ -1,6 +1,6 @@
 # 重放迁移合同基准
 
-本指南面向迁移 Lab Word 服务的开发者。M0 记录已交付 Core、Foundation #2–#11 和 #26–#28 行为。当前 runner 对已构建 Node HTTP/SSE 服务重放这些保留合同，原 Rust 证据仅在 `legacy-rust-final` 作为历史来源。#29–#40 的产品行为不属于此基准。
+本指南面向迁移 Lab World 服务的开发者。M0 记录已交付 Core、Foundation #2–#11 和 #26–#28 行为。当前 runner 对已构建 Node HTTP/SSE 服务重放这些保留合同，原 Rust 证据仅在 `legacy-rust-final` 作为历史来源。#29–#40 的产品行为不属于此基准。
 
 ## 得到第一个结果
 

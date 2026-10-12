@@ -157,12 +157,18 @@ function sourceText(value: unknown): string {
   return value;
 }
 export function parseSourceHeader(value: unknown): RecordingSourceHeader {
+  const newton =
+    !!value &&
+    typeof value === 'object' &&
+    'source_kind' in value &&
+    value.source_kind === 'newton';
   const header = recordingObject(value, [
     'source_kind',
     'implementation',
     'python_version',
     'dependencies',
     'capture_policy',
+    ...(newton ? ['runtime'] : []),
   ]);
   if (header.source_kind !== 'synthetic' && header.source_kind !== 'newton')
     throw new RecordingProtocolError(
@@ -192,6 +198,40 @@ export function parseSourceHeader(value: unknown): RecordingSourceHeader {
       'invalid_message',
       'Source dependencies must be unique and sorted',
     );
+  let runtime: RecordingSourceHeader['runtime'];
+  if (newton) {
+    const actual = recordingObject(header.runtime, [
+      'device',
+      'gpu',
+      'driver',
+      'solver',
+      'profile_sha256',
+      'physics_step_hz',
+      'control_hz',
+      'live_rate_hz',
+    ]);
+    if (
+      actual.device !== 'cuda:0' ||
+      actual.solver !== 'Newton SolverMuJoCo/MJWarp' ||
+      actual.physics_step_hz !== 240 ||
+      actual.control_hz !== 30 ||
+      (actual.live_rate_hz !== 15 && actual.live_rate_hz !== 30)
+    )
+      throw new RecordingProtocolError(
+        'invalid_message',
+        'Unsupported Newton runtime',
+      );
+    runtime = {
+      device: sourceText(actual.device),
+      gpu: sourceText(actual.gpu),
+      driver: sourceText(actual.driver),
+      solver: sourceText(actual.solver),
+      profile_sha256: recordingDigest(actual.profile_sha256),
+      physics_step_hz: 240,
+      control_hz: 30,
+      live_rate_hz: actual.live_rate_hz,
+    };
+  }
   return {
     source_kind: header.source_kind,
     implementation: implementation(header.implementation),
@@ -199,6 +239,7 @@ export function parseSourceHeader(value: unknown): RecordingSourceHeader {
       header.python_version === null ? null : sourceText(header.python_version),
     dependencies,
     capture_policy: parseCapturePolicy(header.capture_policy),
+    ...(runtime ? { runtime } : {}),
   };
 }
 export function canonicalSourceHeader(value: unknown): Uint8Array {

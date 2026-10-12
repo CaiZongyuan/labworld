@@ -73,6 +73,37 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     if (!Number.isSafeInteger(value) || value < 1000 || value > 60000)
       throw new Error(name + ' must be an integer from 1000 to 60000');
   const syntheticPython = env.LAB_WORD_SYNTHETIC_PYTHON ?? 'python3';
+  const newtonSession = env.LAB_WORD_NEWTON_SESSION === 'true';
+  if (
+    env.LAB_WORD_NEWTON_SESSION !== undefined &&
+    !['true', 'false'].includes(env.LAB_WORD_NEWTON_SESSION)
+  )
+    throw new Error('LAB_WORD_NEWTON_SESSION must be true or false');
+  if (!!env.LAB_WORD_NEWTON_PYTHON !== !!env.LAB_WORD_NEWTON_SCENE_DIRECTORY)
+    throw new Error(
+      'Set both LAB_WORD_NEWTON_PYTHON and LAB_WORD_NEWTON_SCENE_DIRECTORY',
+    );
+  const newtonManaged =
+    newtonSession &&
+    !!env.LAB_WORD_NEWTON_PYTHON &&
+    !!env.LAB_WORD_NEWTON_SCENE_DIRECTORY;
+  if (
+    newtonManaged &&
+    (process.platform !== 'linux' ||
+      !['127.0.0.1', '::1', 'localhost'].includes(hostname))
+  )
+    throw new Error(
+      'Managed Newton requires Linux/WSL and a loopback LAB_WORD_HOST',
+    );
+  const newtonPython = env.LAB_WORD_NEWTON_PYTHON ?? 'python3';
+  const newtonSceneDirectory = env.LAB_WORD_NEWTON_SCENE_DIRECTORY
+    ? resolve(env.LAB_WORD_NEWTON_SCENE_DIRECTORY)
+    : undefined;
+  const newtonPublisher = env.LAB_WORD_NEWTON_PUBLISHER
+    ? resolve(env.LAB_WORD_NEWTON_PUBLISHER)
+    : fileURLToPath(
+        new URL('../../../tools/newton-motion/publisher.py', import.meta.url),
+      );
   const syntheticPublisher = env.LAB_WORD_SYNTHETIC_PUBLISHER
     ? resolve(env.LAB_WORD_SYNTHETIC_PUBLISHER)
     : fileURLToPath(
@@ -177,6 +208,11 @@ export function configuration(env: NodeJS.ProcessEnv = process.env) {
     managedSynthetic,
     tls,
     syntheticPython,
+    newtonSession,
+    newtonManaged,
+    newtonPython,
+    newtonSceneDirectory,
+    newtonPublisher,
     syntheticPublisher,
     motionGraceMillis,
     motionAckMillis,
@@ -213,6 +249,30 @@ export function configurationFields() {
     descriptionZh,
   });
   return [
+    field(
+      'LAB_WORD_NEWTON_SESSION',
+      false,
+      'Enable fixed Newton Sessions; local management additionally requires pinned Python and scene inputs on Linux/WSL.',
+      '启用固定 Newton 会话；本地监管还需 Linux/WSL、固定 Python 和场景输入。',
+    ),
+    field(
+      'LAB_WORD_NEWTON_PYTHON',
+      '',
+      'Pinned Python interpreter used only by explicit Newton Start.',
+      '仅显式 Newton Start 使用的固定 Python 环境。',
+    ),
+    field(
+      'LAB_WORD_NEWTON_SCENE_DIRECTORY',
+      '',
+      'Prepared fixed scene directory containing the verified base GLB.',
+      '包含已校验基础 GLB 的固定场景目录。',
+    ),
+    field(
+      'LAB_WORD_NEWTON_PUBLISHER',
+      '',
+      'Optional absolute Newton publisher path; default is the bundled source.',
+      '可选 Newton Publisher 绝对路径；默认使用随服务提供的来源。',
+    ),
     field(
       'LAB_WORD_TLS_CERT',
       '',

@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 
 const repository = fileURLToPath(new URL('../..', import.meta.url));
 function project(t) {
-  const fixture = mkdtempSync(join(tmpdir(), 'labword-sdk-ownership-'));
+  const fixture = mkdtempSync(join(tmpdir(), 'labworld-sdk-ownership-'));
   t.after(() => rmSync(fixture, { recursive: true, force: true }));
   const files = [
     'scripts/check-boundaries.mjs',

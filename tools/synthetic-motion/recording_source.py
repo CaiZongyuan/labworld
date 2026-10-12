@@ -248,8 +248,8 @@ class ReliableRecording:
         self.wake.clear(); self.changed.clear()
 
 
-async def admit_recording(websocket, bootstrap, welcome):
-    header = implementation_header()
+async def admit_recording(websocket, bootstrap, welcome, header=None):
+    header = implementation_header() if header is None else header
     hello = {'type': 'recording.hello', 'version': 1, 'codec': CODEC, **identity(bootstrap),
              'ticket': bootstrap['ticket'], 'source_header': header}
     encoded = canonical(hello).decode('utf-8')
