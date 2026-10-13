@@ -18,10 +18,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { useEffect, useState } from 'react';
-import { getLabAssetDownload } from '@labos-threejs/sdk';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import type { ModelAsset, ModelInfo } from './catalog';
 import { ModelImportError, validateGLB, type ModelErrorKey } from './glb';
+import {
+  acquireModelBytes,
+  modelResourceKey,
+  type ModelByteLease,
+} from './model-bytes';
 
 export type LoadedModel = {
   id: string;
@@ -159,59 +163,73 @@ export function useLoadedModel(
   renderer: WebGLRenderer | null,
   onInfo: (id: string, info: ModelInfo) => void,
 ) {
-  const input = asset.source === 'preset' ? asset.url : asset.id;
-  const remote = asset.source === 'remote';
+  const input =
+    asset.source === 'preset' ? asset.url : modelResourceKey(asset.asset);
+  const currentRemoteAsset = useEffectEvent(() =>
+    asset.source === 'remote' ? asset.asset : null,
+  );
   const apiClient = asset.source === 'remote' ? asset.apiClient : null;
+  const authority = asset.source === 'remote' ? asset.authority : null;
   const id = asset.id;
-  const [model, setModel] = useState<LoadedModel | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<ModelErrorKey | null>(null);
+  const identity = useMemo(
+    () => ({}),
+    [id, input, apiClient, authority, renderer],
+  );
+  const [state, setState] = useState<{
+    identity: object | null;
+    model: LoadedModel | null;
+    loading: boolean;
+    error: ModelErrorKey | null;
+  }>({ identity: null, model: null, loading: false, error: null });
   useEffect(() => {
     if (!renderer) return;
+    const remoteAsset = currentRemoteAsset();
     const controller = new AbortController();
-    setLoading(true);
-    setError(null);
+    let lease: ModelByteLease | undefined;
+    let loaded: LoadedModel | null = null;
+    setState({ identity, model: null, loading: true, error: null });
     void (async () => {
       try {
-        let url = input;
-        let headers: Record<string, string> | undefined;
-        if (remote && apiClient) {
-          const { data } = await getLabAssetDownload({
-            client: apiClient,
-            path: { id },
-            signal: controller.signal,
-            throwOnError: true,
-          });
-          url = data.url;
-          headers = data.headers;
+        let buffer: ArrayBuffer;
+        if (remoteAsset && apiClient && authority) {
+          lease = acquireModelBytes(
+            renderer,
+            { asset: remoteAsset, apiClient, authority },
+            controller.signal,
+          );
+          buffer = await lease.bytes;
+        } else {
+          const response = await fetch(input, { signal: controller.signal });
+          if (!response.ok) throw new ModelImportError('failed');
+          buffer = await response.arrayBuffer();
         }
-        const response = await fetch(url, {
-          headers,
-          signal: controller.signal,
-        });
-        if (!response.ok) throw new ModelImportError('failed');
-        const buffer = await response.arrayBuffer();
-        const next = await parseModel(buffer, id, renderer);
+        const next = await parseModel(buffer.slice(0), id, renderer);
         if (controller.signal.aborted) {
           disposeModel(next.scene);
           return;
         }
-        setModel(next);
+        loaded = next;
+        setState({ identity, model: next, loading: false, error: null });
         onInfo(id, next.info);
       } catch (cause) {
         if (!controller.signal.aborted)
-          setError(cause instanceof ModelImportError ? cause.key : 'failed');
+          setState({
+            identity,
+            model: null,
+            loading: false,
+            error: cause instanceof ModelImportError ? cause.key : 'failed',
+          });
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        lease?.release();
       }
     })();
-    return () => controller.abort();
-  }, [id, input, apiClient, remote, renderer, onInfo]);
-  useEffect(
-    () => () => {
-      if (model) disposeModel(model.scene);
-    },
-    [model],
-  );
-  return { model, loading, error };
+    return () => {
+      controller.abort();
+      lease?.release();
+      if (loaded) disposeModel(loaded.scene);
+    };
+  }, [identity, id, input, apiClient, authority, renderer, onInfo]);
+  return state.identity === identity
+    ? { model: state.model, loading: state.loading, error: state.error }
+    : { model: null, loading: !!renderer, error: null };
 }
