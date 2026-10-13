@@ -361,6 +361,7 @@
     "packages/views/src/lab/source-controls.test.tsx",
     "tests/tooling/source-callback.test.mjs",
     "tests/tooling/source-api.test.mjs",
-    "tests/contract/source-api.json"
+    "tests/contract/source-api.json",
+    "tests/server/asset-schema-conjunction.test.ts"
   ]
 }
