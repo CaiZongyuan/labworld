@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import { access, mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -25,6 +25,55 @@ const cli = fileURLToPath(
 );
 const scene = fileURLToPath(
   new URL('../fixtures/source/static.usda', import.meta.url),
+);
+
+test(
+  'normal export rejects malformed snapshot state before creating conversion resources',
+  { skip: !python },
+  async () => {
+    const directory = await mkdtemp(
+      join(tmpdir(), 'labworld-source-snapshot-'),
+    );
+    try {
+      for (const [value, code] of [
+        [[null], 'initial_state_missing'],
+        [{ state: null }, 'initial_state_missing'],
+        [{ state: {}, native_model: [] }, 'native_model_invalid'],
+      ]) {
+        const snapshot = join(directory, 'snapshot.json');
+        const output = join(directory, 'unused-output');
+        await writeFile(snapshot, JSON.stringify(value));
+        const result = spawnSync(
+          python,
+          [
+            '-B',
+            cli,
+            'export',
+            '--scene',
+            scene,
+            '--snapshot',
+            snapshot,
+            '--source-id',
+            '7e99f905-7839-4bf2-80f6-001102031989',
+            '--blender',
+            'unused-for-invalid-input',
+            '--output',
+            output,
+          ],
+          { encoding: 'utf8' },
+        );
+        assert.equal(result.status, 2, result.stderr);
+        assert.deepEqual(JSON.parse(result.stderr), {
+          code,
+          path: snapshot,
+          message: code,
+        });
+        await assert.rejects(access(output), { code: 'ENOENT' });
+      }
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
 );
 
 test(

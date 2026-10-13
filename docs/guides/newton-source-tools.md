@@ -88,4 +88,6 @@ LAB_WORLD_SOURCE_PYTHON="$SOURCE_PYTHON" node scripts/verify-newton-source-geome
 
 若启动工具本身被强行终止，先执行 `python3 -B tools/newton-source/cli.py cleanup --output <本次输出目录>`。此入口只处理账本中身份仍匹配的自有进程，并保留证据和缓存；不接受其他owner的目录。Linux恢复还核对进程启动标识，避免PID复用。Windows进程在WSL模式下按本次Blender任务路径核对。
 
+Windows 清理要求 `PATH` 中有 `powershell.exe`。工具先核对已记录的 Blender PID 和任务路径，停止后再次查询该身份。shell 返回成功不能代替实际进程核对。停止或查询失败时返回 `resource_cleanup_incomplete`，账本保留 `reconciled: false`、owner、保留用途及进程凭据。保留该目录，解决报告中的问题后重试 `cleanup`。只有核对成功后才能删除自有证据或缓存。
+
 实现入口：[CLI](../../tools/newton-source/cli.py)、[源采样hook](../../tools/newton-source/source_adapter.py)、[场景导出](../../tools/newton-source/scene.py)。后续来源登记和共享观察使用同一清单及实际状态，分别验收。

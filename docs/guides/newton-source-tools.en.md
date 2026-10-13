@@ -88,4 +88,6 @@ Each output directory contains `owned-resources.json`. Caches stay inside it by 
 
 If the launcher was forcibly terminated, run `python3 -B tools/newton-source/cli.py cleanup --output <owned-output-directory>`. This entrypoint only reconciles matching recorded processes. It retains evidence and caches and rejects another owner's directory. Linux recovery also checks process start identity against PID reuse. WSL checks native Blender against the recorded job path.
 
+Windows cleanup requires `powershell.exe` on `PATH`. The tool checks the recorded Blender PID and job path before stopping it, then queries that identity again. A shell's successful exit alone does not establish cleanup. A stop/query failure returns `resource_cleanup_incomplete` and leaves `reconciled: false`, the owner, retained purpose and process receipt in the ledger. Keep that directory and retry `cleanup` after resolving the reported failure. Remove owned evidence or caches only after reconciliation succeeds.
+
 Source: [CLI](../../tools/newton-source/cli.py), [sampling hooks](../../tools/newton-source/source_adapter.py) and [scene export](../../tools/newton-source/scene.py). Source registration and shared observation consume the same manifest and actual state, with separate acceptance.
