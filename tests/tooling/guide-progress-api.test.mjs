@@ -1,3 +1,4 @@
+import { assetVersionApiParts } from '../../scripts/lib/asset-version-api.ts';
 import { sourceApiParts } from '../../scripts/lib/source-api.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +23,9 @@ const sessionAddition = JSON.parse(
 const path = '/api/v1/lab/guides/{guide_id}/{guide_version}/progress';
 function differences(document) {
   const sessions = sessionApiParts(
-    recordingApiParts(sourceApiParts(document).existing).existing,
+    recordingApiParts(
+      sourceApiParts(assetVersionApiParts(document).existing).existing,
+    ).existing,
   );
   const parts = guideProgressApiParts(
     motionApiParts(sessions.existing).existing,

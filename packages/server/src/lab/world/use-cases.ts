@@ -20,6 +20,11 @@ import {
 } from './domain.ts';
 import { catalog } from './catalog.ts';
 import {
+  importedDefinitionsIn,
+  resolveDefinitionIn,
+} from '../asset-registry/service.ts';
+import { validateAssetConfiguration } from '../asset-registry/validation.ts';
+import {
   entityColumns,
   entityValue,
   loadEntity,
@@ -380,10 +385,9 @@ export class WorldService {
         { id: requestId, kind: 'request' },
         async (tx) => {
           await accessIn(tx, this.context, this.policy, headers, 'lab:full');
-          if (id === undefined) return { data: catalog };
-          const definition = catalog.find(
-            (entry) => entry.id === id && entry.version === version,
-          );
+          if (id === undefined)
+            return { data: [...catalog, ...(await importedDefinitionsIn(tx))] };
+          const definition = await resolveDefinitionIn(tx, id, version ?? '');
           if (!definition)
             throw new PublicFailure(
               404,
@@ -425,10 +429,10 @@ export class WorldService {
               'lab.invalid_input',
               'Use valid Entity metadata',
             );
-          const definition = catalog.find(
-            (entry) =>
-              entry.id === input.definition_id &&
-              entry.version === input.definition_version,
+          const definition = await resolveDefinitionIn(
+            tx,
+            input.definition_id,
+            input.definition_version,
           );
           if (!definition)
             throw new PublicFailure(
@@ -436,6 +440,10 @@ export class WorldService {
               'lab.invalid_reference',
               'Use an existing definition version',
             );
+          validateAssetConfiguration(
+            definition.asset_version,
+            input.configuration,
+          );
           await loadLab(tx, lab);
           const count = await tx.execute<{ entities: number; nodes: number }>(
             sql`select (select count(*) from lab.entities where lab_id=${lab}::uuid) as entities,(select count(*) from lab.scene_nodes where lab_id=${lab}::uuid) as nodes`,
@@ -449,17 +457,24 @@ export class WorldService {
               'lab.invalid_input',
               'Lab Entity or Scene Node capacity reached',
             );
-          await representation(tx, input.representation_id);
+          const representationId =
+            input.representation_id === undefined
+              ? (definition.asset_version?.resources.find(
+                  (resource) => resource.representation_id,
+                )?.representation_id ?? null)
+              : input.representation_id;
+          await representation(tx, representationId);
           const id = randomUUID();
           await tx.execute(
-            sql`insert into lab.entities(id,lab_id,name,kind,reality,definition_id,definition_version,definition,configuration,representation_id,created_by,updated_by) values(${id}::uuid,${lab}::uuid,${input.name.trim()},${definition.category},${input.reality},${definition.id},${definition.version},${JSON.stringify(definition)}::jsonb,${JSON.stringify(input.configuration)}::jsonb,${input.representation_id ?? null}::uuid,${actor.user.id}::uuid,${actor.user.id}::uuid)`,
+            sql`insert into lab.entities(id,lab_id,name,kind,reality,definition_id,definition_version,definition,configuration,representation_id,created_by,updated_by) values(${id}::uuid,${lab}::uuid,${input.name.trim()},${definition.category},${input.reality},${definition.id},${definition.version},${JSON.stringify(definition)}::jsonb,${JSON.stringify(input.configuration)}::jsonb,${representationId}::uuid,${actor.user.id}::uuid,${actor.user.id}::uuid)`,
           );
-          await registerBinding(tx, id, definition.id, input.reality);
+          if (!definition.asset_version)
+            await registerBinding(tx, id, definition.id, input.reality);
           await insertNode(
             tx,
             lab,
             id,
-            input.representation_id,
+            representationId,
             placementAt(Number(count.rows[0].entities)),
           );
           await databaseAudit.record(tx, {
@@ -522,6 +537,11 @@ export class WorldService {
               'lab.invalid_input',
               'Use valid Entity configuration',
             );
+          const current = await loadEntity(tx, lab, entity);
+          validateAssetConfiguration(
+            current.definition.asset_version,
+            input.configuration,
+          );
           const updated = await tx.execute(
             sql`update lab.entities set name=${input.name.trim()},configuration=${JSON.stringify(input.configuration)}::jsonb,updated_by=${actor.user.id}::uuid,updated_at=${this.context.clock.now()}::timestamptz where lab_id=${lab}::uuid and id=${entity}::uuid returning id`,
           );

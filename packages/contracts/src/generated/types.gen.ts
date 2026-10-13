@@ -335,6 +335,7 @@ export type AssetDefinition = {
     capabilities: Array<DefinitionCapability>;
     state: unknown;
     interfaces: Array<DefinitionInterface>;
+    asset_version?: CompleteAssetVersion;
 };
 
 export type DefinitionCapability = {
@@ -348,6 +349,86 @@ export type DefinitionCapability = {
 export type DefinitionInterface = {
     id: string;
     implemented: boolean;
+};
+
+export type CompleteAssetVersion = {
+    id: string;
+    asset_id: string;
+    namespace: string;
+    version: string;
+    content_sha256: string;
+    definition: AssetBusinessDefinition;
+    resources: Array<VersionResource>;
+    representations: Array<VersionRepresentation>;
+    created_by: string;
+    created_at: string;
+};
+
+export type AssetBusinessDefinition = {
+    schema_version: 1;
+    asset_id: string;
+    version: string;
+    name: string;
+    name_en?: string;
+    category: string;
+    manufacturer?: string;
+    model?: string;
+    description?: string;
+    source: string;
+    license: string;
+    specifications: {
+        [key: string]: unknown;
+    };
+    configuration_schema: {
+        [key: string]: unknown;
+    };
+    state_schema: {
+        [key: string]: unknown;
+    };
+    capabilities: Array<AssetCapabilityDescription>;
+};
+
+export type AssetCapabilityDescription = {
+    id: string;
+    version: string;
+    parameters: {
+        [key: string]: unknown;
+    };
+    result: {
+        [key: string]: unknown;
+    };
+    description?: string;
+};
+
+export type VersionResource = AssetResourceInput & {
+    file_name: string;
+    content_type: string;
+    representation_id: string | null;
+    verification: 'glb-validated' | 'json-parsed' | 'pdf-header' | 'usd-header' | 'opaque';
+};
+
+export type AssetResourceInput = {
+    key: string;
+    file_id: string;
+    format: 'glb' | 'usd' | 'urdf' | 'pdf' | 'json';
+    sha256: string;
+    size: number;
+};
+
+export type VersionRepresentation = {
+    key: string;
+    purpose: 'visual' | 'simulation' | 'documentation';
+    resource_keys: Array<string>;
+    components: Array<AssetComponent>;
+};
+
+export type AssetComponent = {
+    key: string;
+    resource_key: string;
+    local_origin: {
+        position: Array<number>;
+        quaternion: Array<number>;
+    };
 };
 
 export type RuntimeBinding = {
@@ -778,6 +859,38 @@ export type CreateAssetUpload = {
     license: string;
     version: string;
     file: UploadInput;
+};
+
+export type ImportAssetVersion = {
+    schema_version: 1;
+    asset_id: string;
+    version: string;
+    name: string;
+    name_en?: string;
+    category: string;
+    manufacturer?: string;
+    model?: string;
+    description?: string;
+    source: string;
+    license: string;
+    specifications: {
+        [key: string]: unknown;
+    };
+    configuration_schema: {
+        [key: string]: unknown;
+    };
+    state_schema: {
+        [key: string]: unknown;
+    };
+    capabilities: Array<AssetCapabilityDescription>;
+    resources: Array<AssetResourceInput>;
+    representations: Array<VersionRepresentation>;
+};
+
+export type AssetVersionPage = {
+    data: Array<CompleteAssetVersion>;
+    has_more: boolean;
+    next_cursor: string | null;
 };
 
 export type LabLayout = {
@@ -2788,6 +2901,209 @@ export type StartAssetUploadResponses = {
 };
 
 export type StartAssetUploadResponse = StartAssetUploadResponses[keyof StartAssetUploadResponses];
+
+export type ListCompleteAssetVersionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        asset_id?: string;
+        version?: string;
+        cursor?: string;
+        limit?: string;
+    };
+    url: '/api/v1/lab/asset-versions';
+};
+
+export type ListCompleteAssetVersionsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListCompleteAssetVersionsError = ListCompleteAssetVersionsErrors[keyof ListCompleteAssetVersionsErrors];
+
+export type ListCompleteAssetVersionsResponses = {
+    200: AssetVersionPage;
+};
+
+export type ListCompleteAssetVersionsResponse = ListCompleteAssetVersionsResponses[keyof ListCompleteAssetVersionsResponses];
+
+export type ImportCompleteAssetVersionData = {
+    body: ImportAssetVersion;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/asset-versions';
+};
+
+export type ImportCompleteAssetVersionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ImportCompleteAssetVersionError = ImportCompleteAssetVersionErrors[keyof ImportCompleteAssetVersionErrors];
+
+export type ImportCompleteAssetVersionResponses = {
+    201: CompleteAssetVersion;
+};
+
+export type ImportCompleteAssetVersionResponse = ImportCompleteAssetVersionResponses[keyof ImportCompleteAssetVersionResponses];
+
+export type GetCompleteAssetVersionData = {
+    body?: never;
+    path: {
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-versions/{version_id}';
+};
+
+export type GetCompleteAssetVersionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetCompleteAssetVersionError = GetCompleteAssetVersionErrors[keyof GetCompleteAssetVersionErrors];
+
+export type GetCompleteAssetVersionResponses = {
+    200: CompleteAssetVersion;
+};
+
+export type GetCompleteAssetVersionResponse = GetCompleteAssetVersionResponses[keyof GetCompleteAssetVersionResponses];
+
+export type DownloadAssetVersionResourceData = {
+    body?: never;
+    path: {
+        version_id: string;
+        resource_key: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-versions/{version_id}/resources/{resource_key}/download';
+};
+
+export type DownloadAssetVersionResourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type DownloadAssetVersionResourceError = DownloadAssetVersionResourceErrors[keyof DownloadAssetVersionResourceErrors];
+
+export type DownloadAssetVersionResourceResponses = {
+    200: DownloadCapability;
+};
+
+export type DownloadAssetVersionResourceResponse = DownloadAssetVersionResourceResponses[keyof DownloadAssetVersionResourceResponses];
+
+export type StartAssetResourceUploadData = {
+    body: UploadInput;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/asset-resource-uploads';
+};
+
+export type StartAssetResourceUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StartAssetResourceUploadError = StartAssetResourceUploadErrors[keyof StartAssetResourceUploadErrors];
+
+export type StartAssetResourceUploadResponses = {
+    201: UploadCapability;
+};
+
+export type StartAssetResourceUploadResponse = StartAssetResourceUploadResponses[keyof StartAssetResourceUploadResponses];
+
+export type CompleteAssetResourceUploadData = {
+    body?: never;
+    path: {
+        upload_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-resource-uploads/{upload_id}/complete';
+};
+
+export type CompleteAssetResourceUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CompleteAssetResourceUploadError = CompleteAssetResourceUploadErrors[keyof CompleteAssetResourceUploadErrors];
+
+export type CompleteAssetResourceUploadResponses = {
+    200: FileInfo;
+};
+
+export type CompleteAssetResourceUploadResponse = CompleteAssetResourceUploadResponses[keyof CompleteAssetResourceUploadResponses];
+
+export type CancelAssetResourceUploadData = {
+    body?: never;
+    path: {
+        upload_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-resource-uploads/{upload_id}';
+};
+
+export type CancelAssetResourceUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CancelAssetResourceUploadError = CancelAssetResourceUploadErrors[keyof CancelAssetResourceUploadErrors];
+
+export type CancelAssetResourceUploadResponses = {
+    204: void;
+};
+
+export type CancelAssetResourceUploadResponse = CancelAssetResourceUploadResponses[keyof CancelAssetResourceUploadResponses];
 
 export type SaveLabLayoutData = {
     body: SaveLabLayout;
