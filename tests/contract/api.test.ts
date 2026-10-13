@@ -9,6 +9,7 @@ import { guideProgressApiParts } from '../../scripts/lib/guide-progress-api';
 import { sessionApiParts } from '../../scripts/lib/session-api';
 import { motionApiParts } from '../../scripts/lib/motion-api';
 import { recordingApiParts } from '../../scripts/lib/recording-api';
+import { sourceApiParts } from '../../scripts/lib/source-api';
 import { HttpClient } from './http';
 const baseline = JSON.parse(
   readFileSync('tests/contract/api-baseline.json', 'utf8'),
@@ -26,8 +27,12 @@ const sessionAddition = JSON.parse(
 const recordingAddition = JSON.parse(
   readFileSync('tests/contract/recording-api.json', 'utf8'),
 ) as Json;
+const sourceAddition = JSON.parse(
+  readFileSync('tests/contract/source-api.json', 'utf8'),
+) as Json;
 function differences(document: Json) {
-  const recordings = recordingApiParts(document);
+  const sources = sourceApiParts(document);
+  const recordings = recordingApiParts(sources.existing);
   const sessions = sessionApiParts(recordings.existing);
   const motion = motionApiParts(sessions.existing);
   const parts = guideProgressApiParts(motion.existing);
@@ -37,9 +42,10 @@ function differences(document: Json) {
     ...semanticDifferences(motionAddition, motion.addition),
     ...semanticDifferences(sessionAddition, sessions.addition),
     ...semanticDifferences(recordingAddition, recordings.addition),
+    ...semanticDifferences(sourceAddition, sources.addition),
   ];
 }
-test('API-01 retained Rust OpenAPI and approved guide/motion/Session/Recording additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
+test('API-01 retained Rust OpenAPI and approved guide/motion/Session/Recording/Source additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
   const source = await new HttpClient().json<Json>('GET', '/api/openapi.json');
   const retained = retainedOpenApi(source);
   expect(differences(retained)).toEqual([]);
@@ -182,6 +188,31 @@ test('API-01 retained Rust OpenAPI and approved guide/motion/Session/Recording a
       (
         (api.components as Record<string, Json>).schemas as Record<string, Json>
       ).RecordingEvent = { type: 'string' };
+    },
+  );
+  const sources = '/api/v1/lab/labs/{lab_id}/sources';
+  cases.push(
+    (api) => {
+      (api.paths as typeof paths)[sources].post.operationId =
+        'registerUnapprovedSource';
+    },
+    (api) => {
+      (api.paths as typeof paths)[sources].put = structuredClone(
+        paths[sources].post,
+      );
+    },
+    (api) => {
+      (api.paths as typeof paths)[sources + '/future'] = {
+        get: structuredClone(paths[sources].get),
+      };
+    },
+    (api) => {
+      delete (api.paths as typeof paths)[sources + '/{source_id}'].get;
+    },
+    (api) => {
+      (
+        (api.components as Record<string, Json>).schemas as Record<string, Json>
+      ).LabSourceConfiguration = { type: 'string' };
     },
   );
   for (const mutate of cases) {
