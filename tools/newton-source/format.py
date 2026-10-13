@@ -103,18 +103,39 @@ def validate_manifest(value, root):
             raise SourceToolError('joint_coordinate_invalid', joint['joint_key'])
     initial = value.get('initial_state')
     if not isinstance(initial, dict):
-        raise SourceToolError('initial_state_missing')
+        raise SourceToolError('initial_state_missing', 'initial_state')
+    poses, joints = initial.get('poses', []), initial.get('joints', [])
+    if not isinstance(poses, list):
+        raise SourceToolError('initial_pose_invalid', 'initial_state.poses')
+    if not isinstance(joints, list):
+        raise SourceToolError('initial_joint_invalid', 'initial_state.joints')
     expected = {c['pose_key'] for c in value['components']}
     actual = set()
-    for pose in initial.get('poses', []):
+    for index, pose in enumerate(poses):
+        path = f'initial_state.poses/{index}'
+        if not isinstance(pose, dict):
+            raise SourceToolError('initial_pose_invalid', path)
         p, q = pose.get('position', []), pose.get('quaternion', [])
-        if (pose.get('pose_key') in actual or len(p) != 3 or len(q) != 4 or
+        key = pose.get('pose_key')
+        if (not isinstance(key, str) or not key or key in actual or
+                not isinstance(p, list) or not isinstance(q, list) or len(p) != 3 or len(q) != 4 or
                 any(type(x) not in (int, float) or not math.isfinite(x) for x in p+q) or
                 abs(sum(x*x for x in q)-1) > 0.001):
-            raise SourceToolError('initial_pose_invalid', pose.get('pose_key'))
-        actual.add(pose['pose_key'])
+            raise SourceToolError('initial_pose_invalid', path)
+        actual.add(key)
     if actual != expected:
         raise SourceToolError('initial_pose_dictionary_mismatch')
+    coordinates = {j['coordinate_key'] for j in value['joints'] if j.get('motion_supported')}
+    actual_joints = set()
+    for index, joint in enumerate(joints):
+        path = f'initial_state.joints/{index}'
+        if not isinstance(joint, dict):
+            raise SourceToolError('initial_joint_invalid', path)
+        key, position = joint.get('coordinate_key'), joint.get('value')
+        if (not isinstance(key, str) or key not in coordinates or key in actual_joints or
+                type(position) not in (int, float) or not math.isfinite(position)):
+            raise SourceToolError('initial_joint_invalid', path)
+        actual_joints.add(key)
     content = {k: v for k, v in value.items() if k not in ('initial_state', 'source_id', 'provenance', 'scene_hash')}
     if value.get('scene_hash') != digest(canonical(content)):
         raise SourceToolError('scene_digest_mismatch')
@@ -128,9 +149,16 @@ def validate_glb(data, path):
     if kind != 0x4e4f534a or size % 4 or size + 28 > len(data):
         raise SourceToolError('glb_invalid', path)
     document = json.loads(data[20:20+size])
+    if not isinstance(document, dict):
+        raise SourceToolError('glb_invalid', path)
     for collection in ('buffers', 'images'):
-        for entry in document.get(collection, []):
+        entries = document.get(collection, [])
+        if not isinstance(entries, list) or any(not isinstance(entry, dict) for entry in entries):
+            raise SourceToolError('glb_invalid', path)
+        for entry in entries:
             uri = entry.get('uri')
+            if uri is not None and not isinstance(uri, str):
+                raise SourceToolError('glb_invalid', path)
             if uri and not uri.startswith('data:'):
                 raise SourceToolError('glb_external_resource', path)
     if not document.get('meshes'):

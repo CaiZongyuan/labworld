@@ -136,7 +136,11 @@ def export_scene(args):
         raise SourceToolError('scene_unreadable', str(source))
     metadata = json.loads(args.metadata.read_text()) if args.metadata else {}
     snapshot = json.loads(args.snapshot.read_text()) if args.snapshot else None
+    if args.snapshot and (not isinstance(snapshot, dict) or not isinstance(snapshot.get('state'), dict)):
+        raise SourceToolError('initial_state_missing', str(args.snapshot))
     native_model = snapshot.get('native_model') if snapshot else None
+    if native_model is not None and not isinstance(native_model, dict):
+        raise SourceToolError('native_model_invalid', str(args.snapshot))
     descriptor = describe(stage, metadata, native_model)
     with OwnedRun(args.output, 'export') as owner:
         copied = Usd.Stage.Open(stage.Flatten())
