@@ -28,6 +28,99 @@ const scene = fileURLToPath(
 );
 
 test(
+  'normal export reconciles a missing Windows executable without masking its launch error',
+  { skip: !python || process.platform !== 'linux' },
+  async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'labworld-source-launch-'));
+    try {
+      const missing = join(directory, 'missing-blender.exe');
+      const output = join(directory, 'failed-launch');
+      const result = spawnSync(
+        python,
+        [
+          '-B',
+          cli,
+          'export',
+          '--scene',
+          scene,
+          '--source-id',
+          '7e99f905-7839-4bf2-80f6-001102031989',
+          '--blender',
+          missing,
+          '--output',
+          output,
+        ],
+        { encoding: 'utf8' },
+      );
+      assert.equal(result.status, 2, result.stderr);
+      const error = JSON.parse(result.stderr);
+      assert.equal(error.code, 'source_input_invalid');
+      assert.equal(error.path, missing);
+      const ledger = JSON.parse(
+        await readFile(join(output, 'owned-resources.json'), 'utf8'),
+      );
+      assert.deepEqual(ledger.processes, []);
+      assert.equal(ledger.reconciled, true);
+      await assert.rejects(access(join(output, 'blender-process.json')), {
+        code: 'ENOENT',
+      });
+      const cleanup = spawnSync(
+        python,
+        ['-B', cli, 'cleanup', '--output', output],
+        { encoding: 'utf8' },
+      );
+      assert.equal(cleanup.status, 0, cleanup.stderr);
+      assert.equal(JSON.parse(cleanup.stdout).reconciled, true);
+
+      const unverified = join(directory, 'unverified-blender.exe');
+      await writeFile(unverified, '#!/bin/sh\nexit 0\n', { mode: 0o755 });
+      const uncertainOutput = join(directory, 'started-no-receipt');
+      const started = spawnSync(
+        python,
+        [
+          '-B',
+          cli,
+          'export',
+          '--scene',
+          scene,
+          '--source-id',
+          '7e99f905-7839-4bf2-80f6-001102031989',
+          '--blender',
+          unverified,
+          '--output',
+          uncertainOutput,
+        ],
+        { encoding: 'utf8' },
+      );
+      assert.equal(started.status, 2, started.stderr);
+      assert.equal(
+        JSON.parse(started.stderr).code,
+        'resource_cleanup_incomplete',
+      );
+      const uncertain = JSON.parse(
+        await readFile(join(uncertainOutput, 'owned-resources.json'), 'utf8'),
+      );
+      assert.equal(uncertain.processes.length, 1);
+      assert.equal(uncertain.processes[0].stopped, true);
+      assert.equal(uncertain.reconciled, false);
+      const refused = spawnSync(
+        python,
+        ['-B', cli, 'cleanup', '--output', uncertainOutput],
+        { encoding: 'utf8' },
+      );
+      assert.equal(refused.status, 2, refused.stderr);
+      assert.equal(
+        JSON.parse(refused.stderr).code,
+        'resource_cleanup_incomplete',
+      );
+    } finally {
+      // The generated executable is a known POSIX no-op, so this fixture has no native Windows consumer.
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
   'normal export rejects malformed snapshot state before creating conversion resources',
   { skip: !python },
   async () => {

@@ -4,7 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 
-from format import SourceToolError, canonical, digest, resource_path
+from format import SCENE_HASH_ALGORITHM, SourceToolError, canonical, digest, resource_path, scene_digest
 
 
 def pose(matrix):
@@ -236,12 +236,12 @@ def export_scene(args):
                 positions[component['pose_key']] = {'pose_key': component['pose_key'], **component['authored_pose']}
             del component['authored_pose']
         initial['poses'] = list(positions.values())
-        manifest = {'schema_version': 1, 'source_id': args.source_id, 'coordinate_frame': 'rh-y-up-m',
+        manifest = {'schema_version': 1, 'scene_hash_algorithm': SCENE_HASH_ALGORITHM,
+                    'source_id': args.source_id, 'coordinate_frame': 'rh-y-up-m',
                     'source_coordinate_frame': 'rh-z-up-m', **descriptor, 'resources': resources, 'initial_state': initial,
                     'provenance': {'source_kind': 'newton', 'material_policy': 'usd-preview-or-constant-pbr',
                                    'light_policy': 'web-approximation', 'blender_version': result['blender_version']}}
-        content = {k: v for k, v in manifest.items() if k not in ('initial_state', 'source_id', 'provenance')}
-        manifest['scene_hash'] = digest(canonical(content))
+        manifest['scene_hash'] = scene_digest(manifest)
         from format import validate_manifest
         validate_manifest(manifest, owner.directory)
         target = owner.directory / 'scene.json'

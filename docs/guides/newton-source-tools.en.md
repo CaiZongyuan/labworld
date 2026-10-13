@@ -44,9 +44,26 @@ The source ID identifies an independent world configuration. The example is not 
 
 The original scene exports four objects: Robot, Vial, Rack and Mat. Robot has seven components. Each other object has one. The ten GLBs use component-local origins. `initial_state` separately records current world poses. Static Mat geometry is included without a physics body.
 
+An actual initial state with a `source_run_id` must contain every supported joint coordinate. Without `--snapshot`, the export describes authored poses, leaves source run/time null and keeps joint state unknown. It does not supply zero joints as a current measurement.
+
 The manifest retains original paths, hierarchy, purpose and visibility. Its 65 source meshes contain 32 visible meshes, 32 guides and one hidden mesh. Guides and hidden geometry retain their classification and do not appear as ordinary Web geometry. Materials use USD Preview Surface or constant PBR approximations. Web provides lighting. Complex MDL programs are not preserved exactly.
 
 `body_to_visual` compensates for the existing Viewer's centering and floor alignment. Do not bake the world pose into a GLB and apply it again to a Scene Node. `scene_hash` includes authored structure, static placement, physics declarations and resource hashes. Current state and source time do not change that structure hash.
+
+## Scene digest contract
+
+The manifest requires `scene_hash_algorithm: "labworld-scene-f64hex-v1"`. Compute SHA-256 over the ASCII algorithm identifier followed by one NUL byte, then compact ASCII JSON of the tagged content below. Return `sha256:` plus lowercase digest hex. Content includes every top-level field except `scene_hash`, `source_id`, `initial_state` and `provenance`; it includes the algorithm field. Validate the complete content before discarding or defaulting fields.
+
+| Input   | Tagged form                                                        |
+| ------- | ------------------------------------------------------------------ |
+| null    | `["null"]`                                                         |
+| boolean | `["bool","true"]` or `["bool","false"]`                            |
+| string  | `["str", UTF8hex(value)]`                                          |
+| number  | `["num", float64BigEndianHex(value)]`                              |
+| array   | `["array", [tag(element), ...]]`, retaining order                  |
+| object  | `["object", [[UTF8hex(key), tag(value)], ...]]`, sorted by key hex |
+
+Hex is lowercase without a prefix. Number hex has 16 digits. Normalize signed zeros to positive zero. Accept finite binary64 values; reject every integral value outside ±(2⁵³−1), including integral floats. Strings and keys must contain Unicode scalar values; reject unpaired surrogates. Keep Unicode unchanged. The final tagged JSON contains only strings and arrays, so decimal spelling and JSON key enumeration cannot change the digest. Ordinary manifest/Blender-job JSON and resource-byte SHA-256 remain separate. Validation rejects other algorithm identifiers. [Golden vectors](../../tests/fixtures/source/scene-hash-v1.json) and the [independent Node reader](../../tests/support/source-scene-hash-oracle.mjs) define cross-language examples.
 
 ## Provide asset references
 

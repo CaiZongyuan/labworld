@@ -25,6 +25,49 @@ def canonical(value):
     return json.dumps(value, sort_keys=True, separators=(',', ':'), allow_nan=False).encode()
 
 
+SCENE_HASH_ALGORITHM = 'labworld-scene-f64hex-v1'
+
+
+def scene_digest(manifest):
+    if manifest.get('scene_hash_algorithm') != SCENE_HASH_ALGORITHM:
+        raise SourceToolError('scene_hash_algorithm_unsupported', 'scene_hash_algorithm')
+
+    def tag(value, path):
+        if value is None:
+            return ['null']
+        if type(value) is bool:
+            return ['bool', 'true' if value else 'false']
+        if isinstance(value, str):
+            try:
+                return ['str', value.encode('utf-8').hex()]
+            except UnicodeEncodeError as error:
+                raise SourceToolError('scene_hash_value_invalid', path, 'Unicode scalar strings are required.') from error
+        if type(value) in (int, float):
+            try:
+                number = float(value)
+            except OverflowError as error:
+                raise SourceToolError('scene_hash_value_invalid', path, 'Finite safe numeric values are required.') from error
+            if not math.isfinite(number) or number.is_integer() and abs(number) > 2**53 - 1:
+                raise SourceToolError('scene_hash_value_invalid', path, 'Finite safe numeric values are required.')
+            return ['num', struct.pack('>d', 0.0 if number == 0 else number).hex()]
+        if isinstance(value, list):
+            return ['array', [tag(item, f'{path}/{index}') for index, item in enumerate(value)]]
+        if isinstance(value, dict):
+            entries = []
+            for key, item in value.items():
+                if not isinstance(key, str):
+                    raise SourceToolError('scene_hash_value_invalid', path, 'Object keys must be Unicode scalar strings.')
+                key_hex = tag(key, path)[1]
+                entries.append([key_hex, tag(item, f'{path}/{key}' if path else key)])
+            return ['object', sorted(entries, key=lambda entry: entry[0])]
+        raise SourceToolError('scene_hash_value_invalid', path)
+
+    content = {key: value for key, value in manifest.items()
+               if key not in ('scene_hash', 'source_id', 'initial_state', 'provenance')}
+    preimage = SCENE_HASH_ALGORITHM.encode('ascii') + b'\0' + canonical(tag(content, ''))
+    return digest(preimage)
+
+
 def resource_path(root, name):
     path = PurePosixPath(name)
     if (path.is_absolute() or str(path) != name or '..' in path.parts or
@@ -64,6 +107,8 @@ def validate_manifest(value, root):
             validate_glb(data, item['path'])
     if value.get('schema_version') != 1:
         raise SourceToolError('schema_version_unsupported')
+    if not isinstance(value.get('source_id'), str):
+        raise SourceToolError('source_id_invalid', 'source_id')
     try:
         uuid.UUID(value['source_id'])
     except (ValueError, KeyError, TypeError) as error:
@@ -104,6 +149,13 @@ def validate_manifest(value, root):
     initial = value.get('initial_state')
     if not isinstance(initial, dict):
         raise SourceToolError('initial_state_missing', 'initial_state')
+    run_id = initial.get('source_run_id')
+    if run_id is not None:
+        try:
+            if not isinstance(run_id, str) or str(uuid.UUID(run_id)) != run_id.lower():
+                raise ValueError('Expected a canonical UUID')
+        except ValueError as error:
+            raise SourceToolError('initial_source_run_invalid', 'initial_state.source_run_id') from error
     poses, joints = initial.get('poses', []), initial.get('joints', [])
     if not isinstance(poses, list):
         raise SourceToolError('initial_pose_invalid', 'initial_state.poses')
@@ -136,8 +188,9 @@ def validate_manifest(value, root):
                 type(position) not in (int, float) or not math.isfinite(position)):
             raise SourceToolError('initial_joint_invalid', path)
         actual_joints.add(key)
-    content = {k: v for k, v in value.items() if k not in ('initial_state', 'source_id', 'provenance', 'scene_hash')}
-    if value.get('scene_hash') != digest(canonical(content)):
+    if run_id is not None and actual_joints != coordinates:
+        raise SourceToolError('initial_joint_dictionary_mismatch', 'initial_state.joints')
+    if value.get('scene_hash') != scene_digest(value):
         raise SourceToolError('scene_digest_mismatch')
     return value
 
