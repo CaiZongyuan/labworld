@@ -593,6 +593,16 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "entity-lifecycle"
+    },
+    {
+      "id": "newton-source-tools",
+      "source": "docs/guides/newton-source-tools.md",
+      "sourceEn": "docs/guides/newton-source-tools.en.md",
+      "route": "guides/newton-source-tools.md",
+      "title": "原 Newton 场景与原生采样",
+      "titleEn": "Original Newton scene and native sampling",
+      "group": "开发",
+      "type": "guide"
     }
   ],
   "references": [
