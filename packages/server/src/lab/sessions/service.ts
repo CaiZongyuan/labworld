@@ -2001,14 +2001,20 @@ export class SimulationSessions {
             live.session.lab_id,
             live.session.id,
             async (tx) => {
-              if (target === 'interrupted' || target === 'stopped')
-                return endSessionIn(
+              if (target === 'interrupted' || target === 'stopped') {
+                // A journal commit deadline can follow the committed terminal row.
+                // On retry, recover that row so its normal release still runs.
+                const ended = await endSessionIn(
                   tx,
                   live.session.id,
                   target,
                   reason ?? 'stop_requested',
                   this.world.context.clock.now(),
                 );
+                return (
+                  ended ?? sessionIn(tx, live.session.lab_id, live.session.id)
+                );
+              }
               const result = await tx.execute<Session>(
                 sql`update lab.simulation_sessions set status=${target},revision=revision+1 where id=${live.session.id}::uuid and lease_id=${live.session.lease_id}::uuid and ended_at is null returning ${sessionColumns}`,
               );

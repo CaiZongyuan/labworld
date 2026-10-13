@@ -18,6 +18,7 @@ export type RecordingMetadata = {
   status:
     'preparing' | 'open' | 'complete' | 'incomplete' | 'deleting' | 'deleted';
   reason: string | null;
+  ended_at: string | null;
   integrity: 'recording' | 'complete' | 'incomplete';
   prefix: {
     source_packet_sequence: string;
