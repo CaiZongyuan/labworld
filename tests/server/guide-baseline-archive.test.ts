@@ -47,7 +47,7 @@ const approvedHistory = [
     created_at: '1791844297546',
   },
   {
-    hash: '14e595f16d46f9ead9f3e42a20858f0ddf1c0c4c6f67dfdf38695f312dd20b33',
+    hash: '443bbf6e2485d219ea4c6a9e528c9a29f1339aecdf47de1a9eeb51bb65d1df80',
     created_at: '1791936000000',
   },
 ];
