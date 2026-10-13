@@ -28,6 +28,7 @@ export async function provisionMachineIn(
   creator: string,
   name: string,
   now: string,
+  credentialScope = 'publisher',
 ) {
   if (!name.trim() || name.trim().length > 120)
     throw new PublicFailure(
@@ -38,7 +39,7 @@ export async function provisionMachineIn(
   const id = randomUUID(),
     credential = randomBytes(32).toString('base64url');
   const rows = await tx.execute<MachineIdentity>(
-    sql`insert into labos_threejs_core.machines(id,name,credential_hash,created_by,created_at,expires_at) values(${id}::uuid,${name.trim()},${hash(credential)},${creator}::uuid,${now}::timestamptz,${now}::timestamptz+interval '30 days') returning id::text,name,created_at,expires_at,revoked_at`,
+    sql`insert into labos_threejs_core.machines(id,name,credential_hash,credential_scope,created_by,created_at,expires_at) values(${id}::uuid,${name.trim()},${hash(credential)},${credentialScope},${creator}::uuid,${now}::timestamptz,${now}::timestamptz+interval '30 days') returning id::text,name,created_at,expires_at,revoked_at`,
   );
   const machine = rows.rows[0];
   return {
@@ -55,6 +56,7 @@ export async function authenticateMachineIn(
   id: string,
   headers: Headers,
   now: string,
+  credentialScope = 'publisher',
 ) {
   const canonical = canonicalUuid(id),
     credential = headers
@@ -62,7 +64,7 @@ export async function authenticateMachineIn(
       ?.match(/^Bearer ([A-Za-z0-9_-]{43})$/)?.[1];
   if (!canonical || !credential) throw denied();
   const result = await tx.execute<MachineIdentity>(
-    sql`select id::text,name,created_at,expires_at,revoked_at from labos_threejs_core.machines where id=${canonical}::uuid and credential_hash=${hash(credential)} and revoked_at is null and expires_at>${now}::timestamptz`,
+    sql`select id::text,name,created_at,expires_at,revoked_at from labos_threejs_core.machines where id=${canonical}::uuid and credential_hash=${hash(credential)} and credential_scope=${credentialScope} and revoked_at is null and expires_at>${now}::timestamptz`,
   );
   if (!result.rows[0]) throw denied();
   return result.rows[0];

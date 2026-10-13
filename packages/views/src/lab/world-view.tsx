@@ -79,6 +79,7 @@ import WorldDialog, {
 import DevicePanel, { defaultDeviceInput } from './device-panel';
 import EntityDetail from './entity-detail';
 import { entityWithConfirmedRun } from './source-state';
+import { SourceControls } from './source-controls';
 import RecordsPanel from './records-panel';
 import OperationsView from './operations-view';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
@@ -779,6 +780,13 @@ export default function WorldView() {
         {editing && simulation.session && !simulation.session.ended_at ? (
           <span role="status">{message('session.nextStartHint')}</span>
         ) : null}
+        <SourceControls
+          apiClient={apiClient}
+          userId={identity.user.id}
+          labId={labId ?? null}
+          csrfToken={identity.csrf_token}
+          disabled={readOnly}
+        />
         <MotionControls
           key={labId}
           motion={motion}

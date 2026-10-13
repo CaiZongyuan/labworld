@@ -9,6 +9,7 @@ export const machines = coreSchema.table(
     id: uuid().primaryKey().defaultRandom(),
     name: text().notNull(),
     credentialHash: text('credential_hash').notNull().unique(),
+    credentialScope: text('credential_scope').notNull().default('publisher'),
     createdBy: uuid('created_by')
       .notNull()
       .references(() => users.id),

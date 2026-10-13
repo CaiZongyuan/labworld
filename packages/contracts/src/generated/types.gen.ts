@@ -596,6 +596,64 @@ export type PublisherAdmissionRequest = {
     machine_id: string;
 };
 
+export type LabSourcePage = {
+    data: Array<LabSource>;
+};
+
+export type LabSource = {
+    id: string;
+    lab_id: string;
+    name: string;
+    connection_state: 'offline' | 'connected';
+    phase: 'initializing' | 'ready' | null;
+    authorization: 'unconfigured' | 'authorized' | 'expired' | 'revoked';
+    credential_expires_at: string | null;
+    source_run_id: string | null;
+    connection_id: string | null;
+    epoch: string;
+    last_seen_at: string | null;
+    created_at: string;
+};
+
+export type RegisterLabSource = {
+    name: string;
+};
+
+export type LabSourceConfiguration = {
+    format: 'lab-world-source-v1';
+    server_url: string;
+    lab_id: string;
+    source_id: string;
+    machine_id: string;
+    credential: string;
+    expires_at: string;
+};
+
+export type LabSourceConnection = {
+    connection_id: string;
+    epoch: string;
+    heartbeat_interval_ms: number;
+};
+
+export type ConnectLabSource = {
+    machine_id: string;
+    source_run_id: string;
+    phase: 'initializing' | 'ready';
+};
+
+export type LabSourceHeartbeat = {
+    machine_id: string;
+    connection_id: string;
+    epoch: string;
+    phase: 'initializing' | 'ready';
+};
+
+export type DisconnectLabSource = {
+    machine_id: string;
+    connection_id: string;
+    epoch: string;
+};
+
 export type LabRecordingPage = {
     data: Array<LabRecording>;
     next_cursor: string | null;
@@ -1946,6 +2004,270 @@ export type AdmitLabSessionPublisherResponses = {
 };
 
 export type AdmitLabSessionPublisherResponse = AdmitLabSessionPublisherResponses[keyof AdmitLabSessionPublisherResponses];
+
+export type ListLabSourcesData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources';
+};
+
+export type ListLabSourcesErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabSourcesError = ListLabSourcesErrors[keyof ListLabSourcesErrors];
+
+export type ListLabSourcesResponses = {
+    200: LabSourcePage;
+};
+
+export type ListLabSourcesResponse = ListLabSourcesResponses[keyof ListLabSourcesResponses];
+
+export type RegisterLabSourceData = {
+    body: RegisterLabSource;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources';
+};
+
+export type RegisterLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RegisterLabSourceError = RegisterLabSourceErrors[keyof RegisterLabSourceErrors];
+
+export type RegisterLabSourceResponses = {
+    201: LabSource;
+};
+
+export type RegisterLabSourceResponse = RegisterLabSourceResponses[keyof RegisterLabSourceResponses];
+
+export type GetLabSourceData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}';
+};
+
+export type GetLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabSourceError = GetLabSourceErrors[keyof GetLabSourceErrors];
+
+export type GetLabSourceResponses = {
+    200: LabSource;
+};
+
+export type GetLabSourceResponse = GetLabSourceResponses[keyof GetLabSourceResponses];
+
+export type CreateLabSourceConfigurationData = {
+    body: {
+        [key: string]: never;
+    };
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/configuration';
+};
+
+export type CreateLabSourceConfigurationErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabSourceConfigurationError = CreateLabSourceConfigurationErrors[keyof CreateLabSourceConfigurationErrors];
+
+export type CreateLabSourceConfigurationResponses = {
+    201: LabSourceConfiguration;
+};
+
+export type CreateLabSourceConfigurationResponse = CreateLabSourceConfigurationResponses[keyof CreateLabSourceConfigurationResponses];
+
+export type RevokeLabSourceData = {
+    body: {
+        [key: string]: never;
+    };
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/revoke';
+};
+
+export type RevokeLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RevokeLabSourceError = RevokeLabSourceErrors[keyof RevokeLabSourceErrors];
+
+export type RevokeLabSourceResponses = {
+    /**
+     * Source access revoked.
+     */
+    204: void;
+};
+
+export type RevokeLabSourceResponse = RevokeLabSourceResponses[keyof RevokeLabSourceResponses];
+
+export type ConnectLabSourceData = {
+    body: ConnectLabSource;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/connections';
+};
+
+export type ConnectLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ConnectLabSourceError = ConnectLabSourceErrors[keyof ConnectLabSourceErrors];
+
+export type ConnectLabSourceResponses = {
+    201: LabSourceConnection;
+};
+
+export type ConnectLabSourceResponse = ConnectLabSourceResponses[keyof ConnectLabSourceResponses];
+
+export type HeartbeatLabSourceData = {
+    body: LabSourceHeartbeat;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/heartbeat';
+};
+
+export type HeartbeatLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type HeartbeatLabSourceError = HeartbeatLabSourceErrors[keyof HeartbeatLabSourceErrors];
+
+export type HeartbeatLabSourceResponses = {
+    200: LabSource;
+};
+
+export type HeartbeatLabSourceResponse = HeartbeatLabSourceResponses[keyof HeartbeatLabSourceResponses];
+
+export type DisconnectLabSourceData = {
+    body: DisconnectLabSource;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/disconnect';
+};
+
+export type DisconnectLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type DisconnectLabSourceError = DisconnectLabSourceErrors[keyof DisconnectLabSourceErrors];
+
+export type DisconnectLabSourceResponses = {
+    /**
+     * Source connection released.
+     */
+    204: void;
+};
+
+export type DisconnectLabSourceResponse = DisconnectLabSourceResponses[keyof DisconnectLabSourceResponses];
 
 export type ListLabRecordingsData = {
     body?: never;
