@@ -34,7 +34,7 @@ const streams: Array<{
 }> = [];
 const injectFinalFailure = process.argv.includes('--inject-final-read-failure');
 const measurementScope =
-  'producer schedule through fully consumed HTTP JSON acknowledgment; committed_ms is client observation, not database transaction commit; startup is excluded and prior evidence I/O can delay the next wake';
+  'producer schedule through fully consumed HTTP JSON acknowledgment; committed_ms is client observation, not database transaction commit; startup is excluded; diagnostic receipt I/O is buffered until after sampling';
 let running = true;
 let background: Promise<void> | undefined;
 let failure: unknown;
@@ -52,9 +52,18 @@ type TickReceipt = {
   acknowledgment_ms: number;
   request_id: string | null;
   acknowledged_rows: number | null;
-  evidence_write_ms?: number;
+  evidence_buffer_ms?: number;
 };
 const ticks: TickReceipt[] = [];
+const evidenceLines: string[] = [];
+let evidenceFlushMs = 0;
+async function flushEvidence() {
+  if (!evidenceLines.length) return;
+  const begin = performance.now();
+  await appendFile(join(output, 'samples.jsonl'), evidenceLines.join(''));
+  evidenceFlushMs += performance.now() - begin;
+  evidenceLines.length = 0;
+}
 let lastTick: Partial<TickReceipt> | null = null;
 let lastAcknowledged: unknown;
 const metadata: Array<unknown> = [];
@@ -250,8 +259,7 @@ try {
     );
     ticks.push(receipt);
     const evidenceStarted = performance.now();
-    await appendFile(
-      join(output, 'samples.jsonl'),
+    evidenceLines.push(
       JSON.stringify({
         tick,
         scheduled_at: new Date(wallStart + scheduled).toISOString(),
@@ -259,7 +267,7 @@ try {
         acknowledged,
       }) + '\n',
     );
-    receipt.evidence_write_ms = performance.now() - evidenceStarted;
+    receipt.evidence_buffer_ms = performance.now() - evidenceStarted;
     if (tick % 60 === 0) {
       metadata.push(await (await fetch(`${target.url}/proof/metadata`)).json());
       console.log(
@@ -276,6 +284,7 @@ try {
   }
   running = false;
   await background;
+  await flushEvidence();
   if (injectFinalFailure) {
     try {
       assert.equal((await fetch(`${target.url}/not-a-route`)).status, 200);
@@ -360,6 +369,7 @@ try {
         devices: 20,
         frequencyHz: 1,
         measurement_scope: measurementScope,
+        evidence_flush_ms: evidenceFlushMs,
         deviceSamples: duration * 20,
         concurrentReads,
         concurrentWrites,
@@ -401,6 +411,7 @@ try {
         node: process.version,
         duration_seconds: duration,
         measurement_scope: measurementScope,
+        evidence_flush_ms: evidenceFlushMs,
         last_tick: lastTick,
         last_acknowledged: lastAcknowledged ?? null,
         concurrent_reads: concurrentReads,
@@ -425,10 +436,14 @@ try {
   for (const observed of streams) observed.controller.abort();
   await background;
   await Promise.allSettled(streams.map((s) => s.task));
-  await target.cleanup();
-  await copyFile(
-    join(target.evidence, 'owned-resources.json'),
-    join(output, 'owned-resources.json'),
-  );
+  try {
+    await flushEvidence();
+  } finally {
+    await target.cleanup();
+    await copyFile(
+      join(target.evidence, 'owned-resources.json'),
+      join(output, 'owned-resources.json'),
+    );
+  }
 }
 console.log(JSON.stringify({ output, status: 'passed', duration }));
