@@ -22,7 +22,7 @@ import type {
   DownloadCapability,
 } from '../../packages/contracts/src/generated/types.gen.ts';
 
-// Approved #75 robot controls append: schema 5. All prior migration
+// Approved #87 source presence append: schema 6. All prior migration
 // identities remain immutable; these expectations are literals,
 // independent of the running build's schemaVersion calculation.
 const approvedHistory = [
@@ -45,6 +45,10 @@ const approvedHistory = [
   {
     hash: '39d30ede089dd4b438edd9968526354f99a78842eb5c1f465ba5fbfffbb33fa3',
     created_at: '1791844297546',
+  },
+  {
+    hash: '14e595f16d46f9ead9f3e42a20858f0ddf1c0c4c6f67dfdf38695f312dd20b33',
+    created_at: '1791936000000',
   },
 ];
 
@@ -254,7 +258,7 @@ test(
         '--archive',
         archive,
       ]);
-      assert.equal(result.schemaVersion, 5);
+      assert.equal(result.schemaVersion, 6);
       destination.env = {
         APP_ORIGIN: destination.url,
         LAB_WORD_DATA_DIR: restored,
@@ -321,11 +325,11 @@ test(
         '--output',
         currentArchive,
       ]);
-      assert.equal(currentBackup.schemaVersion, 5);
+      assert.equal(currentBackup.schemaVersion, 6);
       const currentManifest = JSON.parse(
         await readFile(join(currentArchive, 'manifest.json'), 'utf8'),
       );
-      assert.equal(currentManifest.database.schemaVersion, 5);
+      assert.equal(currentManifest.database.schemaVersion, 6);
       assert.deepEqual(currentManifest.database.history, approvedHistory);
       assert.deepEqual(
         currentManifest.database.history[0],
@@ -339,7 +343,7 @@ test(
             currentArchive,
           ])
         ).schemaVersion,
-        5,
+        6,
       );
       await writeFile(
         join(artifacts.evidence, 'guide-archive-result.json'),
@@ -353,6 +357,12 @@ test(
             tag: '0004_robot_controls',
             schemaVersion: 5,
             ...approvedHistory[4],
+          },
+          approvedSourceMigration: {
+            issue: 'https://github.com/CaiZongyuan/labworld/issues/87',
+            tag: '0005_source_presence',
+            schemaVersion: 6,
+            ...approvedHistory[5],
           },
           restore: result,
           identityPreserved: true,
