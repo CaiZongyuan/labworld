@@ -106,7 +106,7 @@ test(
           'utf8',
         ),
       );
-      assert.deepEqual(currentJournal.entries.at(-1), {
+      assert.deepEqual(currentJournal.entries[4], {
         idx: 4,
         version: '7',
         when: 1791844297546,
@@ -125,6 +125,26 @@ test(
           )
           .digest('hex'),
         approvedHistory[4].hash,
+      );
+      assert.deepEqual(currentJournal.entries.at(-1), {
+        idx: 5,
+        version: '7',
+        when: 1791936000000,
+        tag: '0005_source_presence',
+        breakpoints: true,
+      });
+      assert.equal(
+        createHash('sha256')
+          .update(
+            await readFile(
+              new URL(
+                '../../packages/server/migrations/0005_source_presence.sql',
+                import.meta.url,
+              ),
+            ),
+          )
+          .digest('hex'),
+        approvedHistory[5].hash,
       );
       await mkdir(baselineRoot);
       const source = execFileSync(
