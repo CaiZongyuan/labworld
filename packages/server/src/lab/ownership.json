@@ -285,7 +285,23 @@
     "downloadAssetVersionResource",
     "startAssetResourceUpload",
     "completeAssetResourceUpload",
-    "cancelAssetResourceUpload"
+    "cancelAssetResourceUpload",
+    "LabSource",
+    "LabSourcePage",
+    "RegisterLabSource",
+    "LabSourceConfiguration",
+    "LabSourceConnection",
+    "ConnectLabSource",
+    "LabSourceHeartbeat",
+    "DisconnectLabSource",
+    "listLabSources",
+    "registerLabSource",
+    "getLabSource",
+    "createLabSourceConfiguration",
+    "revokeLabSource",
+    "connectLabSource",
+    "heartbeatLabSource",
+    "disconnectLabSource"
   ],
   "contractSubpaths": [
     "@labos-threejs/contracts/motion",
@@ -312,7 +328,11 @@
     "docs/guides/complete-assets.en.md",
     "examples/lab/import-asset-version.mjs",
     "examples/lab/centrifuge.asset.json",
-    "examples/lab/register-asset-instances.mjs"
+    "examples/lab/register-asset-instances.mjs",
+    "docs/tutorials/source-presence.md",
+    "docs/tutorials/source-presence.en.md",
+    "tools/source-client/presence.py",
+    "tools/source-client/isaaclab_presence.py"
   ],
   "testPaths": [
     "tests/server/session-authority.test.ts",
@@ -333,6 +353,14 @@
     "tests/server/asset-versions.test.ts",
     "tests/e2e/lab-complete-assets.spec.ts",
     "apps/web/src/lab-complete-assets.test.tsx",
-    "tests/server/asset-version-upgrade.test.ts"
+    "tests/server/asset-version-upgrade.test.ts",
+    "tests/server/source-presence.test.ts",
+    "tests/server/source-client.test.ts",
+    "tests/support/source-http.ts",
+    "tests/e2e/lab-source-presence.spec.ts",
+    "packages/views/src/lab/source-controls.test.tsx",
+    "tests/tooling/source-callback.test.mjs",
+    "tests/tooling/source-api.test.mjs",
+    "tests/contract/source-api.json"
   ]
 }
