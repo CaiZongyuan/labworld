@@ -130,12 +130,17 @@ class OwnedRun:
             self.ledger['processes'][-1]['stopped'] = self.child.poll() is not None
 
     def run(self, command, name, timeout=180, env=None):
-        self.ledger['windows_blender'] = name == 'blender' and command[0].lower().endswith('.exe')
         if name == 'blender':
             self.ledger['blender_job'] = command[-1]
         with (self.directory / (name + '.stdout.log')).open('w') as out, (self.directory / (name + '.stderr.log')).open('w') as err:
-            self.child = subprocess.Popen(command, cwd=self.directory, env=env, stdout=out, stderr=err,
-                                          start_new_session=os.name == 'posix')
+            self.ledger['windows_blender'] = name == 'blender' and command[0].lower().endswith('.exe')
+            try:
+                self.child = subprocess.Popen(command, cwd=self.directory, env=env, stdout=out, stderr=err,
+                                              start_new_session=os.name == 'posix')
+            except OSError:
+                # Popen failed to create the executable; no native receipt can exist.
+                self.ledger['windows_blender'] = False
+                raise
             self.ledger['processes'].append({'pid': self.child.pid, 'name': name, 'stopped': False,
                                              'start_ticks': process_start_ticks(self.child.pid)})
             self.save()

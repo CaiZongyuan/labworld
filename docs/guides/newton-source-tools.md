@@ -44,9 +44,26 @@ python3 -B tools/newton-source/cli.py validate \
 
 原场景输出 Robot、Vial、Rack和Mat四个对象。Robot有七个component；Vial、Rack、Mat各有一个。十个 GLB以component局部原点组织，当前世界位置单独存于 `initial_state`。静态Mat也会导出，不依赖它具有物理body。
 
+带 `source_run_id` 的实际初态必须包含全部受支持的关节坐标。省略 `--snapshot` 时，导出只描述 authored 位姿，source run/time 保持 null，关节状态保持未知；不会用零关节值充当当前观测。
+
 清单保存完整原路径、层级、purpose与visibility。原输入的65个mesh分为32个可见外观、32个guide和1个隐藏mesh。后两类保留分类，GLB不将它们画成普通外观。材质采用 USD Preview Surface或常量PBR近似，灯光由 Web呈现。复杂MDL程序不声称无损转换。
 
 `body_to_visual`补偿现有 Viewer的居中和底边对齐。不要同时把源世界位姿烘进GLB，再给Scene Node应用同一位姿。`scene_hash`包括基准结构、静态摆放、物理声明及资源校验值；当前状态和源时间不参与结构hash。
+
+## 场景摘要合同
+
+清单必须声明 `scene_hash_algorithm: "labworld-scene-f64hex-v1"`。SHA-256 输入依次为 ASCII 算法标识、一个 NUL 字节，以及下表编码结果的紧凑 ASCII JSON。输出为 `sha256:` 加小写摘要 hex。内容保留除 `scene_hash`、`source_id`、`initial_state` 和 `provenance` 外的全部顶层字段，包括算法字段。丢弃字段或填默认值之前，先校验完整内容。
+
+| 输入    | 带类型的编码                                                     |
+| ------- | ---------------------------------------------------------------- |
+| null    | `["null"]`                                                       |
+| boolean | `["bool","true"]` 或 `["bool","false"]`                          |
+| string  | `["str", UTF8hex(value)]`                                        |
+| number  | `["num", float64BigEndianHex(value)]`                            |
+| array   | `["array", [tag(element), ...]]`，保留顺序                       |
+| object  | `["object", [[UTF8hex(key), tag(value)], ...]]`，按 key hex 排序 |
+
+hex 使用小写且无前缀；number hex 固定为 16 位。正负零统一为正零。数值必须是有限 binary64；绝对值超过 2⁵³−1 的整数值一律拒绝，包括值为整数的浮点数。字符串和 key 必须是 Unicode 标量，拒绝未配对 surrogate，不改写 Unicode。最终 JSON 只含字符串和数组，因此十进制拼写和 JSON key 枚举顺序不会改变摘要。普通清单、Blender 任务 JSON 与资源字节 SHA-256 分别处理；校验拒绝其他算法标识。跨语言示例见 [golden vectors](../../tests/fixtures/source/scene-hash-v1.json) 和 [独立 Node reader](../../tests/support/source-scene-hash-oracle.mjs)。
 
 ## 提供资产引用
 
