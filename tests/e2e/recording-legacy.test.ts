@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import type {
   DeviceCommand,
@@ -35,6 +35,24 @@ import {
 
 const sessionPath = (lab: string, session?: string) =>
   `/api/v1/lab/labs/${lab}/sessions${session ? '/' + session : ''}`;
+// Independently read the current build's immutable SQL inputs. Old schema-v3
+// stays literal; the upgrade must apply the complete journal, including future
+// registry migrations, without weakening exact history/custody assertions.
+const migrations = new URL(
+  '../../packages/server/migrations/',
+  import.meta.url,
+);
+const journal = JSON.parse(
+  await readFile(new URL('meta/_journal.json', migrations), 'utf8'),
+) as { entries: { tag: string; when: number }[] };
+const currentHistory = await Promise.all(
+  journal.entries.map(async ({ tag, when }) => ({
+    hash: createHash('sha256')
+      .update(await readFile(new URL(tag + '.sql', migrations)))
+      .digest('hex'),
+    created_at: String(when),
+  })),
+);
 type LegacyFixture = {
   target: ServerProcess;
   api: CoreHttp;
@@ -334,7 +352,8 @@ test(
       );
       await f.target.stop();
       const after = await custody(f.target);
-      assert.equal(after.schemaVersion, 5);
+      assert.equal(after.schemaVersion, currentHistory.length);
+      assert.deepEqual(after.history, currentHistory);
       assert.deepEqual(after.history.slice(0, 3), before.history);
       assert.deepEqual(after.sessionAssets, []);
       assert.deepEqual(
@@ -429,7 +448,8 @@ test(
       await dependencyBytes(f);
       await f.target.stop();
       const refused = await custody(f.target);
-      assert.equal(refused.schemaVersion, 5);
+      assert.equal(refused.schemaVersion, currentHistory.length);
+      assert.deepEqual(refused.history, currentHistory);
       assert.deepEqual(refused.history.slice(0, 3), before.history);
       originalPins(f, refused);
       assert.deepEqual(refused.references, before.references);
