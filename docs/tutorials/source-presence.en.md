@@ -42,6 +42,17 @@ LAB_WORLD_SOURCE_CONFIG="<private-config>" \
 
 Keep the program's GUI or headless arguments. The callback works independently of rendering and starts a separate heartbeat thread. Keep the original project and Python environment read-only. No code needs to be copied into that project.
 
+If the original command already has `--external_callback`, save that callback name in `LAB_WORLD_SOURCE_CALLBACK`. Replace the existing option's value with `isaaclab_presence.install`. Do not append a duplicate option or discard the original callback. The original SO-101 evaluation entry uses `isaaclab_tutorial.utils.evaluation.install_episode_counter`:
+
+```bash
+LAB_WORLD_SOURCE_CALLBACK=isaaclab_tutorial.utils.evaluation.install_episode_counter \
+PYTHONPATH="<repo>/tools/source-client:$PYTHONPATH" \
+LAB_WORLD_SOURCE_CONFIG="<private-config>" \
+<original Python and launch arguments> --external_callback isaaclab_presence.install
+```
+
+Presence calls the original callback first and returns its unconsumed arguments unchanged. Without an original callback, it returns `None`, preserving all Hydra arguments. Overrides such as `presets=newton_mjwarp` and `env.sim.dt=0.0125` remain in the original command. Use `--cfg job` on the normal entrypoint to inspect the resolved configuration first. This mode runs no solver or experiment.
+
 Other Python entries can use `start_presence(config_path)` from [presence.py](../../tools/source-client/presence.py). Keep the returned client. Call `set_phase('ready')` when adapter initialization finishes and `close()` when the program normally ends. Network failure and authorization refusal only update client `status`; they do not stop the caller, model or solver. `close()` releases only this client's connection.
 
 This chapter delivers source presence. Scene extraction, synchronization and live observation require their corresponding integration features. This callback discovers no uninstrumented Newton processes and creates no motion, measurement or experiment results.

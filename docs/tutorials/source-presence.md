@@ -42,6 +42,17 @@ LAB_WORLD_SOURCE_CONFIG="<private-config>" \
 
 保留原程序的 GUI 或无头参数。回调不依赖渲染路径；它只启动独立心跳线程。原项目与 Python 环境可保持只读，无需复制代码进原项目。
 
+原命令若已有 `--external_callback`，将原回调名保存为 `LAB_WORLD_SOURCE_CALLBACK`，再把该参数的值改为 `isaaclab_presence.install`。不要追加第二个同名参数，也不要丢弃原回调。例如原 SO-101 评估入口使用 `isaaclab_tutorial.utils.evaluation.install_episode_counter`：
+
+```bash
+LAB_WORLD_SOURCE_CALLBACK=isaaclab_tutorial.utils.evaluation.install_episode_counter \
+PYTHONPATH="<repo>/tools/source-client:$PYTHONPATH" \
+LAB_WORLD_SOURCE_CONFIG="<private-config>" \
+<原 Python 和启动参数> --external_callback isaaclab_presence.install
+```
+
+来源回调先执行原回调，并原样返回其未消费参数。没有原回调时返回 `None`，让 Isaac Lab 保留全部 Hydra 参数。原命令中的 `presets=newton_mjwarp`、`env.sim.dt=0.0125` 等覆盖值不会因为接入来源被清除。用正常入口的 `--cfg job` 可先检查解析后的配置；此模式不启动求解器或执行实验。
+
 其他 Python 入口可从 [presence.py](../../tools/source-client/presence.py) 使用 `start_presence(config_path)`。保留返回的客户端；初始化完成时调用 `set_phase('ready')`，原程序正常结束时调用 `close()`。网络失败或授权拒绝只更新客户端 `status`，不会停止调用方、模型或求解器。`close()`只释放这个客户端的连接。
 
 本章节交付来源在线链路。场景提取、同步和实时观察需要各自的接入功能。该回调不扫描未接入的 Newton 进程，也不生成运动、测量或实验结果。
