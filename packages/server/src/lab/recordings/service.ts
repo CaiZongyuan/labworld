@@ -1,5 +1,6 @@
 import type { RobotControls } from '../devices/robot.ts';
 import { randomBytes, randomUUID } from 'node:crypto';
+import { recordingResources } from '../asset-registry/recording-resources.ts';
 import {
   RecordingEventCursors,
   recordingEventCursorKey,
@@ -570,14 +571,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       : undefined;
     if (stagedId && (!stage?.manifest_file_id || !stage.manifest_sha256))
       throw fail('recording_stage_not_ready');
-    const assets = [
-        ...new Map(
-          session.snapshot.world.assets.map((a) => [
-            a.representation.file_id,
-            a.representation,
-          ]),
-        ).values(),
-      ],
+    const assets = recordingResources(session.snapshot.world),
       charge = assets.reduce(
         (sum, f) => sum + Number(f.size),
         2 * 1024 * 1024 + 1024 * 1024,
@@ -671,14 +665,10 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       sha = journalDigest(bytes);
     if (bytes.length > 2 * 1024 * 1024)
       throw fail('recording_manifest_capacity');
-    const dependencyBytes = [
-        ...new Map(
-          session.snapshot.world.assets.map((a) => [
-            a.representation.file_id,
-            a.representation,
-          ]),
-        ).values(),
-      ].reduce((sum, a) => sum + Number(a.size), 0),
+    const dependencyBytes = recordingResources(session.snapshot.world).reduce(
+        (sum, a) => sum + Number(a.size),
+        0,
+      ),
       charge = dependencyBytes + bytes.length + 1024 * 1024;
     if (
       charge > this.options.maxRecordingBytes ||
@@ -1035,14 +1025,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             'Recording admission capacity reached',
             429,
           );
-        const files = [
-          ...new Map(
-            session.snapshot.world.assets.map((a) => [
-              a.representation.file_id,
-              a.representation,
-            ]),
-          ).values(),
-        ];
+        const files = recordingResources(session.snapshot.world);
         const charge = files.reduce(
           (sum, f) => sum + Number(f.size),
           bytes.length,
@@ -1193,9 +1176,9 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         sql`select id::text from lab.recordings where session_id=${session.id}::uuid`,
       );
       if (!row.rows[0]) return;
-      for (const asset of session.snapshot.world.assets) {
+      for (const asset of recordingResources(session.snapshot.world)) {
         const refs = await tx.execute(
-          sql`select 1 from lab.recording_resources r join labos_threejs_core.file_references f on f.file_id=r.file_id and f.owner_type='lab.recording' and f.owner_id=r.recording_id::text where r.recording_id=${row.rows[0].id}::uuid and r.file_id=${asset.representation.file_id}::uuid and r.role='dependency'`,
+          sql`select 1 from lab.recording_resources r join labos_threejs_core.file_references f on f.file_id=r.file_id and f.owner_type='lab.recording' and f.owner_id=r.recording_id::text where r.recording_id=${row.rows[0].id}::uuid and r.file_id=${asset.file_id}::uuid and r.role='dependency'`,
         );
         if (!refs.rows.length) throw fail('recording_dependency_not_adopted');
       }

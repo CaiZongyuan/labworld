@@ -7,7 +7,7 @@ import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 
-// Approved #87 source presence append: schema 6. All prior migration
+// Approved #88 asset version append: schema 7. All prior migration
 // identities remain immutable; these expectations are literals,
 // independent of the running build's schemaVersion calculation.
 const approvedHistory = [
@@ -34,6 +34,10 @@ const approvedHistory = [
   {
     hash: '443bbf6e2485d219ea4c6a9e528c9a29f1339aecdf47de1a9eeb51bb65d1df80',
     created_at: '1791936000000',
+  },
+  {
+    hash: '097ec2602703c9dabcd14dc72e806887f21bb1214343573fb1d6291c8901c787',
+    created_at: '1791936000006',
   },
 ];
 
@@ -88,10 +92,10 @@ test(
         ),
       );
       assert.deepEqual(journal.entries.at(-1), {
-        idx: 5,
+        idx: 6,
         version: '7',
-        when: 1791936000000,
-        tag: '0005_source_presence',
+        when: 1791936000006,
+        tag: '0006_asset_versions',
         breakpoints: true,
       });
       assert.equal(
@@ -99,13 +103,13 @@ test(
           .update(
             await readFile(
               new URL(
-                '../../packages/server/migrations/0005_source_presence.sql',
+                '../../packages/server/migrations/0006_asset_versions.sql',
                 import.meta.url,
               ),
             ),
           )
           .digest('hex'),
-        approvedHistory[5].hash,
+        approvedHistory[6].hash,
       );
       target.entry = 'apps/server/src/cli.ts';
       target.args = ['migrate'];
@@ -120,7 +124,7 @@ test(
       );
       assert.deepEqual(JSON.parse(target.logs.trim()), {
         status: 'migrated',
-        schemaVersion: 6,
+        schemaVersion: 7,
       });
       await target.stop();
       target.entry = 'apps/server/src/main.ts';
@@ -132,10 +136,10 @@ test(
         'GET',
         '/api/v1/system/status',
       );
-      assert.equal(status.schema_version, 6);
+      assert.equal(status.schema_version, 7);
       await target.stop();
       const first = await history('baseline.first-history');
-      assert.equal(first.length, 6);
+      assert.equal(first.length, 7);
       assert.deepEqual(first, approvedHistory);
       await target.start();
       assert.equal(

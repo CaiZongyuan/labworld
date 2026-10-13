@@ -606,6 +606,16 @@
       "previous": "quickstart"
     },
     {
+      "id": "complete-assets",
+      "source": "docs/guides/complete-assets.md",
+      "sourceEn": "docs/guides/complete-assets.en.md",
+      "route": "guides/complete-assets.md",
+      "title": "完整资产版本",
+      "titleEn": "Complete asset versions",
+      "group": "开发",
+      "type": "guide"
+    },
+    {
       "id": "newton-source-tools",
       "source": "docs/guides/newton-source-tools.md",
       "sourceEn": "docs/guides/newton-source-tools.en.md",

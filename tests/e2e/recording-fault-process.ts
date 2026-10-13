@@ -114,7 +114,9 @@ type NativeIo = {
   close_requested_while_held: boolean;
   closed: boolean;
 };
-let ioArm: { method: NativeMethod; recording_id: string } | undefined;
+type NativeArm = { method: NativeMethod; recording_id: string; kind?: string };
+let ioArm: NativeArm | undefined;
+let nextIoArm: typeof ioArm;
 const heldIo = new Map<NativeIo, () => void>();
 const ioEvidence: NativeIo[] = [];
 const ioRoot = resolve(process.env.LAB_WORD_DATA_DIR!, 'recordings');
@@ -170,7 +172,12 @@ const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
     method: NativeMethod,
     startNative: () => Promise<T>,
   ) {
-    if (!ioArm || ioArm.method !== method || ioArm.recording_id !== recordingId)
+    if (
+      !ioArm ||
+      ioArm.method !== method ||
+      ioArm.recording_id !== recordingId ||
+      (ioArm.kind && ioArm.kind !== planned?.kind)
+    )
       return startNative();
     ioArm = undefined;
     const entry: NativeIo = {
@@ -228,6 +235,10 @@ const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
       return await result;
     } finally {
       heldIo.delete(entry);
+      if (nextIoArm) {
+        ioArm = nextIoArm;
+        nextIoArm = undefined;
+      }
       entry.product_state = 'settled';
       saveIo();
       process.send!({ event: 'actual-io-settled', method, fd: entry.fd, path });
@@ -239,9 +250,7 @@ const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
       // per-sample observer runs during ordinary browser or pressure journeys.
       const bytes = args[0] as Buffer;
       try {
-        planned = readRecordingRecords(bytes).find(
-          (record) => record.kind === 'business.prepare',
-        );
+        planned = readRecordingRecords(bytes)[0];
       } catch {
         planned = undefined;
       }
@@ -342,7 +351,7 @@ process.on(
     operation: string;
     fault?: Arm;
     held?: boolean;
-    io?: { method: NativeMethod; recording_id: string };
+    io?: NativeArm;
     report?: {
       binding: string;
       run: string;
@@ -371,6 +380,11 @@ process.on(
       assert(message.io && ['write', 'sync'].includes(message.io.method));
       ioArm = message.io;
       process.send!({ event: 'actual-io-armed', ...ioArm });
+    } else if (message.operation === 'arm-next-io') {
+      assert(heldIo.size === 1 && !ioArm && !nextIoArm);
+      assert(message.io && ['write', 'sync'].includes(message.io.method));
+      nextIoArm = message.io;
+      process.send!({ event: 'actual-next-io-armed', ...nextIoArm });
     } else if (message.operation === 'release-io') {
       releaseIo();
       process.send!({ event: 'actual-io-release-requested' });
@@ -436,6 +450,7 @@ for (const signal of ['SIGTERM', 'SIGINT'] as const)
     release?.();
     releaseExecution?.();
     ioArm = undefined;
+    nextIoArm = undefined;
     releaseIo();
     stopPressureObserver();
     promises.open = originalOpen;

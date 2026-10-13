@@ -321,7 +321,7 @@ export async function listAssets(
             'Use valid asset pagination',
           );
         const result = await tx.execute<LabAsset>(
-          sql`select ${columns} from ${join} where ${cursor ? sql`a.id<${cursor}::uuid` : sql`true`} order by a.id desc limit ${limit + 1}`,
+          sql`select ${columns} from ${join} where ${cursor ? sql`a.id<${cursor}::uuid` : sql`true`} and not exists(select 1 from lab.asset_version_resources v where v.projected_asset_id=a.id) order by a.id desc limit ${limit + 1}`,
         );
         const has_more = result.rows.length > limit,
           data = result.rows.slice(0, limit).map(assetValue);

@@ -22,7 +22,7 @@ import type {
   DownloadCapability,
 } from '../../packages/contracts/src/generated/types.gen.ts';
 
-// Approved #87 source presence append: schema 6. All prior migration
+// Approved #88 asset version append: schema 7. All prior migration
 // identities remain immutable; these expectations are literals,
 // independent of the running build's schemaVersion calculation.
 const approvedHistory = [
@@ -49,6 +49,10 @@ const approvedHistory = [
   {
     hash: '443bbf6e2485d219ea4c6a9e528c9a29f1339aecdf47de1a9eeb51bb65d1df80',
     created_at: '1791936000000',
+  },
+  {
+    hash: '097ec2602703c9dabcd14dc72e806887f21bb1214343573fb1d6291c8901c787',
+    created_at: '1791936000006',
   },
 ];
 
@@ -126,7 +130,7 @@ test(
           .digest('hex'),
         approvedHistory[4].hash,
       );
-      assert.deepEqual(currentJournal.entries.at(-1), {
+      assert.deepEqual(currentJournal.entries[5], {
         idx: 5,
         version: '7',
         when: 1791936000000,
@@ -145,6 +149,26 @@ test(
           )
           .digest('hex'),
         approvedHistory[5].hash,
+      );
+      assert.deepEqual(currentJournal.entries.at(-1), {
+        idx: 6,
+        version: '7',
+        when: 1791936000006,
+        tag: '0006_asset_versions',
+        breakpoints: true,
+      });
+      assert.equal(
+        createHash('sha256')
+          .update(
+            await readFile(
+              new URL(
+                '../../packages/server/migrations/0006_asset_versions.sql',
+                import.meta.url,
+              ),
+            ),
+          )
+          .digest('hex'),
+        approvedHistory[6].hash,
       );
       await mkdir(baselineRoot);
       const source = execFileSync(
@@ -278,7 +302,7 @@ test(
         '--archive',
         archive,
       ]);
-      assert.equal(result.schemaVersion, 6);
+      assert.equal(result.schemaVersion, 7);
       destination.env = {
         APP_ORIGIN: destination.url,
         LAB_WORD_DATA_DIR: restored,
@@ -345,11 +369,11 @@ test(
         '--output',
         currentArchive,
       ]);
-      assert.equal(currentBackup.schemaVersion, 6);
+      assert.equal(currentBackup.schemaVersion, 7);
       const currentManifest = JSON.parse(
         await readFile(join(currentArchive, 'manifest.json'), 'utf8'),
       );
-      assert.equal(currentManifest.database.schemaVersion, 6);
+      assert.equal(currentManifest.database.schemaVersion, 7);
       assert.deepEqual(currentManifest.database.history, approvedHistory);
       assert.deepEqual(
         currentManifest.database.history[0],
@@ -363,7 +387,7 @@ test(
             currentArchive,
           ])
         ).schemaVersion,
-        6,
+        7,
       );
       await writeFile(
         join(artifacts.evidence, 'guide-archive-result.json'),
@@ -383,6 +407,12 @@ test(
             tag: '0005_source_presence',
             schemaVersion: 6,
             ...approvedHistory[5],
+          },
+          approvedAssetMigration: {
+            issue: 'https://github.com/CaiZongyuan/labworld/issues/88',
+            tag: '0006_asset_versions',
+            schemaVersion: 7,
+            ...approvedHistory[6],
           },
           restore: result,
           identityPreserved: true,

@@ -1,5 +1,6 @@
 import { z } from '@hono/zod-openapi';
 import { LabAsset } from '../assets/routes.ts';
+import { CompleteAssetVersion } from '../asset-registry/dto.ts';
 const instant = z.string().openapi({ format: 'date-time' }),
   i64 = z
     .number()
@@ -38,6 +39,7 @@ export const AssetDefinition = z
     capabilities: z.array(DefinitionCapability),
     state: jsonValue,
     interfaces: z.array(DefinitionInterface),
+    asset_version: CompleteAssetVersion.optional(),
   })
   .openapi('AssetDefinition');
 export const RuntimeBinding = z
