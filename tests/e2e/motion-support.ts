@@ -210,7 +210,16 @@ export async function prepare(page: Page, browser: Browser) {
   });
   const second = await secondContext.newPage();
   await register(second);
+  const modelAcquisitions: { authorizations: number; reads: number }[] = [];
   for (const viewer of [page, second]) {
+    const counts = { authorizations: 0, reads: 0 };
+    modelAcquisitions.push(counts);
+    viewer.on('request', (request) => {
+      const path = new URL(request.url()).pathname;
+      if (path === `/api/v1/lab/assets/${asset.id}/download`)
+        counts.authorizations++;
+      if (path === `/objects/${asset.representation.file_id}`) counts.reads++;
+    });
     await viewer.goto(`/lab?lab=${lab.id}`);
     await expect(
       viewer.getByRole('heading', {
@@ -226,6 +235,7 @@ export async function prepare(page: Page, browser: Browser) {
     api,
     second,
     secondContext,
+    modelAcquisitions,
     before: await api.json('GET', `/api/v1/lab/labs/${lab.id}/world`),
   };
 }

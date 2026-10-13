@@ -17,6 +17,7 @@ import {
 import { ModelImportError } from './glb';
 import { errorCodeOf } from '@labos-threejs/core';
 import { sessionKey } from '../identity/session';
+import { useModelAuthority } from './model-authority';
 
 export type ModelInfo = {
   meshes: number;
@@ -43,7 +44,12 @@ export type ModelAsset = AssetDetails &
         author: string;
         license: string;
       }
-    | { source: 'remote'; asset: LabAsset; apiClient: ApiClient }
+    | {
+        source: 'remote';
+        asset: LabAsset;
+        apiClient: ApiClient;
+        authority: object;
+      }
   );
 
 export const presetAsset: ModelAsset = {
@@ -80,6 +86,7 @@ export type AssetMetadata = {
 // Selection and rendered metrics are local; asset identity and bytes belong to the server.
 export function useCatalog(apiClient: ApiClient, identity: CurrentSession) {
   const client = useQueryClient();
+  const authority = useModelAuthority(apiClient, identity);
   const userId = identity.user.id;
   const key = useMemo(
     () => ['lab', 'assets', apiClient.getConfig().baseUrl, userId] as const,
@@ -126,11 +133,12 @@ export function useCatalog(apiClient: ApiClient, identity: CurrentSession) {
           source: 'remote',
           asset,
           apiClient,
+          authority,
           info: data.info[asset.id],
         }),
       ),
     ],
-    [apiClient, catalog.data, data.info],
+    [apiClient, authority, catalog.data, data.info],
   );
   const activate = useCallback(
     (id: string) => {

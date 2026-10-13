@@ -69,6 +69,7 @@ import { useAppMessage } from '../shell/messages';
 import { ErrorAlert } from '../shell/error-alert';
 import { errorCodeOf } from '@labos-threejs/core';
 import { useCatalog, type ModelAsset } from './catalog';
+import { useModelAuthority } from './model-authority';
 import { PerformancePanel, Tool } from './view-controls';
 import { ViewportBoundary } from './viewport-boundary';
 import type { RenderMetrics } from './viewport-state';
@@ -272,6 +273,7 @@ export default function WorldView() {
       ) ?? [],
     [world.data?.entities, sourceAttempts],
   );
+  const modelAuthority = useModelAuthority(apiClient, identity);
   const modelAssets = useMemo(
     () =>
       world.data?.assets.map((asset): ModelAsset => ({
@@ -282,8 +284,9 @@ export default function WorldView() {
         source: 'remote',
         asset,
         apiClient,
+        authority: modelAuthority,
       })) ?? [],
-    [world.data?.assets, apiClient],
+    [world.data?.assets, apiClient, modelAuthority],
   );
   const renderSnapshot =
     !editing &&
@@ -323,10 +326,11 @@ export default function WorldView() {
           source: 'remote',
           asset,
           apiClient,
+          authority: modelAuthority,
         });
     }
     return byNode;
-  }, [renderSnapshot, apiClient]);
+  }, [renderSnapshot, apiClient, modelAuthority]);
   const selected = entities.find((entity) => entity.id === selection.at(-1));
   const inspectorVisible =
     !recordsView &&
