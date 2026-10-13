@@ -99,8 +99,21 @@ import {
 } from './layout-editor';
 import './lab.css';
 import './world.css';
+import { markStaticCanvasLifecycle } from './static-canvas-lifecycle';
 
-const WorldViewport = lazy(() => import('./world-viewport'));
+const WorldViewport = lazy(() => {
+  markStaticCanvasLifecycle('lazy-start');
+  const request = import('./world-viewport');
+  try {
+    request.then(
+      () => markStaticCanvasLifecycle('lazy-resolve'),
+      () => markStaticCanvasLifecycle('lazy-reject'),
+    );
+  } catch {
+    // The original import Promise remains React's input.
+  }
+  return request;
+});
 const NARROW_WORKSPACE_QUERY = '(max-width: 560px)';
 function narrowWorkspaceSnapshot() {
   return (

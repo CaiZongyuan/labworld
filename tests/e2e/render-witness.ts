@@ -45,6 +45,7 @@ export async function captureRenderWitness(page: Page, name: string) {
         | null;
       return {
         browserAt: performance.now(),
+        documentEpoch: performance.timeOrigin,
         documentVisibility: document.visibilityState,
         worldPresent: !!world,
         worldBusy: world?.getAttribute('aria-busy'),

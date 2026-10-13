@@ -6,6 +6,7 @@ import { randomUUID } from 'node:crypto';
 import { CoreHttp } from '../support/core-http';
 import { captureRenderWitness } from './render-witness';
 import { observeBrowserFailure } from './lab-browser-facts';
+import { observeStaticCanvasLifecycle } from './static-canvas-lifecycle-facts';
 import { publishAsset } from '../support/lab-assets-http';
 import {
   freshRenderMetrics,
@@ -22,10 +23,16 @@ const browserFailures = new WeakMap<
   Page,
   ReturnType<typeof observeBrowserFailure>
 >();
+const lifecycleFacts = new WeakMap<
+  Page,
+  ReturnType<typeof observeStaticCanvasLifecycle>
+>();
 test.beforeEach(({ page }) => {
   browserFailures.set(page, observeBrowserFailure(page));
+  lifecycleFacts.set(page, observeStaticCanvasLifecycle(page));
 });
 test.afterEach(async ({ page }, testInfo) => {
+  const verdictAt = performance.now();
   const observer = browserFailures.get(page);
   try {
     await captureRenderWitness(page, 'static-render-final');
@@ -53,6 +60,34 @@ test.afterEach(async ({ page }, testInfo) => {
   } catch {
     // Diagnostic collection must preserve the original verdict.
   } finally {
+    const lifecycle = lifecycleFacts.get(page);
+    try {
+      if (lifecycle)
+        writeFileSync(
+          join(
+            process.env.LAB_NODE_EVIDENCE ?? 'test-results',
+            'static-render-lifecycle.json',
+          ),
+          JSON.stringify(
+            {
+              at: new Date().toISOString(),
+              candidate: process.env.DIAGNOSTIC_HEAD,
+              observedAfterVerdict: true,
+              status: testInfo.status,
+              verdictAt,
+              ...lifecycle.snapshot(),
+            },
+            null,
+            2,
+          ),
+          { mode: 0o600 },
+        );
+    } catch {
+      // Node marker-buffer flush cannot replace the original verdict.
+    } finally {
+      lifecycle?.dispose();
+      lifecycleFacts.delete(page);
+    }
     observer?.dispose();
     browserFailures.delete(page);
   }
