@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { assetVersionApiParts } from '../../scripts/lib/asset-version-api.ts';
 import { semanticDifferences } from '../../scripts/lib/contract-openapi.ts';
 
@@ -42,6 +43,20 @@ const source = {
     },
   },
 };
+
+test('the generated asset version API matches seven approved operations and the complete definition extension', () => {
+  const read = (path) => JSON.parse(readFileSync(path, 'utf8')),
+    actual = assetVersionApiParts(
+      read('packages/contracts/openapi.json'),
+    ).addition;
+  assert.deepEqual(
+    semanticDifferences(read('tests/contract/asset-version-api.json'), actual),
+    [],
+  );
+  assert.equal(Object.keys(actual.paths).length, 6);
+  assert.equal(Object.values(actual.paths).flatMap(Object.keys).length, 7);
+  assert.ok(actual['x-asset-definition-version']);
+});
 
 test('only the optional asset version field leaves the unchanged definition closure', () => {
   const original = structuredClone(source),
