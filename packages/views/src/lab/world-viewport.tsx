@@ -20,6 +20,9 @@ import {
 import {
   Box3,
   Group,
+  Mesh,
+  Frustum,
+  Matrix4,
   PerspectiveCamera,
   Vector3,
   type WebGLRenderer,
@@ -674,6 +677,66 @@ function Scene({
         delete canvas.getMotionDiagnostics;
     };
   }, [gl, motion, motionScene]);
+  useEffect(() => {
+    const canvas = gl.domElement as HTMLCanvasElement & {
+      getRenderSceneDiagnostics?: () => unknown;
+      getRenderMetricProgress?: () => unknown;
+    };
+    const inspect = () => {
+      const frustum = new Frustum().setFromProjectionMatrix(
+        new Matrix4().multiplyMatrices(
+          camera.projectionMatrix,
+          camera.matrixWorldInverse,
+        ),
+      );
+      const nodes = (root.current?.children ?? []).slice(0, 128).map((node) => {
+        const meshes: {
+          visible: boolean;
+          inFrustum: boolean;
+          triangles: number;
+          worldMatrix: number[];
+        }[] = [];
+        node.traverse((object) => {
+          if (!(object instanceof Mesh)) return;
+          const materials = Array.isArray(object.material)
+            ? object.material
+            : [object.material];
+          meshes.push({
+            visible:
+              object.visible && materials.some((material) => material.visible),
+            inFrustum: frustum.intersectsObject(object),
+            triangles:
+              (object.geometry.index?.count ??
+                object.geometry.getAttribute('position')?.count ??
+                0) / 3,
+            worldMatrix: object.matrixWorld.toArray(),
+          });
+        });
+        return {
+          nodeId: node.userData.nodeId,
+          worldMatrix: node.matrixWorld.toArray(),
+          meshes,
+        };
+      });
+      return {
+        viewport: { width: size.width, height: size.height },
+        camera: {
+          position: camera.position.toArray(),
+          projection: camera.projectionMatrix.toArray(),
+          inverseWorld: camera.matrixWorldInverse.toArray(),
+        },
+        frame: gl.info.render.frame,
+        triangles: gl.info.render.triangles,
+        sampler: canvas.getRenderMetricProgress?.(),
+        nodes,
+      };
+    };
+    canvas.getRenderSceneDiagnostics = inspect;
+    return () => {
+      if (canvas.getRenderSceneDiagnostics === inspect)
+        delete canvas.getRenderSceneDiagnostics;
+    };
+  }, [gl, camera, size.width, size.height]);
   const [loaded, setLoaded] = useState(0);
   const framing = useRef<{
     framed: boolean;

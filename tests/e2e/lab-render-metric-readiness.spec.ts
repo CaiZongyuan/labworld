@@ -4,6 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { CoreHttp } from '../support/core-http';
+import { captureRenderWitness } from './render-witness';
 import { publishAsset } from '../support/lab-assets-http';
 import {
   freshRenderMetrics,
@@ -16,6 +17,9 @@ type StreamGateWindow = {
 };
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
+test.afterEach(async ({ page }) => {
+  await captureRenderWitness(page, 'static-render-final');
+});
 
 test('render metrics wait for the requested World while its real stream update is delayed', async ({
   page,
@@ -106,8 +110,15 @@ test('render metrics wait for the requested World while its real stream update i
     'aria-busy',
     'false',
   );
+  await captureRenderWitness(page, 'static-render-before-performance');
   await page.getByRole('button', { name: '性能', exact: true }).click();
-  await expect(page.locator('.lab-perf')).toBeVisible();
+  await captureRenderWitness(page, 'static-render-after-performance');
+  try {
+    await expect(page.locator('.lab-perf')).toBeVisible();
+  } catch (error) {
+    await captureRenderWitness(page, 'static-render-initial-sample-failure');
+    throw error;
+  }
   const mark = await markRenderMetrics(page);
   const baseline = await freshRenderMetrics(
     page,

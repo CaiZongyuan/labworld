@@ -1,5 +1,5 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useEffect, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
 import type { RenderMetrics } from './viewport-state';
 
 export function MetricSampler({
@@ -8,6 +8,23 @@ export function MetricSampler({
   onMetrics: (metrics: RenderMetrics) => void;
 }) {
   const sample = useRef({ elapsed: 0, frames: 0 });
+  const gl = useThree((state) => state.gl);
+  useEffect(() => {
+    const canvas = gl.domElement as HTMLCanvasElement & {
+      getRenderMetricProgress?: () => unknown;
+    };
+    const inspect = () => ({
+      elapsed: sample.current.elapsed,
+      frames: sample.current.frames,
+      frame: gl.info.render.frame,
+      triangles: gl.info.render.triangles,
+    });
+    canvas.getRenderMetricProgress = inspect;
+    return () => {
+      if (canvas.getRenderMetricProgress === inspect)
+        delete canvas.getRenderMetricProgress;
+    };
+  }, [gl]);
   useFrame(({ gl }, delta) => {
     sample.current.elapsed += delta;
     sample.current.frames++;

@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { bindMotionPeer, type MotionPeer } from '../support/motion-socket';
 import { WebSocket } from 'ws';
 import { assertResourceConvergence } from './motion-resources';
+import { captureRenderWitness } from './render-witness';
 import {
   assertTrajectory,
   assertAdvanced,
@@ -105,11 +106,21 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
     assertTrajectory(advancedA, world.fixture.session_id);
     assertTrajectory(advancedB, world.fixture.session_id);
     const geometry = [];
-    for (const viewer of [page, world.second]) {
+    for (const [index, viewer] of [page, world.second].entries()) {
+      let observations = 0;
+      await captureRenderWitness(viewer, 'motion-render-before-' + index);
       const sample = await eventually(
-        () => metrics(viewer),
+        async () => {
+          if (observations++ < 16)
+            await captureRenderWitness(viewer, 'motion-render-poll-' + index);
+          return metrics(viewer);
+        },
         (value) => Number(value.stats['三角形']?.replaceAll(',', '')) >= 240,
-      );
+      ).catch(async (error) => {
+        await captureRenderWitness(page, 'motion-render-failure-0');
+        await captureRenderWitness(world.second, 'motion-render-failure-1');
+        throw error;
+      });
       // The tracked cube has twelve triangles; twenty rendered copies need 240.
       expect(
         Number(sample.stats['三角形']?.replaceAll(',', '')),
