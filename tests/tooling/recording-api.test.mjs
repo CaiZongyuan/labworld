@@ -1,3 +1,4 @@
+import { assetVersionApiParts } from '../../scripts/lib/asset-version-api.ts';
 import { sourceApiParts } from '../../scripts/lib/source-api.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -22,7 +23,9 @@ const admissionFields = (doc) =>
   );
 
 function differences(document) {
-  const recordings = recordingApiParts(sourceApiParts(document).existing);
+  const recordings = recordingApiParts(
+    sourceApiParts(assetVersionApiParts(document).existing).existing,
+  );
   const sessions = sessionApiParts(recordings.existing);
   const motion = motionApiParts(sessions.existing);
   const progress = guideProgressApiParts(motion.existing);
@@ -117,7 +120,9 @@ test('only the optional admission field dependency leaves the unchanged Session 
   admissionFields(candidate).properties.recording = {
     $ref: '#/components/schemas/RecordingAdmissionBootstrap',
   };
-  const recordings = recordingApiParts(candidate);
+  const recordings = recordingApiParts(
+    sourceApiParts(assetVersionApiParts(candidate).existing).existing,
+  );
   const sessions = sessionApiParts(recordings.existing);
   assert.deepEqual(semanticDifferences(sessionBaseline, sessions.addition), []);
   assert.deepEqual(
@@ -133,7 +138,9 @@ test('only the optional admission field dependency leaves the unchanged Session 
   assert.deepEqual(
     semanticDifferences(
       recordings.addition,
-      recordingApiParts(candidate).addition,
+      recordingApiParts(
+        sourceApiParts(assetVersionApiParts(candidate).existing).existing,
+      ).addition,
     ),
     [
       '/components/schemas/RecordingAdmissionBootstrap/properties/unreviewed_capability',
