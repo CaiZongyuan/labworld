@@ -26,7 +26,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from '@labos-threejs/ui/components/dialog';
-import { Input } from '@labos-threejs/ui/components/input';
 import { usePreferences } from '../shell/preferences';
 import { AssetFailure } from './asset-dialogs';
 
@@ -210,11 +209,11 @@ export function CompleteAssets({
           )}
           {pending ? copy.importing : copy.import}
         </Button>
-        <Input
+        <input
           ref={input}
+          hidden
           type="file"
           accept="application/json,.json"
-          className="sr-only"
           aria-label={copy.file}
           onChange={(event) => {
             const file = event.target.files?.[0];

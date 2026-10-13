@@ -10,6 +10,7 @@ import { sessionApiParts } from '../../scripts/lib/session-api';
 import { motionApiParts } from '../../scripts/lib/motion-api';
 import { recordingApiParts } from '../../scripts/lib/recording-api';
 import { sourceApiParts } from '../../scripts/lib/source-api';
+import { assetVersionApiParts } from '../../scripts/lib/asset-version-api';
 import { HttpClient } from './http';
 const baseline = JSON.parse(
   readFileSync('tests/contract/api-baseline.json', 'utf8'),
@@ -30,8 +31,12 @@ const recordingAddition = JSON.parse(
 const sourceAddition = JSON.parse(
   readFileSync('tests/contract/source-api.json', 'utf8'),
 ) as Json;
+const assetAddition = JSON.parse(
+  readFileSync('tests/contract/asset-version-api.json', 'utf8'),
+) as Json;
 function differences(document: Json) {
-  const sources = sourceApiParts(document);
+  const assets = assetVersionApiParts(document);
+  const sources = sourceApiParts(assets.existing);
   const recordings = recordingApiParts(sources.existing);
   const sessions = sessionApiParts(recordings.existing);
   const motion = motionApiParts(sessions.existing);
@@ -43,9 +48,10 @@ function differences(document: Json) {
     ...semanticDifferences(sessionAddition, sessions.addition),
     ...semanticDifferences(recordingAddition, recordings.addition),
     ...semanticDifferences(sourceAddition, sources.addition),
+    ...semanticDifferences(assetAddition, assets.addition),
   ];
 }
-test('API-01 retained Rust OpenAPI and approved guide/motion/Session/Recording/Source additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
+test('API-01 retained Rust OpenAPI and approved guide/motion/Session/Recording/Source/Asset additions have no drift; DTO,operation,status,error,security changes are detected', async () => {
   const source = await new HttpClient().json<Json>('GET', '/api/openapi.json');
   const retained = retainedOpenApi(source);
   expect(differences(retained)).toEqual([]);
@@ -126,6 +132,37 @@ test('API-01 retained Rust OpenAPI and approved guide/motion/Session/Recording/S
     },
     (api) => {
       delete (api.paths as typeof paths)[progress].put;
+    },
+  );
+  const assets = '/api/v1/lab/asset-versions';
+  cases.push(
+    (api) => {
+      (api.paths as typeof paths)[assets].post.operationId =
+        'importUnapprovedAssetVersion';
+    },
+    (api) => {
+      (api.paths as typeof paths)[assets].put = structuredClone(
+        paths[assets].post,
+      );
+    },
+    (api) => {
+      (api.paths as typeof paths)[assets + '/future'] = {
+        get: structuredClone(paths[assets].get),
+      };
+    },
+    (api) => {
+      delete (api.paths as typeof paths)[assets].post;
+    },
+    (api) => {
+      (
+        (api.components as Record<string, Json>).schemas as Record<string, Json>
+      ).CompleteAssetVersion = { type: 'string' };
+    },
+    (api) => {
+      const definition = (
+        (api.components as Record<string, Json>).schemas as Record<string, Json>
+      ).AssetDefinition as Record<string, Json>;
+      (definition.required as Json[]).push('asset_version');
     },
   );
   const fixture = '/api/v1/lab/labs/{lab_id}/motion-fixture';
