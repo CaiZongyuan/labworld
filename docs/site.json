@@ -593,6 +593,17 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "entity-lifecycle"
+    },
+    {
+      "id": "source-presence",
+      "source": "docs/tutorials/source-presence.md",
+      "sourceEn": "docs/tutorials/source-presence.en.md",
+      "route": "tutorials/source-presence.md",
+      "title": "来源在线与接入配置",
+      "titleEn": "Source presence and configuration",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "quickstart"
     }
   ],
   "references": [

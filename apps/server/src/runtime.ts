@@ -4,10 +4,16 @@ import { sessionRoutes } from '../../../packages/server/src/lab/sessions/routes.
 import { MachineService } from '../../../packages/server/src/core/machines/use-cases.ts';
 import { machineRoutes } from '../../../packages/server/src/core/machines/routes.ts';
 import { SyntheticSources } from './synthetic-source.ts';
+import { SourceService } from '../../../packages/server/src/lab/sources/service.ts';
+import { sourceRoutes } from '../../../packages/server/src/lab/sources/routes.ts';
 import { serve } from '@hono/node-server';
 import { createServer as createHttpsServer } from 'node:https';
 import { createSecureContext } from 'node:tls';
-import { secureTransport, transportLog } from './transport.ts';
+import {
+  secureTransport,
+  transportLog,
+  motionTransportAllowed,
+} from './transport.ts';
 import { getConnInfo } from '@hono/node-server/conninfo';
 import type { Server } from 'node:http';
 import { MotionWebSockets } from './motion-ws.ts';
@@ -213,6 +219,7 @@ export async function run(
         motion?: MotionWebSockets;
         recordingSockets?: RecordingWebSockets;
         sources?: SyntheticSources;
+        sourcePresence?: SourceService;
         subscriptions?: WorldSubscriptions;
         maintenance?: ReturnType<typeof historyScheduler>;
         scheduler?: ReturnType<typeof fileScheduler>;
@@ -229,6 +236,7 @@ export async function run(
           () => owners.scheduler?.stop(),
           () => owners.devices?.stop(),
           () => owners.subscriptions?.stop(),
+          () => owners.sourcePresence?.stop(),
           () => owners.sessions?.stop(),
           () => owners.recording?.stop(),
           () => owners.sources?.stop(),
@@ -258,6 +266,17 @@ export async function run(
       registerAssetFileOwnership(files);
       assetRoutes(app, files);
       const world = new WorldService(context, config.auth);
+      const sourcePresence = new SourceService(
+        world,
+        tls
+          ? config.auth.origin
+          : `http://${config.hostname === '::1' ? '[::1]' : config.hostname}:${config.port}`,
+      );
+      owners.sourcePresence = sourcePresence;
+      await sourcePresence.initialize();
+      sourceRoutes(app, sourcePresence, (c) =>
+        motionTransportAllowed(c.env?.incoming),
+      );
       const recording = new RecordingService(
         world,
         files,
@@ -310,9 +329,12 @@ export async function run(
       );
       machineRoutes(
         app,
-        new MachineService(context, config.auth, 'lab:full', (id) =>
-          sessions.machineRevoked(id),
-        ),
+        new MachineService(context, config.auth, 'lab:full', async (id) => {
+          await Promise.all([
+            sessions.machineRevoked(id),
+            sourcePresence.machineRevoked(id),
+          ]);
+        }),
       );
       const recordingSockets: RecordingWebSockets = new RecordingWebSockets(
         recording,
