@@ -166,12 +166,126 @@ test('real Lab records retain failed pages, export the current page and open the
       (item) => item.name === 'Recorded centrifuge',
     )!;
     const path = `/api/v1/lab/labs/${lab}/entities/${entity.id}`;
+    const readinessFacts: object[] = [];
+    let startedRun: string | undefined;
+    const project = (value: LabEntity | undefined) => ({
+      present: !!value,
+      runStatus: value?.program_run?.status ?? null,
+      matchesStartedRun: !!startedRun && value?.program_run?.id === startedRun,
+      bindingMatchesRun:
+        !!value?.program_run &&
+        value.program_run.binding_id === value.binding?.id,
+      bindingProgram: value?.binding?.program_id ?? null,
+      archived: !!value?.archived_at,
+      taskStatus: value?.task?.status ?? null,
+      capability: value?.capabilities
+        .filter((capability) => capability.id === 'centrifuge.start')
+        .map((capability) => ({
+          supported: capability.definition_supported,
+          implemented: capability.binding_implemented,
+          executable: capability.executable,
+          reason: capability.reason,
+        })),
+      observationFreshness: value?.observation?.freshness ?? null,
+      observationMatchesRun:
+        !!value?.observation &&
+        value.observation.run_id === value.program_run?.id,
+    });
+    page.on('response', async (response) => {
+      const pathname = new URL(response.url()).pathname;
+      if (readinessFacts.length >= 16) return;
+      try {
+        if (pathname === path + '/program/start') {
+          const body = await response.json();
+          if (response.status() === 201) startedRun = body.id;
+          readinessFacts.push({
+            kind: 'program-start',
+            status: response.status(),
+            runStatus: body.status ?? null,
+            code: body.error?.code ?? null,
+          });
+        } else if (pathname === worldPath) {
+          const body = (await response.json()) as LabWorld;
+          readinessFacts.push({
+            kind: 'browser-world',
+            status: response.status(),
+            version: body.version,
+            runtime: response.headers()['x-lab-runtime'],
+            entity: project(
+              body.entities?.find((value) => value.id === entity.id),
+            ),
+          });
+        }
+      } catch {
+        /* Missing evidence cannot replace the original assertion. */
+      }
+    });
     await centrifuge
       .getByRole('button', { name: '启动程序', exact: true })
       .click();
-    await expect(
-      centrifuge.getByRole('button', { name: '开始离心', exact: true }),
-    ).toBeEnabled();
+    try {
+      await expect(
+        centrifuge.getByRole('button', { name: '开始离心', exact: true }),
+      ).toBeEnabled();
+    } finally {
+      try {
+        const dom = await centrifuge.evaluate((inspector) => ({
+          sampledAt: performance.now(),
+          programBadges: Array.from(
+            inspector.querySelectorAll(
+              '.device-panel .lab-section-heading span',
+            ),
+          ).map((value) => value.textContent),
+          buttons: Array.from(inspector.querySelectorAll('button'))
+            .filter((value) =>
+              /^(启动程序|停止程序|开始离心|停止離心)$/.test(
+                value.textContent?.trim() ?? '',
+              ),
+            )
+            .map((value) => ({
+              name: value.textContent?.trim(),
+              disabled: value.disabled,
+            })),
+          programFeedback: Array.from(
+            inspector.querySelectorAll('[role="status"], [role="alert"]'),
+          ).map((value) => value.textContent?.trim()),
+          inputs: Array.from(
+            inspector.querySelectorAll('.centrifuge-panel input'),
+          ).map((value) => ({
+            disabled: (value as HTMLInputElement).disabled,
+          })),
+          worldBusy: inspector
+            .closest('.world-page')
+            ?.getAttribute('aria-busy'),
+        }));
+        const response = await agent.get(worldPath, { timeout: 500 });
+        const body = (await response.json()) as LabWorld;
+        writeFileSync(
+          join(
+            process.env.LAB_NODE_EVIDENCE ?? evidence,
+            'DEBUG-88-records-readiness.json',
+          ),
+          JSON.stringify(
+            {
+              readinessFacts,
+              dom,
+              authoritative: {
+                status: response.status(),
+                version: body.version,
+                runtime: response.headers()['x-lab-runtime'],
+                entity: project(
+                  body.entities.find((value) => value.id === entity.id),
+                ),
+              },
+            },
+            null,
+            2,
+          ),
+        );
+      } catch {
+        // Missing diagnostic evidence must not replace the original verdict.
+      }
+    }
     await centrifuge.getByLabel('目标转速 (rpm)').fill('500');
     await centrifuge.getByLabel('目标温度 (degC)').fill('22');
     await centrifuge.getByLabel('任务时长 (s)').fill('6');
