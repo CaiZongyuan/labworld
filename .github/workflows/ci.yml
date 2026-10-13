@@ -1,15 +1,15 @@
 # Temporary diagnostic branch only; do not merge this workflow into delivery.
-name: CI static Canvas diagnosis
+name: CI static Canvas lifecycle diagnosis
 on:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: static-canvas-diagnosis-${{ github.ref }}
+  group: static-canvas-lifecycle-diagnosis-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   original-static-witness:
-    name: Original static World-readiness witness
+    name: Original static World-readiness lifecycle witness
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -45,7 +45,7 @@ jobs:
             chromium: execFileSync(chromium.executablePath(), ['--version'], { encoding: 'utf8' }).trim(),
             kernel: release(), arch: arch(), cpus: cpus().length,
             referenceLoad: process.env.E2E_LAB_REFERENCE_LOAD,
-            coverage: ['original static World-readiness regression'],
+            coverage: ['original static World-readiness regression with lifecycle observer'],
           }, null, 2));
           JS
       - name: Original static World-readiness regression
@@ -55,7 +55,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: original-static-canvas-readiness-evidence
+          name: original-static-canvas-lifecycle-evidence
           path: |
             .scratch/renderer-hosted/*.json
             .scratch/vnext-m1/**/*.json

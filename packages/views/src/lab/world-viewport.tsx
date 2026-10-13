@@ -49,6 +49,10 @@ import {
   MotionSceneController,
   type MotionDiagnosticCanvas,
 } from './motion-scene';
+import {
+  beginStaticCanvasLifecycleInstance,
+  markStaticCanvasLifecycle,
+} from './static-canvas-lifecycle';
 
 type Tuple = [number, number, number];
 function Block({
@@ -956,6 +960,9 @@ export default function WorldViewport(props: {
   onBusy: (busy: boolean) => void;
   motion?: MotionBuffer | null;
 }) {
+  const lifecycleInstance = useRef(0);
+  if (lifecycleInstance.current === 0)
+    lifecycleInstance.current = beginStaticCanvasLifecycleInstance();
   const message = useAppMessage('lab');
   const [renderer, setRenderer] = useState<WebGLRenderer | null>(null);
   const [failed, setFailed] = useState<Record<string, string>>({});
@@ -971,6 +978,7 @@ export default function WorldViewport(props: {
     [],
   );
   const created = useCallback(({ gl }: RootState) => {
+    markStaticCanvasLifecycle('canvas-created', lifecycleInstance.current);
     gl.domElement.tabIndex = 0;
     setRenderer(gl);
   }, []);
@@ -989,6 +997,7 @@ export default function WorldViewport(props: {
     [],
   );
   useEffect(() => {
+    markStaticCanvasLifecycle('viewport-commit', lifecycleInstance.current);
     renderer?.domElement.setAttribute('aria-label', props.label);
   }, [renderer, props.label]);
   const onBusy = props.onBusy;
