@@ -333,6 +333,7 @@
     "tests/server/asset-versions.test.ts",
     "tests/e2e/lab-complete-assets.spec.ts",
     "apps/web/src/lab-complete-assets.test.tsx",
-    "tests/server/asset-version-upgrade.test.ts"
+    "tests/server/asset-version-upgrade.test.ts",
+    "tests/server/asset-schema-conjunction.test.ts"
   ]
 }

@@ -118,25 +118,67 @@ export function fieldSchema(schema: Record<string, unknown>) {
       typeof entry.additionalProperties !== 'boolean'
     )
       invalidDescription('additionalProperties must be boolean');
+    if (entry.enum !== undefined && !Array.isArray(entry.enum))
+      invalidDescription('enum must be an array of JSON values');
   };
   visit(schema, 0);
-  const annotationsOnly = (
+  const structuralSchema = (
     schema: Record<string, unknown>,
   ): Record<string, unknown> => {
     const value = { ...schema };
     delete value.default;
+    // The converter treats enum/const as replacements for sibling constraints.
+    // Preserve structural validation here and intersect literal constraints below.
+    delete value.enum;
+    delete value.const;
     if (value.properties)
       value.properties = Object.fromEntries(
         Object.entries(
           value.properties as Record<string, Record<string, unknown>>,
-        ).map(([key, child]) => [key, annotationsOnly(child)]),
+        ).map(([key, child]) => [key, structuralSchema(child)]),
       );
     if (value.items)
-      value.items = annotationsOnly(value.items as Record<string, unknown>);
+      value.items = structuralSchema(value.items as Record<string, unknown>);
     return value;
   };
+  const literalConstraints = (
+    schema: Record<string, unknown>,
+    value: unknown,
+  ): boolean => {
+    if (Array.isArray(schema.enum) || Object.hasOwn(schema, 'const')) {
+      const actual = JSON.stringify(canonical(value));
+      const equal = (expected: unknown) =>
+        actual === JSON.stringify(canonical(expected));
+      if (Array.isArray(schema.enum) && !schema.enum.some(equal)) return false;
+      if (Object.hasOwn(schema, 'const') && !equal(schema.const)) return false;
+    }
+    if (
+      schema.properties &&
+      value &&
+      typeof value === 'object' &&
+      !Array.isArray(value)
+    ) {
+      for (const [key, child] of Object.entries(
+        schema.properties as Record<string, Record<string, unknown>>,
+      )) {
+        if (
+          Object.hasOwn(value, key) &&
+          !literalConstraints(child, (value as Record<string, unknown>)[key])
+        )
+          return false;
+      }
+    }
+    if (schema.items && Array.isArray(value)) {
+      for (const item of value)
+        if (!literalConstraints(schema.items as Record<string, unknown>, item))
+          return false;
+    }
+    return true;
+  };
   try {
-    return z.fromJSONSchema(annotationsOnly(schema));
+    return z
+      .fromJSONSchema(structuralSchema(schema))
+      .refine((value) => literalConstraints(schema, value));
   } catch {
     return invalidDescription('Use a valid supported JSON field schema');
   }
