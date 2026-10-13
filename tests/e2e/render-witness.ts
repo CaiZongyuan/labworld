@@ -49,6 +49,11 @@ export async function captureRenderWitness(page: Page, name: string) {
         worldPresent: !!world,
         worldBusy: world?.getAttribute('aria-busy'),
         viewportHidden: viewport?.hidden,
+        lazyLoading: !!world?.querySelector('.lab-loading'),
+        renderError: !!world?.querySelector('.world-render-error'),
+        renderBoundaryError: viewport?.dataset.renderBoundaryError,
+        renderBoundaryReason: viewport?.dataset.renderBoundaryReason,
+        webglAvailable: typeof WebGL2RenderingContext !== 'undefined',
         canvas: rect
           ? {
               width: rect.width,
