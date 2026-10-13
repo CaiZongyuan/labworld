@@ -1,15 +1,15 @@
 # Temporary diagnostic branch only; do not merge this workflow into delivery.
-name: CI renderer diagnosis
+name: CI static Canvas diagnosis
 on:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: renderer-diagnosis-${{ github.ref }}
+  group: static-canvas-diagnosis-${{ github.ref }}
   cancel-in-progress: false
 jobs:
-  targeted-public-witness:
-    name: Original motion, static readiness and records witnesses
+  original-static-witness:
+    name: Original static World-readiness witness
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     env:
@@ -45,23 +45,17 @@ jobs:
             chromium: execFileSync(chromium.executablePath(), ['--version'], { encoding: 'utf8' }).trim(),
             kernel: release(), arch: arch(), cpus: cpus().length,
             referenceLoad: process.env.E2E_LAB_REFERENCE_LOAD,
-            coverage: ['original motion smoke', 'original static World-readiness regression', 'original Lab records journey'],
+            coverage: ['original static World-readiness regression'],
           }, null, 2));
           JS
-      - name: Original motion240, transform, pixels and guards
-        if: ${{ !cancelled() && steps.environment.outcome == 'success' }}
-        run: pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion smoke:'
       - name: Original static World-readiness regression
         if: ${{ !cancelled() && steps.environment.outcome == 'success' }}
         run: pnpm test:e2e tests/e2e/lab-render-metric-readiness.spec.ts
-      - name: Original records readiness and export journey
-        if: ${{ !cancelled() && steps.environment.outcome == 'success' }}
-        run: pnpm test:e2e tests/e2e/lab-records.spec.ts
       - name: Retain only owned safe diagnostics and cleanup facts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: targeted-renderer-readiness-records-evidence
+          name: original-static-canvas-readiness-evidence
           path: |
             .scratch/renderer-hosted/*.json
             .scratch/vnext-m1/**/*.json

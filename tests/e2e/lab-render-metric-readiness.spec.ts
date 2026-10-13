@@ -1,10 +1,11 @@
-import { expect, test } from '@playwright/test';
+import { expect, type Page, test } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { CoreHttp } from '../support/core-http';
 import { captureRenderWitness } from './render-witness';
+import { observeBrowserFailure } from './lab-browser-facts';
 import { publishAsset } from '../support/lab-assets-http';
 import {
   freshRenderMetrics,
@@ -17,8 +18,44 @@ type StreamGateWindow = {
 };
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
-test.afterEach(async ({ page }) => {
-  await captureRenderWitness(page, 'static-render-final');
+const browserFailures = new WeakMap<
+  Page,
+  ReturnType<typeof observeBrowserFailure>
+>();
+test.beforeEach(({ page }) => {
+  browserFailures.set(page, observeBrowserFailure(page));
+});
+test.afterEach(async ({ page }, testInfo) => {
+  const observer = browserFailures.get(page);
+  try {
+    await captureRenderWitness(page, 'static-render-final');
+    if (!observer) return;
+    const browser = await observer();
+    writeFileSync(
+      join(
+        process.env.LAB_NODE_EVIDENCE ?? 'test-results',
+        'static-render-browser-summary.json',
+      ),
+      JSON.stringify(
+        {
+          at: new Date().toISOString(),
+          candidate: process.env.DIAGNOSTIC_HEAD,
+          observedAfterVerdict: true,
+          status: testInfo.status,
+          expectedStatus: testInfo.expectedStatus,
+          browser,
+        },
+        null,
+        2,
+      ),
+      { mode: 0o600 },
+    );
+  } catch {
+    // Diagnostic collection must preserve the original verdict.
+  } finally {
+    observer?.dispose();
+    browserFailures.delete(page);
+  }
 });
 
 test('render metrics wait for the requested World while its real stream update is delayed', async ({

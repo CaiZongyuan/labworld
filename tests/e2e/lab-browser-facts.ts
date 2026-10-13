@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Frame, Page } from '@playwright/test';
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -69,17 +69,21 @@ export function observeBrowserFailure(page: Page) {
   let crashes = 0;
   let closes = 0;
   let mainFrameNavigations = 0;
-  page.on('pageerror', (error) => {
+  const onPageError = (error: Error) => {
     const name = errorName(error);
     pageErrors[name] = (pageErrors[name] ?? 0) + 1;
-  });
-  page.on('crash', () => crashes++);
-  page.on('close', () => closes++);
-  page.on('framenavigated', (frame) => {
+  };
+  const onCrash = () => crashes++;
+  const onClose = () => closes++;
+  const onNavigation = (frame: Frame) => {
     if (frame === page.mainFrame()) mainFrameNavigations++;
-  });
+  };
+  page.on('pageerror', onPageError);
+  page.on('crash', onCrash);
+  page.on('close', onClose);
+  page.on('framenavigated', onNavigation);
 
-  return async () => {
+  const capture = async () => {
     const [frame, browser] = await Promise.all([
       boundedBrowserFact(() =>
         page.mainFrame().evaluate(() => ({
@@ -112,6 +116,14 @@ export function observeBrowserFailure(page: Page) {
       },
     };
   };
+  return Object.assign(capture, {
+    dispose() {
+      page.off('pageerror', onPageError);
+      page.off('crash', onCrash);
+      page.off('close', onClose);
+      page.off('framenavigated', onNavigation);
+    },
+  });
 }
 
 /** Failure-only facts at an owning action; caller keeps the original error. */
