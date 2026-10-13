@@ -37,7 +37,7 @@ import type {
   MotionBuffer,
 } from '@labos-threejs/sdk';
 import type { ModelAsset } from './catalog';
-import { useLoadedModel } from './model-loader';
+import { useLoadedModel, type ModelLoadTrace } from './model-loader';
 import { useAppMessage } from '../shell/messages';
 import { MetricSampler } from './metric-sampler';
 import type { RenderMetrics } from './viewport-state';
@@ -454,6 +454,7 @@ function Imported({
   onReady,
   onError,
   appearance,
+  onDiagnostic,
 }: {
   asset: ModelAsset;
   nodeId: string;
@@ -461,8 +462,14 @@ function Imported({
   onReady: () => void;
   onError: (id: string, appearance: string, error: boolean) => void;
   appearance: string;
+  onDiagnostic: (trace: ModelLoadTrace) => void;
 }) {
-  const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
+  const { model, error } = useLoadedModel(
+    asset,
+    renderer,
+    ignoreInfo,
+    onDiagnostic,
+  );
   useEffect(() => {
     if (model?.id === asset.id) onReady();
   }, [model, asset.id, onReady]);
@@ -511,6 +518,12 @@ const NodeModel = memo(function NodeModel({
   motionScene: MotionSceneController;
 }) {
   const group = useRef<Group>(null);
+  const onDiagnostic = useCallback((trace: ModelLoadTrace) => {
+    if (outer.current)
+      (
+        outer.current as Group & { modelLoadDiagnostics?: ModelLoadTrace }
+      ).modelLoadDiagnostics = trace;
+  }, []);
   const outer = useRef<Group>(null);
   useEffect(() => {
     if (!outer.current) return;
@@ -567,6 +580,7 @@ const NodeModel = memo(function NodeModel({
             onReady={measure}
             onError={onError}
             appearance={appearance}
+            onDiagnostic={onDiagnostic}
           />
         ) : (
           <Builtin entity={entity} connected={connected} />
@@ -714,6 +728,8 @@ function Scene({
         });
         return {
           nodeId: node.userData.nodeId,
+          modelLoad: (node as Group & { modelLoadDiagnostics?: ModelLoadTrace })
+            .modelLoadDiagnostics,
           worldMatrix: node.matrixWorld.toArray(),
           meshes,
         };

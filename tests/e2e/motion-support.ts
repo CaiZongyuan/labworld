@@ -210,7 +210,27 @@ export async function prepare(page: Page, browser: Browser) {
   });
   const second = await secondContext.newPage();
   await register(second);
-  for (const viewer of [page, second]) {
+  for (const [index, viewer] of [page, second].entries()) {
+    if (index === 0 && process.env.MODEL_CAPABILITY_BURST_FAULT === 'true') {
+      let requests = 0;
+      const pending = new Map<object, () => void>();
+      viewer.on('requestfailed', (request) => pending.get(request)?.());
+      await viewer.route('**/assets/*/download', async (route) => {
+        const ordinal = ++requests;
+        const response = await route.fetch();
+        if (ordinal > 13) {
+          await new Promise<void>((resolve) =>
+            pending.set(route.request(), resolve),
+          );
+          pending.delete(route.request());
+        }
+        try {
+          await route.fulfill({ response });
+        } catch (error) {
+          if (!route.request().failure()) throw error;
+        }
+      });
+    }
     await viewer.goto(`/lab?lab=${lab.id}`);
     await expect(
       viewer.getByRole('heading', {
