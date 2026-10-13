@@ -18,10 +18,14 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { useEffect, useRef, useState } from 'react';
-import { getLabAssetDownload } from '@labos-threejs/sdk';
+import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import type { ModelAsset, ModelInfo } from './catalog';
 import { ModelImportError, validateGLB, type ModelErrorKey } from './glb';
+import {
+  acquireModelBytes,
+  modelResourceKey,
+  type ModelByteLease,
+} from './model-bytes';
 
 export type LoadedModel = {
   id: string;
@@ -154,167 +158,78 @@ async function parseModel(
   }
 }
 
-const modelAdmissions = {
-  capabilities: 0,
-  resources: 0,
-  maxCapabilities: 0,
-  maxResources: 0,
-};
-export type ModelLoadTrace = {
-  assetId: string;
-  requestKey: string;
-  events: Record<string, unknown>[];
-  state?: Record<string, unknown>;
-};
 export function useLoadedModel(
   asset: ModelAsset,
   renderer: WebGLRenderer | null,
   onInfo: (id: string, info: ModelInfo) => void,
-  onDiagnostic?: (trace: ModelLoadTrace) => void,
 ) {
-  const input = asset.source === 'preset' ? asset.url : asset.id;
-  const remote = asset.source === 'remote';
+  const input =
+    asset.source === 'preset' ? asset.url : modelResourceKey(asset.asset);
+  const currentRemoteAsset = useEffectEvent(() =>
+    asset.source === 'remote' ? asset.asset : null,
+  );
   const apiClient = asset.source === 'remote' ? asset.apiClient : null;
+  const authority = asset.source === 'remote' ? asset.authority : null;
   const id = asset.id;
-  const [model, setModel] = useState<LoadedModel | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<ModelErrorKey | null>(null);
-  const trace = useRef<ModelLoadTrace>({
-    assetId: id,
-    requestKey: input,
-    events: [],
-  });
-  useEffect(() => {
-    trace.current.state = {
-      loading,
-      error,
-      modelId: model?.id,
-      sceneId: model?.scene.uuid,
-      sceneParent: model?.scene.parent?.uuid,
-      admissions: { ...modelAdmissions },
-    };
-    onDiagnostic?.(trace.current);
-  }, [model, loading, error, onDiagnostic]);
+  const identity = useMemo(
+    () => ({}),
+    [id, input, apiClient, authority, renderer],
+  );
+  const [state, setState] = useState<{
+    identity: object | null;
+    model: LoadedModel | null;
+    loading: boolean;
+    error: ModelErrorKey | null;
+  }>({ identity: null, model: null, loading: false, error: null });
   useEffect(() => {
     if (!renderer) return;
+    const remoteAsset = currentRemoteAsset();
     const controller = new AbortController();
-    const record = (stage: string, facts: Record<string, unknown> = {}) => {
-      if (trace.current.events.length < 24)
-        trace.current.events.push({
-          stage,
-          browserAt: performance.now(),
-          ...facts,
-          admissions: { ...modelAdmissions },
-        });
-      onDiagnostic?.(trace.current);
-    };
-    record('request-start');
-    setLoading(true);
-    setError(null);
+    let lease: ModelByteLease | undefined;
+    let loaded: LoadedModel | null = null;
+    setState({ identity, model: null, loading: true, error: null });
     void (async () => {
       try {
-        let url = input;
-        let headers: Record<string, string> | undefined;
-        if (remote && apiClient) {
-          modelAdmissions.capabilities++;
-          modelAdmissions.maxCapabilities = Math.max(
-            modelAdmissions.maxCapabilities,
-            modelAdmissions.capabilities,
+        let buffer: ArrayBuffer;
+        if (remoteAsset && apiClient && authority) {
+          lease = acquireModelBytes(
+            renderer,
+            { asset: remoteAsset, apiClient, authority },
+            controller.signal,
           );
-          let granted;
-          try {
-            granted = await getLabAssetDownload({
-              client: apiClient,
-              path: { id },
-              signal: controller.signal,
-              throwOnError: true,
-            });
-          } finally {
-            modelAdmissions.capabilities--;
-          }
-          const { data, response: capabilityResponse } = granted;
-          record('capability-ready', {
-            status: capabilityResponse.status,
-            requestId: capabilityResponse.headers.get('x-request-id'),
-            fileId: data.file.id,
-            sha256: data.file.sha256,
-            size: data.file.size,
-          });
-          url = data.url;
-          headers = data.headers;
+          buffer = await lease.bytes;
+        } else {
+          const response = await fetch(input, { signal: controller.signal });
+          if (!response.ok) throw new ModelImportError('failed');
+          buffer = await response.arrayBuffer();
         }
-        record('resource-start', {
-          path: new URL(url, location.href).pathname,
-        });
-        modelAdmissions.resources++;
-        modelAdmissions.maxResources = Math.max(
-          modelAdmissions.maxResources,
-          modelAdmissions.resources,
-        );
-        let response: Response;
-        try {
-          response = await fetch(url, {
-            headers,
-            signal: controller.signal,
-          });
-        } finally {
-          modelAdmissions.resources--;
-        }
-        record('resource-response', {
-          status: response.status,
-          requestId: response.headers.get('x-request-id'),
-        });
-        if (!response.ok) throw new ModelImportError('failed');
-        const buffer = await response.arrayBuffer();
-        record('resource-bytes', { bytes: buffer.byteLength });
-        const next = await parseModel(buffer, id, renderer);
-        record('parsed', {
-          sceneId: next.scene.uuid,
-          meshes: next.info.meshes,
-        });
+        const next = await parseModel(buffer.slice(0), id, renderer);
         if (controller.signal.aborted) {
           disposeModel(next.scene);
           return;
         }
-        setModel(next);
+        loaded = next;
+        setState({ identity, model: next, loading: false, error: null });
         onInfo(id, next.info);
       } catch (cause) {
-        const apiFailure = cause as {
-          error?: { code?: unknown };
-          code?: unknown;
-        };
-        const code = apiFailure?.error?.code ?? apiFailure?.code;
-        record('failed', {
-          aborted: controller.signal.aborted,
-          errorName: cause instanceof Error ? cause.name : 'ApiFailure',
-          code:
-            typeof code === 'string' && /^[a-z_.]{1,120}$/.test(code)
-              ? code
-              : null,
-        });
         if (!controller.signal.aborted)
-          setError(cause instanceof ModelImportError ? cause.key : 'failed');
+          setState({
+            identity,
+            model: null,
+            loading: false,
+            error: cause instanceof ModelImportError ? cause.key : 'failed',
+          });
       } finally {
-        if (!controller.signal.aborted) setLoading(false);
+        lease?.release();
       }
     })();
     return () => {
-      record('request-abort');
       controller.abort();
+      lease?.release();
+      if (loaded) disposeModel(loaded.scene);
     };
-  }, [id, input, apiClient, remote, renderer, onInfo, onDiagnostic]);
-  useEffect(
-    () => () => {
-      if (model) {
-        trace.current.events.push({
-          stage: 'model-dispose',
-          sceneId: model.scene.uuid,
-          browserAt: performance.now(),
-        });
-        disposeModel(model.scene);
-      }
-    },
-    [model],
-  );
-  return { model, loading, error };
+  }, [identity, id, input, apiClient, authority, renderer, onInfo]);
+  return state.identity === identity
+    ? { model: state.model, loading: state.loading, error: state.error }
+    : { model: null, loading: !!renderer, error: null };
 }

@@ -20,9 +20,6 @@ import {
 import {
   Box3,
   Group,
-  Mesh,
-  Frustum,
-  Matrix4,
   PerspectiveCamera,
   Vector3,
   type WebGLRenderer,
@@ -35,9 +32,11 @@ import type {
   SceneNode,
   Placement,
   MotionBuffer,
+  ApiClient,
 } from '@labos-threejs/sdk';
 import type { ModelAsset } from './catalog';
-import { useLoadedModel, type ModelLoadTrace } from './model-loader';
+import { useLoadedModel } from './model-loader';
+import { modelResourceKey } from './model-bytes';
 import { useAppMessage } from '../shell/messages';
 import { MetricSampler } from './metric-sampler';
 import type { RenderMetrics } from './viewport-state';
@@ -441,11 +440,40 @@ function Builtin({
 }
 
 const ignoreInfo = () => {};
-function appearanceKey(node: SceneNode, entity: LabEntity) {
-  return (
+type Appearance = {
+  key: string;
+  authority: object | null;
+  apiClient: ApiClient | null;
+  renderer: WebGLRenderer | null;
+};
+function appearanceKey(node: SceneNode, entity: LabEntity, asset?: ModelAsset) {
+  const key =
     node.representation_id ??
-    `${entity.definition_id}@${entity.definition_version}`
+    `${entity.definition_id}@${entity.definition_version}`;
+  return asset?.source === 'remote'
+    ? `${key}:${modelResourceKey(asset.asset)}`
+    : key;
+}
+function sameAppearance(first: Appearance | undefined, second: Appearance) {
+  return (
+    first?.key === second.key &&
+    first.authority === second.authority &&
+    first.apiClient === second.apiClient &&
+    first.renderer === second.renderer
   );
+}
+function nodeAppearance(
+  node: SceneNode,
+  entity: LabEntity,
+  asset: ModelAsset | undefined,
+  renderer: WebGLRenderer | null,
+): Appearance {
+  return {
+    key: appearanceKey(node, entity, asset),
+    authority: asset?.source === 'remote' ? asset.authority : null,
+    apiClient: asset?.source === 'remote' ? asset.apiClient : null,
+    renderer,
+  };
 }
 function Imported({
   asset,
@@ -454,22 +482,15 @@ function Imported({
   onReady,
   onError,
   appearance,
-  onDiagnostic,
 }: {
   asset: ModelAsset;
   nodeId: string;
   renderer: WebGLRenderer | null;
   onReady: () => void;
-  onError: (id: string, appearance: string, error: boolean) => void;
-  appearance: string;
-  onDiagnostic: (trace: ModelLoadTrace) => void;
+  onError: (id: string, appearance: Appearance, error: boolean) => void;
+  appearance: Appearance;
 }) {
-  const { model, error } = useLoadedModel(
-    asset,
-    renderer,
-    ignoreInfo,
-    onDiagnostic,
-  );
+  const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
   useEffect(() => {
     if (model?.id === asset.id) onReady();
   }, [model, asset.id, onReady]);
@@ -511,19 +532,13 @@ const NodeModel = memo(function NodeModel({
   showReading: boolean;
   onOpenRecentMinute?: (entityId: string) => void;
   onSelect: (id: string, additive: boolean, nodeId?: string) => void;
-  onReady: (id: string, appearance: string) => void;
-  onError: (id: string, appearance: string, error: boolean) => void;
+  onReady: (id: string, appearance: Appearance) => void;
+  onError: (id: string, appearance: Appearance, error: boolean) => void;
   active: boolean;
   onTarget: (id: string, object: Group | null) => void;
   motionScene: MotionSceneController;
 }) {
   const group = useRef<Group>(null);
-  const onDiagnostic = useCallback((trace: ModelLoadTrace) => {
-    if (outer.current)
-      (
-        outer.current as Group & { modelLoadDiagnostics?: ModelLoadTrace }
-      ).modelLoadDiagnostics = trace;
-  }, []);
   const outer = useRef<Group>(null);
   useEffect(() => {
     if (!outer.current) return;
@@ -534,7 +549,13 @@ const NodeModel = memo(function NodeModel({
       node.placement,
     );
   }, [motionScene, node.id, entity.id, node.placement]);
-  const appearance = appearanceKey(node, entity);
+  const key = appearanceKey(node, entity, asset);
+  const authority = asset?.source === 'remote' ? asset.authority : null;
+  const apiClient = asset?.source === 'remote' ? asset.apiClient : null;
+  const appearance = useMemo(
+    () => ({ key, authority, apiClient, renderer }),
+    [key, authority, apiClient, renderer],
+  );
   useEffect(() => {
     if (!active || !outer.current) return;
     onTarget(node.id, outer.current);
@@ -580,7 +601,6 @@ const NodeModel = memo(function NodeModel({
             onReady={measure}
             onError={onError}
             appearance={appearance}
-            onDiagnostic={onDiagnostic}
           />
         ) : (
           <Builtin entity={entity} connected={connected} />
@@ -661,8 +681,8 @@ function Scene({
   grid: boolean;
   fit: number;
   contentReady: boolean;
-  onError: (id: string, appearance: string, error: boolean) => void;
-  onReady: (id: string, appearance: string) => void;
+  onError: (id: string, appearance: Appearance, error: boolean) => void;
+  onReady: (id: string, appearance: Appearance) => void;
   activeNodeId?: string;
   transformMode: 'translate' | 'rotate' | 'scale' | null;
   onPlacement: (id: string, placement: Placement) => void;
@@ -691,68 +711,6 @@ function Scene({
         delete canvas.getMotionDiagnostics;
     };
   }, [gl, motion, motionScene]);
-  useEffect(() => {
-    const canvas = gl.domElement as HTMLCanvasElement & {
-      getRenderSceneDiagnostics?: () => unknown;
-      getRenderMetricProgress?: () => unknown;
-    };
-    const inspect = () => {
-      const frustum = new Frustum().setFromProjectionMatrix(
-        new Matrix4().multiplyMatrices(
-          camera.projectionMatrix,
-          camera.matrixWorldInverse,
-        ),
-      );
-      const nodes = (root.current?.children ?? []).slice(0, 128).map((node) => {
-        const meshes: {
-          visible: boolean;
-          inFrustum: boolean;
-          triangles: number;
-          worldMatrix: number[];
-        }[] = [];
-        node.traverse((object) => {
-          if (!(object instanceof Mesh)) return;
-          const materials = Array.isArray(object.material)
-            ? object.material
-            : [object.material];
-          meshes.push({
-            visible:
-              object.visible && materials.some((material) => material.visible),
-            inFrustum: frustum.intersectsObject(object),
-            triangles:
-              (object.geometry.index?.count ??
-                object.geometry.getAttribute('position')?.count ??
-                0) / 3,
-            worldMatrix: object.matrixWorld.toArray(),
-          });
-        });
-        return {
-          nodeId: node.userData.nodeId,
-          modelLoad: (node as Group & { modelLoadDiagnostics?: ModelLoadTrace })
-            .modelLoadDiagnostics,
-          worldMatrix: node.matrixWorld.toArray(),
-          meshes,
-        };
-      });
-      return {
-        viewport: { width: size.width, height: size.height },
-        camera: {
-          position: camera.position.toArray(),
-          projection: camera.projectionMatrix.toArray(),
-          inverseWorld: camera.matrixWorldInverse.toArray(),
-        },
-        frame: gl.info.render.frame,
-        triangles: gl.info.render.triangles,
-        sampler: canvas.getRenderMetricProgress?.(),
-        nodes,
-      };
-    };
-    canvas.getRenderSceneDiagnostics = inspect;
-    return () => {
-      if (canvas.getRenderSceneDiagnostics === inspect)
-        delete canvas.getRenderSceneDiagnostics;
-    };
-  }, [gl, camera, size.width, size.height]);
   const [loaded, setLoaded] = useState(0);
   const framing = useRef<{
     framed: boolean;
@@ -794,7 +752,7 @@ function Scene({
     [assets],
   );
   const ready = useCallback(
-    (id: string, appearance: string) => {
+    (id: string, appearance: Appearance) => {
       setLoaded((value) => value + 1);
       onReady(id, appearance);
     },
@@ -958,13 +916,13 @@ export default function WorldViewport(props: {
 }) {
   const message = useAppMessage('lab');
   const [renderer, setRenderer] = useState<WebGLRenderer | null>(null);
-  const [failed, setFailed] = useState<Record<string, string>>({});
-  const [readyIds, setReadyIds] = useState<Record<string, string>>({});
+  const [failed, setFailed] = useState<Record<string, Appearance>>({});
+  const [readyIds, setReadyIds] = useState<Record<string, Appearance>>({});
   const pointer = useRef({ x: 0, y: 0 });
   const onReady = useCallback(
-    (id: string, appearance: string) =>
+    (id: string, appearance: Appearance) =>
       setReadyIds((previous) =>
-        previous[id] === appearance
+        sameAppearance(previous[id], appearance)
           ? previous
           : { ...previous, [id]: appearance },
       ),
@@ -975,13 +933,13 @@ export default function WorldViewport(props: {
     setRenderer(gl);
   }, []);
   const onError = useCallback(
-    (id: string, appearance: string, error: boolean) =>
+    (id: string, appearance: Appearance, error: boolean) =>
       setFailed((previous) => {
         if (error)
-          return previous[id] === appearance
+          return sameAppearance(previous[id], appearance)
             ? previous
             : { ...previous, [id]: appearance };
-        if (!previous[id]) return previous;
+        if (!sameAppearance(previous[id], appearance)) return previous;
         const next = { ...previous };
         delete next[id];
         return next;
@@ -995,18 +953,38 @@ export default function WorldViewport(props: {
   const entityById = new Map(
     props.world.entities.map((entity) => [entity.id, entity]),
   );
+  const assetByRepresentation = new Map(
+    props.assets.flatMap((asset) =>
+      asset.source === 'remote'
+        ? [[asset.asset.representation.id, asset] as const]
+        : [],
+    ),
+  );
+  const currentAppearance = (node: SceneNode, entity: LabEntity) =>
+    nodeAppearance(
+      node,
+      entity,
+      props.frozenAssets?.get(node.id) ??
+        (node.representation_id
+          ? assetByRepresentation.get(node.representation_id)
+          : undefined),
+      renderer,
+    );
   const pending = props.world.nodes.some((node) => {
     const entity = entityById.get(node.entity_id);
     if (!entity || entity.archived_at) return false;
-    const appearance = appearanceKey(node, entity);
-    return readyIds[node.id] !== appearance && failed[node.id] !== appearance;
+    const appearance = currentAppearance(node, entity);
+    return (
+      !sameAppearance(readyIds[node.id], appearance) &&
+      !sameAppearance(failed[node.id], appearance)
+    );
   });
   const hasFailure = props.world.nodes.some((node) => {
     const entity = entityById.get(node.entity_id);
     return (
       entity &&
       !entity.archived_at &&
-      failed[node.id] === appearanceKey(node, entity)
+      sameAppearance(failed[node.id], currentAppearance(node, entity))
     );
   });
   const hasVisibleCentrifuge = props.world.nodes.some((node) => {

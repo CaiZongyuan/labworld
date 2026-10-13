@@ -217,6 +217,7 @@ export async function prepare(page: Page, browser: Browser) {
       viewer.on('requestfailed', (request) => pending.get(request)?.());
       await viewer.route('**/assets/*/download', async (route) => {
         const ordinal = ++requests;
+        receipt('capability-gate', { enabled: true, threshold: 13, requests: ordinal, held: Math.max(0, ordinal - 13) });
         const response = await route.fetch();
         if (ordinal > 13) {
           await new Promise<void>((resolve) =>
