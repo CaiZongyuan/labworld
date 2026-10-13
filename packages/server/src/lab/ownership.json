@@ -269,7 +269,23 @@
     "RobotCommand",
     "RobotSourceEvent",
     "parseRobotSourceEvent",
-    "upgradeLabRobotControls"
+    "upgradeLabRobotControls",
+    "AssetResourceInput",
+    "AssetComponent",
+    "VersionRepresentation",
+    "AssetCapabilityDescription",
+    "AssetBusinessDefinition",
+    "ImportAssetVersion",
+    "VersionResource",
+    "CompleteAssetVersion",
+    "AssetVersionPage",
+    "importCompleteAssetVersion",
+    "getCompleteAssetVersion",
+    "listCompleteAssetVersions",
+    "downloadAssetVersionResource",
+    "startAssetResourceUpload",
+    "completeAssetResourceUpload",
+    "cancelAssetResourceUpload"
   ],
   "contractSubpaths": [
     "@labos-threejs/contracts/motion",
@@ -291,7 +307,12 @@
     "docs/tutorials/robot-controls.md",
     "docs/tutorials/robot-controls.en.md",
     "docs/examples/robot-controls.mjs",
-    "docs/examples/robot-controls.py"
+    "docs/examples/robot-controls.py",
+    "docs/guides/complete-assets.md",
+    "docs/guides/complete-assets.en.md",
+    "examples/lab/import-asset-version.mjs",
+    "examples/lab/centrifuge.asset.json",
+    "examples/lab/register-asset-instances.mjs"
   ],
   "testPaths": [
     "tests/server/session-authority.test.ts",
@@ -308,6 +329,10 @@
     "tests/e2e/recording-wire-oracle.ts",
     "tests/tooling/synthetic-source-shutdown.test.mjs",
     "packages/views/src/lab/robot-panel.test.tsx",
-    "tests/server/robot-controls.test.ts"
+    "tests/server/robot-controls.test.ts",
+    "tests/server/asset-versions.test.ts",
+    "tests/e2e/lab-complete-assets.spec.ts",
+    "apps/web/src/lab-complete-assets.test.tsx",
+    "tests/server/asset-version-upgrade.test.ts"
   ]
 }

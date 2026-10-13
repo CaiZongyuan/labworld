@@ -3,6 +3,9 @@ import { http, HttpResponse } from 'msw';
 
 // Existing Lab journeys have no Session. Session-specific tests replace these HTTP defaults.
 export const server = setupServer(
+  http.get('*/api/v1/lab/asset-versions', () =>
+    HttpResponse.json({ data: [], has_more: false, next_cursor: null }),
+  ),
   http.get('*/api/v1/lab/labs/:labId/installations', () =>
     HttpResponse.json({ data: [] }),
   ),
