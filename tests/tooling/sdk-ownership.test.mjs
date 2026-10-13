@@ -79,3 +79,38 @@ test('the public boundary checker refuses an unowned qualified table in Node mig
       /unowned table lab.unowned_probe/.test(error.stderr),
   );
 });
+
+test('source contracts stay inside allowed Lab consumers and cannot enter Core through the public package facade', (t) => {
+  const fixture = project(t);
+  const allowed = join(fixture, 'packages/views/src/lab/source-owned-probe.ts');
+  const forbidden = join(fixture, 'packages/core/src/source-unowned-probe.ts');
+  const source =
+    "import type { LabSource } from '@labos-threejs/contracts';\nimport { connectLabSource } from '@labos-threejs/sdk';\nexport type SourceView = LabSource;\nexport const connect = connectLabSource;\n";
+  writeFileSync(allowed, source);
+  assert.match(check(fixture), /ownership declarations verified/);
+  writeFileSync(
+    forbidden,
+    "import type { LabSource } from '@labos-threejs/contracts';\nexport type UnownedSource = LabSource;\n",
+  );
+  assert.throws(
+    () => check(fixture),
+    (error) =>
+      error.status !== 0 &&
+      /Core imports a Lab contract/.test(error.stderr.toString()),
+  );
+  rmSync(forbidden);
+  const unownedSdk = join(fixture, 'packages/sdk/src/source-unowned-probe.ts');
+  writeFileSync(
+    unownedSdk,
+    "import { connectLabSource } from '@labos-threejs/sdk';\nexport const unownedConnect = connectLabSource;\n",
+  );
+  assert.throws(
+    () => check(fixture),
+    (error) =>
+      error.status !== 0 &&
+      /Core imports a Lab contract/.test(error.stderr.toString()),
+  );
+  rmSync(unownedSdk);
+  rmSync(allowed);
+  assert.match(check(fixture), /ownership declarations verified/);
+});
