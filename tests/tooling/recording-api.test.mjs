@@ -1,3 +1,4 @@
+import { sourceApiParts } from '../../scripts/lib/source-api.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -21,7 +22,7 @@ const admissionFields = (doc) =>
   );
 
 function differences(document) {
-  const recordings = recordingApiParts(document);
+  const recordings = recordingApiParts(sourceApiParts(document).existing);
   const sessions = sessionApiParts(recordings.existing);
   const motion = motionApiParts(sessions.existing);
   const progress = guideProgressApiParts(motion.existing);

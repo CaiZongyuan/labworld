@@ -1,3 +1,4 @@
+import { sourceApiParts } from '../../scripts/lib/source-api.ts';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,7 +15,9 @@ const progressBaseline = read('tests/contract/guide-progress-api.json');
 const sessionBaseline = read('tests/contract/session-api.json');
 const path = '/api/v1/lab/labs/{lab_id}/motion-fixture';
 function differences(document) {
-  const sessions = sessionApiParts(recordingApiParts(document).existing);
+  const sessions = sessionApiParts(
+    recordingApiParts(sourceApiParts(document).existing).existing,
+  );
   const motion = motionApiParts(sessions.existing);
   const progress = guideProgressApiParts(motion.existing);
   return [

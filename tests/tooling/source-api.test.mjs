@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { sourceApiParts } from '../../scripts/lib/source-api.ts';
 import { semanticDifferences } from '../../scripts/lib/contract-openapi.ts';
 
@@ -42,6 +43,17 @@ const source = {
     },
   },
 };
+
+test('the generated source API matches all eight approved operations and their reachable schemas', () => {
+  const read = (path) => JSON.parse(readFileSync(path, 'utf8')),
+    actual = sourceApiParts(read('packages/contracts/openapi.json')).addition;
+  assert.deepEqual(
+    semanticDifferences(read('tests/contract/source-api.json'), actual),
+    [],
+  );
+  assert.equal(Object.keys(actual.paths).length, 7);
+  assert.equal(Object.values(actual.paths).flatMap(Object.keys).length, 8);
+});
 
 test('source separation retains its complete schema closure and leaves the input unchanged', () => {
   const before = structuredClone(source),
