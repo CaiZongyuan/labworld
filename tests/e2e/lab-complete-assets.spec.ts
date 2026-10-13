@@ -108,6 +108,14 @@ test('complete asset descriptions import through the real library and expose fix
     ],
   };
   await page.goto('/assets');
+  await expect(
+    page.getByRole('button', { name: '导入资产描述', exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
   await page.getByLabel('资产描述 JSON 文件', { exact: true }).setInputFiles({
     name: 'centrifuge.asset.json',
     mimeType: 'application/json',
