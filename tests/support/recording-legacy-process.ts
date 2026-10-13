@@ -13,7 +13,7 @@ import {
 import { DirectoryLease } from '../../packages/server/src/platform/db/lease.ts';
 import { FileService } from '../../packages/server/src/core/files/use-cases.ts';
 import { fileRoutes } from '../../packages/server/src/core/files/routes.ts';
-import { MachineService } from '../../packages/server/src/core/machines/use-cases.ts';
+import { SchemaV3Machines } from './recording-legacy-machines.ts';
 import { machineRoutes } from '../../packages/server/src/core/machines/routes.ts';
 import { assetRoutes } from '../../packages/server/src/lab/assets/routes.ts';
 import { registerAssetFileOwnership } from '../../packages/server/src/lab/assets/composition.ts';
@@ -46,7 +46,8 @@ const { getConnInfo } = appDependencies(
 
 // Reproducible schema-v3 fixture, not an old-build executable. The public
 // noncapture Session branches use the pre-Recording reservation, snapshot and
-// custody rules from c80e63c8; store.ts differs there only by a type annotation.
+// custody rules from c80e63c8 for generic installations. Machine provisioning
+// uses that revision's SQL rather than current registry columns.
 // No Recording rows are seeded and no migration history is rewritten.
 const prior = [
   {
@@ -93,7 +94,7 @@ async function oldSchema(directory: string) {
     join(migrationCopy, 'meta/_journal.json'),
     JSON.stringify({ ...journal, entries }),
   );
-  // Database.initialize performs this build's four-entry readiness check.
+  // Database.initialize performs this build's complete readiness check.
   // Apply the exact genuine prefix with the same Drizzle migrator, then use
   // Database.openExisting to run real services against that prior schema.
   const client = new PGlite({
@@ -182,9 +183,16 @@ async function preRecordingServer() {
     assert.deepEqual(
       await db.readSQL(
         { id: 'legacy:absence', kind: 'startup' },
-        "select to_regclass('lab.recordings')::text as recordings,to_regclass('lab.recording_resources')::text as recording_resources",
+        "select to_regclass('lab.recordings')::text as recordings,to_regclass('lab.recording_resources')::text as recording_resources,to_regclass('lab.sources')::text as sources,exists(select 1 from information_schema.columns where table_schema='labos_threejs_core' and table_name='machines' and column_name='credential_scope') as machine_credential_scope",
       ),
-      [{ recordings: null, recording_resources: null }],
+      [
+        {
+          recordings: null,
+          recording_resources: null,
+          sources: null,
+          machine_credential_scope: false,
+        },
+      ],
     );
     const context = { db, clock: { now: () => new Date().toISOString() } };
     const app = coreApp(
@@ -220,12 +228,16 @@ async function preRecordingServer() {
     // independent Machine, then explicit Stop honestly ends an unstarted source.
     await sessions.initialize();
     sessionRoutes(app, sessions, (c) => getConnInfo(c).remote.address);
-    machineRoutes(app, new MachineService(context, config.auth, 'lab:full'));
+    machineRoutes(app, new SchemaV3Machines(context, config.auth, 'lab:full'));
     log({
       event: 'recording.legacy.fixture',
       schema_version: facts.schemaVersion,
       migrations: facts.history,
       provenance: 'c80e63c8 pre-Recording public Session branches',
+      machine_provenance:
+        'c80e63c8c063e44ca80c85970b518c35fb448c8e core/machines/use-cases.ts',
+      machine_credential_scope_absent: true,
+      source_registry_absent: true,
       recording_tables_absent: true,
       source_children: [],
     });
