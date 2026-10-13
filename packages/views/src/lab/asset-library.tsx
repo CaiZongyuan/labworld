@@ -64,6 +64,7 @@ import bench from './images/bench.png';
 import environment from './images/environment.png';
 import model from './images/model.png';
 import './lab.css';
+import { CompleteAssets } from './complete-assets';
 
 const miniatures: Record<string, string> = {
   centrifuge,
@@ -124,6 +125,7 @@ export default function AssetLibrary({
     text.toLocaleLowerCase().includes(search.trim().toLocaleLowerCase());
   const shownDefinitions = (definitions.data ?? []).filter(
     (entry) =>
+      !entry.asset_version &&
       (category === 'all' || category === entry.category) &&
       matches(`${entry.name} ${entry.name_en} ${entry.category}`),
   );
@@ -345,6 +347,12 @@ export default function AssetLibrary({
           </Card>
         ))}
       </div>
+      <CompleteAssets
+        apiClient={apiClient}
+        identity={identity}
+        search={search}
+        category={category}
+      />
       {!shownDefinitions.length &&
       !shownAssets.length &&
       !catalog.query.isPending &&

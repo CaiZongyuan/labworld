@@ -593,6 +593,16 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "entity-lifecycle"
+    },
+    {
+      "id": "complete-assets",
+      "source": "docs/guides/complete-assets.md",
+      "sourceEn": "docs/guides/complete-assets.en.md",
+      "route": "guides/complete-assets.md",
+      "title": "完整资产版本",
+      "titleEn": "Complete asset versions",
+      "group": "开发",
+      "type": "guide"
     }
   ],
   "references": [

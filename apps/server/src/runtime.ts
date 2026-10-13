@@ -38,6 +38,8 @@ import { fileRoutes } from '../../../packages/server/src/core/files/routes.ts';
 import { fileScheduler } from '../../../packages/server/src/core/files/scheduler.ts';
 import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
 import { registerAssetFileOwnership } from '../../../packages/server/src/lab/assets/composition.ts';
+import { AssetRegistry } from '../../../packages/server/src/lab/asset-registry/service.ts';
+import { assetRegistryRoutes } from '../../../packages/server/src/lab/asset-registry/routes.ts';
 import { WorldService } from '../../../packages/server/src/lab/world/use-cases.ts';
 import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
 import { ProgressService } from '../../../packages/server/src/lab/progress/use-cases.ts';
@@ -257,6 +259,7 @@ export async function run(
       fileRoutes(app, files);
       registerAssetFileOwnership(files);
       assetRoutes(app, files);
+      assetRegistryRoutes(app, new AssetRegistry(files));
       const world = new WorldService(context, config.auth);
       const recording = new RecordingService(
         world,
