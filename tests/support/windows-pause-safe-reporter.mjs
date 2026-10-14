@@ -87,7 +87,7 @@ export default async function* report(events) {
       ...failure,
       locations: [
         ...stack.matchAll(
-          /(recording-legacy\.test\.ts|recording-reliability\.test\.ts|recording-machine\.ts|recording-public-support\.ts):([0-9]+):([0-9]+)/g,
+          /(recording-legacy\.test\.ts|recording-reliability\.test\.ts|recording-machine\.ts|recording-public-support\.ts|server-process\.ts):([0-9]+):([0-9]+)/g,
         ),
       ]
         .slice(0, 8)

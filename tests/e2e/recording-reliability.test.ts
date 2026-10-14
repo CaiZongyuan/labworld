@@ -58,6 +58,10 @@ import {
   capturePauseFailure,
   pauseFixtureStart,
   pauseFactsEnabled,
+  pauseStateFacts,
+  pauseStateRead,
+  pauseStateReadError,
+  pauseStateFailure,
 } from './windows-pause-facts.ts';
 
 test(
@@ -392,11 +396,38 @@ async function ipc(f: Context, message: object, event: string) {
   );
 }
 async function state(f: Context, id: string, status: string) {
-  return recordingEventually(
-    () => f.api.json<SimulationSession>('GET', sessionPath(f.lab, id)),
-    (value) => value.status === status,
-    10000,
-  );
+  const facts = pauseStateFacts(status);
+  try {
+    return await recordingEventually(
+      async () => {
+        const started = performance.now();
+        if (pauseFactsEnabled) {
+          facts.polls++;
+          facts.phase = 'get-pending';
+        }
+        try {
+          const value = await f.api.json<SimulationSession>(
+            'GET',
+            sessionPath(f.lab, id),
+          );
+          pauseStateRead(
+            facts,
+            value as unknown as Record<string, unknown>,
+            performance.now() - started,
+          );
+          return value;
+        } catch (cause) {
+          pauseStateReadError(facts, cause, performance.now() - started);
+          throw cause;
+        }
+      },
+      (value) => value.status === status,
+      10000,
+    );
+  } catch (cause) {
+    await pauseStateFailure(facts, f.target.evidence, cause);
+    throw cause;
+  }
 }
 async function transition(f: Context, session: string, action: string) {
   const current = await f.api.json<SimulationSession>(

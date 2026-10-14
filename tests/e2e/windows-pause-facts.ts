@@ -53,6 +53,7 @@ const reasons = new Set([
   'recording_commit_failed',
   'recording_event_commit_failed',
   'recording_source_timeout',
+  'sequence_rejected',
 ]);
 const messageTypes = new Set([
   'motion.welcome',
@@ -67,7 +68,7 @@ const events: Record<string, string | number | boolean | null>[] = [];
 const closes: Partial<Record<'live' | 'reliable', object>> = {};
 let dropped = 0;
 let generation = 0;
-let failureCaptured = false;
+const capturedDirectories = new Set<string>();
 
 export function pauseFixtureStart() {
   if (!pauseFactsEnabled) return;
@@ -76,7 +77,6 @@ export function pauseFixtureStart() {
   delete closes.live;
   delete closes.reliable;
   dropped = 0;
-  failureCaptured = false;
 }
 export function pausePeerGeneration() {
   return generation;
@@ -298,8 +298,7 @@ export async function capturePauseFailure(
   directory: string,
   stage: 'initial-ready-failure' | 'control-failure',
 ) {
-  if (!pauseFactsEnabled || failureCaptured) return;
-  failureCaptured = true;
+  if (!claimFailure(directory)) return;
   const originalFailureAt = performance.now();
   try {
     const atFailure = {
@@ -336,5 +335,230 @@ export async function capturePauseFailure(
     );
   } catch {
     // Observation never replaces the original cause/verdict.
+  }
+}
+
+function claimFailure(directory: string) {
+  if (!pauseFactsEnabled || !directory || capturedDirectories.has(directory))
+    return false;
+  capturedDirectories.add(directory);
+  return true;
+}
+function closedError(cause: unknown) {
+  const error =
+    cause && typeof cause === 'object'
+      ? (cause as Record<string, unknown>)
+      : {};
+  const nested =
+    error.cause && typeof error.cause === 'object'
+      ? (error.cause as Record<string, unknown>)
+      : {};
+  return {
+    errorClass: category(
+      error.name,
+      new Set([
+        'Error',
+        'AssertionError',
+        'TypeError',
+        'AbortError',
+        'TimeoutError',
+      ]),
+    ),
+    errorCode: category(
+      error.code ?? nested.code,
+      new Set([
+        'ECONNREFUSED',
+        'ECONNRESET',
+        'ETIMEDOUT',
+        'EPIPE',
+        'ERR_ASSERTION',
+        'ABORT_ERR',
+      ]),
+    ),
+  };
+}
+const sessionStatuses = new Set([
+  'starting',
+  'running',
+  'pausing',
+  'paused',
+  'resuming',
+  'stopping',
+  'stopped',
+  'interrupted',
+  'reset',
+]);
+export function pauseStateFacts(requested: string) {
+  return {
+    generation,
+    started: performance.now(),
+    requestedStatus: category(requested, sessionStatuses),
+    polls: 0,
+    phase: 'not-read',
+    last: null as object | null,
+    firstTerminal: null as object | null,
+  };
+}
+export function pauseStateRead(
+  facts: ReturnType<typeof pauseStateFacts>,
+  value: Record<string, unknown>,
+  elapsedMs: number,
+) {
+  if (!pauseFactsEnabled || facts.generation !== generation) return;
+  facts.phase = 'get-completed';
+  const sample = {
+    phase: 'get-completed',
+    at: performance.now(),
+    elapsedMs,
+    httpStatus: 200,
+    status: category(value.status, sessionStatuses),
+    reason: reason(value.reason),
+    revision:
+      typeof value.revision === 'number' && Number.isSafeInteger(value.revision)
+        ? value.revision
+        : null,
+    ended:
+      typeof value.ended_at === 'string'
+        ? true
+        : value.ended_at === null
+          ? false
+          : null,
+  };
+  facts.last = sample;
+  if (
+    !facts.firstTerminal &&
+    ['stopped', 'interrupted', 'reset'].includes(String(sample.status))
+  )
+    facts.firstTerminal = sample;
+}
+export function pauseStateReadError(
+  facts: ReturnType<typeof pauseStateFacts>,
+  cause: unknown,
+  elapsedMs: number,
+) {
+  if (!pauseFactsEnabled || facts.generation !== generation) return;
+  const error =
+    cause && typeof cause === 'object'
+      ? (cause as Record<string, unknown>)
+      : {};
+  facts.phase = 'get-rejected';
+  facts.last = {
+    phase: 'get-rejected',
+    at: performance.now(),
+    elapsedMs,
+    httpStatus:
+      error.code === 'ERR_ASSERTION' &&
+      typeof error.actual === 'number' &&
+      error.actual >= 100 &&
+      error.actual <= 599
+        ? error.actual
+        : null,
+    ...closedError(cause),
+  };
+}
+export async function pauseStateFailure(
+  facts: ReturnType<typeof pauseStateFacts>,
+  directory: string,
+  cause: unknown,
+) {
+  if (facts.generation !== generation || !claimFailure(directory)) return;
+  await safePublicFailure(directory, {
+    stage: 'session-state-failure',
+    originalWaitMs: 10000,
+    requestAbortMs: 10000,
+    pollDelayMs: 20,
+    requestedStatus: facts.requestedStatus,
+    originalFailureAt: performance.now(),
+    elapsedMs: performance.now() - facts.started,
+    polls: facts.polls,
+    phase: facts.phase,
+    firstTerminal: facts.firstTerminal,
+    last: facts.last,
+    ...closedError(cause),
+    peerFacts: {
+      events: events.map((value) => ({ ...value })),
+      closes: { ...closes },
+      dropped,
+      eventCap: 64,
+    },
+  });
+}
+export function pauseStartFacts() {
+  return {
+    generation,
+    started: performance.now(),
+    phase: 'owned-spawn-wait' as 'owned-spawn-wait' | 'health-live-wait',
+    spawnReturned: false,
+    polls: 0,
+    healthRequests: 0,
+    firstHealth: null as object | null,
+    lastHealth: null as object | null,
+  };
+}
+export function pauseHealthResult(
+  facts: ReturnType<typeof pauseStartFacts>,
+  elapsedMs: number,
+  httpStatus: number | null,
+  cause?: unknown,
+  getStarted = true,
+) {
+  if (!pauseFactsEnabled || facts.generation !== generation) return;
+  const sample = {
+    phase: !getStarted
+      ? 'health-before-get-rejected'
+      : httpStatus === null
+        ? 'health-get-rejected'
+        : 'health-get-completed',
+    actualGetStarted: getStarted,
+    at: performance.now(),
+    elapsedMs,
+    httpStatus,
+    ...(cause === undefined ? {} : closedError(cause)),
+  };
+  facts.firstHealth ??= sample;
+  facts.lastHealth = sample;
+}
+export async function pauseStartFailure(
+  facts: ReturnType<typeof pauseStartFacts>,
+  directory: string,
+  cause: unknown,
+  childSpawned: boolean | null,
+  identityRecorded: boolean | null,
+  childExitCode: number | null,
+  childSignal: string | null,
+) {
+  if (facts.generation !== generation || !claimFailure(directory)) return;
+  await safePublicFailure(directory, {
+    stage: 'server-start-failure',
+    phase: facts.phase,
+    originalWaitMs: 30000,
+    requestAbortMs: 1000,
+    pollDelayMs: 25,
+    originalFailureAt: performance.now(),
+    elapsedMs: performance.now() - facts.started,
+    spawnReturned: facts.spawnReturned,
+    childSpawned,
+    identityRecorded,
+    childExitCode,
+    childSignal: category(
+      childSignal,
+      new Set(['SIGTERM', 'SIGKILL', 'SIGINT']),
+    ),
+    polls: facts.polls,
+    firstHealth: facts.firstHealth,
+    healthRequests: facts.healthRequests,
+    lastHealth: facts.lastHealth,
+    ...closedError(cause),
+  });
+}
+async function safePublicFailure(directory: string, value: object) {
+  try {
+    await writeFile(
+      join(directory, 'windows-public-failure.json'),
+      JSON.stringify(value, null, 2) + '\n',
+      { mode: 0o600 },
+    );
+  } catch {
+    // Evidence cannot replace the exact original failure.
   }
 }

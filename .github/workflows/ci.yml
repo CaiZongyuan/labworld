@@ -43,12 +43,13 @@ jobs:
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: windows-original-prefix-safe-evidence
+          name: windows-public-frontiers-safe-evidence
           path: |
             .scratch/windows-pause-diagnostic/environment.json
             .scratch/windows-pause-diagnostic/test-summary.json
             .scratch/windows-pause-diagnostic/closed-receipt.json
             .scratch/vnext-m1/lab-word-m1-*/windows-pause-failure.json
+            .scratch/vnext-m1/lab-word-m1-*/windows-public-failure.json
             .scratch/vnext-m1/lab-word-m1-*/owned-resources.json
           if-no-files-found: error
           retention-days: 7

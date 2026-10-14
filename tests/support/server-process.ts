@@ -19,6 +19,12 @@ import {
   type ServerLedger,
   type LaunchIntent,
 } from './server-resources.ts';
+import {
+  pauseFactsEnabled,
+  pauseStartFacts,
+  pauseHealthResult,
+  pauseStartFailure,
+} from '../e2e/windows-pause-facts.ts';
 const owned = new Set<ServerProcess>();
 let interrupted = false;
 for (const signal of ['SIGINT', 'SIGTERM'] as const)
@@ -241,21 +247,59 @@ export class ServerProcess {
     }
   }
   async start() {
-    this.assertOpen();
-    await this.spawn();
-    this.assertOpen();
-    await until(
-      async () => {
-        this.assertOpen();
-        if (this.child!.exitCode !== null) throw new Error(this.logs);
-        return fetch(`${this.url}/health/live`, {
-          signal: AbortSignal.timeout(1000),
-        });
-      },
-      (response) => response.ok,
-    );
-    this.assertOpen();
-    return this;
+    const facts = pauseStartFacts();
+    try {
+      this.assertOpen();
+      await this.spawn();
+      facts.spawnReturned = true;
+      facts.phase = 'health-live-wait';
+      this.assertOpen();
+      await until(
+        async () => {
+          const started = performance.now();
+          let getStarted = false;
+          if (pauseFactsEnabled) facts.polls++;
+          try {
+            this.assertOpen();
+            if (this.child!.exitCode !== null) throw new Error(this.logs);
+            getStarted = true;
+            if (pauseFactsEnabled) facts.healthRequests++;
+            const response = await fetch(`${this.url}/health/live`, {
+              signal: AbortSignal.timeout(1000),
+            });
+            pauseHealthResult(
+              facts,
+              performance.now() - started,
+              response.status,
+            );
+            return response;
+          } catch (cause) {
+            pauseHealthResult(
+              facts,
+              performance.now() - started,
+              null,
+              cause,
+              getStarted,
+            );
+            throw cause;
+          }
+        },
+        (response) => response.ok,
+      );
+      this.assertOpen();
+      return this;
+    } catch (cause) {
+      await pauseStartFailure(
+        facts,
+        this.evidence,
+        cause,
+        this.child ? this.child.pid !== undefined : null,
+        this.child ? this.childProof !== undefined : null,
+        this.child?.exitCode ?? null,
+        this.child?.signalCode ?? null,
+      );
+      throw cause;
+    }
   }
   async stop(signal: NodeJS.Signals = 'SIGTERM') {
     const child = this.child;
