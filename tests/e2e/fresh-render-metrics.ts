@@ -28,6 +28,46 @@ export type RenderMetricMark = Pick<
   'sampledAt' | 'completedRenderFrame'
 >;
 
+export function isFreshRenderMetricSample(
+  sample: RenderMetricSample | null,
+  mark: RenderMetricMark,
+): sample is RenderMetricSample {
+  return (
+    !!sample &&
+    sample.sampledAt > mark.sampledAt &&
+    sample.completedRenderFrame > mark.completedRenderFrame
+  );
+}
+
+export function readRenderMetrics(
+  page: Page,
+): Promise<RenderMetricSample | null> {
+  return page.evaluate(() => {
+    const panel = document.querySelector<HTMLElement>('.lab-perf');
+    if (!panel) return null;
+    const fields = [
+      'sampledAt',
+      'completedRenderFrame',
+      'geometries',
+      'textures',
+    ] as const;
+    if (
+      fields.some(
+        (field) =>
+          panel.dataset[field] === undefined ||
+          !Number.isFinite(Number(panel.dataset[field])),
+      )
+    )
+      return null;
+    return {
+      sampledAt: Number(panel.dataset.sampledAt),
+      completedRenderFrame: Number(panel.dataset.completedRenderFrame),
+      geometries: Number(panel.dataset.geometries),
+      textures: Number(panel.dataset.textures),
+    };
+  });
+}
+
 /** Mark after the required visible result; compare only clocks from this browser. */
 export function markRenderMetrics(page: Page): Promise<RenderMetricMark> {
   return page.evaluate(() => {
@@ -61,37 +101,9 @@ export async function freshRenderMetrics(
     await expect
       .poll(
         async () => {
-          const sample = await page.evaluate(() => {
-            const panel = document.querySelector<HTMLElement>('.lab-perf');
-            if (!panel) return null;
-            const fields = [
-              'sampledAt',
-              'completedRenderFrame',
-              'geometries',
-              'textures',
-            ] as const;
-            if (
-              fields.some(
-                (field) =>
-                  panel.dataset[field] === undefined ||
-                  !Number.isFinite(Number(panel.dataset[field])),
-              )
-            )
-              return null;
-            return {
-              sampledAt: Number(panel.dataset.sampledAt),
-              completedRenderFrame: Number(panel.dataset.completedRenderFrame),
-              geometries: Number(panel.dataset.geometries),
-              textures: Number(panel.dataset.textures),
-            };
-          });
+          const sample = await readRenderMetrics(page);
           lastSample = sample;
-          if (
-            !sample ||
-            sample.sampledAt <= mark.sampledAt ||
-            sample.completedRenderFrame <= mark.completedRenderFrame
-          )
-            return false;
+          if (!isFreshRenderMetricSample(sample, mark)) return false;
           accepted = sample;
           return true;
         },
