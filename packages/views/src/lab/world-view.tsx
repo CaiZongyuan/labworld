@@ -1289,6 +1289,7 @@ export default function WorldView() {
                   }
                   onRefresh={world.refetch}
                   runtimeAvailable={connection.available}
+                  simulationSession={simulation.session}
                   input={deviceInputs[selected.id] ?? defaultDeviceInput}
                   onInput={(input) => setDeviceInput(selected.id, input)}
                 />

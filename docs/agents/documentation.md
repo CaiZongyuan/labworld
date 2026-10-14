@@ -1,6 +1,6 @@
 # Documentation maintenance
 
-Read this when creating or editing public documentation, navigation or generated references. Write for Lab Word tasks using the [author guide](../guides/maintain-docs.md). The upstream writing pattern is referenced there at a fixed revision; Lab Word source owns facts.
+Read this when creating or editing public documentation, navigation or generated references. Write for Lab World tasks using the [author guide](../guides/maintain-docs.md). The upstream writing pattern is referenced there at a fixed revision; Lab World source owns facts.
 
 Apply the author guide's [ASD-STE100-inspired writing rules](../guides/maintain-docs.md#simplified-technical-language) when writing or reviewing public prose in either language.
 

@@ -226,7 +226,7 @@ function createWindow(path: string): void {
     width: 1280,
     height: 800,
     show: false,
-    title: 'Lab Word',
+    title: 'Lab World',
     webPreferences: {
       preload: join(__dirname, 'preload.cjs'),
       session: appSession,

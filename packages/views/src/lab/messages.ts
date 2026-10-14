@@ -1,8 +1,73 @@
 export const labMessages = {
   zh: {
+    'robot.title': '机器人控制',
+    'robot.description':
+      '目标以弧度提交。动作结果由 Newton 来源确认；目标值与实际观测分别保留。',
+    'robot.startRequired':
+      '请先在仿真会话面板启动支持机器人控制的 SO-101 场景。能力定义本身不表示当前可执行。',
+    'robot.home': 'Home · 回初始姿态',
+    'robot.cancel': 'Cancel · 取消任务',
+    'robot.slider': '目标滑块',
+    'robot.applyJoints': '应用六关节目标',
+    'robot.gripper': '夹爪目标 (rad)',
+    'robot.actualJoints': '实际关节 (rad)',
+    'robot.actualVelocity': '实际关节速度 (rad/s)',
+    'robot.gripperHint': '夹爪是第六个转动关节。接触阻挡可能导致目标未达成。',
+    'robot.busy': '机器人有进行中的任务。等待任务结束，或先 Cancel。',
+    'robot.paused':
+      '会话已暂停，位姿和任务进度保持冻结。Resume 后继续；Cancel 不会自动恢复物理。',
+    'robot.task': '当前 / 最近机器人任务',
+    'robot.acceptanceNote':
+      '请求受理不等于动作完成。任务结果来自实际关节收敛与静止判据。',
+    'robot.awaitingResult': '等待来源确认结果',
+    'robot.unknown':
+      '执行结果未知。检查记录后显式 Start 新会话；旧动作不会自动重放。',
+    'robot.phase': '来源报告阶段',
+    'robot.phase.idle': '保持姿态',
+    'robot.phase.moving': '移动中',
+    'robot.phase.settling': '等待静止',
+    'robot.phase.cancelling': '正在取消并保持姿态',
+    'robot.task.idle': '尚无任务',
+    'robot.task.pending': '已受理 · 等待来源',
+    'robot.task.preparing': '来源准备中',
+    'robot.task.running': '来源正在执行',
+    'robot.task.decelerating': '已请求取消 · 等待结束',
+    'robot.task.completed': '动作已完成',
+    'robot.task.cancelled': '取消已结束',
+    'robot.task.failed': '动作失败',
+    'robot.task.interrupted': '已中断 · 结果未知',
+    'robot.task.unknown': '结果未知',
+    'robot.reason.target_not_reached': '实际关节未在规定时间内收敛并静止',
+    'robot.reason.robot_busy': '机器人忙碌',
+    'robot.reason.session_paused': '会话已暂停',
+    'robot.reason.task_mismatch': '来源任务身份不匹配',
+    'robot.reason.runtime_interrupted': '运行来源已中断',
+    'robot.reason.execution_uncertain': '执行结果未能确认',
+    'robot.command.submitting': '正在提交请求',
+    'robot.command.accepted': '请求已受理 · 等待来源回执',
+    'robot.command.executing': '来源已开始执行',
+    'robot.command.succeeded': '命令结果已确认 · 查看任务结果',
+    'robot.command.failed': '命令执行失败',
+    'robot.command.unknown': '命令结果未知',
+    'robot.command.rejected': '请求被拒绝',
+    'robot.command.uncertain': '请求受理结果未知 · 保留原请求键',
+    'device.action.robot.home': 'Home 请求',
+    'device.action.robot.move_joints': '关节目标请求',
+    'device.action.robot.set_gripper': '夹爪目标请求',
+    'device.action.robot.cancel': 'Cancel 请求',
+    'session.robotUpgrade': '启用机器人控制',
+    'session.robotUpgradeHint':
+      '旧版安装运行固定演示轨迹。空闲时启用控制会保留对象和布局；下次 Start 等待手动动作。',
+    'session.robotControlled':
+      '手动机器人控制：Start 后保持初始姿态，在 Inspector 提交动作。',
+    'session.robotDemo': '固定演示轨迹：本安装没有可执行的机器人任务控制。',
     'session.title': '仿真会话',
     'session.description':
-      '开发合成模式。操作者共享权威会话，各自保留相机、选择和 Inspector。当前不运行 Newton，也不提供可靠录制。',
+      '操作者共享仿真会话和独立录制，各自保留相机、选择和 Inspector。合成运动与 Newton 物理来源明确区分。',
+    'session.newtonInstall': '安装 SO-101 Newton 场景',
+    'session.newtonHint':
+      '先从资产库导入固定版本的十个 GLB，再安装 SO-101 场景。Newton 画面来自实际物理求解；合成场景用于通信验证。',
+    'session.newtonPreparing': '正在准备 Newton 物理场景',
     'session.lifecycle': '会话生命周期',
     'session.reception': '运动接收',
     'session.idle': '尚未启动',
@@ -41,7 +106,7 @@ export const labMessages = {
       '另一个操作者已改变会话。当前状态已刷新；检查后再操作。',
     'session.denied': '会话访问被拒绝。请检查登录和 lab:full 凭据后重试。',
     'session.unavailable':
-      '服务未启用开发合成来源。请按教程配置后重新启动服务，再重试。',
+      '服务未启用所选会话来源。请按教程配置后重新启动服务，再重试。',
     'session.failure': '操作失败。已保留选择，请检查当前会话后重试。',
     'session.offline': '会话状态连接已断开。状态恢复前不发送控制；可重试连接。',
     'session.interruptedHint':
@@ -558,9 +623,81 @@ export const labMessages = {
     'import.single': '一次导入一个 GLB 文件。',
   },
   en: {
+    'robot.title': 'Robot controls',
+    'robot.description':
+      'Submit targets in radians. The Newton source confirms results; targets and actual observations remain separate.',
+    'robot.startRequired':
+      'Start a SO-101 scene with robot controls in the Simulation Session panel. A capability definition alone does not make it executable.',
+    'robot.home': 'Home · initial pose',
+    'robot.cancel': 'Cancel task',
+    'robot.slider': 'target slider',
+    'robot.applyJoints': 'Apply six joint targets',
+    'robot.gripper': 'Gripper target (rad)',
+    'robot.actualJoints': 'Actual joints (rad)',
+    'robot.actualVelocity': 'Actual joint velocity (rad/s)',
+    'robot.gripperHint':
+      'The gripper is the sixth revolute joint. Contact can prevent it from reaching the target.',
+    'robot.busy':
+      'A robot task is active. Wait for it to end, or Cancel it first.',
+    'robot.paused':
+      'The Session is paused. Pose and task progress remain frozen. Resume continues execution; Cancel does not resume physics.',
+    'robot.task': 'Current / most recent robot task',
+    'robot.acceptanceNote':
+      'Acceptance does not mean completion. Actual joint convergence and settling determine the task result.',
+    'robot.awaitingResult': 'Waiting for a source-confirmed result',
+    'robot.unknown':
+      'The execution result is unknown. Check the records, then explicitly Start a new Session. Old actions do not replay automatically.',
+    'robot.phase': 'Source-reported phase',
+    'robot.phase.idle': 'Holding pose',
+    'robot.phase.moving': 'Moving',
+    'robot.phase.settling': 'Waiting to settle',
+    'robot.phase.cancelling': 'Cancelling and holding pose',
+    'robot.task.idle': 'No task yet',
+    'robot.task.pending': 'Accepted · waiting for source',
+    'robot.task.preparing': 'Source preparing',
+    'robot.task.running': 'Source executing',
+    'robot.task.decelerating': 'Cancel requested · waiting for end',
+    'robot.task.completed': 'Action completed',
+    'robot.task.cancelled': 'Cancellation ended',
+    'robot.task.failed': 'Action failed',
+    'robot.task.interrupted': 'Interrupted · result unknown',
+    'robot.task.unknown': 'Result unknown',
+    'robot.reason.target_not_reached':
+      'Actual joints did not converge and settle before the deadline',
+    'robot.reason.robot_busy': 'Robot busy',
+    'robot.reason.session_paused': 'Session paused',
+    'robot.reason.task_mismatch': 'Source task identity mismatch',
+    'robot.reason.runtime_interrupted': 'Runtime source interrupted',
+    'robot.reason.execution_uncertain':
+      'Execution result could not be confirmed',
+    'robot.command.submitting': 'Submitting request',
+    'robot.command.accepted': 'Request accepted · waiting for source receipt',
+    'robot.command.executing': 'Source execution started',
+    'robot.command.succeeded':
+      'Command result confirmed · check the task result',
+    'robot.command.failed': 'Command execution failed',
+    'robot.command.unknown': 'Command result unknown',
+    'robot.command.rejected': 'Request rejected',
+    'robot.command.uncertain':
+      'Acceptance unknown · original request key retained',
+    'device.action.robot.home': 'Home request',
+    'device.action.robot.move_joints': 'Joint target request',
+    'device.action.robot.set_gripper': 'Gripper target request',
+    'device.action.robot.cancel': 'Cancel request',
+    'session.robotUpgrade': 'Enable robot controls',
+    'session.robotUpgradeHint':
+      'The old installation runs a fixed demo trajectory. Enable controls while idle to keep its entities and layout. The next Start waits for manual actions.',
+    'session.robotControlled':
+      'Manual robot controls: Start holds the initial pose. Submit actions in the Inspector.',
+    'session.robotDemo':
+      'Fixed demo trajectory: this installation does not provide executable robot task controls.',
     'session.title': 'Simulation Session',
     'session.description':
-      'Development synthetic mode. Operators share one authoritative Session, with independent cameras, selection, and Inspectors. Newton and reliable Recording are unavailable.',
+      'Operators share a Simulation Session and independent Recording, with their own cameras, selection, and Inspectors. Synthetic motion and Newton physics retain distinct sources.',
+    'session.newtonInstall': 'Install SO-101 Newton scene',
+    'session.newtonHint':
+      'Import the ten fixed-version GLBs into the Asset Library, then install the SO-101 scene. Newton displays actual solved physics; synthetic scenes verify transport.',
+    'session.newtonPreparing': 'Preparing Newton physics scene',
     'session.lifecycle': 'Session lifecycle',
     'session.reception': 'Motion reception',
     'session.idle': 'Not started',
@@ -600,7 +737,7 @@ export const labMessages = {
     'session.denied':
       'Session access was denied. Check your login or lab:full credential, then retry.',
     'session.unavailable':
-      'The server has no development synthetic source enabled. Configure it as described in the tutorial, restart the server, then retry.',
+      'The selected Session source is disabled. Configure it as described in the tutorial, restart the server, then retry.',
     'session.failure':
       'The action failed. Your selection remains; check the current Session, then retry.',
     'session.offline':
@@ -1141,3 +1278,13 @@ export const labMessages = {
     'import.single': 'Import one GLB file at a time.',
   },
 };
+
+export function robotReasonMessage(
+  reason: string,
+  message: (key: string) => string,
+) {
+  const key = `robot.reason.${reason}`;
+  return Object.hasOwn(labMessages.en, key)
+    ? message(key)
+    : reason.slice(0, 120);
+}

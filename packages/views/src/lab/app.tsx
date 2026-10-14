@@ -16,7 +16,7 @@ function catalog(locale: 'zh' | 'en') {
         text,
       ]),
     ),
-    'app.name': 'Lab Word',
+    'app.name': 'Lab World',
   };
 }
 

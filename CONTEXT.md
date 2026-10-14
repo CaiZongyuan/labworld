@@ -1,12 +1,12 @@
-# Lab Word
+# Lab World
 
-Lab Word 面向实验室数字孪生，组织实验室空间、设备身份及相关状态。企业与成员等术语保留其平台含义。
+Lab World 面向实验室数字孪生，组织实验室空间、设备身份及相关状态。企业与成员等术语保留其平台含义。
 
 ## Language
 
-**Lab Word**：
+**Lab World**：
 实验室数字孪生产品的名称，包含实验室空间、设备及其可视化表达。
-_Avoid_: Lab World、Labworld、LabOS、Dougong、SaaS Template、Digital Twin Control Plane
+_Avoid_: Lab Word、Labword、LabOS、Dougong、SaaS Template、Digital Twin Control Plane
 
 **Digital Twin（数字孪生）**：
 与现实实验室及其设备持续关联的数字表达，包含对象身份、空间关系及来源明确的状态信息。
@@ -132,12 +132,12 @@ _Avoid_: 已删除节点、已删除设备、Backup Archive
 Lab 依赖但不拥有的身份与会话、企业成员、凭据、文件、审计与幂等等平台能力。它不包含实验室业务规则，也不引用 Lab。
 _Avoid_: SaaS Core、Reference Domain
 
-**Lab Word Server（Lab Word 服务）**：
+**Lab World Server（Lab World 服务）**：
 持有实验室权威状态、运行设备程序并作为身份与访问安全边界的单个服务进程。浏览器、桌面壳与 Agent 都通过它读写同一个实验室世界。
 _Avoid_: Local Runtime、Backend、Worker
 
 **Browser Standalone（浏览器独立模式）**：
-不连接 Lab Word Server、由浏览器自身保存实验室数据并运行虚拟设备的使用方式。它不提供可信身份、多用户协作或审计边界。
+不连接 Lab World Server、由浏览器自身保存实验室数据并运行虚拟设备的使用方式。它不提供可信身份、多用户协作或审计边界。
 _Avoid_: 浏览器计算、离线缓存
 
 **Organization（企业）**：
@@ -153,7 +153,7 @@ _Avoid_: Organization、Account（含义不明确）
 _Avoid_: User
 
 **Backup Archive（备份归档）**：
-Lab Word Server 停止期间产出的自洽数据集合：数据库数据、按数据库登记核对过的文件内容及其清单与校验值。归档不含密钥，只恢复到新的数据目录。
+Lab World Server 停止期间产出的自洽数据集合：数据库数据、按数据库登记核对过的文件内容及其清单与校验值。归档不含密钥，只恢复到新的数据目录。
 _Avoid_: 数据目录直接拷贝、全量导出、原地覆盖恢复
 
 **Performance Contract（性能合同）**：

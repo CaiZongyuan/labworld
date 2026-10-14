@@ -1,0 +1,708 @@
+{
+  "body_order": [
+    "so101/base",
+    "so101/shoulder",
+    "so101/upper_arm",
+    "so101/lower_arm",
+    "so101/wrist",
+    "so101/gripper",
+    "so101/moving_jaw_so101_v1",
+    "vial",
+    "rack",
+    "mat"
+  ],
+  "collision_discovery": {
+    "activation_margin_m": 0.0,
+    "entrypoint": "ModelBuilder.rigid_gap before add_mjcf; authored gap overrides must remain zero",
+    "guard": "one native step per captured graph; collision-pass peak observer; before Contacts/capture and before next native step",
+    "shape_gap_m": 0.0
+  },
+  "control_hz": 30,
+  "coordinate_frame": "rh-y-up-m",
+  "criteria": {
+    "angular_speed": 0.8,
+    "lift_above_rest_m": 0.006,
+    "linear_speed": 0.06,
+    "rack_lower": [-0.015, -0.015, 0.026],
+    "rack_upper": [0.015, 0.015, 0.04],
+    "released_openness": 0.2,
+    "stable_control_steps": 10,
+    "unsafe_rack_force": 20,
+    "upright_alignment": 0.9
+  },
+  "initial_joints": [0, 0, 0, 0, 0, 0.7],
+  "initial_poses": [
+    {
+      "position": [0.0, 0.0, 0.0],
+      "quaternion": [0.0, 0.0, 0.0, 1.0]
+    },
+    {
+      "position": [0.03883530000000001, 0.0624, 8.976570004676221e-9],
+      "quaternion": [
+        1.22818e-15, -4.996003610813203e-16, 1.0, 3.5616699999999993e-16
+      ]
+    },
+    {
+      "position": [
+        0.0692345000000001, 0.11659999999999998, 0.01827780897656997
+      ],
+      "quaternion": [
+        0.5000000000000002, -0.500000000000001, 0.4999999999999994,
+        -0.4999999999999994
+      ]
+    },
+    {
+      "position": [
+        0.09723450000000018, 0.22916999999999998, 0.018277808976569845
+      ],
+      "quaternion": [
+        6.532312687677733e-16, -0.7071067811865479, 0.7071067811865472,
+        1.1657341758564144e-15
+      ]
+    },
+    {
+      "position": [
+        0.23213450000000022, 0.23436999999999986, 0.018277808976569457
+      ],
+      "quaternion": [
+        0.4999999999999997, -0.5000000000000003, 0.5000000000000001,
+        -0.49999999999999994
+      ]
+    },
+    {
+      "position": [
+        0.29323450000000023, 0.23436999999999975, 0.00017780897656945183
+      ],
+      "quaternion": [
+        0.0172091082305712, -0.0172091082305712, 0.706897338086591,
+        0.7068973380865915
+      ]
+    },
+    {
+      "position": [
+        0.31663450000000026, 0.25546088427927494, -0.01761698240513046
+      ],
+      "quaternion": [
+        0.30540740890372886, 0.6253418293091729, 0.656548901594375,
+        0.29089078864444584
+      ]
+    },
+    {
+      "position": [
+        0.23100000000000007, 0.031000000000000003, 0.017000000000000005
+      ],
+      "quaternion": [0.0, 0.0, 0.0, 1.0]
+    },
+    {
+      "position": [0.23100000000000007, 0.0, 0.017000000000000005],
+      "quaternion": [0.0, 0.0, 0.0, 1.0]
+    },
+    {
+      "position": [
+        0.23000000000000004, -0.003000000000000002, -0.010000000000000002
+      ],
+      "quaternion": [0.0, 0.0, 0.0, 1.0]
+    }
+  ],
+  "jaw_points": {
+    "fixed": [
+      -0.00789999961853019, -0.0002287064617338833, -0.10299987437406272
+    ],
+    "fixed_body": "gripper",
+    "moving": [
+      -0.012299752427775486, -0.08092158611410792, 0.01941554799192011
+    ],
+    "moving_body": "moving_jaw_so101_v1"
+  },
+  "joint_limits": [
+    [-1.9198621771937616, 1.9198621771937634],
+    [-1.7453292519943224, 1.7453292519943366],
+    [-1.69, 1.69],
+    [-1.6580628494556928, 1.6580627293335335],
+    [-2.7438472969992493, 2.841206309382605],
+    [-0.17453297762778586, 1.7453291995659765]
+  ],
+  "joint_order": [
+    "so101/shoulder_pan",
+    "so101/shoulder_lift",
+    "so101/elbow_flex",
+    "so101/wrist_flex",
+    "so101/wrist_roll",
+    "so101/gripper"
+  ],
+  "live_rate_hz": 30,
+  "physics_archive": {
+    "bytes": 6769291,
+    "members": [
+      {
+        "path": "LICENSE",
+        "bytes": 11357,
+        "sha256": "sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "path": "assets/base_motor_holder_so101_v1.stl",
+        "bytes": 1877084,
+        "sha256": "sha256:8cd2f241037ea377af1191fffe0dd9d9006beea6dcc48543660ed41647072424"
+      },
+      {
+        "path": "assets/base_so101_v2.stl",
+        "bytes": 471584,
+        "sha256": "sha256:bb12b7026575e1f70ccc7240051f9d943553bf34e5128537de6cd86fae33924d"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/LICENSE",
+        "bytes": 11357,
+        "sha256": "sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/NOTICE.txt",
+        "bytes": 389,
+        "sha256": "sha256:cf026231e643da96dd3d151ee8a8cbe1dff8e0dbe772e84af02d339accf474c4"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/cell-00.obj",
+        "bytes": 641787,
+        "sha256": "sha256:1a3adda69aa544ebd56fccf60b57f097566e990c76f7faf9c4a3b4440fa416f3"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/cell-01.obj",
+        "bytes": 179408,
+        "sha256": "sha256:8d23f816e7be78b19369b3dc6aead28c35615076db36e8321533113c8efc9709"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/cell-02.obj",
+        "bytes": 164215,
+        "sha256": "sha256:4d9d32d3892f57c3e74dd4373f8ded78bc462eefd650ea2b6c1d5eb2fbfe550a"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/cell-03.obj",
+        "bytes": 151248,
+        "sha256": "sha256:15f82e46e69fcda3592eca2c508a53cd2c9e7c5c7e34ea99d565f13567848461"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/cell-04.obj",
+        "bytes": 206505,
+        "sha256": "sha256:a49b931d08f96abacc1284b866d2f57de179e3c17c53bc3202bfec2810cc4f76"
+      },
+      {
+        "path": "assets/derived/follower-six-slab/cell-05.obj",
+        "bytes": 126672,
+        "sha256": "sha256:0c25483bffdbd49b937a21ed800217514c2a35df6a7cb9b4c053c1fc83fd737e"
+      },
+      {
+        "path": "assets/derived/moving-five-y-slab/LICENSE",
+        "bytes": 11357,
+        "sha256": "sha256:c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      {
+        "path": "assets/derived/moving-five-y-slab/NOTICE.txt",
+        "bytes": 383,
+        "sha256": "sha256:b22b0e1c97a93988860f1877c1493dd938d951a0711b5dc0ba838caa844c2b09"
+      },
+      {
+        "path": "assets/derived/moving-five-y-slab/cell-00.obj",
+        "bytes": 255987,
+        "sha256": "sha256:d7ffe194a718de7a81dca654a2f58efc1eb39d238ba761dedf0c36cc70b2b761"
+      },
+      {
+        "path": "assets/derived/moving-five-y-slab/cell-01.obj",
+        "bytes": 171305,
+        "sha256": "sha256:c4ac6230d34e83e98269cfed0c334171005668916c9a722101f3476ea5476467"
+      },
+      {
+        "path": "assets/derived/moving-five-y-slab/cell-02.obj",
+        "bytes": 347779,
+        "sha256": "sha256:07d12ba7377817ae96ddf553bda91fe5f4cab67e911dbde3a850532f5ba1633f"
+      },
+      {
+        "path": "assets/derived/moving-five-y-slab/cell-03.obj",
+        "bytes": 389834,
+        "sha256": "sha256:90c1f11522c47d5cd27d94ca9a5d702016601a6c5c8913943e511b991efabfba"
+      },
+      {
+        "path": "assets/derived/moving-five-y-slab/cell-04.obj",
+        "bytes": 213081,
+        "sha256": "sha256:cbd1e4ab5cd54aed08087b997da406e5583d5605f62d032598dd9a21509502ea"
+      },
+      {
+        "path": "assets/motor_holder_so101_base_v1.stl",
+        "bytes": 1129384,
+        "sha256": "sha256:31242ae6fb59d8b15c66617b88ad8e9bded62d57c35d11c0c43a70d2f4caa95b"
+      },
+      {
+        "path": "assets/motor_holder_so101_wrist_v1.stl",
+        "bytes": 1052184,
+        "sha256": "sha256:887f92e6013cb64ea3a1ab8675e92da1e0beacfd5e001f972523540545e08011"
+      },
+      {
+        "path": "assets/moving_jaw_so101_v1.stl",
+        "bytes": 1413584,
+        "sha256": "sha256:785a9dded2f474bc1d869e0d3dae398a3dcd9c0c345640040472210d2861fa9d"
+      },
+      {
+        "path": "assets/rotation_pitch_so101_v1.stl",
+        "bytes": 883684,
+        "sha256": "sha256:9be900cc2a2bf718102841ef82ef8d2873842427648092c8ed2ca1e2ef4ffa34"
+      },
+      {
+        "path": "assets/sts3215_03a_no_horn_v1.stl",
+        "bytes": 865884,
+        "sha256": "sha256:75ef3781b752e4065891aea855e34dc161a38a549549cd0970cedd07eae6f887"
+      },
+      {
+        "path": "assets/sts3215_03a_v1.stl",
+        "bytes": 954084,
+        "sha256": "sha256:a37c871fb502483ab96c256baf457d36f2e97afc9205313d9c5ab275ef941cd0"
+      },
+      {
+        "path": "assets/under_arm_so101_v1.stl",
+        "bytes": 1975884,
+        "sha256": "sha256:d01d1f2de365651dcad9d6669e94ff87ff7652b5bb2d10752a66a456a86dbc71"
+      },
+      {
+        "path": "assets/upper_arm_so101_v1.stl",
+        "bytes": 1303484,
+        "sha256": "sha256:475056e03a17e71919b82fd88ab9a0b898ab50164f2a7943652a6b2941bb2d4f"
+      },
+      {
+        "path": "assets/waveshare_mounting_plate_so101_v2.stl",
+        "bytes": 62784,
+        "sha256": "sha256:e197e24005a07d01bbc06a8c42311664eaeda415bf859f68fa247884d0f1a6e9"
+      },
+      {
+        "path": "assets/wrist_roll_follower_so101_v1.stl",
+        "bytes": 1439884,
+        "sha256": "sha256:4b17b410a12d64ec39554abc3e8054d8a97384b2dc4a8d95a5ecb2a93670f5f4"
+      },
+      {
+        "path": "assets/wrist_roll_pitch_so101_v2.stl",
+        "bytes": 2699784,
+        "sha256": "sha256:6c7ec5525b4d8b9e397a30ab4bb0037156a5d5f38a4adf2c7d943d6c56eda5ae"
+      },
+      {
+        "path": "calibration.json",
+        "bytes": 3806,
+        "sha256": "sha256:8058525d96ed81f3cdf6881d80d0590747a38eb570367279ea3852112f0faaac"
+      },
+      {
+        "path": "follower-compound.json",
+        "bytes": 3761,
+        "sha256": "sha256:f8d753d3d46aa1480c3c8fa9d6e17e1ee8c375186e5956e2772b571762cfd5eb"
+      },
+      {
+        "path": "moving-compound.json",
+        "bytes": 2806,
+        "sha256": "sha256:9fb2fd46f0045856d66312645b15e5415e9bfeef0a73420a13068a6a5b738d1c"
+      },
+      {
+        "path": "program.json",
+        "bytes": 2014,
+        "sha256": "sha256:d96d8631f7ed64f61314d2944cd4fd1c898d8adbf8fd6b6f35161bb13c81c742"
+      },
+      {
+        "path": "scene.xml",
+        "bytes": 16503,
+        "sha256": "sha256:c102321ebed5e20217c518e7a395ef007f213f8aaca77b24ded29c5338b8667b"
+      },
+      {
+        "path": "so101-original.xml",
+        "bytes": 13921,
+        "sha256": "sha256:d75253eb568e8a7214db9c631ab7bed4217f608a26f7276ebe9a7636cac82580"
+      },
+      {
+        "path": "sources.json",
+        "bytes": 2866,
+        "sha256": "sha256:2ad923738b305d93380fe58b308bf6129efcfc66ec93d86e270f2c6b3891d57c"
+      }
+    ],
+    "sha256": "sha256:fcddb20fbe664cbeceee1c95cee24d4ccf9e4388b858d9808b7ed5a49e852e20",
+    "visual_index": 0
+  },
+  "physics_step_hz": 240,
+  "profile_id": "so101-vial-v1",
+  "program": [
+    {
+      "end_step": 240,
+      "phase": "static",
+      "joints": [0, 0, 0, 0, 0, 0.7]
+    },
+    {
+      "end_step": 600,
+      "phase": "approach",
+      "joints": [
+        0.00041600088669637125, -1.1801707595411117, 1.0763741627847883,
+        0.10389260021573833, -1.5215039654243903, 1.6
+      ]
+    },
+    {
+      "end_step": 700,
+      "phase": "approach",
+      "joints": [
+        0.0004160008866963626, -1.2002411568692828, 1.2310808019007495,
+        -0.030743641555023397, -1.5215039654252114, 1.6
+      ]
+    },
+    {
+      "end_step": 800,
+      "phase": "approach",
+      "joints": [
+        0.0004160008866940076, -1.1754699364786088, 1.3723579280486042,
+        -0.1967919880935352, -1.5215039654252118, 1.6
+      ]
+    },
+    {
+      "end_step": 880,
+      "phase": "approach",
+      "joints": [
+        0.000416000886694366, -1.0611012825860282, 1.4907258379455666,
+        -0.4295285518830859, -1.5215039654252118, 1.6
+      ]
+    },
+    {
+      "end_step": 960,
+      "phase": "approach",
+      "joints": [
+        0.00041600088669484925, -0.7689305669267379, 1.5619742780399275,
+        -0.7929477076367293, -1.521503965425213, 1.6
+      ]
+    },
+    {
+      "end_step": 1040,
+      "phase": "approach",
+      "joints": [
+        0.00040519598395335186, -0.6696546264867504, 1.517723976784889,
+        -0.8479733404170057, -1.521503966448834, 1.6
+      ]
+    },
+    {
+      "end_step": 1440,
+      "phase": "close",
+      "joints": [
+        0.04193460530875428, -0.6660431246342243, 1.5159446449462193,
+        -0.8498310367944236, -1.5215005087748326, 0.4
+      ]
+    },
+    {
+      "end_step": 1680,
+      "phase": "close",
+      "joints": [
+        0.04193460530875428, -0.6660431246342243, 1.5159446449462193,
+        -0.8498310367944236, -1.5215005087748326, 0.4
+      ]
+    },
+    {
+      "end_step": 2160,
+      "phase": "lift",
+      "joints": [
+        0.041934605308756014, -0.8591823523165514, 1.485089439920679,
+        -0.6258366040867603, -1.5215005087748192, 0.3
+      ]
+    },
+    {
+      "end_step": 2640,
+      "phase": "held",
+      "joints": [
+        0.041934605308756014, -0.8591823523165514, 1.485089439920679,
+        -0.6258366040867603, -1.5215005087748192, 0.2
+      ]
+    },
+    {
+      "end_step": 3360,
+      "phase": "lower",
+      "joints": [
+        0.04193460530875428, -0.6660431246342243, 1.5159446449462193,
+        -0.8498310367944236, -1.5215005087748326, 0.2
+      ]
+    },
+    {
+      "end_step": 3840,
+      "phase": "release",
+      "joints": [
+        0.00040519598395335186, -0.6696546264867504, 1.517723976784889,
+        -0.8479733404170057, -1.521503966448834, 1.6
+      ]
+    },
+    {
+      "end_step": 4320,
+      "phase": "rest",
+      "joints": [
+        0.00041600088669637125, -1.1801707595411117, 1.0763741627847883,
+        0.10389260021573833, -1.5215039654243903, 1.6
+      ]
+    }
+  ],
+  "sample_hz": 30,
+  "scene_sha256": "sha256:c102321ebed5e20217c518e7a395ef007f213f8aaca77b24ded29c5338b8667b",
+  "seed": 42,
+  "solver": "Newton SolverMuJoCo/MJWarp",
+  "solver_configuration": {
+    "nconmax": 256,
+    "njmax": 512,
+    "use_mujoco_contacts": true,
+    "use_mujoco_cpu": false
+  },
+  "source": {
+    "commit": "a758567c3978dfeefe282ede0500085a48fe8f78",
+    "files": [
+      {
+        "bytes": 1877084,
+        "git_blob_sha1": "cac2b8dd98d3d8a6dcdf429b36aaa4b576d82041",
+        "path": "Simulation/SO101/assets/base_motor_holder_so101_v1.stl",
+        "sha256": "8cd2f241037ea377af1191fffe0dd9d9006beea6dcc48543660ed41647072424"
+      },
+      {
+        "bytes": 471584,
+        "git_blob_sha1": "ed10aa61d1181f8001c908ee5cae5c4f970ba417",
+        "path": "Simulation/SO101/assets/base_so101_v2.stl",
+        "sha256": "bb12b7026575e1f70ccc7240051f9d943553bf34e5128537de6cd86fae33924d"
+      },
+      {
+        "bytes": 1129384,
+        "git_blob_sha1": "9eaf67243a5ffc2dacb3fbd026b4c0620adcdd66",
+        "path": "Simulation/SO101/assets/motor_holder_so101_base_v1.stl",
+        "sha256": "31242ae6fb59d8b15c66617b88ad8e9bded62d57c35d11c0c43a70d2f4caa95b"
+      },
+      {
+        "bytes": 1052184,
+        "git_blob_sha1": "d0aa18b15a9cd63f41fa4d48e82df7a3b618c75d",
+        "path": "Simulation/SO101/assets/motor_holder_so101_wrist_v1.stl",
+        "sha256": "887f92e6013cb64ea3a1ab8675e92da1e0beacfd5e001f972523540545e08011"
+      },
+      {
+        "bytes": 1413584,
+        "git_blob_sha1": "7e8736686592072cf34c7f6e2e6e88f8a3ba60bb",
+        "path": "Simulation/SO101/assets/moving_jaw_so101_v1.stl",
+        "sha256": "785a9dded2f474bc1d869e0d3dae398a3dcd9c0c345640040472210d2861fa9d"
+      },
+      {
+        "bytes": 883684,
+        "git_blob_sha1": "5c05dee570623f62c4ab7597d76c7bdea20eacea",
+        "path": "Simulation/SO101/assets/rotation_pitch_so101_v1.stl",
+        "sha256": "9be900cc2a2bf718102841ef82ef8d2873842427648092c8ed2ca1e2ef4ffa34"
+      },
+      {
+        "bytes": 865884,
+        "git_blob_sha1": "2a89597702f5ec6849b6b1b894c867b35b98ca42",
+        "path": "Simulation/SO101/assets/sts3215_03a_no_horn_v1.stl",
+        "sha256": "75ef3781b752e4065891aea855e34dc161a38a549549cd0970cedd07eae6f887"
+      },
+      {
+        "bytes": 954084,
+        "git_blob_sha1": "fe05403dbfac7a26822b8c8cd0fc3d5288a69fc8",
+        "path": "Simulation/SO101/assets/sts3215_03a_v1.stl",
+        "sha256": "a37c871fb502483ab96c256baf457d36f2e97afc9205313d9c5ab275ef941cd0"
+      },
+      {
+        "bytes": 1975884,
+        "git_blob_sha1": "480e0583c8bb27ff9affefbebee72b784fb054c8",
+        "path": "Simulation/SO101/assets/under_arm_so101_v1.stl",
+        "sha256": "d01d1f2de365651dcad9d6669e94ff87ff7652b5bb2d10752a66a456a86dbc71"
+      },
+      {
+        "bytes": 1303484,
+        "git_blob_sha1": "9c0f9b275a51f720476e529c92193f4f69d4784c",
+        "path": "Simulation/SO101/assets/upper_arm_so101_v1.stl",
+        "sha256": "475056e03a17e71919b82fd88ab9a0b898ab50164f2a7943652a6b2941bb2d4f"
+      },
+      {
+        "bytes": 62784,
+        "git_blob_sha1": "4dba1f22b01ab9afef2466872fcb3e1efca89e38",
+        "path": "Simulation/SO101/assets/waveshare_mounting_plate_so101_v2.stl",
+        "sha256": "e197e24005a07d01bbc06a8c42311664eaeda415bf859f68fa247884d0f1a6e9"
+      },
+      {
+        "bytes": 1439884,
+        "git_blob_sha1": "123ce374ad3efc240e4d7022f31314e59fe4b0c0",
+        "path": "Simulation/SO101/assets/wrist_roll_follower_so101_v1.stl",
+        "sha256": "4b17b410a12d64ec39554abc3e8054d8a97384b2dc4a8d95a5ecb2a93670f5f4"
+      },
+      {
+        "bytes": 2699784,
+        "git_blob_sha1": "ac5172a35e6da3e9fdea21e25803f23cc61e31f1",
+        "path": "Simulation/SO101/assets/wrist_roll_pitch_so101_v2.stl",
+        "sha256": "6c7ec5525b4d8b9e397a30ab4bb0037156a5d5f38a4adf2c7d943d6c56eda5ae"
+      }
+    ],
+    "repo": "TheRobotStudio/SO-ARM100"
+  },
+  "source_coordinate_frame": "rh-z-up-m",
+  "source_kind": "newton",
+  "use_mujoco_contacts": true,
+  "use_mujoco_cpu": false,
+  "version": "1",
+  "visuals": [
+    {
+      "body_to_visual": {
+        "position": [
+          0.016826296162290574, -0.0023999999999997097, 8.976570004676221e-9
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [0.06463529232458115, 0.06959999690055849, 0.055462507194391136],
+        "min": [
+          -0.030982700000000002, -0.0023999999999997097, -0.05546248924125113
+        ]
+      },
+      "bytes": 11618124,
+      "file": "base.glb",
+      "sha256": "sha256:1f914ad6176fd3a16e22c6c8c99f2dd09eef7fb253d68c8cc56ab02641e544de"
+    },
+    {
+      "body_to_visual": {
+        "position": [
+          -0.019199199538064003, -0.06440000055432321, -0.0011624626136455506
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [
+          0.012200800000000001, 0.046200000005052436, 0.026377759196695334
+        ],
+        "min": [
+          -0.05059919907612801, -0.06440000055432321, -0.028702684423986435
+        ]
+      },
+      "bytes": 4274472,
+      "file": "shoulder.glb",
+      "sha256": "sha256:f2ff510f80304b5d291e476bc6ba224dcbbddbffd8268b4845b53e39e27a803a"
+    },
+    {
+      "body_to_visual": {
+        "position": [
+          -0.05908499901652338, -0.013500000166893008, 0.01310000027716152
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [
+          0.011999988355636594, 0.053799999129772194, 0.03820000055432321
+        ],
+        "min": [
+          -0.13016998638868335, -0.013500000166893008, -0.01200000000000017
+        ]
+      },
+      "bytes": 3252196,
+      "file": "upper_arm.glb",
+      "sha256": "sha256:fa34d7e14c1ad2a2e185d66a88bd1d5893267bf02ffc6e3eb76b0800622e264c"
+    },
+    {
+      "body_to_visual": {
+        "position": [
+          -0.0665499964588404, -0.012000000852346421, -0.0034500003159044458
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [
+          0.012000007636642456, 0.05240000150799752, 0.014999999076128223
+        ],
+        "min": [
+          -0.14510000055432326, -0.012000000852346421, -0.021899999707937115
+        ]
+      },
+      "bytes": 5736076,
+      "file": "lower_arm.glb",
+      "sha256": "sha256:f830f0c1c29988e177f992689773cae26a6f906744fbb1d09eddec4fd1f0a00e"
+    },
+    {
+      "body_to_visual": {
+        "position": [
+          -0.002170124091207981, -0.009000000530481339, 0.02691535378992558
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [0.015659751370549202, 0.05330000055432321, 0.06582838582992555],
+        "min": [
+          -0.019999999552965164, -0.009000000530481339, -0.01199767825007439
+        ]
+      },
+      "bytes": 5135856,
+      "file": "wrist.glb",
+      "sha256": "sha256:934276ddc39aafff7f676f8e654e71b33b64c187639aa889960cd7fa8aea5656"
+    },
+    {
+      "body_to_visual": {
+        "position": [
+          -0.0023999996274708217, -0.10442529334434893, 0.0019999998606576915
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [0.03040000055432341, 0.0009999995472468387, 0.0280000003970995],
+        "min": [
+          -0.03519999980926505, -0.10442529334434893, -0.024000000675784117
+        ]
+      },
+      "bytes": 3448612,
+      "file": "gripper.glb",
+      "sha256": "sha256:d9d157121685a4192892e349c205fbe4c24261feeb0f2f992f949ca54e9b22f1"
+    },
+    {
+      "body_to_visual": {
+        "position": [
+          -0.0011510113254190012, -0.005100000208616265, 0.03600266901776201
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [0.009997976943850477, 0.04290000020861627, 0.08200000226497657],
+        "min": [
+          -0.01229999959468848, -0.005100000208616265, -0.009994664229452555
+        ]
+      },
+      "bytes": 2036400,
+      "file": "moving_jaw_so101_v1.glb",
+      "sha256": "sha256:b963c11bf304debeac8986310e5b6fe0738fca432e7a716a5ececf115af7fd4a"
+    },
+    {
+      "body_to_visual": {
+        "position": [0.0, -0.017000000000000008, 0.0],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [
+          0.022000000000000002, 0.10000000000000003, 0.022000000000000006
+        ],
+        "min": [
+          -0.022000000000000002, -0.017000000000000008, -0.022000000000000006
+        ]
+      },
+      "bytes": 29148,
+      "file": "vial.glb",
+      "sha256": "sha256:51be8249d077391343da941512b757592d515b55a41332fc7cdb78002decdd4c"
+    },
+    {
+      "body_to_visual": {
+        "position": [
+          0.030000000000000006, 0.008000000000000004, -0.03000000000000001
+        ],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [0.09600000000000002, 0.07300000000000001, 0.03600000000000001],
+        "min": [
+          -0.036000000000000004, 0.008000000000000004, -0.09600000000000003
+        ]
+      },
+      "bytes": 10352,
+      "file": "rack.glb",
+      "sha256": "sha256:267416c4dc0c18c50f4cc18d2bf01eb4f1e02b45e180c9a625a84a0318aab0cd"
+    },
+    {
+      "body_to_visual": {
+        "position": [0.0, -0.0030000000000000165, 0.0],
+        "quaternion": [0, 0, 0, 1]
+      },
+      "bounds": {
+        "max": [0.18, 0.0030000000000000165, 0.15000000000000002],
+        "min": [-0.18, -0.0030000000000000165, -0.15000000000000002]
+      },
+      "bytes": 1756,
+      "file": "mat.glb",
+      "sha256": "sha256:81c577f75c2d1cc967e2f90ae9936854fbaccb5250146d85d931a37083e7df46"
+    }
+  ],
+  "hash": "sha256:499280ca3f82a759c8d7730fff556c632be48c2bfc290c687d5ed488ddc117cc"
+}

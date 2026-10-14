@@ -77,7 +77,11 @@ export function recordingInteger(value: unknown, max = 0xffff_ffff): number {
     );
   return value;
 }
-export function recordingJSON(text: string, bound: number): unknown {
+export function recordingJSON(
+  text: string,
+  bound: number,
+  integerLiterals = true,
+): unknown {
   if (
     typeof text !== 'string' ||
     new TextEncoder().encode(text).byteLength > bound
@@ -94,7 +98,7 @@ export function recordingJSON(text: string, bound: number): unknown {
     )!;
     const stack: (Set<string> | null)[] = [];
     tokens.forEach((token, index) => {
-      if (/^-?\d/.test(token) && /[.eE]/.test(token))
+      if (integerLiterals && /^-?\d/.test(token) && /[.eE]/.test(token))
         throw new Error('Recording integers use integer JSON literals');
       if (token === '{') stack.push(new Set());
       else if (token === '[') stack.push(null);
@@ -157,12 +161,21 @@ function sourceText(value: unknown): string {
   return value;
 }
 export function parseSourceHeader(value: unknown): RecordingSourceHeader {
+  const newton =
+    !!value &&
+    typeof value === 'object' &&
+    'source_kind' in value &&
+    value.source_kind === 'newton';
   const header = recordingObject(value, [
     'source_kind',
     'implementation',
     'python_version',
     'dependencies',
     'capture_policy',
+    ...(newton ? ['runtime'] : []),
+    ...(value && typeof value === 'object' && 'robot_control' in value
+      ? ['robot_control']
+      : []),
   ]);
   if (header.source_kind !== 'synthetic' && header.source_kind !== 'newton')
     throw new RecordingProtocolError(
@@ -192,6 +205,65 @@ export function parseSourceHeader(value: unknown): RecordingSourceHeader {
       'invalid_message',
       'Source dependencies must be unique and sorted',
     );
+  let runtime: RecordingSourceHeader['runtime'];
+  if (newton) {
+    const actual = recordingObject(header.runtime, [
+      'device',
+      'gpu',
+      'driver',
+      'solver',
+      'profile_sha256',
+      'physics_step_hz',
+      'control_hz',
+      'live_rate_hz',
+    ]);
+    if (
+      actual.device !== 'cuda:0' ||
+      actual.solver !== 'Newton SolverMuJoCo/MJWarp' ||
+      actual.physics_step_hz !== 240 ||
+      actual.control_hz !== 30 ||
+      (actual.live_rate_hz !== 15 && actual.live_rate_hz !== 30)
+    )
+      throw new RecordingProtocolError(
+        'invalid_message',
+        'Unsupported Newton runtime',
+      );
+    runtime = {
+      device: sourceText(actual.device),
+      gpu: sourceText(actual.gpu),
+      driver: sourceText(actual.driver),
+      solver: sourceText(actual.solver),
+      profile_sha256: recordingDigest(actual.profile_sha256),
+      physics_step_hz: 240,
+      control_hz: 30,
+      live_rate_hz: actual.live_rate_hz,
+    };
+  }
+  let robot_control: RecordingSourceHeader['robot_control'];
+  if (header.robot_control !== undefined) {
+    const control = recordingObject(header.robot_control, [
+      'version',
+      'mode',
+      'capabilities',
+    ]);
+    const capabilities = [
+      'robot.home',
+      'robot.move_joints',
+      'robot.set_gripper',
+      'robot.cancel',
+    ];
+    if (
+      !newton ||
+      control.version !== 1 ||
+      control.mode !== 'controlled' ||
+      JSON.stringify(control.capabilities) !== JSON.stringify(capabilities)
+    )
+      throw new RecordingProtocolError(
+        'invalid_message',
+        'Unsupported robot control contract',
+      );
+    robot_control = { version: 1, mode: 'controlled', capabilities };
+  }
   return {
     source_kind: header.source_kind,
     implementation: implementation(header.implementation),
@@ -199,6 +271,8 @@ export function parseSourceHeader(value: unknown): RecordingSourceHeader {
       header.python_version === null ? null : sourceText(header.python_version),
     dependencies,
     capture_policy: parseCapturePolicy(header.capture_policy),
+    ...(runtime ? { runtime } : {}),
+    ...(robot_control ? { robot_control } : {}),
   };
 }
 export function canonicalSourceHeader(value: unknown): Uint8Array {
@@ -300,26 +374,41 @@ export function parseRecordingHello(text: string): RecordingHello {
   };
 }
 export function parseRecordingReady(text: string): RecordingReady {
-  const object = recordingObject(
-    recordingJSON(text, RECORDING_WIRE_LIMITS.hello_bytes),
-    [
-      'type',
-      'version',
-      'codec',
-      ...RECORDING_IDENTITY_FIELDS,
-      'source_header_sha256',
-      'source_prefix_sha256',
-      'capture_policy',
-      'limits',
-    ],
-  );
+  const value = recordingJSON(text, RECORDING_WIRE_LIMITS.hello_bytes);
+  const object = recordingObject(value, [
+    'type',
+    'version',
+    'codec',
+    ...RECORDING_IDENTITY_FIELDS,
+    ...(value && typeof value === 'object' && 'robot' in value
+      ? ['robot']
+      : []),
+    'source_header_sha256',
+    'source_prefix_sha256',
+    'capture_policy',
+    'limits',
+  ]);
   typed(object, 'recording.ready');
   if (object.codec !== RECORDING_CODEC)
     throw new RecordingProtocolError(
       'invalid_message',
       'Unsupported Recording codec',
     );
+  let robot: RecordingReady['robot'];
+  if (object.robot !== undefined) {
+    const r = recordingObject(object.robot, [
+      'entity_id',
+      'binding_id',
+      'run_id',
+    ]);
+    robot = {
+      entity_id: recordingUUID(r.entity_id),
+      binding_id: recordingUUID(r.binding_id),
+      run_id: recordingUUID(r.run_id),
+    };
+  }
   return {
+    ...(robot ? { robot } : {}),
     type: 'recording.ready',
     version: 1,
     codec: RECORDING_CODEC,

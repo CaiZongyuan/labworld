@@ -1,5 +1,5 @@
 /* ============================================================
-   Lab Word — landing plate.
+   Lab World — landing plate.
    Visual language after Factory Yard / ai-iso-skill: one hairline
    isometric figure framed as a plate, DM Mono throughout, two greys
    for lines and a single --live colour reserved for what is live.
@@ -21,7 +21,7 @@
 }
 
 /* ---- tokens: the map reads these too ---- */
-html:has(.labword-landing) {
+html:has(.labworld-landing) {
   color-scheme: dark;
   --bg: #0c0d0e;
   --panel: #141516;
@@ -56,7 +56,7 @@ html:has(.labword-landing) {
   --page-live: var(--live);
   --pad: clamp(14px, 2.4vw, 28px);
 }
-html:has(.labword-landing):not(.dark) {
+html:has(.labworld-landing):not(.dark) {
   color-scheme: light;
   --bg: #e9eaea;
   --panel: #f6f6f5;
@@ -82,7 +82,7 @@ html:has(.labword-landing):not(.dark) {
   --snow: #fbfbfa;
 }
 /* after dark the whole page turns dark in both themes, so a light page never frames a night lab */
-html:has(.labword-landing).after-dark {
+html:has(.labworld-landing).after-dark {
   color-scheme: dark;
   --page-bg: #0c0d0e;
   --page-panel: #141516;
@@ -92,13 +92,13 @@ html:has(.labword-landing).after-dark {
   --page-ink-hi: #e6e8e9;
   --page-live: #f4f5f5;
 }
-:where(html:has(.labword-landing)) * {
+:where(html:has(.labworld-landing)) * {
   box-sizing: border-box;
 }
-html:has(.labword-landing) {
+html:has(.labworld-landing) {
   scroll-behavior: smooth;
 }
-:where(html:has(.labword-landing)) body {
+:where(html:has(.labworld-landing)) body {
   margin: 0;
   background: var(--page-bg);
   color: var(--page-ink);
@@ -108,25 +108,25 @@ html:has(.labword-landing) {
   -webkit-font-smoothing: antialiased;
 }
 /* VitePress resets paragraph margins; the supplied design uses this baseline. */
-:where(html:has(.labword-landing)) p {
+:where(html:has(.labworld-landing)) p {
   margin-block: 1em;
 }
-:where(html:has(.labword-landing)) h3,
-:where(html:has(.labword-landing)) h4 {
+:where(html:has(.labworld-landing)) h3,
+:where(html:has(.labworld-landing)) h4 {
   line-height: inherit;
 }
-:where(html:has(.labword-landing)) ::selection {
+:where(html:has(.labworld-landing)) ::selection {
   background: var(--page-live);
   color: var(--page-bg);
 }
-:where(html:has(.labword-landing)) img {
+:where(html:has(.labworld-landing)) img {
   max-width: 100%;
   display: block;
 }
-:where(html:has(.labword-landing)) a {
+:where(html:has(.labworld-landing)) a {
   color: inherit;
 }
-:where(html:has(.labword-landing)) button {
+:where(html:has(.labworld-landing)) button {
   font: inherit;
   color: var(--page-ink);
   background: var(--page-panel);
@@ -134,43 +134,43 @@ html:has(.labword-landing) {
   border-radius: 8px;
   cursor: pointer;
 }
-:where(html:has(.labword-landing)) button:hover {
+:where(html:has(.labworld-landing)) button:hover {
   color: var(--page-ink-hi);
   border-color: var(--page-line);
 }
-:where(html:has(.labword-landing)) button:focus-visible,
-:where(html:has(.labword-landing)) a:focus-visible {
+:where(html:has(.labworld-landing)) button:focus-visible,
+:where(html:has(.labworld-landing)) a:focus-visible {
   outline: 2px solid var(--page-live);
   outline-offset: 2px;
 }
-:where(html:has(.labword-landing)) [hidden] {
+:where(html:has(.labworld-landing)) [hidden] {
   display: none !important;
 }
 
-:where(html:has(.labword-landing)) .wrap {
+:where(html:has(.labworld-landing)) .wrap {
   max-width: 1240px;
   margin: 0 auto;
   padding-inline: var(--pad);
 }
-:where(html:has(.labword-landing)) .cap {
+:where(html:has(.labworld-landing)) .cap {
   text-transform: uppercase;
   letter-spacing: 0.14em;
   font-size: 11px;
 }
-:where(html:has(.labword-landing)) .hi {
+:where(html:has(.labworld-landing)) .hi {
   color: var(--page-ink-hi);
 }
-:where(html:has(.labword-landing)) .rule {
+:where(html:has(.labworld-landing)) .rule {
   border: 0;
   border-top: 1px solid var(--page-edge);
   margin: 0;
 }
 
 /* ---------- hero head + the plate ---------- */
-:where(html:has(.labword-landing)) .hero-head {
+:where(html:has(.labworld-landing)) .hero-head {
   padding: calc(58px + var(--pad)) 0 clamp(18px, 2.6vw, 30px);
 }
-:where(html:has(.labword-landing)) .hero-head h1 {
+:where(html:has(.labworld-landing)) .hero-head h1 {
   margin: 0 0 18px;
   color: var(--page-ink-hi);
   font-weight: 500;
@@ -179,27 +179,27 @@ html:has(.labword-landing) {
   line-height: 1.03;
   text-wrap: balance;
 }
-:where(html:has(.labword-landing)) .hero-head h1 em {
+:where(html:has(.labworld-landing)) .hero-head h1 em {
   font-style: normal;
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) .hero-meta {
+:where(html:has(.labworld-landing)) .hero-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: 18px 34px;
 }
-:where(html:has(.labword-landing)) .hero-meta .lede {
+:where(html:has(.labworld-landing)) .hero-meta .lede {
   flex: 1 1 34ch;
   margin: 0;
 }
-:where(html:has(.labword-landing)) .hero-meta .cta {
+:where(html:has(.labworld-landing)) .hero-meta .cta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
-:where(html:has(.labword-landing)) .btn {
+:where(html:has(.labworld-landing)) .btn {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -218,19 +218,19 @@ html:has(.labword-landing) {
     color 0.18s ease,
     border-color 0.18s ease;
 }
-:where(html:has(.labword-landing)) .btn:hover {
+:where(html:has(.labworld-landing)) .btn:hover {
   transform: translateY(-2px);
   border-color: var(--page-live);
 }
-:where(html:has(.labword-landing)) .btn.solid {
+:where(html:has(.labworld-landing)) .btn.solid {
   background: var(--page-live);
   color: var(--page-bg);
   border-color: var(--page-live);
 }
-:where(html:has(.labword-landing)) .btn.solid:hover {
+:where(html:has(.labworld-landing)) .btn.solid:hover {
   color: var(--page-bg);
 }
-:where(html:has(.labword-landing)) .btn svg {
+:where(html:has(.labworld-landing)) .btn svg {
   width: 14px;
   height: 14px;
   fill: none;
@@ -239,18 +239,18 @@ html:has(.labword-landing) {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-:where(html:has(.labword-landing)) .btn.solid svg {
+:where(html:has(.labworld-landing)) .btn.solid svg {
   fill: currentColor;
   stroke: none;
 }
 
-:where(html:has(.labword-landing)) .plate {
+:where(html:has(.labworld-landing)) .plate {
   position: relative;
   height: clamp(460px, 74svh, 860px);
   padding: 0 var(--pad) var(--pad);
   display: grid;
 }
-:where(html:has(.labword-landing)) .plate figure {
+:where(html:has(.labworld-landing)) .plate figure {
   margin: 0;
   height: 100%;
   min-height: 0;
@@ -262,41 +262,41 @@ html:has(.labword-landing) {
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 10px;
 }
-:where(html:has(.labword-landing)) .plate .cap {
+:where(html:has(.labworld-landing)) .plate .cap {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
   align-items: baseline;
   gap: 4px 18px;
 }
-:where(html:has(.labword-landing)) .plate .cap .hi {
+:where(html:has(.labworld-landing)) .plate .cap .hi {
   text-transform: none;
   letter-spacing: 0.05em;
   font-size: 12px;
 }
-:where(html:has(.labword-landing)) .plate .brand {
+:where(html:has(.labworld-landing)) .plate .brand {
   display: flex;
   align-items: center;
   gap: 10px;
 }
-:where(html:has(.labword-landing)) .plate .brand .mark {
+:where(html:has(.labworld-landing)) .plate .brand .mark {
   width: 20px;
   height: 20px;
   flex: none;
 }
-:where(html:has(.labword-landing)) .plate .brand b {
+:where(html:has(.labworld-landing)) .plate .brand b {
   color: var(--page-ink-hi);
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: none;
   font-size: 14px;
 }
-:where(html:has(.labword-landing)) .sites {
+:where(html:has(.labworld-landing)) .sites {
   display: flex;
   flex-wrap: wrap;
   gap: 4px 16px;
 }
-:where(html:has(.labword-landing)) .sites button {
+:where(html:has(.labworld-landing)) .sites button {
   border: 0;
   background: none;
   padding: 0;
@@ -306,23 +306,23 @@ html:has(.labword-landing) {
   letter-spacing: 0.14em;
   font-size: 11px;
 }
-:where(html:has(.labword-landing)) .sites button:hover,
-:where(html:has(.labword-landing)) .sites button[aria-current='true'] {
+:where(html:has(.labworld-landing)) .sites button:hover,
+:where(html:has(.labworld-landing)) .sites button[aria-current='true'] {
   color: var(--page-ink-hi);
 }
-:where(html:has(.labword-landing)) .sites button[aria-current='true'] {
+:where(html:has(.labworld-landing)) .sites button[aria-current='true'] {
   text-decoration: underline;
   text-underline-offset: 5px;
 }
 
-:where(html:has(.labword-landing)) .stage {
+:where(html:has(.labworld-landing)) .stage {
   position: relative;
   min-height: 0;
   overflow: hidden;
   border-radius: 14px;
   background: var(--page-bg);
 }
-:where(html:has(.labword-landing)) .stage canvas {
+:where(html:has(.labworld-landing)) .stage canvas {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -331,19 +331,19 @@ html:has(.labword-landing) {
   touch-action: none;
   cursor: grab;
 }
-:where(html:has(.labword-landing)) .stage canvas:active {
+:where(html:has(.labworld-landing)) .stage canvas:active {
   cursor: grabbing;
 }
-:where(html:has(.labword-landing)) .stage canvas.over {
+:where(html:has(.labworld-landing)) .stage canvas.over {
   cursor: pointer;
 }
-:where(html:has(.labword-landing)) .stage canvas:focus-visible {
+:where(html:has(.labworld-landing)) .stage canvas:focus-visible {
   outline: 2px solid var(--page-live);
   outline-offset: -2px;
   border-radius: 14px;
 }
 
-:where(html:has(.labword-landing)) .tools {
+:where(html:has(.labworld-landing)) .tools {
   position: absolute;
   left: 10px;
   top: 10px;
@@ -351,14 +351,14 @@ html:has(.labword-landing) {
   gap: 6px;
   z-index: 3;
 }
-:where(html:has(.labword-landing)) .tools button {
+:where(html:has(.labworld-landing)) .tools button {
   width: 32px;
   height: 32px;
   padding: 0;
   display: grid;
   place-items: center;
 }
-:where(html:has(.labword-landing)) .tools svg {
+:where(html:has(.labworld-landing)) .tools svg {
   width: 16px;
   height: 16px;
   fill: none;
@@ -367,11 +367,11 @@ html:has(.labword-landing) {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-:where(html:has(.labword-landing)) .tools .gap {
+:where(html:has(.labworld-landing)) .tools .gap {
   height: 4px;
 }
 
-:where(html:has(.labword-landing)) .tag {
+:where(html:has(.labworld-landing)) .tag {
   position: absolute;
   left: 0;
   top: 0;
@@ -388,12 +388,12 @@ html:has(.labword-landing) {
   padding: 3px 8px;
   z-index: 4;
 }
-:where(html:has(.labword-landing)) .tag.hover {
+:where(html:has(.labworld-landing)) .tag.hover {
   color: var(--page-ink);
   border-color: var(--page-line);
 }
 
-:where(html:has(.labword-landing)) .card {
+:where(html:has(.labworld-landing)) .card {
   position: absolute;
   top: 10px;
   right: 10px;
@@ -415,7 +415,7 @@ html:has(.labword-landing) {
     transform: translateY(-6px) scale(0.985);
   }
 }
-:where(html:has(.labword-landing)) .card .head {
+:where(html:has(.labworld-landing)) .card .head {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -424,7 +424,7 @@ html:has(.labword-landing) {
   text-transform: uppercase;
   letter-spacing: 0.14em;
 }
-:where(html:has(.labword-landing)) .card .head button {
+:where(html:has(.labworld-landing)) .card .head button {
   width: 26px;
   height: 26px;
   padding: 0;
@@ -433,13 +433,13 @@ html:has(.labword-landing) {
   font-size: 15px;
   line-height: 1;
 }
-:where(html:has(.labword-landing)) .card .title {
+:where(html:has(.labworld-landing)) .card .title {
   color: var(--page-ink-hi);
   font-size: 20px;
   letter-spacing: 0.04em;
   line-height: 1.1;
 }
-:where(html:has(.labword-landing)) .card .status {
+:where(html:has(.labworld-landing)) .card .status {
   justify-self: start;
   color: var(--page-ink-hi);
   border: 1px solid var(--page-line);
@@ -447,79 +447,79 @@ html:has(.labword-landing) {
   padding: 2px 10px;
   font-size: 12px;
 }
-:where(html:has(.labword-landing)) .card .status.live {
+:where(html:has(.labworld-landing)) .card .status.live {
   border-color: var(--page-live);
 }
-:where(html:has(.labword-landing)) .card dl {
+:where(html:has(.labworld-landing)) .card dl {
   margin: 0;
   display: grid;
   grid-template-columns: auto 1fr;
 }
-:where(html:has(.labword-landing)) .card dt,
-:where(html:has(.labword-landing)) .card dd {
+:where(html:has(.labworld-landing)) .card dt,
+:where(html:has(.labworld-landing)) .card dd {
   margin: 0;
   padding: 6px 0;
   border-top: 1px solid var(--page-edge);
   font-size: 12px;
 }
-:where(html:has(.labword-landing)) .card dd {
+:where(html:has(.labworld-landing)) .card dd {
   text-align: right;
   color: var(--page-ink-hi);
   padding-left: 12px;
 }
-:where(html:has(.labword-landing)) .card .bar {
+:where(html:has(.labworld-landing)) .card .bar {
   display: grid;
   gap: 5px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
-:where(html:has(.labword-landing)) .card .bar div {
+:where(html:has(.labworld-landing)) .card .bar div {
   height: 6px;
   border: 1px solid var(--page-line);
   border-radius: 3px;
   overflow: hidden;
 }
-:where(html:has(.labword-landing)) .card .bar i {
+:where(html:has(.labworld-landing)) .card .bar i {
   display: block;
   height: 100%;
   background: var(--page-live);
   width: 0%;
   transition: width 0.3s linear;
 }
-:where(html:has(.labword-landing)) .card .foot {
+:where(html:has(.labworld-landing)) .card .foot {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-:where(html:has(.labword-landing)) .card .foot button {
+:where(html:has(.labworld-landing)) .card .foot button {
   padding: 5px 12px;
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
-:where(html:has(.labword-landing)) .card .foot button[aria-pressed='true'] {
+:where(html:has(.labworld-landing)) .card .foot button[aria-pressed='true'] {
   color: var(--page-ink-hi);
   border-color: var(--page-live);
 }
 
 /* ---------- marquee ---------- */
-:where(html:has(.labword-landing)) .marquee {
+:where(html:has(.labworld-landing)) .marquee {
   border-block: 1px solid var(--page-edge);
   overflow: hidden;
   padding: 12px 0;
   background: var(--page-panel);
 }
-:where(html:has(.labword-landing)) .marquee .track {
+:where(html:has(.labworld-landing)) .marquee .track {
   display: flex;
   gap: 0;
   width: max-content;
   animation: slide 46s linear infinite;
 }
-:where(html:has(.labword-landing)) .marquee:hover .track {
+:where(html:has(.labworld-landing)) .marquee:hover .track {
   animation-play-state: paused;
 }
-:where(html:has(.labword-landing)) .marquee span {
+:where(html:has(.labworld-landing)) .marquee span {
   padding-inline: 22px;
   white-space: nowrap;
   font-size: 12px;
@@ -527,11 +527,11 @@ html:has(.labword-landing) {
   letter-spacing: 0.18em;
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) .marquee span b {
+:where(html:has(.labworld-landing)) .marquee span b {
   color: var(--page-ink-hi);
   font-weight: 500;
 }
-:where(html:has(.labword-landing)) .marquee span::after {
+:where(html:has(.labworld-landing)) .marquee span::after {
   content: '·';
   margin-left: 44px;
   color: var(--page-line);
@@ -543,10 +543,10 @@ html:has(.labword-landing) {
 }
 
 /* ---------- generic section ---------- */
-:where(html:has(.labword-landing)) section {
+:where(html:has(.labworld-landing)) section {
   padding-block: clamp(64px, 9vw, 132px);
 }
-:where(html:has(.labword-landing)) .eyebrow {
+:where(html:has(.labworld-landing)) .eyebrow {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -556,13 +556,13 @@ html:has(.labword-landing) {
   color: var(--page-ink);
   margin-bottom: 18px;
 }
-:where(html:has(.labword-landing)) .eyebrow::before {
+:where(html:has(.labworld-landing)) .eyebrow::before {
   content: '';
   width: 26px;
   height: 1px;
   background: var(--page-live);
 }
-:where(html:has(.labword-landing)) h2 {
+:where(html:has(.labworld-landing)) h2 {
   color: var(--page-ink-hi);
   font-weight: 500;
   letter-spacing: -0.01em;
@@ -570,23 +570,23 @@ html:has(.labword-landing) {
   margin: 0 0 14px;
   font-size: clamp(24px, 3.4vw, 42px);
 }
-:where(html:has(.labword-landing)) h3 {
+:where(html:has(.labworld-landing)) h3 {
   color: var(--page-ink-hi);
   font-weight: 500;
   margin: 0 0 8px;
   font-size: 17px;
   letter-spacing: 0.01em;
 }
-:where(html:has(.labword-landing)) .lede {
+:where(html:has(.labworld-landing)) .lede {
   font-size: clamp(14px, 1.4vw, 17px);
   max-width: 62ch;
 }
-:where(html:has(.labword-landing)) .muted {
+:where(html:has(.labworld-landing)) .muted {
   color: var(--page-ink);
 }
 
 /* reveal-on-scroll */
-:where(html:has(.labword-landing)) .rv {
+:where(html:has(.labworld-landing)) .rv {
   opacity: 0;
   transform: translateY(26px);
   transition:
@@ -594,49 +594,49 @@ html:has(.labword-landing) {
     transform 0.8s cubic-bezier(0.2, 0.7, 0.2, 1);
   transition-delay: var(--d, 0s);
 }
-:where(html:has(.labword-landing)) .rv.in {
+:where(html:has(.labworld-landing)) .rv.in {
   opacity: 1;
   transform: none;
 }
-:where(html:has(.labword-landing)) .rv-line {
+:where(html:has(.labworld-landing)) .rv-line {
   clip-path: inset(0 100% 0 0);
   transition: clip-path 1s cubic-bezier(0.6, 0, 0.2, 1);
   transition-delay: var(--d, 0s);
 }
-:where(html:has(.labword-landing)) .rv-line.in {
+:where(html:has(.labworld-landing)) .rv-line.in {
   clip-path: inset(0 0 0 0);
 }
 
 /* ---------- sticky two-column ---------- */
-:where(html:has(.labword-landing)) .split {
+:where(html:has(.labworld-landing)) .split {
   display: grid;
   grid-template-columns: minmax(260px, 5fr) 7fr;
   gap: clamp(28px, 5vw, 84px);
   align-items: start;
 }
-:where(html:has(.labword-landing)) .split .stick {
+:where(html:has(.labworld-landing)) .split .stick {
   position: sticky;
   top: clamp(24px, 8vh, 96px);
 }
 @media (max-width: 900px) {
-  :where(html:has(.labword-landing)) .split {
+  :where(html:has(.labworld-landing)) .split {
     grid-template-columns: 1fr;
   }
-  :where(html:has(.labword-landing)) .split .stick {
+  :where(html:has(.labworld-landing)) .split .stick {
     position: static;
   }
 }
-:where(html:has(.labword-landing)) .stack {
+:where(html:has(.labworld-landing)) .stack {
   display: grid;
   gap: clamp(20px, 3vw, 34px);
 }
-:where(html:has(.labword-landing)) .panel {
+:where(html:has(.labworld-landing)) .panel {
   background: var(--page-panel);
   border: 1px solid var(--page-edge);
   border-radius: 18px;
   padding: clamp(18px, 2.4vw, 30px);
 }
-:where(html:has(.labword-landing)) .panel .idx {
+:where(html:has(.labworld-landing)) .panel .idx {
   font-size: 11px;
   letter-spacing: 0.2em;
   color: var(--page-ink);
@@ -644,12 +644,12 @@ html:has(.labword-landing) {
 }
 
 /* ---------- live device cards ---------- */
-:where(html:has(.labword-landing)) .devices {
+:where(html:has(.labworld-landing)) .devices {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: clamp(14px, 2vw, 22px);
 }
-:where(html:has(.labword-landing)) .dev {
+:where(html:has(.labworld-landing)) .dev {
   position: relative;
   overflow: hidden;
   background: var(--page-panel);
@@ -662,28 +662,28 @@ html:has(.labword-landing) {
     border-color 0.3s ease,
     transform 0.3s ease;
 }
-:where(html:has(.labword-landing)) .dev:hover {
+:where(html:has(.labworld-landing)) .dev:hover {
   border-color: var(--page-line);
   transform: translateY(-3px);
 }
-:where(html:has(.labword-landing)) .dev .top {
+:where(html:has(.labworld-landing)) .dev .top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 10px;
 }
-:where(html:has(.labword-landing)) .dev .name {
+:where(html:has(.labworld-landing)) .dev .name {
   color: var(--page-ink-hi);
   font-size: 15px;
   letter-spacing: 0.03em;
 }
-:where(html:has(.labword-landing)) .dev .kind {
+:where(html:has(.labworld-landing)) .dev .kind {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) .dev .viz {
+:where(html:has(.labworld-landing)) .dev .viz {
   height: 120px;
   border: 1px solid var(--page-edge);
   border-radius: 12px;
@@ -691,17 +691,17 @@ html:has(.labword-landing) {
   position: relative;
   overflow: hidden;
 }
-:where(html:has(.labword-landing)) .dev .viz canvas {
+:where(html:has(.labworld-landing)) .dev .viz canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
 }
-:where(html:has(.labword-landing)) .dev .rows {
+:where(html:has(.labworld-landing)) .dev .rows {
   display: grid;
   gap: 0;
 }
-:where(html:has(.labword-landing)) .dev .rows div {
+:where(html:has(.labworld-landing)) .dev .rows div {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -709,29 +709,29 @@ html:has(.labword-landing) {
   border-top: 1px solid var(--page-edge);
   font-size: 12px;
 }
-:where(html:has(.labword-landing)) .dev .rows div:first-child {
+:where(html:has(.labworld-landing)) .dev .rows div:first-child {
   border-top: 0;
 }
-:where(html:has(.labword-landing)) .dev .rows b {
+:where(html:has(.labworld-landing)) .dev .rows b {
   color: var(--page-ink-hi);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
-:where(html:has(.labword-landing)) .dev .foot {
+:where(html:has(.labworld-landing)) .dev .foot {
   display: flex;
   gap: 8px;
 }
-:where(html:has(.labword-landing)) .dev .foot button {
+:where(html:has(.labworld-landing)) .dev .foot button {
   padding: 6px 12px;
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.12em;
 }
-:where(html:has(.labword-landing)) .dev .foot button[aria-pressed='true'] {
+:where(html:has(.labworld-landing)) .dev .foot button[aria-pressed='true'] {
   color: var(--page-ink-hi);
   border-color: var(--page-live);
 }
-:where(html:has(.labword-landing)) .dev .pulse {
+:where(html:has(.labworld-landing)) .dev .pulse {
   position: absolute;
   right: 16px;
   top: 16px;
@@ -740,7 +740,7 @@ html:has(.labword-landing) {
   border-radius: 50%;
   background: var(--page-line);
 }
-:where(html:has(.labword-landing)) .dev.on .pulse {
+:where(html:has(.labworld-landing)) .dev.on .pulse {
   background: var(--page-live);
   box-shadow: 0 0 0 0 var(--page-live);
   animation: pulse 1.8s ease-out infinite;
@@ -755,25 +755,25 @@ html:has(.labword-landing) {
 }
 
 /* ---------- provenance diagram ---------- */
-:where(html:has(.labword-landing)) .flow {
+:where(html:has(.labworld-landing)) .flow {
   display: grid;
   gap: 0;
 }
-:where(html:has(.labword-landing)) .flow .row {
+:where(html:has(.labworld-landing)) .flow .row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 14px;
   padding: 14px 0;
 }
-:where(html:has(.labword-landing)) .flow .node {
+:where(html:has(.labworld-landing)) .flow .node {
   border: 1px solid var(--page-edge);
   border-radius: 12px;
   padding: 12px 16px;
   background: var(--page-panel);
   font-size: 12px;
 }
-:where(html:has(.labword-landing)) .flow .node b {
+:where(html:has(.labworld-landing)) .flow .node b {
   display: block;
   color: var(--page-ink-hi);
   font-weight: 500;
@@ -781,13 +781,13 @@ html:has(.labword-landing) {
   letter-spacing: 0.03em;
   margin-bottom: 2px;
 }
-:where(html:has(.labword-landing)) .flow .wire {
+:where(html:has(.labworld-landing)) .flow .wire {
   position: relative;
   height: 1px;
   background: var(--page-line);
   min-width: 40px;
 }
-:where(html:has(.labword-landing)) .flow .wire i {
+:where(html:has(.labworld-landing)) .flow .wire i {
   position: absolute;
   top: -2px;
   width: 5px;
@@ -796,7 +796,7 @@ html:has(.labword-landing) {
   background: var(--page-live);
   animation: travel 2.6s linear infinite;
 }
-:where(html:has(.labword-landing)) .flow .wire.back i {
+:where(html:has(.labworld-landing)) .flow .wire.back i {
   animation-direction: reverse;
   animation-duration: 3.4s;
 }
@@ -808,7 +808,7 @@ html:has(.labword-landing) {
     left: 100%;
   }
 }
-:where(html:has(.labword-landing)) .flow .lbl {
+:where(html:has(.labworld-landing)) .flow .lbl {
   font-size: 10px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -817,13 +817,13 @@ html:has(.labword-landing) {
 }
 
 /* ---------- screenshot plate ---------- */
-:where(html:has(.labword-landing)) .shot {
+:where(html:has(.labworld-landing)) .shot {
   border: 1px solid var(--page-edge);
   border-radius: 20px;
   overflow: hidden;
   background: var(--page-panel);
 }
-:where(html:has(.labword-landing)) .shot .bar {
+:where(html:has(.labworld-landing)) .shot .bar {
   display: flex;
   justify-content: space-between;
   gap: 12px;
@@ -833,22 +833,22 @@ html:has(.labword-landing) {
   text-transform: uppercase;
   letter-spacing: 0.14em;
 }
-:where(html:has(.labword-landing)) .shot img {
+:where(html:has(.labworld-landing)) .shot img {
   width: 100%;
 }
-:where(html:has(.labword-landing)) .shot figcaption {
+:where(html:has(.labworld-landing)) .shot figcaption {
   padding: 12px 18px;
   border-top: 1px solid var(--page-edge);
   font-size: 12px;
 }
 
 /* ---------- asset library strip ---------- */
-:where(html:has(.labword-landing)) .assets {
+:where(html:has(.labworld-landing)) .assets {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px;
 }
-:where(html:has(.labword-landing)) .asset {
+:where(html:has(.labworld-landing)) .asset {
   background: var(--page-panel);
   border: 1px solid var(--page-edge);
   border-radius: 14px;
@@ -860,33 +860,33 @@ html:has(.labword-landing) {
     transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1),
     border-color 0.3s ease;
 }
-:where(html:has(.labword-landing)) .asset:hover {
+:where(html:has(.labworld-landing)) .asset:hover {
   transform: translateY(-4px) rotate(-0.6deg);
   border-color: var(--page-line);
 }
-:where(html:has(.labword-landing)) .asset img {
+:where(html:has(.labworld-landing)) .asset img {
   width: 74px;
   height: 56px;
   object-fit: contain;
 }
-:where(html:has(.labword-landing)) .asset span {
+:where(html:has(.labworld-landing)) .asset span {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) .asset:hover span {
+:where(html:has(.labworld-landing)) .asset:hover span {
   color: var(--page-ink-hi);
 }
 
 /* ---------- timeline (migration) ---------- */
-:where(html:has(.labword-landing)) .timeline {
+:where(html:has(.labworld-landing)) .timeline {
   position: relative;
   display: grid;
   gap: clamp(22px, 3vw, 40px);
   padding-left: 26px;
 }
-:where(html:has(.labword-landing)) .timeline::before {
+:where(html:has(.labworld-landing)) .timeline::before {
   content: '';
   position: absolute;
   left: 5px;
@@ -895,7 +895,7 @@ html:has(.labword-landing) {
   width: 1px;
   background: var(--page-line);
 }
-:where(html:has(.labword-landing)) .timeline .dot {
+:where(html:has(.labworld-landing)) .timeline .dot {
   position: absolute;
   left: 0;
   top: 6px;
@@ -905,10 +905,10 @@ html:has(.labword-landing) {
   background: var(--page-bg);
   border: 1px solid var(--page-line);
 }
-:where(html:has(.labword-landing)) .timeline .ev {
+:where(html:has(.labworld-landing)) .timeline .ev {
   position: relative;
 }
-:where(html:has(.labword-landing)) .timeline .ev::before {
+:where(html:has(.labworld-landing)) .timeline .ev::before {
   content: '';
   position: absolute;
   left: -26px;
@@ -922,11 +922,11 @@ html:has(.labword-landing) {
     background-color 0.4s ease,
     border-color 0.4s ease;
 }
-:where(html:has(.labword-landing)) .timeline .ev.in::before {
+:where(html:has(.labworld-landing)) .timeline .ev.in::before {
   background: var(--page-live);
   border-color: var(--page-live);
 }
-:where(html:has(.labword-landing)) .timeline .when {
+:where(html:has(.labworld-landing)) .timeline .when {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.18em;
@@ -934,7 +934,7 @@ html:has(.labword-landing) {
 }
 
 /* ---------- counters ---------- */
-:where(html:has(.labword-landing)) .counters {
+:where(html:has(.labworld-landing)) .counters {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 1px;
@@ -943,20 +943,20 @@ html:has(.labword-landing) {
   border-radius: 18px;
   overflow: hidden;
 }
-:where(html:has(.labword-landing)) .counters div {
+:where(html:has(.labworld-landing)) .counters div {
   background: var(--page-panel);
   padding: 22px 20px;
   display: grid;
   gap: 4px;
 }
-:where(html:has(.labword-landing)) .counters b {
+:where(html:has(.labworld-landing)) .counters b {
   color: var(--page-ink-hi);
   font-weight: 500;
   font-size: clamp(24px, 3vw, 38px);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
 }
-:where(html:has(.labword-landing)) .counters span {
+:where(html:has(.labworld-landing)) .counters span {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -964,13 +964,13 @@ html:has(.labword-landing) {
 }
 
 /* ---------- terminal ---------- */
-:where(html:has(.labword-landing)) .term {
+:where(html:has(.labworld-landing)) .term {
   background: var(--page-bg);
   border: 1px solid var(--page-edge);
   border-radius: 16px;
   overflow: hidden;
 }
-:where(html:has(.labword-landing)) .term .bar {
+:where(html:has(.labworld-landing)) .term .bar {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -980,13 +980,13 @@ html:has(.labword-landing) {
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
-:where(html:has(.labword-landing)) .term .bar i {
+:where(html:has(.labworld-landing)) .term .bar i {
   width: 9px;
   height: 9px;
   border-radius: 50%;
   border: 1px solid var(--page-line);
 }
-:where(html:has(.labword-landing)) .term pre {
+:where(html:has(.labworld-landing)) .term pre {
   margin: 0;
   padding: 18px 20px;
   font-family: var(--mono);
@@ -995,13 +995,13 @@ html:has(.labword-landing) {
   color: var(--page-ink-hi);
   overflow-x: auto;
 }
-:where(html:has(.labword-landing)) .term .p {
+:where(html:has(.labworld-landing)) .term .p {
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) .term .c {
+:where(html:has(.labworld-landing)) .term .c {
   color: var(--page-live);
 }
-:where(html:has(.labword-landing)) .term .caret {
+:where(html:has(.labworld-landing)) .term .caret {
   display: inline-block;
   width: 8px;
   height: 15px;
@@ -1016,16 +1016,16 @@ html:has(.labword-landing) {
 }
 
 /* ---------- footer ---------- */
-:where(html:has(.labword-landing)) footer {
+:where(html:has(.labworld-landing)) footer {
   border-top: 1px solid var(--page-edge);
   padding-block: clamp(36px, 5vw, 64px);
 }
-:where(html:has(.labword-landing)) footer .grid {
+:where(html:has(.labworld-landing)) footer .grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 26px;
 }
-:where(html:has(.labword-landing)) footer h4 {
+:where(html:has(.labworld-landing)) footer h4 {
   margin: 0 0 10px;
   font-size: 11px;
   text-transform: uppercase;
@@ -1033,7 +1033,7 @@ html:has(.labword-landing) {
   color: var(--page-ink);
   font-weight: 400;
 }
-:where(html:has(.labword-landing)) footer ul {
+:where(html:has(.labworld-landing)) footer ul {
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1041,16 +1041,16 @@ html:has(.labword-landing) {
   gap: 7px;
   font-size: 13px;
 }
-:where(html:has(.labword-landing)) footer a {
+:where(html:has(.labworld-landing)) footer a {
   text-decoration: none;
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) footer a:hover {
+:where(html:has(.labworld-landing)) footer a:hover {
   color: var(--page-ink-hi);
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-:where(html:has(.labword-landing)) footer .fine {
+:where(html:has(.labworld-landing)) footer .fine {
   margin-top: 30px;
   padding-top: 18px;
   border-top: 1px solid var(--page-edge);
@@ -1064,7 +1064,7 @@ html:has(.labword-landing) {
 }
 
 /* ---------- top nav ---------- */
-:where(html:has(.labword-landing)) .topnav {
+:where(html:has(.labworld-landing)) .topnav {
   position: fixed;
   inset: 0 0 auto 0;
   z-index: 20;
@@ -1080,10 +1080,10 @@ html:has(.labword-landing) {
     border-color 0.3s ease,
     background-color 0.3s ease;
 }
-:where(html:has(.labword-landing)) .topnav.scrolled {
+:where(html:has(.labworld-landing)) .topnav.scrolled {
   border-bottom-color: var(--page-edge);
 }
-:where(html:has(.labword-landing)) .topnav .brand {
+:where(html:has(.labworld-landing)) .topnav .brand {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -1092,39 +1092,39 @@ html:has(.labword-landing) {
   letter-spacing: 0.06em;
   text-decoration: none;
 }
-:where(html:has(.labword-landing)) .topnav .brand svg {
+:where(html:has(.labworld-landing)) .topnav .brand svg {
   width: 20px;
   height: 20px;
 }
-:where(html:has(.labword-landing)) .topnav nav {
+:where(html:has(.labworld-landing)) .topnav nav {
   display: flex;
   gap: 18px;
   align-items: center;
 }
-:where(html:has(.labword-landing)) .topnav nav a {
+:where(html:has(.labworld-landing)) .topnav nav a {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.16em;
   text-decoration: none;
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) .topnav nav a:hover {
+:where(html:has(.labworld-landing)) .topnav nav a:hover {
   color: var(--page-ink-hi);
 }
 @media (max-width: 760px) {
-  :where(html:has(.labword-landing)) .topnav nav a:not(.keep) {
+  :where(html:has(.labworld-landing)) .topnav nav a:not(.keep) {
     display: none;
   }
 }
 
-:where(html:has(.labword-landing)) .navctl {
+:where(html:has(.labworld-landing)) .navctl {
   display: flex;
   gap: 7px;
   align-items: center;
   padding-left: 15px;
   border-left: 1px solid var(--page-edge);
 }
-:where(html:has(.labword-landing)) .navctl button {
+:where(html:has(.labworld-landing)) .navctl button {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -1136,60 +1136,60 @@ html:has(.labword-landing) {
   text-transform: uppercase;
   color: var(--page-ink);
 }
-:where(html:has(.labword-landing)) .navctl button:hover {
+:where(html:has(.labworld-landing)) .navctl button:hover {
   color: var(--page-ink-hi);
   border-color: var(--page-line);
 }
-:where(html:has(.labword-landing)) .navctl svg {
+:where(html:has(.labworld-landing)) .navctl svg {
   width: 13px;
   height: 13px;
 }
 @media (max-width: 760px) {
-  :where(html:has(.labword-landing)) .navctl {
+  :where(html:has(.labworld-landing)) .navctl {
     padding-left: 7px;
   }
-  :where(html:has(.labword-landing)) .navctl button {
+  :where(html:has(.labworld-landing)) .navctl button {
     padding: 4px 7px;
   }
 }
 
 /* Han glyphs have no case to uppercase and take no kindly to tracking, so the hairline
    captions loosen their letter-spacing and a CJK face joins the stack. */
-html:has(.labword-landing)[lang='zh-CN'] {
+html:has(.labworld-landing)[lang='zh-CN'] {
   --mono:
     'DM Mono', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei',
     'Noto Sans CJK SC', ui-monospace, Menlo, Consolas, monospace;
 }
-html:has(.labword-landing)[lang='zh-CN'] .cap,
-html:has(.labword-landing)[lang='zh-CN'] .eyebrow,
-html:has(.labword-landing)[lang='zh-CN'] .panel .idx,
-html:has(.labword-landing)[lang='zh-CN'] .marquee span,
-html:has(.labword-landing)[lang='zh-CN'] .topnav nav a,
-html:has(.labword-landing)[lang='zh-CN'] .navctl button,
-html:has(.labword-landing)[lang='zh-CN'] .card .head,
-html:has(.labword-landing)[lang='zh-CN'] .card .bar,
-html:has(.labword-landing)[lang='zh-CN'] .card .foot button,
-html:has(.labword-landing)[lang='zh-CN'] .sites button,
-html:has(.labword-landing)[lang='zh-CN'] .btn,
-html:has(.labword-landing)[lang='zh-CN'] .timeline .when,
-html:has(.labword-landing)[lang='zh-CN'] .dev .kind,
-html:has(.labword-landing)[lang='zh-CN'] .counters span,
-html:has(.labword-landing)[lang='zh-CN'] .assets span,
-html:has(.labword-landing)[lang='zh-CN'] .flow .lbl,
-html:has(.labword-landing)[lang='zh-CN'] .plate .cap .hi {
+html:has(.labworld-landing)[lang='zh-CN'] .cap,
+html:has(.labworld-landing)[lang='zh-CN'] .eyebrow,
+html:has(.labworld-landing)[lang='zh-CN'] .panel .idx,
+html:has(.labworld-landing)[lang='zh-CN'] .marquee span,
+html:has(.labworld-landing)[lang='zh-CN'] .topnav nav a,
+html:has(.labworld-landing)[lang='zh-CN'] .navctl button,
+html:has(.labworld-landing)[lang='zh-CN'] .card .head,
+html:has(.labworld-landing)[lang='zh-CN'] .card .bar,
+html:has(.labworld-landing)[lang='zh-CN'] .card .foot button,
+html:has(.labworld-landing)[lang='zh-CN'] .sites button,
+html:has(.labworld-landing)[lang='zh-CN'] .btn,
+html:has(.labworld-landing)[lang='zh-CN'] .timeline .when,
+html:has(.labworld-landing)[lang='zh-CN'] .dev .kind,
+html:has(.labworld-landing)[lang='zh-CN'] .counters span,
+html:has(.labworld-landing)[lang='zh-CN'] .assets span,
+html:has(.labworld-landing)[lang='zh-CN'] .flow .lbl,
+html:has(.labworld-landing)[lang='zh-CN'] .plate .cap .hi {
   letter-spacing: 0.03em;
 }
-html:has(.labword-landing)[lang='zh-CN'] .hero-head h1,
-html:has(.labword-landing)[lang='zh-CN'] h2 {
+html:has(.labworld-landing)[lang='zh-CN'] .hero-head h1,
+html:has(.labworld-landing)[lang='zh-CN'] h2 {
   letter-spacing: 0;
   line-height: 1.22;
 }
 
 @media (max-width: 560px) {
-  :where(html:has(.labword-landing)) .hero-head {
+  :where(html:has(.labworld-landing)) .hero-head {
     padding-top: calc(52px + var(--pad));
   }
-  :where(html:has(.labword-landing)) .card {
+  :where(html:has(.labworld-landing)) .card {
     top: auto;
     bottom: 10px;
     left: 10px;
@@ -1199,34 +1199,34 @@ html:has(.labword-landing)[lang='zh-CN'] h2 {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  html:has(.labword-landing) {
+  html:has(.labworld-landing) {
     scroll-behavior: auto;
   }
-  :where(html:has(.labword-landing)) *,
-  :where(html:has(.labword-landing)) *::before,
-  :where(html:has(.labword-landing)) *::after {
+  :where(html:has(.labworld-landing)) *,
+  :where(html:has(.labworld-landing)) *::before,
+  :where(html:has(.labworld-landing)) *::after {
     animation-duration: 0.001s !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001s !important;
   }
-  :where(html:has(.labword-landing)) .rv {
+  :where(html:has(.labworld-landing)) .rv {
     opacity: 1;
     transform: none;
   }
-  :where(html:has(.labword-landing)) .rv-line {
+  :where(html:has(.labworld-landing)) .rv-line {
     clip-path: none;
   }
 }
-:where(html:has(.labword-landing)) .demo-note {
+:where(html:has(.labworld-landing)) .demo-note {
   padding-block: 12px;
   font-size: 11px;
 }
-:where(html:has(.labword-landing)) .hero-head .rv {
+:where(html:has(.labworld-landing)) .hero-head .rv {
   opacity: 1;
   transform: none;
 }
 
-:where(html:has(.labword-landing)) .navctl #lang {
+:where(html:has(.labworld-landing)) .navctl #lang {
   display: inline-flex;
   padding: 6px 9px;
   border: 1px solid var(--page-edge);

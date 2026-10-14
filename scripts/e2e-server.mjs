@@ -9,6 +9,7 @@ import { ServerProcess } from '../tests/support/server-process.ts';
 import { CoreHttp } from '../tests/support/core-http.ts';
 import { ContractResources } from './lib/contract-resources.mjs';
 import { launch, resolveRoot } from './lib/process.mjs';
+import { browserExitFacts } from './lib/browser-exit-facts.mjs';
 
 // Linux browser supplement; the server's Linux/Windows gate remains independent.
 if (process.platform !== 'linux')
@@ -39,6 +40,8 @@ let resources, browser, closing, restarting, watcher;
 let motionEnv = {};
 let closed = false,
   failed = false;
+// This owned backend directory is the browser child's actual LAB_NODE_EVIDENCE.
+const exitFacts = browserExitFacts(() => backend.evidence);
 async function startBackend() {
   if (closed) throw new Error('Browser supervisor is closing');
   await backend.start();
@@ -46,9 +49,11 @@ async function startBackend() {
   await writeFile(pidFile + '.next', String(backend.child.pid) + '\n');
   await rename(pidFile + '.next', pidFile);
   backend.child.once('exit', (code, signal) => {
+    exitFacts.backendExit(code, signal, { closed, failed });
     if (closed) return;
     if (signal !== 'SIGKILL') {
       failed = true;
+      exitFacts.failure('backend-exit');
       void close();
       return;
     }
@@ -69,6 +74,7 @@ async function startBackend() {
     })();
     restarting.catch(() => {
       failed = true;
+      exitFacts.failure('backend-restart');
       void close();
     });
   });
@@ -312,7 +318,11 @@ try {
       '--host',
       '127.0.0.1',
     ];
-    web.env = { WEB_PORT: String(web.port), VITE_API_PROXY: backend.url };
+    web.env = {
+      WEB_PORT: String(web.port),
+      VITE_API_PROXY: backend.url,
+      LAB_WORLD_VITE_CACHE_DIR: join(web.directory, 'vite-cache'),
+    };
     await web.start();
   }
   const bootstrap = await new CoreHttp(origin).register(
@@ -333,6 +343,7 @@ try {
         const request = JSON.parse(await readFile(controlFile, 'utf8'));
         if (closed || request.revision <= handled) return;
         handled = request.revision;
+        exitFacts.control(request.action, 'begun');
         let facts;
         if (request.action === 'inspect-store') {
           const acknowledged = once(backend.child, 'message');
@@ -369,9 +380,11 @@ try {
           JSON.stringify({ revision: handled, ...(facts ? { facts } : {}) }),
         );
         await rename(replyFile + '.next', replyFile);
+        exitFacts.control(request.action, 'completed');
       });
       controlling.catch(() => {
         failed = true;
+        exitFacts.failure('controlled-action');
         void close();
       });
     });
@@ -400,7 +413,8 @@ try {
   });
   resources.launchedConsumer(intent.id, browser.pid);
   resources.reconcile('before-browser');
-  const [code] = await once(browser, 'exit');
+  const [code, signal] = await once(browser, 'exit');
+  exitFacts.browserExit(code, signal, { closed, failed });
   if (code !== 0 || failed)
     throw new Error(
       'Desktop browser checks failed; inspect the safe reporter and owned evidence',

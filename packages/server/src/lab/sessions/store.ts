@@ -13,6 +13,12 @@ import {
   type Parameters,
 } from './dto.ts';
 import type { MotionPose } from '../../../../contracts/src/motion/index.ts';
+import {
+  composePose,
+  newtonInitialPoses,
+  newtonProfile,
+  visualToBody,
+} from './newton-profile.ts';
 export const sessionFailure = (
   code: string,
   message: string,
@@ -158,6 +164,7 @@ export async function snapshotIn(
   world: WorldService,
   installation: Installation,
   parameters: Parameters,
+  liveRate: 15 | 30 = 30,
 ): Promise<Snapshot> {
   if (installation.archived_at)
     throw sessionFailure(
@@ -180,14 +187,52 @@ export async function snapshotIn(
         'installation_unavailable',
         'Installed objects are unavailable',
       );
+    if (
+      installation.package_id === 'so101-vial' &&
+      (node.placement as { scale: number[] }).scale.some((value) => value !== 1)
+    )
+      throw sessionFailure(
+        'newton_scale_unsupported',
+        'The fixed Newton profile requires unit visual scale',
+        400,
+      );
     return pose(node.placement as { position: number[]; rotation: number[] });
   });
+  const newton = installation.package_id === 'so101-vial';
+  const fixed = newtonInitialPoses();
+  const base = newton ? visualToBody(initial[0], 0) : undefined;
+  const physicalInitial = newton
+    ? initial.map((value, index) =>
+        index < 7
+          ? composePose(base!, fixed[index])
+          : visualToBody(value, index),
+      )
+    : initial;
+  const profile = newton
+    ? { ...newtonProfile, initial_poses: physicalInitial }
+    : undefined;
   const input = {
     installation,
     world: current,
     parameters,
-    initial_poses: initial,
-    initial_joints: installation.joint_keys.map(() => 0),
+    initial_poses: physicalInitial,
+    initial_joints: newton
+      ? [...newtonProfile.initial_joints]
+      : installation.joint_keys.map(() => 0),
+    ...(profile
+      ? {
+          physics: {
+            source_kind: 'newton' as const,
+            ...(installation.package_version === '2'
+              ? { control_mode: 'controlled' as const }
+              : {}),
+            profile_id: 'so101-vial-v1' as const,
+            profile_sha256: newtonProfile.hash,
+            live_rate_hz: liveRate,
+            profile,
+          },
+        }
+      : {}),
   };
   return SimulationSessionSnapshot.parse({
     ...input,

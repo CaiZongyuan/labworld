@@ -3,8 +3,14 @@ import {
   test,
   request as playwrightRequest,
   type Page,
+  type Response,
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
+import { boundedBrowserFact } from './lab-browser-facts';
+import {
+  historyWorldProjection,
+  predicateFact,
+} from './original-predicate-facts';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -82,12 +88,155 @@ test('members and Agents query real history, recover a failed page and clean exp
     .locator('+ dd')
     .innerText();
   const path = `/api/v1/lab/labs/${lab}/entities/${entity}`;
-  await inspector
-    .getByRole('button', { name: '启动程序', exact: true })
-    .click();
-  await expect(
-    inspector.getByRole('button', { name: '开始离心', exact: true }),
-  ).toBeEnabled();
+  let observing = true,
+    responseOrdinal = 0;
+  let startIdentity: { run?: string; binding?: string } = {};
+  let worldIdentity: { run?: string; binding?: string } = {};
+  const originalResponse = (response: Response) => {
+    if (!observing || responseOrdinal >= 12) return;
+    const pathname = new URL(response.url()).pathname;
+    const kind =
+      pathname === path + '/program/start' &&
+      response.request().method() === 'POST'
+        ? 'start'
+        : pathname === `/api/v1/lab/labs/${lab}/world` &&
+            response.request().method() === 'GET'
+          ? 'world'
+          : null;
+    if (!kind) return;
+    const ordinal = ++responseOrdinal;
+    predicateFact('history', {
+      stage: 'original-response-arrived',
+      kind,
+      ordinal,
+      status: response.status(),
+    });
+    // Copy only already-received bodies; never await this observer on the assertion path.
+    void boundedBrowserFact(async () => {
+      const body = await response.json();
+      if (kind === 'world') {
+        const projection = historyWorldProjection(body, entity);
+        worldIdentity = projection.identity;
+        return {
+          ...projection.facts,
+          runMatchesStart:
+            startIdentity.run && worldIdentity.run
+              ? startIdentity.run === worldIdentity.run
+              : null,
+          bindingMatchesStart:
+            startIdentity.binding && worldIdentity.binding
+              ? startIdentity.binding === worldIdentity.binding
+              : null,
+        };
+      }
+      const status = ['running', 'stopped', 'failed', 'interrupted'].includes(
+        body?.status,
+      )
+        ? body.status
+        : 'unknown';
+      startIdentity = { run: body?.id, binding: body?.binding_id };
+      return {
+        programStatus: status,
+        running: status === 'running',
+        runMatchesWorld:
+          startIdentity.run && worldIdentity.run
+            ? startIdentity.run === worldIdentity.run
+            : null,
+        bindingMatchesWorld:
+          startIdentity.binding && worldIdentity.binding
+            ? startIdentity.binding === worldIdentity.binding
+            : null,
+      };
+    })
+      .then((capture) => {
+        if (observing)
+          predicateFact('history', {
+            stage: 'original-response-body-projection',
+            kind,
+            ordinal,
+            capture,
+          });
+      })
+      .catch(() => {});
+  };
+  page.on('response', originalResponse);
+  try {
+    predicateFact('history', { stage: 'before-original-start-click' });
+    await inspector
+      .getByRole('button', { name: '启动程序', exact: true })
+      .click();
+    predicateFact('history', {
+      stage: 'before-original-enabled-assertion',
+      originalTimeoutMs: 5000,
+    });
+    try {
+      await expect(
+        inspector.getByRole('button', { name: '开始离心', exact: true }),
+      ).toBeEnabled();
+      predicateFact('history', { stage: 'original-enabled-assertion-passed' });
+    } catch (error) {
+      const dom = await boundedBrowserFact(() =>
+        page.evaluate(() => {
+          const panel = document.querySelector('.device-panel');
+          const buttons = Array.from(
+            panel?.querySelectorAll<HTMLButtonElement>('button') ?? [],
+          );
+          const start = buttons.find(
+            (button) => button.textContent?.trim() === '开始离心',
+          );
+          const program = buttons.find((button) =>
+            ['启动程序', '停止程序'].includes(button.textContent?.trim() ?? ''),
+          );
+          const states: Record<string, string> = {
+            程序未启动: 'not-started',
+            运行中: 'running',
+            已停止: 'stopped',
+            实时同步: 'live',
+            正在连接: 'connecting',
+            连接中断: 'offline',
+            正在请求来源变更: 'submitting',
+            '来源已启动，等待此 Run 的新观测。': 'succeeded',
+            等待执行: 'pending',
+            准备中: 'preparing',
+            计时中: 'running',
+            减速中: 'decelerating',
+          };
+          const state = (element: Element | null | undefined) =>
+            states[element?.textContent?.trim() ?? ''] ??
+            (element ? 'unknown' : null);
+          return {
+            browserMonotonicMs: performance.now(),
+            panelPresent: !!panel,
+            startButtonPresent: !!start,
+            startDisabled: start?.disabled ?? null,
+            programDisabled: program?.disabled ?? null,
+            programStatus: state(
+              panel?.querySelector('.lab-section-heading [data-slot="badge"]'),
+            ),
+            sourcePhase: state(panel?.querySelector('p[role="status"]')),
+            taskStatus: state(
+              panel?.querySelector('.centrifuge-task [data-slot="badge"]'),
+            ),
+            runtimeUnavailableAlert: Array.from(
+              panel?.querySelectorAll('[role="alert"]') ?? [],
+            ).some((alert) => alert.textContent?.includes('运行端尚未就绪')),
+            connectionStatus: state(
+              document.querySelector('.lab-heading [aria-live="polite"]'),
+            ),
+            privateLockedAndConnectionFactors: 'unknown',
+          };
+        }),
+      );
+      predicateFact('history', {
+        stage: 'after-original-enabled-failure',
+        dom,
+      });
+      throw error;
+    }
+  } finally {
+    observing = false;
+    page.off('response', originalResponse);
+  }
   await inspector.getByLabel('目标转速 (rpm)').fill('500');
   await inspector.getByLabel('目标温度 (degC)').fill('22');
   await inspector.getByLabel('任务时长 (s)').fill('6');

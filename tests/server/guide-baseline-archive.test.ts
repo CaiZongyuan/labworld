@@ -22,8 +22,8 @@ import type {
   DownloadCapability,
 } from '../../packages/contracts/src/generated/types.gen.ts';
 
-// Approved #72 Recording append: schema 4. The c80 Session baseline's first
-// three migration identities remain immutable; these expectations are literals,
+// Approved #75 robot controls append: schema 5. All prior migration
+// identities remain immutable; these expectations are literals,
 // independent of the running build's schemaVersion calculation.
 const approvedHistory = [
   {
@@ -41,6 +41,10 @@ const approvedHistory = [
   {
     hash: '63c83437ec7487eb4797a902288fae41f007dbf3fe4be7ec03f2698790129e7c',
     created_at: '1791681569129',
+  },
+  {
+    hash: '39d30ede089dd4b438edd9968526354f99a78842eb5c1f465ba5fbfffbb33fa3',
+    created_at: '1791844297546',
   },
 ];
 
@@ -99,10 +103,10 @@ test(
         ),
       );
       assert.deepEqual(currentJournal.entries.at(-1), {
-        idx: 3,
+        idx: 4,
         version: '7',
-        when: 1791681569129,
-        tag: '0003_reliable_recording',
+        when: 1791844297546,
+        tag: '0004_robot_controls',
         breakpoints: true,
       });
       assert.equal(
@@ -110,13 +114,13 @@ test(
           .update(
             await readFile(
               new URL(
-                '../../packages/server/migrations/0003_reliable_recording.sql',
+                '../../packages/server/migrations/0004_robot_controls.sql',
                 import.meta.url,
               ),
             ),
           )
           .digest('hex'),
-        approvedHistory[3].hash,
+        approvedHistory[4].hash,
       );
       await mkdir(baselineRoot);
       const source = execFileSync(
@@ -250,7 +254,7 @@ test(
         '--archive',
         archive,
       ]);
-      assert.equal(result.schemaVersion, 4);
+      assert.equal(result.schemaVersion, 5);
       destination.env = {
         APP_ORIGIN: destination.url,
         LAB_WORD_DATA_DIR: restored,
@@ -317,11 +321,11 @@ test(
         '--output',
         currentArchive,
       ]);
-      assert.equal(currentBackup.schemaVersion, 4);
+      assert.equal(currentBackup.schemaVersion, 5);
       const currentManifest = JSON.parse(
         await readFile(join(currentArchive, 'manifest.json'), 'utf8'),
       );
-      assert.equal(currentManifest.database.schemaVersion, 4);
+      assert.equal(currentManifest.database.schemaVersion, 5);
       assert.deepEqual(currentManifest.database.history, approvedHistory);
       assert.deepEqual(
         currentManifest.database.history[0],
@@ -335,7 +339,7 @@ test(
             currentArchive,
           ])
         ).schemaVersion,
-        4,
+        5,
       );
       await writeFile(
         join(artifacts.evidence, 'guide-archive-result.json'),
@@ -344,11 +348,11 @@ test(
           baselineHash,
           sourceHistory: manifest.database.history,
           upgradedHistory: currentManifest.database.history,
-          approvedRecordingMigration: {
-            issue: 'https://github.com/CaiZongyuan/labworld/issues/72',
-            tag: '0003_reliable_recording',
-            schemaVersion: 4,
-            ...approvedHistory[3],
+          approvedRobotMigration: {
+            issue: 'https://github.com/CaiZongyuan/labworld/issues/75',
+            tag: '0004_robot_controls',
+            schemaVersion: 5,
+            ...approvedHistory[4],
           },
           restore: result,
           identityPreserved: true,

@@ -259,7 +259,18 @@
     "parseRecordingReady",
     "parseRecordingAck",
     "parseSourceEvent",
-    "parseSourceEnd"
+    "parseSourceEnd",
+    "NEWTON_POSE_KEYS",
+    "getLabRecordingResource",
+    "readRecordingResource",
+    "NEWTON_SCENE_VISUALS",
+    "ROBOT_CAPABILITIES",
+    "RobotCapability",
+    "RobotIdentity",
+    "RobotCommand",
+    "RobotSourceEvent",
+    "parseRobotSourceEvent",
+    "upgradeLabRobotControls"
   ],
   "contractSubpaths": [
     "@labos-threejs/contracts/motion",
@@ -271,7 +282,17 @@
     "docs/examples/session-refusals.js",
     "docs/tutorials/recording.md",
     "docs/tutorials/recording.en.md",
-    "docs/examples/recording-inspection.js"
+    "docs/examples/recording-inspection.js",
+    "docs/tutorials/newton-motion.md",
+    "docs/tutorials/newton-motion.en.md",
+    "tools/newton-motion/install_scene.mjs",
+    "tools/newton-motion/probe.py",
+    "tools/newton-motion/prepare.py",
+    "tools/newton-motion/scene_loader.py",
+    "docs/tutorials/robot-controls.md",
+    "docs/tutorials/robot-controls.en.md",
+    "docs/examples/robot-controls.mjs",
+    "docs/examples/robot-controls.py"
   ],
   "testPaths": [
     "tests/server/session-authority.test.ts",
@@ -285,6 +306,9 @@
     "tests/e2e/recording-fault-process.ts",
     "tests/e2e/recording-machine.ts",
     "tests/e2e/recording-public-support.ts",
-    "tests/e2e/recording-wire-oracle.ts"
+    "tests/e2e/recording-wire-oracle.ts",
+    "tests/tooling/synthetic-source-shutdown.test.mjs",
+    "packages/views/src/lab/robot-panel.test.tsx",
+    "tests/server/robot-controls.test.ts"
   ]
 }

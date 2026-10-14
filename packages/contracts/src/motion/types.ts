@@ -1,6 +1,19 @@
 /** Handwritten motion v1 contract. HTTP DTO generation does not own this file. */
 export const MOTION_VERSION = 1;
 export const MOTION_CODEC = 'pose-f32-v1';
+/** Fixed public object dictionary; runtime Newton indices are resolved by labels. */
+export const NEWTON_POSE_KEYS = [
+  'so101/base',
+  'so101/shoulder',
+  'so101/upper_arm',
+  'so101/lower_arm',
+  'so101/wrist',
+  'so101/gripper',
+  'so101/moving_jaw_so101_v1',
+  'vial',
+  'rack',
+  'mat',
+] as const;
 export const MOTION_HEADER_BYTES = 48;
 export const MOTION_LIMITS = Object.freeze({
   bodies: 1024,

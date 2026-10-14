@@ -407,7 +407,13 @@ function Scene({
   useEffect(() => () => motionScene.reset(), [motionScene]);
   const root = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
-  const { camera, size, gl } = useThree();
+  const { camera, size, gl, frameloop, invalidate } = useThree();
+  useEffect(() => {
+    if (frameloop !== 'demand' || !contentReady) return;
+    // Cached paused poses and imperative scene updates need real frames too.
+    const timer = window.setInterval(() => invalidate(), 250);
+    return () => window.clearInterval(timer);
+  }, [frameloop, invalidate, contentReady]);
   useEffect(() => {
     if (!motion) return;
     const canvas = gl.domElement as MotionDiagnosticCanvas;
@@ -743,11 +749,22 @@ export default function WorldViewport(props: {
       failed[node.id] === appearanceKey(node, entity)
     );
   });
+  const hasVisibleCentrifuge = props.world.nodes.some((node) => {
+    const entity = entityById.get(node.entity_id);
+    return (
+      entity && !entity.archived_at && entity.definition_id === 'centrifuge'
+    );
+  });
+  const hasContinuousMotion =
+    !!props.motion && props.motion.freshness(performance.now()) !== 'paused';
   useEffect(() => onBusy(pending), [pending, onBusy]);
   return (
     <>
       <Canvas
         shadows
+        frameloop={
+          hasContinuousMotion || hasVisibleCentrifuge ? 'always' : 'demand'
+        }
         camera={{ position: [4, 3, 5], fov: 38 }}
         dpr={[1, 1.5]}
         gl={{ antialias: true }}

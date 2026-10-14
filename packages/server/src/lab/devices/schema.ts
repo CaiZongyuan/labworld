@@ -14,6 +14,9 @@ import {
 import { labSchema } from '../assets/schema.ts';
 import { entities } from '../world/schema.ts';
 import { users } from '../../core/identity/schema.ts';
+import { simulationSessions } from '../sessions/schema.ts';
+import { recordings } from '../recordings/schema.ts';
+import { numeric } from 'drizzle-orm/pg-core';
 import { instant } from '../../platform/db/columns.ts';
 export const runtimeGeneration = labSchema.table(
   'runtime_generation',
@@ -216,5 +219,49 @@ export const commandReceipts = labSchema.table(
   (t) => [
     primaryKey({ columns: [t.actorId, t.entityId, t.requestKey] }),
     check('receipt_fingerprint', sql`length(${t.fingerprint}) = 64`),
+  ],
+);
+
+/** Durable experiment ownership survives structural session_objects release. */
+export const sessionDeviceRuns = labSchema.table(
+  'session_device_runs',
+  {
+    sessionId: uuid('session_id')
+      .notNull()
+      .references(() => simulationSessions.id),
+    entityId: uuid('entity_id')
+      .notNull()
+      .references(() => entities.id),
+    bindingId: uuid('binding_id')
+      .notNull()
+      .references(() => bindings.id),
+    runId: uuid('run_id')
+      .notNull()
+      .unique()
+      .references(() => runs.id),
+    recordingId: uuid('recording_id')
+      .notNull()
+      .references(() => recordings.id),
+  },
+  (t) => [primaryKey({ columns: [t.sessionId, t.entityId] })],
+);
+export const robotSourceEvents = labSchema.table(
+  'robot_source_events',
+  {
+    recordingId: uuid('recording_id')
+      .notNull()
+      .references(() => recordings.id),
+    eventId: uuid('event_id').notNull(),
+    sourceEventSequence: numeric('source_event_sequence', {
+      precision: 20,
+      scale: 0,
+    }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recordingId, t.eventId] }),
+    uniqueIndex('robot_source_event_sequence').on(
+      t.recordingId,
+      t.sourceEventSequence,
+    ),
   ],
 );

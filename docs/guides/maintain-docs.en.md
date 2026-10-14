@@ -1,6 +1,6 @@
 # Maintain Project Documentation
 
-Goal: help readers run Lab Word tasks and find current reference information. The writing pattern follows [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template/tree/83f1f71bd166af8b604dd50124abc85242b82177/docs), as inspected on 2026-10-01. Topics and facts come from the current Lab Word source.
+Goal: help readers run Lab World tasks and find current reference information. The writing pattern follows [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template/tree/83f1f71bd166af8b604dd50124abc85242b82177/docs), as inspected on 2026-10-01. Topics and facts come from the current Lab World source.
 
 ## Choose A Reader Task
 
@@ -22,9 +22,9 @@ State whether a feature is implemented, an isolated preview or planned. For scre
 
 ## Simplified Technical Language: ASD-STE100-inspired {#simplified-technical-language}
 
-Public documentation aims to be **80% of the way to ASD-STE100**. Use the principles of [ASD-STE100 Simplified Technical English](https://www.asd-ste100.org/) to make actions, conditions and results easy to understand. The percentage describes our writing approach. It is not a measured compliance score. Lab Word does not claim full compliance with the STE writing rules or controlled dictionary.
+Public documentation aims to be **80% of the way to ASD-STE100**. Use the principles of [ASD-STE100 Simplified Technical English](https://www.asd-ste100.org/) to make actions, conditions and results easy to understand. The percentage describes our writing approach. It is not a measured compliance score. Lab World does not claim full compliance with the STE writing rules or controlled dictionary.
 
-| Rule                                   | How to apply it in Lab Word                                                                                                                                                      |
+| Rule                                   | How to apply it in Lab World                                                                                                                                                     |
 | -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Use short sentences with one main idea | Aim for up to 20 words in English instructions and 25 words in descriptions. Split longer sentences first. In Chinese, split by meaning rather than English word counts.         |
 | Use active voice and name the actor    | Start instructions with a verb, such as `Open`, `Run` or `Select`. For system behavior, name the API, Worker or browser that acts.                                               |
@@ -64,7 +64,7 @@ pnpm test:e2e:docs
 
 The first two commands check sources, language pairs, generated references and links in the built site. Browser tests check language, theme, search and the deployment base. Use the [testing strategy](../testing/strategy.md) to check business HTTP behavior, components and actual 3D rendering separately.
 
-Lab Word has not published the learning paths from the original template. The cleanup removed unrelated pages and kept routes for adopted chapters. When you reorganize published Lab pages, preserve their existing links. Check that every navigation entry has a destination.
+Lab World has not published the learning paths from the original template. The cleanup removed unrelated pages and kept routes for adopted chapters. When you reorganize published Lab pages, preserve their existing links. Check that every navigation entry has a destination.
 
 ## Maintainer Entries
 

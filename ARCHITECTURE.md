@@ -1,6 +1,6 @@
 # Architecture rules
 
-The architecture spec and approved GitHub tickets define behavior. Lab Word Server owns persistent Core and Lab state in one Node process.
+The architecture spec and approved GitHub tickets define behavior. Lab World Server owns persistent Core and Lab state in one Node process.
 
 - The Node entry composes public Core/Lab routers and resource owners. Platform supplies PGlite, local bytes and process adapters; pure domains remain independent of infrastructure.
 - Platform Core does not import Lab. Node schema declarations and Lab metadata own table/SDK/View boundaries; the retired Knowledge and telemetry stacks are historical.

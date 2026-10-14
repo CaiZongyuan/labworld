@@ -20,8 +20,11 @@ export const SceneInstallation = z
   .object({
     id: z.string().uuid(),
     lab_id: z.string().uuid(),
-    package_id: z.literal('development-synthetic'),
-    package_version: z.literal('1'),
+    package_id: z.union([
+      z.literal('development-synthetic'),
+      z.literal('so101-vial'),
+    ]),
+    package_version: z.union([z.literal('1'), z.literal('2')]),
     scene_hash: z.string(),
     mapping_revision: z.number().int(),
     pose_keys: z.array(z.string()),
@@ -61,6 +64,16 @@ export const SimulationSessionSnapshot = z
     parameters: SessionParameters,
     initial_poses: z.array(SessionPose),
     initial_joints: z.array(z.number()),
+    physics: z
+      .object({
+        source_kind: z.literal('newton'),
+        control_mode: z.literal('controlled').optional(),
+        profile_id: z.literal('so101-vial-v1'),
+        profile_sha256: z.string(),
+        live_rate_hz: z.union([z.literal(15), z.literal(30)]),
+        profile: z.record(z.string(), z.unknown()),
+      })
+      .optional(),
   })
   .openapi('SimulationSessionSnapshot');
 export const SimulationSession = z
@@ -91,7 +104,11 @@ export const SimulationSession = z
   })
   .openapi('SimulationSession');
 export const CreateSceneInstallation = z
-  .object({ representation_id: z.string().uuid() })
+  .object({
+    representation_id: z.string().uuid(),
+    backend: z.union([z.literal('synthetic'), z.literal('newton')]).optional(),
+    representations: z.record(z.string(), z.string().uuid()).optional(),
+  })
   .strict()
   .openapi('CreateSceneInstallation');
 export const StartSimulationSession = z
@@ -99,6 +116,7 @@ export const StartSimulationSession = z
     installation_id: z.string().uuid(),
     parameters: SessionParameters.partial().optional(),
     machine_id: z.string().uuid().optional(),
+    live_rate_hz: z.union([z.literal(15), z.literal(30)]).optional(),
   })
   .strict()
   .openapi('StartSimulationSession');
@@ -114,6 +132,8 @@ export const SimulationSessionPage = z
     data: z.array(SimulationSession),
     active_session_id: z.string().uuid().nullable(),
     development_synthetic_enabled: z.boolean(),
+    newton_enabled: z.boolean().optional(),
+    managed_newton_enabled: z.boolean().optional(),
   })
   .openapi('SimulationSessionPage');
 export const SessionViewerTicketRequest = z
@@ -141,6 +161,7 @@ export const PublisherBootstrap = z
     initial_poses: z.array(SessionPose),
     initial_joints: z.array(z.number()),
     parameters: SessionParameters,
+    physics: SimulationSessionSnapshot.shape.physics,
   })
   .openapi('PublisherBootstrap');
 export const PublisherAdmission = SessionMotionTicket.extend({

@@ -232,6 +232,142 @@
     ]
   },
   {
+    "id": "robot",
+    "version": "1.1",
+    "name": "SO-101 机械臂",
+    "name_en": "SO-101 robot arm",
+    "category": "robot",
+    "specifications": {
+      "physical_integration": true,
+      "control_source": "newton.so101.v1",
+      "sample_frequency_hz": 1,
+      "joint_unit": "rad",
+      "completion": "measured_joint_error_and_velocity"
+    },
+    "capabilities": [
+      {
+        "id": "robot.home",
+        "version": "1.0",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "result": {
+          "meaning": "source_confirmed_physical_result",
+          "task_result": "separate_query"
+        },
+        "implemented": true
+      },
+      {
+        "id": "robot.move_joints",
+        "version": "1.0",
+        "parameters": {
+          "type": "object",
+          "required": ["joints"],
+          "additionalProperties": false,
+          "properties": {
+            "joints": {
+              "type": "array",
+              "minItems": 6,
+              "maxItems": 6,
+              "items": {
+                "type": "number"
+              },
+              "unit": "rad",
+              "joint_limits": [
+                [-1.9198621771937616, 1.9198621771937634],
+                [-1.7453292519943224, 1.7453292519943366],
+                [-1.69, 1.69],
+                [-1.6580628494556928, 1.6580627293335335],
+                [-2.7438472969992493, 2.841206309382605],
+                [-0.17453297762778586, 1.7453291995659765]
+              ]
+            }
+          }
+        },
+        "result": {
+          "meaning": "source_confirmed_physical_result",
+          "task_result": "separate_query"
+        },
+        "implemented": true
+      },
+      {
+        "id": "robot.set_gripper",
+        "version": "1.0",
+        "parameters": {
+          "type": "object",
+          "required": ["position"],
+          "additionalProperties": false,
+          "properties": {
+            "position": {
+              "type": "number",
+              "minimum": -0.17453297762778586,
+              "maximum": 1.7453291995659765,
+              "unit": "rad"
+            }
+          }
+        },
+        "result": {
+          "meaning": "source_confirmed_physical_result",
+          "task_result": "separate_query"
+        },
+        "implemented": true
+      },
+      {
+        "id": "robot.cancel",
+        "version": "1.0",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false
+        },
+        "result": {
+          "meaning": "source_confirmed_physical_result",
+          "task_result": "separate_query"
+        },
+        "implemented": true
+      }
+    ],
+    "state": {
+      "type": "object",
+      "properties": {
+        "joints": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "unit": "rad"
+        },
+        "velocity": {
+          "type": "array",
+          "items": {
+            "type": "number"
+          },
+          "unit": "rad/s"
+        },
+        "phase": {
+          "type": "string"
+        },
+        "sim_time_ns": {
+          "type": "string"
+        }
+      }
+    },
+    "interfaces": [
+      {
+        "id": "lab.asset-definitions.v1",
+        "implemented": true
+      },
+      {
+        "id": "lab.device-commands.v1",
+        "implemented": true
+      },
+      {
+        "id": "lab.device-tasks.v1",
+        "implemented": true
+      }
+    ]
+  },
+  {
     "id": "labware",
     "version": "1.0",
     "name": "玻璃烧杯 · 250 mL",

@@ -121,15 +121,53 @@ export function sessionRoutes(
       responses: { 201: json(SceneInstallation), ...errors },
     }),
     async (c) => {
-      if (duplicateStructField(c.req.raw, ['representation_id'])) invalid();
+      if (
+        duplicateStructField(c.req.raw, [
+          'representation_id',
+          'backend',
+          'representations',
+        ])
+      )
+        invalid();
       return c.json(
         await sessions.install(
           c.req.raw.headers,
           c.get('requestId'),
           c.req.valid('param').lab_id,
           c.req.valid('json').representation_id,
+          c.req.valid('json').backend,
+          c.req.valid('json').representations,
         ),
         201,
+      );
+    },
+    validate,
+  );
+  app.openapi(
+    createRoute({
+      method: 'post',
+      path: root + '/installations/{installation_id}/robot-controls',
+      operationId: 'upgradeLabRobotControls',
+      tags: ['Lab'],
+      request: {
+        params: z.object({
+          lab_id: z.string().uuid(),
+          installation_id: z.string().uuid(),
+        }),
+        body: body(z.object({}).strict()),
+      },
+      responses: { 200: json(SceneInstallation), ...errors },
+    }),
+    async (c) => {
+      const p = c.req.valid('param');
+      return c.json(
+        await sessions.upgradeRobotControls(
+          c.req.raw.headers,
+          c.get('requestId'),
+          p.lab_id,
+          p.installation_id,
+        ),
+        200,
       );
     },
     validate,
@@ -195,6 +233,7 @@ export function sessionRoutes(
           'installation_id',
           'parameters',
           'machine_id',
+          'live_rate_hz',
         ])
       )
         invalid();

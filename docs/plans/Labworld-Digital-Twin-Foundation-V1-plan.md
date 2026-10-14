@@ -1,4 +1,4 @@
-# Lab Word Digital Twin Foundation V1
+# Lab World Digital Twin Foundation V1
 
 状态：2026-10-02 两轮产品审阅已收敛。用户确认[审阅记录](../reviews/2026-10-02-digital-twin-foundation-v1-plan.md) Q1–Q4、Q6–Q9 的推荐，并将 Q5 明确为普通用户与 Agent 对 Lab 均可 full access。下文是已确认的产品范围与行为，后续交互预览、实施票及应用验证以此为输入。
 
@@ -22,11 +22,11 @@
 
 ## 1. 本阶段目标
 
-Lab Word 当前已经具备 3D 资产导入、查看和基础管理能力。
+Lab World 当前已经具备 3D 资产导入、查看和基础管理能力。
 
 当前代码的资产目录与本地文件仍保存在浏览器会话中，多实体持久布局、World API 和设备运行属于本阶段新增能力。最终保存恢复验收需要覆盖所引用的模型资源，不能只保存 Entity 与摆放数据。
 
-下一阶段目标不是继续增强一个 3D Viewer，而是把 Lab Word 推进成一个真正的：
+下一阶段目标不是继续增强一个 3D Viewer，而是把 Lab World 推进成一个真正的：
 
 **高性能、可扩展、Agent-native 的实验室数字孪生平台基础。**
 
@@ -960,11 +960,11 @@ centrifuge-01 当前状态是什么？
 
 而是：
 
-> Lab Word 可以把数字资产注册为持久 Lab 中的 Entity，表达位置、包含关系与三维摆放；设备实体通过 Capability、State、Binding 与 Virtual Runtime 形成交互闭环。普通用户和 Agent 均可完整操作同一个世界，3D Scene、Inspector 和 World API 对身份、观测、命令和任务结果保持一致。
+> Lab World 可以把数字资产注册为持久 Lab 中的 Entity，表达位置、包含关系与三维摆放；设备实体通过 Capability、State、Binding 与 Virtual Runtime 形成交互闭环。普通用户和 Agent 均可完整操作同一个世界，3D Scene、Inspector 和 World API 对身份、观测、命令和任务结果保持一致。
 
 做到这一点，就可以认为：
 
-**Lab Word 已经从 3D Asset Viewer 进入 Digital Twin Platform 阶段。**
+**Lab World 已经从 3D Asset Viewer 进入 Digital Twin Platform 阶段。**
 
 ### 必须验证的公开行为
 
@@ -1207,7 +1207,7 @@ Spec 是：
 
 # 最终目标
 
-这一阶段结束后，Lab Word 应该可以展示这样一件事：
+这一阶段结束后，Lab World 应该可以展示这样一件事：
 
 > **“这里不是一个 3D 模型。这里是一个正在运行的数字实验室。”**
 

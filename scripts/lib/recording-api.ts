@@ -13,11 +13,14 @@ const operations = {
   [`${base}/{recording_id}/segments/{segment_id}`]: {
     get: 'getLabRecordingSegment',
   },
+  [`${base}/{recording_id}/resources/{file_id}`]: {
+    get: 'getLabRecordingResource',
+  },
 };
 const object = (value: Json | undefined): { [key: string]: Json } =>
   value && typeof value === 'object' && !Array.isArray(value) ? value : {};
 
-/** Separate only approved #72 operations and the optional publisher bootstrap. */
+/** Separate approved Recording operations and the optional publisher bootstrap. */
 export function recordingApiParts(document: Json) {
   const existing = structuredClone(document) as { [key: string]: Json };
   const addition = structuredClone(document) as { [key: string]: Json };

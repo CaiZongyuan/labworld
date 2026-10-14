@@ -1,4 +1,4 @@
-# Lab Word
+# Lab World
 
 带有 Three.js 工作台与后端设备程序的实验室数字孪生。
 
@@ -49,6 +49,6 @@ scripts/       开发、验证与运维
 docs/          指南、领域词汇、决策与计划
 ```
 
-Lab Word 基于 [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template)。内部标识保留 `labos-threejs` 以保持兼容；产品为 **Lab Word**，仓库 slug 为 `labworld`。
+Lab World 基于 [axum-saas-template](https://github.com/CaiZongyuan/axum-saas-template)。产品为 **Lab World**，仓库 slug 为 `labworld`。既有 `labos-threejs` 包标识、`LAB_WORD_*` 配置名、存储格式和已发布文档路由保留原拼写以保持兼容。
 
 [MIT](LICENSE)，保留原模板版权署名。

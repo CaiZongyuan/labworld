@@ -1,7 +1,7 @@
 import { createHash, webcrypto } from 'node:crypto';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import { createClient } from './generated/client';
-import { readRecordingSegment } from './recording';
+import { readRecordingSegment, readRecordingResource } from './recording';
 
 beforeEach(() => vi.stubGlobal('crypto', webcrypto));
 afterEach(() => vi.unstubAllGlobals());
@@ -25,6 +25,47 @@ const options = (response: Response) => ({
   labId: 'lab',
   recordingId: 'recording',
   segment,
+});
+test('reads a retained dependency by its exact Recording membership URL and checks original bytes', async () => {
+  const fetch = vi.fn(async (request: Request) => {
+    expect(request.url).toBe(
+      'http://api.test/api/v1/lab/labs/lab/recordings/recording/resources/' +
+        segment.file_id,
+    );
+    return new Response(content, {
+      headers: { 'content-length': String(content.byteLength) },
+    });
+  });
+  const result = await readRecordingResource({
+    client: createClient({
+      baseUrl: 'http://api.test',
+      fetch: fetch as typeof globalThis.fetch,
+    }),
+    labId: 'lab',
+    recordingId: 'recording',
+    resource: {
+      file_id: segment.file_id,
+      size: content.byteLength,
+      sha256: segment.sha256.slice(7),
+    },
+  });
+  expect(Array.from(result)).toEqual(Array.from(content));
+  expect(fetch).toHaveBeenCalledOnce();
+  await expect(
+    readRecordingResource({
+      client: createClient({
+        baseUrl: 'http://api.test',
+        fetch: async () => new Response(new Uint8Array(content.byteLength)),
+      }),
+      labId: 'lab',
+      recordingId: 'recording',
+      resource: {
+        file_id: segment.file_id,
+        size: content.byteLength,
+        sha256: segment.sha256.slice(7),
+      },
+    }),
+  ).rejects.toThrow('SHA-256');
 });
 
 test('reads exactly one sealed segment, verifies its bytes and forwards authentication and scope', async () => {

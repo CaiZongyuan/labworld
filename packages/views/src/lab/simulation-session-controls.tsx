@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import type { LabAsset, LabWorld } from '@labos-threejs/sdk';
+import {
+  NEWTON_POSE_KEYS,
+  NEWTON_SCENE_VISUALS,
+} from '@labos-threejs/contracts/motion';
 import { errorCodeOf } from '@labos-threejs/core';
 import { Button } from '@labos-threejs/ui/components/button';
 import { Badge } from '@labos-threejs/ui/components/badge';
@@ -61,6 +65,29 @@ export function SimulationSessionControls({
   )
     ? installationId
     : (installations[0]?.id ?? '');
+  const installation = installations.find(
+    (item) => item.id === selectedInstallation,
+  );
+  const selectedPackage = installation?.package_id;
+  const legacyRobot =
+    selectedPackage === 'so101-vial' && installation?.package_version === '1';
+  const newtonRepresentations = Object.fromEntries(
+    NEWTON_POSE_KEYS.map((key) => [
+      key,
+      assets.find(
+        (asset) =>
+          asset.representation.sha256 ===
+          NEWTON_SCENE_VISUALS.find((item) => item.pose_key === key)!.sha256,
+      )?.representation.id,
+    ]),
+  );
+  const newtonReady = NEWTON_POSE_KEYS.every(
+    (key) => !!newtonRepresentations[key],
+  );
+  const sourceEnabled =
+    selectedPackage === 'so101-vial'
+      ? !!simulation.sessions.data?.managed_newton_enabled
+      : !!simulation.sessions.data?.development_synthetic_enabled;
   const selectedRepresentation = assets.some(
     (asset) => asset.representation.id === representationId,
   )
@@ -70,6 +97,8 @@ export function SimulationSessionControls({
   const session = simulation.session;
   const active = !!session && !session.ended_at;
   const status = session?.status ?? 'idle';
+  const preparingNewton =
+    status === 'starting' && !!session?.snapshot.physics && !session.epoch;
   const transitioning = [
     'starting',
     'pausing',
@@ -120,6 +149,9 @@ export function SimulationSessionControls({
           <DialogDescription>
             {message('session.description')}
           </DialogDescription>
+          {simulation.sessions.data?.newton_enabled ? (
+            <FieldDescription>{message('session.newtonHint')}</FieldDescription>
+          ) : null}
           {startDisabled && !disabled ? (
             <Alert>
               <AlertDescription>{message('session.saveHint')}</AlertDescription>
@@ -128,7 +160,11 @@ export function SimulationSessionControls({
           <p role="status" aria-label={message('session.lifecycle')}>
             {loading
               ? message('session.loading')
-              : message(`session.${status}`)}
+              : status === 'starting' &&
+                  session?.snapshot.physics &&
+                  !session.epoch
+                ? message('session.newtonPreparing')
+                : message(`session.${status}`)}
           </p>
           {session ? (
             <p className="text-sm text-muted-foreground break-all">
@@ -171,6 +207,35 @@ export function SimulationSessionControls({
               <FieldDescription>
                 {message('session.layoutHint')}
               </FieldDescription>
+              {selectedPackage === 'so101-vial' ? (
+                <FieldDescription>
+                  {message(
+                    legacyRobot
+                      ? 'session.robotDemo'
+                      : 'session.robotControlled',
+                  )}
+                </FieldDescription>
+              ) : null}
+              {legacyRobot ? (
+                <>
+                  <FieldDescription>
+                    {message('session.robotUpgradeHint')}
+                  </FieldDescription>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={controlsDisabled || busy || loading || active}
+                    onClick={() =>
+                      void simulation.write(
+                        'upgrade-controls',
+                        selectedInstallation,
+                      )
+                    }
+                  >
+                    {message('session.robotUpgrade')}
+                  </Button>
+                </>
+              ) : null}
             </Field>
             <Field>
               <FieldLabel htmlFor="session-model">
@@ -266,7 +331,8 @@ export function SimulationSessionControls({
           ) : null}
           {!loading &&
           !active &&
-          !simulation.sessions.data?.development_synthetic_enabled ? (
+          !simulation.sessions.data?.development_synthetic_enabled &&
+          !simulation.sessions.data?.newton_enabled ? (
             <Alert>
               <AlertDescription>
                 {message('session.unavailable')}
@@ -296,6 +362,27 @@ export function SimulationSessionControls({
             >
               {message('session.install')}
             </Button>
+            {simulation.sessions.data?.newton_enabled ? (
+              <Button
+                variant="outline"
+                disabled={
+                  disabled ||
+                  busy ||
+                  loading ||
+                  assetsUnavailable ||
+                  !newtonReady
+                }
+                onClick={() =>
+                  void simulation.write(
+                    'install-newton',
+                    newtonRepresentations['so101/base'],
+                    newtonRepresentations as Record<string, string>,
+                  )
+                }
+              >
+                {message('session.newtonInstall')}
+              </Button>
+            ) : null}
             <Button
               disabled={
                 startDisabled ||
@@ -304,7 +391,7 @@ export function SimulationSessionControls({
                 loading ||
                 active ||
                 !selectedInstallation ||
-                !simulation.sessions.data?.development_synthetic_enabled
+                !sourceEnabled
               }
               onClick={() =>
                 void simulation.write('start', selectedInstallation)
@@ -335,7 +422,12 @@ export function SimulationSessionControls({
             </Button>
             <Button
               variant="outline"
-              disabled={controlsDisabled || busy || !active}
+              disabled={
+                controlsDisabled ||
+                simulation.pending ||
+                (transitioning && !preparingNewton) ||
+                !active
+              }
               onClick={() => void simulation.write('stop')}
             >
               {message('session.stop')}

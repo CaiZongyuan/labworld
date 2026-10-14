@@ -1,7 +1,7 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Lab Word API",
+    "title": "Lab World API",
     "description": "",
     "license": {
       "name": ""
@@ -770,15 +770,35 @@
             "format": "uuid"
           },
           "package_id": {
-            "type": "string",
-            "enum": [
-              "development-synthetic"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "development-synthetic"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "so101-vial"
+                ]
+              }
             ]
           },
           "package_version": {
-            "type": "string",
-            "enum": [
-              "1"
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "1"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "2"
+                ]
+              }
             ]
           },
           "scene_hash": {
@@ -892,6 +912,29 @@
           "representation_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "backend": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "synthetic"
+                ]
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "newton"
+                ]
+              }
+            ]
+          },
+          "representations": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "format": "uuid"
+            }
           }
         },
         "required": [
@@ -916,6 +959,12 @@
             "format": "uuid"
           },
           "development_synthetic_enabled": {
+            "type": "boolean"
+          },
+          "newton_enabled": {
+            "type": "boolean"
+          },
+          "managed_newton_enabled": {
             "type": "boolean"
           }
         },
@@ -1042,6 +1091,59 @@
             "items": {
               "type": "number"
             }
+          },
+          "physics": {
+            "type": "object",
+            "properties": {
+              "source_kind": {
+                "type": "string",
+                "enum": [
+                  "newton"
+                ]
+              },
+              "control_mode": {
+                "type": "string",
+                "enum": [
+                  "controlled"
+                ]
+              },
+              "profile_id": {
+                "type": "string",
+                "enum": [
+                  "so101-vial-v1"
+                ]
+              },
+              "profile_sha256": {
+                "type": "string"
+              },
+              "live_rate_hz": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "enum": [
+                      15
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      30
+                    ]
+                  }
+                ]
+              },
+              "profile": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "source_kind",
+              "profile_id",
+              "profile_sha256",
+              "live_rate_hz",
+              "profile"
+            ]
           }
         },
         "required": [
@@ -1930,6 +2032,22 @@
           "machine_id": {
             "type": "string",
             "format": "uuid"
+          },
+          "live_rate_hz": {
+            "anyOf": [
+              {
+                "type": "number",
+                "enum": [
+                  15
+                ]
+              },
+              {
+                "type": "number",
+                "enum": [
+                  30
+                ]
+              }
+            ]
           }
         },
         "required": [
@@ -2189,6 +2307,59 @@
           },
           "parameters": {
             "$ref": "#/components/schemas/SessionParameters"
+          },
+          "physics": {
+            "type": "object",
+            "properties": {
+              "source_kind": {
+                "type": "string",
+                "enum": [
+                  "newton"
+                ]
+              },
+              "control_mode": {
+                "type": "string",
+                "enum": [
+                  "controlled"
+                ]
+              },
+              "profile_id": {
+                "type": "string",
+                "enum": [
+                  "so101-vial-v1"
+                ]
+              },
+              "profile_sha256": {
+                "type": "string"
+              },
+              "live_rate_hz": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "enum": [
+                      15
+                    ]
+                  },
+                  {
+                    "type": "number",
+                    "enum": [
+                      30
+                    ]
+                  }
+                ]
+              },
+              "profile": {
+                "type": "object",
+                "additionalProperties": {}
+              }
+            },
+            "required": [
+              "source_kind",
+              "profile_id",
+              "profile_sha256",
+              "live_rate_hz",
+              "profile"
+            ]
           }
         },
         "required": [
@@ -5855,6 +6026,138 @@
         }
       }
     },
+    "/api/v1/lab/labs/{lab_id}/installations/{installation_id}/robot-controls": {
+      "post": {
+        "operationId": "upgradeLabRobotControls",
+        "tags": [
+          "Lab"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lab_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "installation_id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {},
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SceneInstallation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lab/labs/{lab_id}/installations/{installation_id}/archive": {
       "post": {
         "operationId": "archiveLabSceneInstallation",
@@ -8008,6 +8311,136 @@
             "description": "Verified bounded LWF1 journal segment.",
             "content": {
               "application/vnd.lab-word.recording-segment": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/lab/labs/{lab_id}/recordings/{recording_id}/resources/{file_id}": {
+      "get": {
+        "operationId": "getLabRecordingResource",
+        "tags": [
+          "Lab"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "lab_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "recording_id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "file_id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exact retained immutable Recording dependency.",
+            "content": {
+              "application/octet-stream": {
                 "schema": {
                   "type": "string",
                   "format": "binary"

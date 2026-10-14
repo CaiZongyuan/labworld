@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import math
 import re
 import struct
 import uuid
@@ -15,6 +16,7 @@ IDENTITY_FIELDS = ('recording_id', 'session_id', 'lease_id', 'epoch', 'snapshot_
                    'manifest_sha256', 'scene_hash', 'mapping_revision', 'mapping_sha256')
 CAPTURE_POLICY = {'selection': 'all-selected', 'sample_hz': 30, 'motion_codec': 'pose-f32-v1',
                   'first_source_sequence': '1', 'first_source_event_sequence': '1'}
+ROBOT_CAPABILITIES = ['robot.home', 'robot.move_joints', 'robot.set_gripper', 'robot.cancel']
 
 
 def invalid(code='invalid_message', message='Invalid Recording contract'):
@@ -98,7 +100,10 @@ def policy(value):
 
 
 def source_header(value):
-    fields(value, ('source_kind', 'implementation', 'python_version', 'dependencies', 'capture_policy'))
+    newton = isinstance(value, dict) and value.get('source_kind') == 'newton'
+    robot = newton and 'robot_control' in value
+    fields(value, ('source_kind', 'implementation', 'python_version', 'dependencies', 'capture_policy') +
+           (('runtime',) if newton else ()) + (('robot_control',) if robot else ()))
     if value['source_kind'] not in ('synthetic', 'newton'):
         invalid()
 
@@ -119,9 +124,22 @@ def source_header(value):
     names = [entry['name'] for entry in dependencies]
     if names != sorted(set(names)):
         invalid()
+    runtime = {}
+    if newton:
+        actual = fields(value['runtime'], ('device','gpu','driver','solver','profile_sha256','physics_step_hz','control_hz','live_rate_hz'))
+        if (actual['device'] != 'cuda:0' or actual['solver'] != 'Newton SolverMuJoCo/MJWarp'
+                or actual['physics_step_hz'] != 240 or actual['control_hz'] != 30 or actual['live_rate_hz'] not in (15,30)):
+            invalid()
+        runtime = {'runtime': {name: text(actual[name]) for name in ('device','gpu','driver','solver')}}
+        runtime['runtime'].update(profile_sha256=digest(actual['profile_sha256']),physics_step_hz=240,control_hz=30,live_rate_hz=actual['live_rate_hz'])
+    if robot:
+        actual = fields(value['robot_control'], ('version', 'mode', 'capabilities'))
+        if type(actual['version']) is not int or actual != {'version':1,'mode':'controlled','capabilities':ROBOT_CAPABILITIES}:
+            invalid()
+        runtime['robot_control'] = {'version':1,'mode':'controlled','capabilities':ROBOT_CAPABILITIES}
     return {'source_kind': value['source_kind'], 'implementation': implementation(value['implementation']),
             'python_version': None if value['python_version'] is None else text(value['python_version']),
-            'dependencies': dependencies, 'capture_policy': policy(value['capture_policy'])}
+            'dependencies': dependencies, 'capture_policy': policy(value['capture_policy']), **runtime}
 
 
 def canonical_source_header(value):
@@ -153,12 +171,16 @@ def parse_bootstrap(value):
 
 
 def parse_ready(text):
-    value = fields(control(text, 16384), ('type', 'version', 'codec', *IDENTITY_FIELDS,
-                                        'source_header_sha256', 'source_prefix_sha256', 'capture_policy', 'limits'))
+    value = control(text, 16384)
+    fields(value, ('type', 'version', 'codec', *IDENTITY_FIELDS,
+                  'source_header_sha256', 'source_prefix_sha256', 'capture_policy', 'limits') +
+           (('robot',) if isinstance(value,dict) and 'robot' in value else ()))
     if value['type'] != 'recording.ready' or type(value['version']) is not int or value['version'] != 1 or value['codec'] != CODEC:
         invalid()
     identity(value); digest(value['source_header_sha256']); digest(value['source_prefix_sha256'])
     policy(value['capture_policy']); parse_limits(value['limits'])
+    if 'robot' in value:
+        robot_identity(value['robot'])
     return value
 
 
@@ -172,6 +194,8 @@ def verify_ready(text, bootstrap, header, welcome):
             or value['source_prefix_sha256'] != source_prefix_seed(bootstrap, value['source_header_sha256'])
             or value['capture_policy'] != bootstrap['capture_policy'] or value['limits'] != bootstrap['limits']):
         invalid('scope_mismatch', 'Recording READY does not match source admission')
+    if ('robot' in value) != ('robot_control' in header):
+        invalid('scope_mismatch', 'Recording robot capability admission mismatch')
     return value
 
 
@@ -217,9 +241,9 @@ def advance_prefix(previous, packet_digest):
 
 
 def encode_packet(scope, sequence, kind, payload):
-    if kind not in (1, 2, 3) or len(payload) + HEADER.size > PACKET_BYTES or u64(sequence) == 0:
+    if kind not in (1, 2, 3, 4) or len(payload) + HEADER.size > PACKET_BYTES or u64(sequence) == 0:
         invalid('source_capacity')
-    if (kind == 2 and len(payload) > 16384) or (kind == 3 and len(payload) > 4096):
+    if (kind in (2,4) and len(payload) > 16384) or (kind == 3 and len(payload) > 4096):
         invalid('source_capacity')
     header = HEADER.pack(b'LWR1', 1, kind, 0, uuid.UUID(identifier(scope['recording_id'])).bytes,
                          uuid.UUID(identifier(scope['session_id'])).bytes, parse_u64(scope['epoch']), sequence,
@@ -232,10 +256,10 @@ def decode_packet(data, scope=None):
     if not HEADER.size <= len(data) <= PACKET_BYTES:
         invalid('invalid_packet')
     magic, version, kind, flags, recording_id, session_id, epoch, sequence, size, reserved, packet_digest = HEADER.unpack_from(data)
-    if (magic != b'LWR1' or version != 1 or kind not in (1, 2, 3) or flags or reserved
+    if (magic != b'LWR1' or version != 1 or kind not in (1, 2, 3, 4) or flags or reserved
             or sequence == 0 or size != len(data) - HEADER.size):
         invalid('invalid_packet')
-    if (kind == 2 and size > 16384) or (kind == 3 and size > 4096):
+    if (kind in (2,4) and size > 16384) or (kind == 3 and size > 4096):
         invalid('invalid_packet')
     if scope is not None and (str(uuid.UUID(bytes=recording_id)) != scope['recording_id']
                               or str(uuid.UUID(bytes=session_id)) != scope['session_id'] or epoch != parse_u64(scope['epoch'])):
@@ -294,4 +318,86 @@ def parse_source_end(text):
         parse_u64(value[name])
     if value['reason'] != 'stop':
         invalid('invalid_packet')
+    return value
+
+
+def robot_identity(value):
+    fields(value, ('entity_id', 'binding_id', 'run_id'))
+    for item in value.values():
+        identifier(item)
+    return value
+
+
+def robot_joints(value):
+    if (type(value) is not list or len(value) != 6 or
+            any(type(v) not in (int,float) or not math.isfinite(v) or abs(v)>1000 for v in value)):
+        invalid('invalid_packet', 'Expected six measured robot coordinates')
+    return value
+
+
+def parse_robot_command(text, scope, robot, joint_limits):
+    value = fields(control(text, 16384), ('type','version','recording_id','session_id','lease_id','epoch',
+                    'entity_id','binding_id','run_id','command_id','task_id','capability','parameters'))
+    if value['type'] != 'robot.command' or type(value['version']) is not int or value['version'] != 1:
+        invalid()
+    for name in ('recording_id','session_id','lease_id','entity_id','binding_id','run_id','command_id'):
+        identifier(value[name])
+    parse_u64(value['epoch'])
+    if (any(value[name]!=scope[name] for name in ('recording_id','session_id','lease_id','epoch')) or
+            any(value[name]!=robot[name] for name in ('entity_id','binding_id','run_id'))):
+        invalid('scope_mismatch', 'Robot command outside admitted Session')
+    if value['task_id'] is not None:
+        identifier(value['task_id'])
+    capability = value['capability']
+    if capability not in ROBOT_CAPABILITIES or (capability != 'robot.cancel' and value['task_id'] is None):
+        invalid()
+    parameters = value['parameters']
+    if capability == 'robot.move_joints':
+        fields(parameters, ('joints',))
+        targets = robot_joints(parameters['joints'])
+        bounds = joint_limits
+    elif capability == 'robot.set_gripper':
+        fields(parameters, ('position',))
+        targets = [parameters['position']]
+        bounds = [joint_limits[-1]]
+    else:
+        fields(parameters, ())
+        targets, bounds = [], []
+    if any(type(v) not in (int,float) or not math.isfinite(v) or not lo <= v <= hi
+           for v,(lo,hi) in zip(targets,bounds,strict=True)):
+        invalid('invalid_message', 'Robot target outside fixed profile limits')
+    return canonical(value)
+
+
+def parse_robot_event(text):
+    value = fields(control(text, 16384), ('source_event_sequence','event_id','event_type','subject','sim_time_ns','observed_at','event'))
+    if parse_u64(value['source_event_sequence']) == 0:
+        invalid('sequence_gap')
+    parse_u64(value['sim_time_ns']); identifier(value['event_id'])
+    subject = fields(value['subject'], ('session_id','entity_id','binding_id','run_id'))
+    for item in subject.values():
+        identifier(item)
+    task = value['event_type'] == 'robot.task'
+    if not task and value['event_type'] != 'robot.observation':
+        invalid('invalid_packet')
+    event = fields(value['event'], ('command_id','task_id','status','phase','reason','joints','velocity') if task else ('joints','velocity','phase'))
+    robot_joints(event['joints']); robot_joints(event['velocity'])
+    if not isinstance(event['phase'],str) or not re.fullmatch(r'[\x20-\x7e]{1,64}',event['phase']):
+        invalid('invalid_packet')
+    if task:
+        identifier(event['command_id'])
+        if event['task_id'] is not None:
+            identifier(event['task_id'])
+        if event['status'] not in ('running','cancel_requested','completed','cancelled','failed'):
+            invalid('invalid_packet')
+        if event['reason'] is not None and (not isinstance(event['reason'],str) or not re.fullmatch(r'[\x20-\x7e]{1,128}',event['reason'])):
+            invalid('invalid_packet')
+    if value['observed_at'] is not None:
+        from datetime import datetime
+        if not isinstance(value['observed_at'],str) or not re.fullmatch(r'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z',value['observed_at']):
+            invalid('invalid_packet')
+        try:
+            datetime.fromisoformat(value['observed_at'].replace('Z','+00:00'))
+        except ValueError:
+            invalid('invalid_packet')
     return value

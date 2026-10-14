@@ -67,6 +67,11 @@ try {
     { recursive: true, filter: (path) => !path.includes('__pycache__') },
   );
   await cp(
+    join(root, 'tools/newton-motion'),
+    join(output, 'tools/newton-motion'),
+    { recursive: true, filter: (path) => !path.includes('__pycache__') },
+  );
+  await cp(
     join(root, 'packages/server/migrations'),
     join(output, 'packages/server/migrations'),
     { recursive: true },
