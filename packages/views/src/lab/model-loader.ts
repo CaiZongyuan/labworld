@@ -158,6 +158,35 @@ async function parseModel(
   }
 }
 
+type ModelInstance = {
+  owner: ModelOwner;
+  resource: string;
+  model: LoadedModel;
+};
+type ModelOwner = {
+  active: boolean;
+  instances: Set<ModelInstance>;
+  latest: ModelInstance | null;
+};
+function usableInstance(
+  instance: ModelInstance | null,
+  owner: ModelOwner,
+  id: string,
+  resource: string,
+) {
+  return (
+    instance !== null &&
+    instance.owner === owner &&
+    owner.instances.has(instance) &&
+    (instance.model.id !== id || instance.resource === resource)
+  );
+}
+function releaseInstance(instance: ModelInstance) {
+  if (!instance.owner.instances.delete(instance)) return;
+  if (instance.owner.latest === instance) instance.owner.latest = null;
+  disposeModel(instance.model.scene);
+}
+
 export function useLoadedModel(
   asset: ModelAsset,
   renderer: WebGLRenderer | null,
@@ -171,23 +200,52 @@ export function useLoadedModel(
   const apiClient = asset.source === 'remote' ? asset.apiClient : null;
   const authority = asset.source === 'remote' ? asset.authority : null;
   const id = asset.id;
+  const owner = useMemo<ModelOwner>(
+    () => ({ active: true, instances: new Set(), latest: null }),
+    [apiClient, authority, renderer],
+  );
   const identity = useMemo(
     () => ({}),
     [id, input, apiClient, authority, renderer],
   );
   const [state, setState] = useState<{
     identity: object | null;
-    model: LoadedModel | null;
+    instance: ModelInstance | null;
     loading: boolean;
     error: ModelErrorKey | null;
-  }>({ identity: null, model: null, loading: false, error: null });
+  }>({ identity: null, instance: null, loading: false, error: null });
+  const instance = usableInstance(state.instance, owner, id, input)
+    ? state.instance
+    : null;
+  useEffect(() => {
+    owner.active = true;
+    return () => {
+      owner.active = false;
+      for (const loaded of owner.instances) releaseInstance(loaded);
+    };
+  }, [owner]);
+  useEffect(() => {
+    // Keep the displayed instance until its replacement commits. The latest
+    // parsed candidate stays owned even if it has not committed yet.
+    const latest = usableInstance(owner.latest, owner, id, input)
+      ? owner.latest
+      : null;
+    for (const loaded of owner.instances)
+      if (loaded !== instance && loaded !== latest) releaseInstance(loaded);
+  }, [owner, instance, id, input]);
   useEffect(() => {
     if (!renderer) return;
     const remoteAsset = currentRemoteAsset();
     const controller = new AbortController();
     let lease: ModelByteLease | undefined;
-    let loaded: LoadedModel | null = null;
-    setState({ identity, model: null, loading: true, error: null });
+    setState((previous) => ({
+      identity,
+      instance: usableInstance(previous.instance, owner, id, input)
+        ? previous.instance
+        : null,
+      loading: true,
+      error: null,
+    }));
     void (async () => {
       try {
         let buffer: ArrayBuffer;
@@ -204,32 +262,44 @@ export function useLoadedModel(
           buffer = await response.arrayBuffer();
         }
         const next = await parseModel(buffer.slice(0), id, renderer);
-        if (controller.signal.aborted) {
+        if (controller.signal.aborted || !owner.active) {
           disposeModel(next.scene);
           return;
         }
-        loaded = next;
-        setState({ identity, model: next, loading: false, error: null });
+        const loaded: ModelInstance = {
+          owner,
+          resource: input,
+          model: next,
+        };
+        owner.instances.add(loaded);
+        owner.latest = loaded;
+        setState({ identity, instance: loaded, loading: false, error: null });
         onInfo(id, next.info);
       } catch (cause) {
         if (!controller.signal.aborted)
-          setState({
+          setState((previous) => ({
             identity,
-            model: null,
+            instance: usableInstance(previous.instance, owner, id, input)
+              ? previous.instance
+              : null,
             loading: false,
             error: cause instanceof ModelImportError ? cause.key : 'failed',
-          });
+          }));
       } finally {
         lease?.release();
+        lease = undefined;
       }
     })();
     return () => {
       controller.abort();
       lease?.release();
-      if (loaded) disposeModel(loaded.scene);
     };
-  }, [identity, id, input, apiClient, authority, renderer, onInfo]);
+  }, [owner, identity, id, input, apiClient, authority, renderer, onInfo]);
   return state.identity === identity
-    ? { model: state.model, loading: state.loading, error: state.error }
-    : { model: null, loading: !!renderer, error: null };
+    ? {
+        model: instance?.model ?? null,
+        loading: state.loading,
+        error: state.error,
+      }
+    : { model: instance?.model ?? null, loading: !!renderer, error: null };
 }
