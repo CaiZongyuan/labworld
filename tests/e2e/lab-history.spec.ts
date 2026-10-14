@@ -8,6 +8,10 @@ import {
 import { execFileSync } from 'node:child_process';
 import { boundedBrowserFact } from './lab-browser-facts';
 import {
+  beginFrontendFrontier,
+  endFrontendFrontier,
+} from './frontend-frontier-facts';
+import {
   historyWorldProjection,
   predicateFact,
 } from './original-predicate-facts';
@@ -15,6 +19,10 @@ import {
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
 test.use({ locale: 'zh-CN' });
+test.beforeEach(({ page }) => beginFrontendFrontier(page, 'history'));
+test.afterEach(({ page }, info) =>
+  endFrontendFrontier(page, info.status, info.expectedStatus),
+);
 test.skip(
   process.env.LAB_OBSERVATION_RETENTION_SECS !== '2' ||
     process.env.LAB_RECORD_RETENTION_SECS !== '20',

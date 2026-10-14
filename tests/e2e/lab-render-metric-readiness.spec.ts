@@ -6,6 +6,10 @@ import { randomUUID } from 'node:crypto';
 import { CoreHttp } from '../support/core-http';
 import { publishAsset } from '../support/lab-assets-http';
 import {
+  beginFrontendFrontier,
+  endFrontendFrontier,
+} from './frontend-frontier-facts';
+import {
   freshRenderMetrics,
   markRenderMetrics,
   waitForWorldVersion,
@@ -16,6 +20,10 @@ type StreamGateWindow = {
 };
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
+test.beforeEach(({ page }) => beginFrontendFrontier(page, 'static-render'));
+test.afterEach(({ page }, info) =>
+  endFrontendFrontier(page, info.status, info.expectedStatus),
+);
 
 test('render metrics wait for the requested World while its real stream update is delayed', async ({
   page,

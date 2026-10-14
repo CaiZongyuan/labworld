@@ -7,12 +7,20 @@ import type {
   LabWorld,
 } from '../../packages/sdk/src/index';
 import { member } from './lab-foundation-support';
+import {
+  beginFrontendFrontier,
+  endFrontendFrontier,
+} from './frontend-frontier-facts';
 
 const evidence =
   process.env.LAB_RECORDS_EVIDENCE ??
   '.scratch/33-vnext-lab-records/application';
 mkdirSync(evidence, { recursive: true });
 test.use({ locale: 'zh-CN' });
+test.beforeEach(({ page }) => beginFrontendFrontier(page, 'records'));
+test.afterEach(({ page }, info) =>
+  endFrontendFrontier(page, info.status, info.expectedStatus),
+);
 test.afterEach(async ({ page }, info) => {
   writeFileSync(
     join(evidence, 'assertions.json'),
