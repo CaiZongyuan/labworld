@@ -228,6 +228,12 @@ async function pickCentredEntity(page: Page, name: string, entityId: string) {
   await expect(
     page.getByRole('button', { name: `选择 ${name}`, exact: true }),
   ).toHaveAttribute('aria-pressed', 'false');
+  await expect(page.locator('.world-body')).not.toHaveAttribute(
+    'data-inspector-open',
+  );
+  await expect(
+    page.getByRole('complementary', { name: '对象信息' }),
+  ).toBeHidden();
   await expect
     .poll(async () =>
       changedRegionPixels(
