@@ -53,6 +53,18 @@ import {
   type RecordingEvent,
   type RecordingMetadata,
 } from './recording-public-support.ts';
+import {
+  recordFailureStage,
+  captureRecordingFailure,
+  beginFailureFixture,
+  failureFactsEnabled,
+  createStateFacts,
+  recordStateRead,
+  recordStateReadError,
+  captureStateFailure,
+  currentFailureGeneration,
+  captureTaskReceiptFailure,
+} from '../support/test-failure-facts.ts';
 
 test(
   'recording retained reads enforce identities, Lab binding and delete CSRF while preserving bytes',
@@ -315,6 +327,7 @@ async function incomplete(
 }
 
 async function fixture(ack = 3000): Promise<Context> {
+  beginFailureFixture();
   const target = await new ServerProcess().create();
   target.entry = 'tests/e2e/recording-fault-process.ts';
   target.ipc = true;
@@ -385,22 +398,52 @@ async function ipc(f: Context, message: object, event: string) {
   );
 }
 async function state(f: Context, id: string, status: string) {
-  return recordingEventually(
-    () => f.api.json<SimulationSession>('GET', sessionPath(f.lab, id)),
-    (value) => value.status === status,
-    10000,
-  );
+  const facts = createStateFacts(status);
+  try {
+    return await recordingEventually(
+      async () => {
+        const started = performance.now();
+        if (failureFactsEnabled) {
+          facts.polls++;
+          facts.phase = 'get-pending';
+        }
+        try {
+          const value = await f.api.json<SimulationSession>(
+            'GET',
+            sessionPath(f.lab, id),
+          );
+          recordStateRead(
+            facts,
+            value as unknown as Record<string, unknown>,
+            performance.now() - started,
+          );
+          return value;
+        } catch (cause) {
+          recordStateReadError(facts, cause, performance.now() - started);
+          throw cause;
+        }
+      },
+      (value) => value.status === status,
+      10000,
+    );
+  } catch (cause) {
+    await captureStateFailure(facts, f.target.evidence, cause);
+    throw cause;
+  }
 }
 async function transition(f: Context, session: string, action: string) {
   const current = await f.api.json<SimulationSession>(
     'GET',
     sessionPath(f.lab, session),
   );
-  return f.api.json<SimulationSession>(
+  recordFailureStage('transition-request', action);
+  const changed = await f.api.json<SimulationSession>(
     'POST',
     sessionPath(f.lab, session) + '/' + action,
     { expected_revision: current.revision },
   );
+  recordFailureStage('transition-returned', action);
+  return changed;
 }
 async function admission(f: Context) {
   const starting = await f.api.json<SimulationSession>(
@@ -424,7 +467,19 @@ async function admission(f: Context) {
 async function start(f: Context) {
   const a = await admission(f),
     machine = new RecordingMachine(a.session, a.admitted, f.target.url);
-  await machine.ready();
+  try {
+    await machine.ready();
+  } catch (cause) {
+    if (failureFactsEnabled)
+      await captureRecordingFailure(
+        f.api,
+        sessionPath(f.lab, machine.session.id),
+        recordingPath(f.lab, machine.scope.recording_id),
+        f.target.evidence,
+        'initial-ready-failure',
+      );
+    throw cause;
+  }
   const initial = selectedFrame(a.session, 1n, 0n);
   await machine.capture([initial]);
   machine.liveFrame(initial);
@@ -438,8 +493,22 @@ async function boundary(
   time: bigint,
 ) {
   await transition(f, machine.session.id, action);
-  const control = await machine.control(action),
-    last = machine.selected.at(-1)!;
+  recordFailureStage('control-wait', action);
+  let control: Awaited<ReturnType<RecordingMachine['control']>>;
+  try {
+    control = await machine.control(action);
+  } catch (cause) {
+    await captureRecordingFailure(
+      f.api,
+      sessionPath(f.lab, machine.session.id),
+      recordingPath(f.lab, machine.scope.recording_id),
+      f.target.evidence,
+      'control-failure',
+    );
+    throw cause;
+  }
+  recordFailureStage('control-returned', action);
+  const last = machine.selected.at(-1)!;
   const frame = selectedFrame(
     machine.session,
     last.readBigUInt64LE(16) + 1n,
@@ -1332,11 +1401,42 @@ test(
         { 'idempotency-key': randomUUID() },
       );
       assert(command.task_id);
-      const reached = await recordingEventually(
-        () => f.messages.find((message) => message.event === 'fault-reached'),
-        Boolean,
-        20000,
-      );
+      const generation = currentFailureGeneration();
+      let reached: Record<string, unknown> | undefined;
+      try {
+        reached = await recordingEventually(
+          () => f.messages.find((message) => message.event === 'fault-reached'),
+          Boolean,
+          20000,
+        );
+      } catch (cause) {
+        if (failureFactsEnabled)
+          await captureTaskReceiptFailure(
+            f.api,
+            path + '/tasks/' + command.task_id,
+            sessionPath(f.lab, machine.session.id),
+            f.target.evidence,
+            generation,
+            {
+              originalRejectedAt: performance.now(),
+              matchingReceiptCount: f.messages.filter(
+                (message) => message.event === 'fault-reached',
+              ).length,
+              messageCount: f.messages.length,
+              armedReceiptCount: f.messages.filter(
+                (message) => message.event === 'armed',
+              ).length,
+              childConnected: f.target.child?.connected ?? null,
+              childExited: f.target.child
+                ? f.target.child.exitCode !== null ||
+                  f.target.child.signalCode !== null
+                : null,
+              childExitCode: f.target.child?.exitCode ?? null,
+            },
+            cause,
+          );
+        throw cause;
+      }
       assert(reached);
       assert(
         performance.now() - pausedAt > 1000,

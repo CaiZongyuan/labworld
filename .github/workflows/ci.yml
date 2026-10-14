@@ -132,6 +132,8 @@ jobs:
   windows-foundation:
     runs-on: windows-2025
     timeout-minutes: 45
+    env:
+      TEST_FAILURE_FACTS: '1'
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
@@ -144,9 +146,25 @@ jobs:
           version: 11.17.0
       - run: pnpm install --frozen-lockfile
       - name: Actual startup, migration, HTTP, persistence and owned process proof
+        env:
+          NODE_OPTIONS: --test-reporter=./tests/support/test-failure-reporter.mjs
         run: pnpm test:server
       - run: pnpm contracts:check
       - run: pnpm spike:server --duration-seconds 5
+      - name: Reconcile every actual owned Windows test resource
+        if: always()
+        run: node --experimental-strip-types tests/support/reconcile-test-resources.ts
+      - name: Keep safe full-suite failure facts and actual owned reconciliation
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: test-failure-facts-windows
+          path: |
+            .scratch/vnext-m1/test-failure-summary.json
+            .scratch/vnext-m1/test-resource-reconciliation.json
+            .scratch/vnext-m1/lab-word-m1-*/test-failure-facts.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Keep platform evidence and cleanup receipts
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6

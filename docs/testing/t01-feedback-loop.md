@@ -37,3 +37,5 @@
 在固定的源码版本、环境和任务范围上记录验证。真实 TDD red/green可复用为同一断言的 VDD 证据。稳定最终候选由本地定向检查与负责环境的一次完整门禁覆盖；已包含的 affected 检查不重复运行。修复和 main 前进按语义影响刷新，具体顺序与独立审查见[开发流程](../agents/development-flow.md)。
 
 多阶段协作使用 [development-timeline](../../.agents/skills/development-timeline/SKILL.md)轻量记录阶段、等待和返工。报告说明已记录的进展与未知部分，不追加产品验证或合并门禁。
+
+Windows CI 为原始完整 `pnpm test:server` 启用 `TEST_FAILURE_FACTS=1`。测试 fixture 拥有并保留 `.scratch/vnext-m1/lab-word-m1-*/test-failure-facts.json`，现有 `gate-facts-windows` artifact 收集这些 JSON。记录只含首次操作失败的公开状态、限定错误与清理前资源事实；原测试结果决定通过或失败。失败后追加的读取明确标为确认，不证明等待期间的状态。文件不含凭据、URL、业务 ID、payload 或原始日志。资源清理仍由创建 fixture 负责，完整套件以实际 owned ledger 和消费者为准。

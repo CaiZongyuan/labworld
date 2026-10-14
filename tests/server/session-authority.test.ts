@@ -13,6 +13,19 @@ import { CoreHttp } from '../support/core-http.ts';
 import { publishAsset } from '../support/lab-assets-http.ts';
 import { SessionEventReader } from '../support/session-event-reader.ts';
 import {
+  beginFailureFixture,
+  currentFailureGeneration,
+  recordFailureClose,
+  recordFailureError,
+  recordFailureMessage,
+  captureRecordingFailure,
+  createStateFacts,
+  recordStateRead,
+  recordStateReadError,
+  captureStateFailure,
+  failureFactsEnabled,
+} from '../support/test-failure-facts.ts';
+import {
   encodeMotionSnapshot,
   decodeMotionSnapshot,
   parseMotionWelcome,
@@ -227,6 +240,10 @@ async function observedUnsignedAdmission(
     else delete (client as Partial<CoreHttp>).response;
   }
 }
+const failureReaders = new WeakMap<
+  ServerProcess,
+  { client: CoreHttp; base: string }
+>();
 class Source {
   readonly session: Session;
   ws: WebSocket;
@@ -241,6 +258,7 @@ class Source {
   private ownership: Promise<void>;
   private recording?: WebSocket;
   private recordingReady?: RecordingReady;
+  private failureRecordingScope?: RecordingBootstrap;
   private recordingFailure?: string;
   private recordingWaiter?: {
     resolve: (text: string) => void;
@@ -253,6 +271,7 @@ class Source {
   private lastAck?: RecordingAck;
   private pendingReply?: string;
   private receivedControl?: { id: unknown; at: number };
+  private readonly failureGeneration = currentFailureGeneration();
   constructor(
     target: ServerProcess,
     session: Session,
@@ -290,15 +309,34 @@ class Source {
       { origin: target.url },
     );
     this.ws.on('error', (error) => {
+      if (this.role === 'publisher')
+        recordFailureError(
+          'manual-live-publisher',
+          error,
+          this.failureGeneration,
+        );
       this.failure = error.message;
     });
     this.ws.on('close', (_code, reason) => {
+      if (this.role === 'publisher')
+        recordFailureClose(
+          'manual-live-publisher',
+          _code,
+          reason,
+          this.failureGeneration,
+        );
       this.failure ??= reason.toString() || 'connection_closed';
     });
     this.ws.on('message', (data, binary) => {
       if (binary) this.frames.push(new Uint8Array(data as Buffer));
       else {
         const control = JSON.parse(String(data));
+        if (this.role === 'publisher')
+          recordFailureMessage(
+            'manual-live-publisher',
+            control,
+            this.failureGeneration,
+          );
         if (control.type === 'motion.session_control')
           this.receivedControl = {
             id: control.transition_id,
@@ -344,6 +382,7 @@ class Source {
   }
   private async openRecording() {
     const bootstrap = parseRecordingBootstrap(this.admission.recording);
+    this.failureRecordingScope = bootstrap;
     assert.equal(bootstrap.session_id, this.session.id);
     assert.equal(bootstrap.lease_id, this.admission.lease_id);
     assert.equal(bootstrap.epoch, this.welcome!.epoch);
@@ -370,8 +409,23 @@ class Source {
       this.recordingFailure = reason;
       this.recordingWaiter?.reject(new Error(reason));
     };
-    this.recording.on('error', () => failed('Recording socket error'));
-    this.recording.on('close', () => failed('Recording socket closed'));
+    this.recording.on('error', (error) => {
+      recordFailureError(
+        'manual-reliable-source',
+        error,
+        this.failureGeneration,
+      );
+      failed('Recording socket error');
+    });
+    this.recording.on('close', (code, reason) => {
+      recordFailureClose(
+        'manual-reliable-source',
+        code,
+        reason,
+        this.failureGeneration,
+      );
+      failed('Recording socket closed');
+    });
     this.recording.on('message', (data, binary) => {
       const raw = Array.isArray(data) ? Buffer.concat(data) : data;
       if (binary || raw.byteLength > (this.recordingReady ? 4096 : 16384)) {
@@ -463,7 +517,7 @@ class Source {
       ? [limits!.retry_first_ms, limits!.retry_second_ms]
       : [];
     let attempt = 0;
-    return new Promise((resolve, reject) => {
+    return new Promise<string>((resolve, reject) => {
       const complete = (text?: string, error?: Error) => {
         clearTimeout(this.recordingTimer);
         this.recordingTimer = undefined;
@@ -498,6 +552,21 @@ class Source {
       };
       this.recording!.send(data);
       schedule();
+    }).catch(async (cause) => {
+      const reader = failureReaders.get(this.target);
+      if (failureFactsEnabled && reader && this.failureRecordingScope)
+        await captureRecordingFailure(
+          reader.client,
+          reader.base + `/sessions/${this.session.id}`,
+          reader.base +
+            `/recordings/${this.failureRecordingScope.recording_id}`,
+          this.target.evidence,
+          this.recordingReady
+            ? 'recording-ack-failure'
+            : 'recording-ready-failure',
+          this.failureGeneration,
+        );
+      throw cause;
     });
   }
   private selectFrame(time: bigint, offset: number) {
@@ -648,6 +717,7 @@ class Source {
   }
 }
 async function fixture(name: string, grace = 60000) {
+  beginFailureFixture();
   const target = await new ServerProcess().create();
   target.env = {
     APP_ORIGIN: target.url,
@@ -685,6 +755,7 @@ async function fixture(name: string, grace = 60000) {
   const sourceClient = new CoreHttp(target.url, {
     authorization: 'Bearer ' + machine.credential,
   });
+  failureReaders.set(target, { client, base });
   async function start() {
     return client.json<Session>(
       'POST',
@@ -705,11 +776,35 @@ async function fixture(name: string, grace = 60000) {
     return client.json<Session>('GET', base + `/sessions/${session.id}`);
   }
   async function state(session: Session, status: string) {
-    return until(
-      () => read(session),
-      (value) => value.status === status,
-      10000,
-    );
+    const facts = createStateFacts(status);
+    try {
+      return await until(
+        async () => {
+          const started = performance.now();
+          if (failureFactsEnabled) {
+            facts.polls++;
+            facts.phase = 'get-pending';
+          }
+          try {
+            const value = await read(session);
+            recordStateRead(
+              facts,
+              value as unknown as Record<string, unknown>,
+              performance.now() - started,
+            );
+            return value;
+          } catch (cause) {
+            recordStateReadError(facts, cause, performance.now() - started);
+            throw cause;
+          }
+        },
+        (value) => value.status === status,
+        10000,
+      );
+    } catch (cause) {
+      await captureStateFailure(facts, target.evidence, cause);
+      throw cause;
+    }
   }
   return {
     asset,

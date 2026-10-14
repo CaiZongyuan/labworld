@@ -23,6 +23,12 @@ import {
   ownRecordingSocket,
   recordingEventually,
 } from './recording-public-support.ts';
+import {
+  recordFailureMessage,
+  recordFailureError,
+  recordFailureClose,
+  currentFailureGeneration,
+} from '../support/test-failure-facts.ts';
 
 export type RecordingBootstrap = RecordingIdentity & {
   ticket: string;
@@ -60,17 +66,24 @@ class Peer {
     scope: RecordingIdentity,
     origin?: string,
   ) {
+    const generation = currentFailureGeneration();
     this.socket = new WebSocket(url, origin ? { origin } : undefined);
     ownRecordingSocket(this.socket, role, scope.session_id, scope.recording_id);
     this.socket.on('error', (error) => {
+      recordFailureError(role, error, generation);
       this.failure = error;
     });
+    this.socket.once('close', (code, reason) =>
+      recordFailureClose(role, code, reason, generation),
+    );
     this.socket.on('message', (data, binary) => {
       try {
         assert(!binary, 'Machine received unexpected binary control');
         assert(rawBytes(data).length <= 16384);
         assert(this.messages.length < 64, 'Verifier control inbox overflow');
-        this.messages.push(JSON.parse(rawBytes(data).toString('utf8')));
+        const message = JSON.parse(rawBytes(data).toString('utf8'));
+        recordFailureMessage(role, message, generation);
+        this.messages.push(message);
       } catch (error) {
         this.failure = error instanceof Error ? error : new Error('WireError');
         this.socket.terminate();
