@@ -6,6 +6,7 @@ import {
   recordingJSON,
   recordingObject,
   recordingU64,
+  RECORDING_HEADER_BYTES,
   RECORDING_WIRE_LIMITS,
 } from '../../../packages/contracts/src/recording/index.ts';
 import { motionTransportAllowed } from './transport.ts';
@@ -20,6 +21,76 @@ function bytes(data: RawData): Uint8Array {
   return data instanceof ArrayBuffer
     ? new Uint8Array(data)
     : new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+}
+type IncomingDiagnostic = {
+  arrivalMonotonicMs: number;
+  tokensBeforeRefill: number;
+  refillElapsedMs: number;
+  tokensAfterRefill: number;
+  tokensAfterCharge: number;
+  charged: boolean;
+  binary: boolean;
+  byteCount: number;
+  header: 'valid-structure' | 'invalid' | 'not-binary';
+  packetSequence: string | null;
+  packetKind: number | null;
+  inflightPresent: boolean;
+  equalsInflight: boolean;
+};
+type CapacityBranch =
+  | 'commands-buffer'
+  | 'heartbeat-buffer'
+  | 'receive-rate'
+  | 'receive-size-buffer'
+  | 'ack-size-buffer'
+  | 'peer-fault';
+type CapacityDiagnostic = {
+  admittedMessages: number;
+  recentMessages: IncomingDiagnostic[];
+  firstCapacity?: {
+    atMonotonicMs: number;
+    branch: CapacityBranch;
+    tokens: number;
+    checkedBytes: number | null;
+    bufferedBytes: number | null;
+    byteLimit: number | null;
+    recentMessages: readonly IncomingDiagnostic[];
+  };
+};
+// Diagnostic header facts only: neither scope nor digest validation is claimed.
+function diagnosticHeader(data: Uint8Array, binary: boolean) {
+  const empty = {
+    header: binary ? ('invalid' as const) : ('not-binary' as const),
+    packetSequence: null,
+    packetKind: null,
+  };
+  if (
+    !binary ||
+    data.byteLength < RECORDING_HEADER_BYTES ||
+    data.byteLength > RECORDING_WIRE_LIMITS.packet_bytes
+  )
+    return empty;
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  const kind = view.getUint8(5),
+    payloadBytes = data.byteLength - RECORDING_HEADER_BYTES;
+  if (
+    view.getUint32(0, false) !== 0x4c575231 ||
+    view.getUint8(4) !== 1 ||
+    ![1, 2, 3, 4].includes(kind) ||
+    view.getUint16(6, true) !== 0 ||
+    view.getUint32(60, true) !== 0 ||
+    view.getUint32(56, true) !== payloadBytes ||
+    ((kind === 2 || kind === 4) &&
+      payloadBytes > RECORDING_WIRE_LIMITS.event_bytes) ||
+    (kind === 3 && payloadBytes > RECORDING_WIRE_LIMITS.end_bytes) ||
+    view.getBigUint64(48, true) === 0n
+  )
+    return empty;
+  return {
+    header: 'valid-structure' as const,
+    packetSequence: String(view.getBigUint64(48, true)),
+    packetKind: kind,
+  };
 }
 /** Participates in the runtime's single upgrade dispatcher; owns no HTTP listener. */
 export class RecordingWebSockets {
@@ -41,6 +112,9 @@ export class RecordingWebSockets {
   private origin: string;
   private heartbeatGraceMs: number;
   private capacity: () => boolean;
+  // Diagnostic branch only: bounded connections survive close through final receipt.
+  private diagnosticConnections: CapacityDiagnostic[] = [];
+  private diagnosticConnectionsOmitted = 0;
   constructor(
     authority: RecordingSourceAuthority,
     origin: string,
@@ -99,6 +173,30 @@ export class RecordingWebSockets {
     let lastPong = Date.now();
     let tokens = 16,
       tokenAt = Date.now();
+    let diagnostic: CapacityDiagnostic | undefined;
+    if (process.env.RECORDING_FIRST_FAULT_DIAGNOSTIC === 'true') {
+      if (this.diagnosticConnections.length < 16) {
+        diagnostic = { admittedMessages: 0, recentMessages: [] };
+        this.diagnosticConnections.push(diagnostic);
+      } else this.diagnosticConnectionsOmitted++;
+    }
+    const capacityFact = (
+      branch: CapacityBranch,
+      checkedBytes: number | null = null,
+      bufferedBytes: number | null = null,
+      byteLimit: number | null = null,
+    ) => {
+      if (!diagnostic || diagnostic.firstCapacity) return;
+      diagnostic.firstCapacity = Object.freeze({
+        atMonotonicMs: performance.now(),
+        branch,
+        tokens,
+        checkedBytes,
+        bufferedBytes,
+        byteLimit,
+        recentMessages: Object.freeze([...diagnostic.recentMessages]),
+      });
+    };
     const fail = (reason: string) => {
       if (faulted) return;
       faulted = true;
@@ -133,7 +231,11 @@ export class RecordingWebSockets {
             )
               throw new Error('ack_timeout');
             if (old && now - old.last < 500) continue;
-            if (ws.bufferedAmount > 65536) throw new Error('recorder_capacity');
+            const buffered = ws.bufferedAmount;
+            if (buffered > 65536) {
+              capacityFact('commands-buffer', null, buffered, 65536);
+              throw new Error('recorder_capacity');
+            }
             ws.send(JSON.stringify(command));
             sent.set(command.command_id, { at: old?.at ?? now, last: now });
           }
@@ -154,7 +256,9 @@ export class RecordingWebSockets {
         fail('source_disconnected');
         return;
       }
-      if (ws.bufferedAmount > 65536) {
+      const buffered = ws.bufferedAmount;
+      if (buffered > 65536) {
+        capacityFact('heartbeat-buffer', null, buffered, 65536);
         fail('recorder_capacity');
         return;
       }
@@ -246,13 +350,50 @@ export class RecordingWebSockets {
         return;
       }
       const now = Date.now();
-      tokens = Math.min(16, tokens + ((now - tokenAt) * 64) / 1000);
+      const beforeRefill = tokens,
+        refillElapsedMs = now - tokenAt;
+      tokens = Math.min(16, tokens + (refillElapsedMs * 64) / 1000);
       tokenAt = now;
+      const afterRefill = tokens;
+      const inflightEqual =
+        diagnostic && binary && inflight
+          ? Buffer.from(data.buffer, data.byteOffset, data.byteLength).equals(
+              Buffer.from(
+                inflight.buffer,
+                inflight.byteOffset,
+                inflight.byteLength,
+              ),
+            )
+          : undefined;
+      const incomingFact = (charged: boolean) => {
+        if (!diagnostic) return;
+        diagnostic.admittedMessages++;
+        diagnostic.recentMessages.push(
+          Object.freeze({
+            arrivalMonotonicMs: performance.now(),
+            tokensBeforeRefill: beforeRefill,
+            refillElapsedMs,
+            tokensAfterRefill: afterRefill,
+            tokensAfterCharge: tokens,
+            charged,
+            binary,
+            byteCount: data.byteLength,
+            ...diagnosticHeader(data, binary),
+            inflightPresent: !!inflight,
+            equalsInflight: inflightEqual ?? false,
+          }),
+        );
+        if (diagnostic.recentMessages.length > 32)
+          diagnostic.recentMessages.shift();
+      };
       if (tokens < 1) {
+        incomingFact(false);
+        capacityFact('receive-rate', data.byteLength);
         fail('recorder_capacity');
         return;
       }
       tokens -= 1;
+      incomingFact(true);
       if (!binary) {
         try {
           const fault = recordingObject(
@@ -313,21 +454,34 @@ export class RecordingWebSockets {
             ].includes(fault.code)
           )
             throw new Error('Invalid fault reason');
+          if (fault.code === 'recorder_capacity')
+            capacityFact('peer-fault', data.byteLength);
           fail(fault.code);
         } catch {
           fail('invalid_packet');
         }
         return;
       }
+      const receiveBuffered =
+        data.byteLength > RECORDING_WIRE_LIMITS.packet_bytes
+          ? null
+          : ws.bufferedAmount;
       if (
         data.byteLength > RECORDING_WIRE_LIMITS.packet_bytes ||
-        ws.bufferedAmount > 65536
+        (receiveBuffered !== null && receiveBuffered > 65536)
       ) {
+        capacityFact(
+          'receive-size-buffer',
+          data.byteLength,
+          receiveBuffered,
+          RECORDING_WIRE_LIMITS.packet_bytes,
+        );
         fail('recorder_capacity');
         return;
       }
       if (inflight) {
         if (
+          inflightEqual ??
           Buffer.from(data.buffer, data.byteOffset, data.byteLength).equals(
             Buffer.from(
               inflight.buffer,
@@ -346,10 +500,21 @@ export class RecordingWebSockets {
           const ack = await binding!.receive(data);
           if (closed || faulted || ws.readyState !== WebSocket.OPEN) return;
           const encoded = JSON.stringify(ack);
+          const ackBytes = Buffer.byteLength(encoded);
+          const ackBuffered =
+            ackBytes > RECORDING_WIRE_LIMITS.ack_bytes
+              ? null
+              : ws.bufferedAmount;
           if (
-            Buffer.byteLength(encoded) > RECORDING_WIRE_LIMITS.ack_bytes ||
-            ws.bufferedAmount > 65536
+            ackBytes > RECORDING_WIRE_LIMITS.ack_bytes ||
+            (ackBuffered !== null && ackBuffered > 65536)
           ) {
+            capacityFact(
+              'ack-size-buffer',
+              ackBytes,
+              ackBuffered,
+              RECORDING_WIRE_LIMITS.ack_bytes,
+            );
             fail('recorder_capacity');
             return;
           }

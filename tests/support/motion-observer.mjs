@@ -37,14 +37,20 @@ if (
   const gateways = new Set();
   // Retain only the first 16 actual owners through final flush, including releases.
   const recordingOwners = [];
+  const recordingGateways = new Set();
   let recordingOwnersObserved = 0;
   let recordingOwnersOmitted = 0;
   if (process.env.RECORDING_FIRST_FAULT_DIAGNOSTIC === 'true') {
-    const { RecordingService } = await import(
-      pathToFileURL(
-        join(root, `packages/server/src/lab/recordings/service.${extension}`),
-      )
-    );
+    const [{ RecordingService }, { RecordingWebSockets }] = await Promise.all([
+      import(
+        pathToFileURL(
+          join(root, `packages/server/src/lab/recordings/service.${extension}`),
+        )
+      ),
+      import(
+        pathToFileURL(join(root, `apps/server/src/recording-ws.${extension}`))
+      ),
+    ]);
     const createOwner = RecordingService.prototype.createOwner;
     RecordingService.prototype.createOwner = function (...args) {
       const owner = createOwner.apply(this, args);
@@ -52,6 +58,11 @@ if (
         recordingOwners.push({ ownerNumber: ++recordingOwnersObserved, owner });
       } else recordingOwnersOmitted++;
       return owner;
+    };
+    const connection = RecordingWebSockets.prototype.connection;
+    RecordingWebSockets.prototype.connection = function (...args) {
+      if (recordingGateways.size < 4) recordingGateways.add(this);
+      return connection.apply(this, args);
     };
   }
   const stats = {
@@ -232,6 +243,19 @@ if (
             : [],
         )
         .slice(0, 16),
+      recordingCapacity: [...recordingGateways].flatMap((gateway, index) =>
+        gateway.diagnosticConnections.map((connection, connectionIndex) => ({
+          gatewayNumber: index + 1,
+          connectionNumber: connectionIndex + 1,
+          admittedMessages: connection.admittedMessages,
+          recentMessages: connection.recentMessages,
+          firstCapacity: connection.firstCapacity ?? null,
+        })),
+      ),
+      recordingCapacityConnectionsOmitted: [...recordingGateways].reduce(
+        (sum, gateway) => sum + gateway.diagnosticConnectionsOmitted,
+        0,
+      ),
       rssBytes: process.memoryUsage().rss,
       at: new Date().toISOString(),
     };
