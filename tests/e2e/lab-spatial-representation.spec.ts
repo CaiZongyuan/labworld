@@ -4,7 +4,7 @@ import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { observeRasterPhases } from './lab-raster-phases';
 
-test.use({ locale: 'zh-CN', colorScheme: 'light' });
+test.use({ locale: 'zh-CN', colorScheme: 'light', hasTouch: true });
 
 const rasterObservers = new WeakMap<
   Page,
@@ -506,6 +506,18 @@ test('explicit location frames the selected object while selection and real obse
     .toBeGreaterThan(30);
   await pickCentredEntity(page, 'Camera Sensor B', sensorB.id);
   await page.getByRole('button', { name: '关闭对象目录', exact: true }).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.getByRole('menu')).toBeHidden();
+  if (process.env.LAB_NODE_EVIDENCE)
+    writeFileSync(
+      join(process.env.LAB_NODE_EVIDENCE, 'spatial-acceptance-1440.png'),
+      await page.screenshot({ fullPage: true }),
+    );
+  const touchRecoveries: {
+    width: number;
+    maxTouchPoints: number;
+    entity: string;
+  }[] = [];
   for (const viewport of [
     { width: 1920, height: 1080 },
     { width: 390, height: 844 },
@@ -565,5 +577,66 @@ test('explicit location frames the selected object while selection and real obse
       labelsClear: true,
       overflow: false,
     });
+    if (viewport.width === 390 || viewport.width === 320) {
+      const inspector = page.getByRole('complementary', {
+        name: /^(对象信息|Object info)$/,
+      });
+      await expect(inspector).toBeVisible();
+      await inspector
+        .getByRole('button', {
+          name: /^(关闭对象信息|Close object details)$/,
+        })
+        .click();
+      await expect(inspector).toBeHidden();
+      const maxTouchPoints = await page.evaluate(
+        () => navigator.maxTouchPoints,
+      );
+      expect(maxTouchPoints).toBeGreaterThan(0);
+      const sensorLabel = page
+        .locator('.world-priority-label')
+        .getByRole('button', {
+          name: 'Camera Sensor B',
+          exact: true,
+        });
+      await expect(sensorLabel).toBeVisible();
+      await sensorLabel.tap();
+      await expect(inspector).toBeVisible();
+      await expect(
+        inspector.getByRole('heading', {
+          name: 'Camera Sensor B',
+          exact: true,
+        }),
+      ).toBeVisible();
+      await expect.poll(readLayout).toEqual({
+        contained: true,
+        panelsClear: true,
+        labelsClear: true,
+        overflow: false,
+      });
+      touchRecoveries.push({
+        width: viewport.width,
+        maxTouchPoints,
+        entity: 'Camera Sensor B',
+      });
+      if (process.env.LAB_NODE_EVIDENCE)
+        writeFileSync(
+          join(process.env.LAB_NODE_EVIDENCE, 'spatial-touch-recovery.json'),
+          JSON.stringify({
+            input: 'Locator.tap',
+            hiddenInspectorReopened: true,
+            recoveries: touchRecoveries,
+          }) + '\n',
+        );
+    }
+    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByRole('menu')).toBeHidden();
+    if (process.env.LAB_NODE_EVIDENCE)
+      writeFileSync(
+        join(
+          process.env.LAB_NODE_EVIDENCE,
+          `spatial-acceptance-${viewport.width}.png`,
+        ),
+        await page.screenshot({ fullPage: true }),
+      );
   }
 });
