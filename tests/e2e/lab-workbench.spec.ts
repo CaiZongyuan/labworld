@@ -12,7 +12,7 @@ import { boundedBrowserFact } from './lab-browser-facts';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
-test.use({ locale: 'zh-CN' });
+test.use({ locale: 'zh-CN', reducedMotion: 'reduce' });
 const evidence =
   process.env.LAB_WORKBENCH_EVIDENCE ?? '.scratch/workbench/application';
 mkdirSync(evidence, { recursive: true });
@@ -259,13 +259,25 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
         /* An optional write cannot replace the original cause. */
       }
       try {
-        const control = await boundedBrowserFact(async () => {
-          const pressed = await page
-            .locator('.world-canvas-tools')
-            .getByRole('button', { name: /^(网格|Grid)$/, exact: true })
-            .getAttribute('aria-pressed');
-          return pressed === 'true' ? true : pressed === 'false' ? false : null;
-        });
+        const [control, reducedMotionPreference] = await Promise.all([
+          boundedBrowserFact(async () => {
+            const pressed = await page
+              .locator('.world-canvas-tools')
+              .getByRole('button', { name: /^(网格|Grid)$/, exact: true })
+              .getAttribute('aria-pressed');
+            return pressed === 'true'
+              ? true
+              : pressed === 'false'
+                ? false
+                : null;
+          }),
+          boundedBrowserFact(() =>
+            page.evaluate(
+              () =>
+                window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+            ),
+          ),
+        ]);
         if (process.env.LAB_NODE_EVIDENCE)
           writeFileSync(
             join(process.env.LAB_NODE_EVIDENCE, 'post-orbit-grid-control.json'),
@@ -273,6 +285,7 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
               scope: 'after-original-predicate',
               predicateTerminal: postOrbit.terminal,
               control,
+              reducedMotionPreference,
             }) + '\n',
             { mode: 0o600 },
           );
