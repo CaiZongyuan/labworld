@@ -1,81 +1,20 @@
-name: CI
+# Isolated diagnostic ref only; never merge into product CI.
+name: CI static model pending diagnosis
 on:
-  push:
-    branches: [main]
-  pull_request:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  group: static-model-pending-diagnosis-${{ github.ref }}
+  cancel-in-progress: false
 jobs:
-  verify:
-    name: verify
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    env:
-      DOCS_SOURCE_REF: ${{ github.sha }}
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .node-version
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 11.17.0
-      - run: pnpm install --frozen-lockfile
-      - name: Complete Node, Web, tooling, budget and docs gate (no containers)
-        run: pnpm check
-      - name: Synthetic HTTP/SSE spike smoke (formal 30-minute evidence is separate)
-        run: pnpm spike:server --duration-seconds 5
-      - name: Final migration source coverage
-        run: node scripts/migration-stage.mjs
-      - name: Keep foundation evidence and cleanup receipts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: m1-linux-evidence
-          path: |
-            .scratch/vnext-m1/
-            .scratch/vnext-m0/
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Keep verified documentation
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: docs-site
-          path: apps/docs/.vitepress/dist
-          retention-days: 7
-      - name: Keep small gate facts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: gate-facts-linux
-          path: |
-            .scratch/vnext-m0/suite-*.json
-            .scratch/vnext-m0/coverage-*.json
-            .scratch/vnext-m0/runs/**/owned-resources.json
-            .scratch/vnext-m0/runs/**/results.json
-            .scratch/vnext-m0/runs/**/target.json
-            .scratch/vnext-m0/runs/**/config.json
-            .scratch/vnext-m0/runs/**/target-process-proof.jsonl
-            .scratch/vnext-m1/**/*.json
-          if-no-files-found: ignore
-          retention-days: 7
-  web-journey-shards:
-    name: web-journeys shard ${{ matrix.shard }}/2
+  original-static:
+    name: One original static case with the frozen model observer
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix:
-        shard: [1, 2]
     env:
       E2E_LAB_REFERENCE_LOAD: '1'
+      DIAGNOSTIC_HEAD: ${{ github.sha }}
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
       - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
@@ -85,117 +24,167 @@ jobs:
         with:
           version: 11.17.0
       - run: pnpm install --frozen-lockfile
-      - name: Install Chromium for actual Web/WebGL journeys
+      - name: Same Chromium installation as the failing shard
         run: pnpm exec playwright install --with-deps chromium
-      - name: Install the pinned optional synthetic Publisher environment
+      - name: Same optional Python dependency preparation
         run: |
           python3.12 -m venv .scratch/motion-python
           .scratch/motion-python/bin/python -m pip install -r tools/synthetic-motion/requirements.txt
-      - name: Owned retained desktop Web journeys and synthetic motion smoke
-        run: pnpm test:e2e --profile-shard=${{ matrix.shard }}/2
-      - name: Built production same-origin application journeys
-        if: success() && matrix.shard == 1
+      - name: Record bounded environment and start inventory
+        id: environment
+        run: |
+          node --input-type=module <<'JS'
+          import { mkdirSync, writeFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          import { cpus, release, arch } from 'node:os';
+          import { chromium } from '@playwright/test';
+          const directory = '.scratch/static-pending-hosted';
+          mkdirSync(directory, { recursive: true });
+          const write = (name, data) => writeFileSync(`${directory}/${name}.json`, JSON.stringify(data, null, 2) + '\n', { mode: 0o600 });
+          const read = (command, args) => execFileSync(command, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+          const inventory = {};
+          for (const [kind, args, fields] of [
+            ['containers', ['ps', '-a'], ['ID', 'Names', 'State', 'Networks', 'Ports']],
+            ['volumes', ['volume', 'ls'], ['Name', 'Driver']],
+            ['networks', ['network', 'ls'], ['ID', 'Name', 'Driver']],
+            ['disk', ['system', 'df'], ['Type', 'TotalCount', 'Active', 'Size', 'Reclaimable']],
+          ]) {
+            const output = read('/usr/bin/docker', [...args, '--format', '{{json .}}']);
+            inventory[kind] = output ? output.split('\n').map(line => {
+              const value = JSON.parse(line);
+              return Object.fromEntries(fields.map(key => [key, value[key]]));
+            }) : [];
+          }
+          write('start-inventory', { at: new Date().toISOString(), dockerOwned: [], inventory });
+          write('environment', {
+            candidate: process.env.DIAGNOSTIC_HEAD,
+            node: process.version,
+            pnpm: read('pnpm', ['--version']),
+            chromium: read(chromium.executablePath(), ['--version']),
+            python: read('.scratch/motion-python/bin/python', ['--version']),
+            kernel: release(), arch: arch(), cpus: cpus().length,
+            runnerOS: process.env.RUNNER_OS,
+            imageOS: process.env.ImageOS ?? null,
+            imageVersion: process.env.ImageVersion ?? null,
+            referenceLoad: process.env.E2E_LAB_REFERENCE_LOAD,
+            webMode: process.env.E2E_WEB_MODE ?? null,
+            nodeOptionsPresent: !!process.env.NODE_OPTIONS,
+            browserConfiguration: 'Unchanged Desktop Chrome defaults; no custom launch flags; workers1/retries0',
+            applicationCache: 'Fresh owned per-profile Vite cache; no application warmup',
+            limitation: 'One profile does not reproduce preceding shard profiles or their host load',
+          });
+          JS
+      - name: Execute the complete original static case once
+        id: original
+        if: ${{ !cancelled() && steps.environment.outcome == 'success' }}
+        run: pnpm test:e2e tests/e2e/lab-render-metric-readiness.spec.ts
+      - name: Independently reconcile owned resources and exact case coverage
+        if: always()
         env:
-          E2E_WEB_MODE: production
-        run: pnpm test:e2e tests/e2e/lab-node-assets-world.spec.ts tests/e2e/spa-deep-links.spec.ts
-      - name: Keep owned browser and service evidence
+          ORIGINAL_STEP_OUTCOME: ${{ steps.original.outcome }}
+        run: |
+          node --experimental-strip-types --input-type=module <<'JS'
+          import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+          import { execFileSync } from 'node:child_process';
+          import { join, resolve } from 'node:path';
+          import { ContractResources } from './scripts/lib/contract-resources.mjs';
+          import { markedConsumers, processIdentity, recoverServerResources } from './tests/support/server-resources.ts';
+          const directory = '.scratch/static-pending-hosted';
+          const evidence = resolve('.scratch/vnext-m1');
+          mkdirSync(directory, { recursive: true });
+          const read = path => existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : null;
+          const write = (name, value) => writeFileSync(join(directory, name + '.json'), JSON.stringify(value, null, 2) + '\n', { mode: 0o600 });
+          const receipt = { candidate: process.env.DIAGNOSTIC_HEAD, originalStepOutcome: process.env.ORIGINAL_STEP_OUTCOME, groups: [], services: [], collectionErrors: 0 };
+          const children = existsSync(evidence) ? readdirSync(evidence) : [];
+          const suites = children.filter(name => /^browser-suite-[0-9a-f-]+$/.test(name));
+          const groupPaths = [];
+          const servicePaths = [];
+          for (const name of children) {
+            if (!/^(browser-suite|lab-word-m1)-[0-9A-Za-z-]+$/.test(name)) continue;
+            const child = join(evidence, name);
+            const owned = read(join(child, 'owned-resources.json'));
+            if (owned?.owner === 'Node desktop browser profile supervisor') groupPaths.push(join(child, 'owned-resources.json'));
+            if (owned?.owner === 'M1 server process harness') servicePaths.push(join(child, 'owned-resources.json'));
+            if (existsSync(join(child, 'browser-owned-resources.json'))) groupPaths.push(join(child, 'browser-owned-resources.json'));
+          }
+          for (const path of groupPaths) {
+            try {
+              const ledger = new ContractResources(path);
+              let actual = ledger.reconcile('hosted-static-original-independent-end');
+              if (actual.consumers.some(value => value.alive || value.actualMembers.length)) {
+                await ledger.recover();
+                actual = ledger.reconcile('hosted-static-original-after-owned-recovery');
+              }
+              const supervisor = await processIdentity(ledger.data.supervisor.pid);
+              receipt.groups.push({ path, allMembersStopped: actual.consumers.every(value => !value.alive && !value.actualMembers.length), supervisorStopped: !supervisor || supervisor.start !== ledger.data.supervisor.token });
+            } catch { receipt.collectionErrors++; }
+          }
+          const portListening = port => ['/proc/net/tcp', '/proc/net/tcp6'].some(path => readFileSync(path, 'utf8').trim().split('\n').slice(1).some(line => {
+            const values = line.trim().split(/\s+/);
+            return values[3] === '0A' && parseInt(values[1].split(':')[1], 16) === port;
+          }));
+          for (const path of servicePaths) {
+            try {
+              const ledger = await recoverServerResources(path);
+              const clean = ledger.state === 'cleaned' && !ledger.directory && !ledger.processes.length && !ledger.inProcessConsumers?.length && !ledger.launchIntent;
+              const marked = await markedConsumers('lab-word-m1-' + ledger.runId);
+              receipt.services.push({ path, clean, markedConsumersStopped: marked.length === 0, port: ledger.port, portNotListening: !portListening(ledger.port) });
+            } catch { receipt.collectionErrors++; }
+          }
+          const suite = suites.length === 1 ? join(evidence, suites[0]) : null;
+          const result = suite ? read(join(suite, 'results.json')) : null;
+          const closure = suite ? read(join(suite, 'profile-0-closure.json')) : null;
+          const summary = suite ? read(join(suite, 'profile-0-summary.json')) : null;
+          const expectedFile = 'tests/e2e/lab-render-metric-readiness.spec.ts';
+          const expectedTitle = 'render metrics wait for the requested World while its real stream update is delayed';
+          const test = summary?.tests?.[0];
+          receipt.exactOneOriginalCase = suites.length === 1 && result?.profiles?.length === 1 && JSON.stringify(result.profiles[0].args) === JSON.stringify([expectedFile]) && summary?.runnerErrors === 0 && summary.tests.length === 1 && test.file === expectedFile && test.title === expectedTitle && ['passed', 'failed', 'timedOut'].includes(test.status);
+          receipt.originalStatus = test?.status ?? null;
+          receipt.originalDurationMs = test?.durationMs ?? null;
+          receipt.originalExitCode = result?.profiles?.[0]?.exitCode ?? null;
+          const linked = path => typeof path === 'string' && resolve(path).startsWith(evidence + '/') && servicePaths.includes(resolve(path));
+          receipt.linkedClosure = closure?.cleanupCompleted === true && groupPaths.includes(closure.browserLedger) && closure.serviceLedgers?.length === 2 && closure.serviceLedgers.every(linked);
+          const modelFacts = receipt.linkedClosure ? join(resolve(closure.browserLedger, '..'), 'static-model-pending-facts.json') : null;
+          receipt.modelFactsPresent = !!modelFacts && existsSync(modelFacts);
+          receipt.resourcesClosed = receipt.collectionErrors === 0 && receipt.groups.length === 2 && receipt.services.length === 2 && receipt.groups.every(value => value.allMembersStopped && value.supervisorStopped) && receipt.services.every(value => value.clean && value.markedConsumersStopped && value.portNotListening);
+          receipt.classification = !receipt.exactOneOriginalCase ? 'SETUP_OR_SELECTION_FAILURE' : test.status === 'passed' ? 'NON_REPRODUCTION' : 'ORIGINAL_CASE_FAILURE';
+          try {
+            const inventory = {};
+            for (const [kind, args, fields] of [
+              ['containers', ['ps', '-a'], ['ID', 'Names', 'State', 'Networks', 'Ports']],
+              ['volumes', ['volume', 'ls'], ['Name', 'Driver']],
+              ['networks', ['network', 'ls'], ['ID', 'Name', 'Driver']],
+              ['disk', ['system', 'df'], ['Type', 'TotalCount', 'Active', 'Size', 'Reclaimable']],
+            ]) {
+              const output = execFileSync('/usr/bin/docker', [...args, '--format', '{{json .}}'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+              inventory[kind] = output ? output.split('\n').map(line => {
+                const value = JSON.parse(line);
+                return Object.fromEntries(fields.map(key => [key, value[key]]));
+              }) : [];
+            }
+            write('end-inventory', { at: new Date().toISOString(), dockerOwned: [], inventory });
+            receipt.endInventoryRecorded = true;
+          } catch { receipt.endInventoryRecorded = false; receipt.collectionErrors++; }
+          write('closed-receipt', receipt);
+          console.log(JSON.stringify({ classification: receipt.classification, exactOneOriginalCase: receipt.exactOneOriginalCase, resourcesClosed: receipt.resourcesClosed, modelFactsPresent: receipt.modelFactsPresent, collectionErrors: receipt.collectionErrors }));
+          if (!receipt.exactOneOriginalCase || !receipt.linkedClosure || !receipt.modelFactsPresent || !receipt.resourcesClosed || !receipt.endInventoryRecorded || receipt.collectionErrors) process.exitCode = 1;
+          JS
+      - name: Upload only safe model facts, verdict and owned cleanup ledgers
         if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: web-journeys-evidence-${{ matrix.shard }}
+          name: original-static-model-pending-safe-evidence
           path: |
-            .scratch/vnext-m1/
+            .scratch/static-pending-hosted/environment.json
+            .scratch/static-pending-hosted/start-inventory.json
+            .scratch/static-pending-hosted/end-inventory.json
+            .scratch/static-pending-hosted/closed-receipt.json
+            .scratch/vnext-m1/**/static-model-pending-facts.json
+            .scratch/vnext-m1/**/browser-exit-facts.json
+            .scratch/vnext-m1/**/owned-resources.json
+            .scratch/vnext-m1/**/browser-owned-resources.json
+            .scratch/vnext-m1/**/profile-0-summary.json
+            .scratch/vnext-m1/**/profile-0-closure.json
             test-results/summary.json
-            test-results/lab-foundation/*.png
-          if-no-files-found: ignore
+          if-no-files-found: error
           retention-days: 7
-      - name: Keep small browser and resource facts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: gate-facts-web-journeys-${{ matrix.shard }}
-          path: |
-            .scratch/vnext-m1/**/*.json
-            test-results/summary.json
-          if-no-files-found: ignore
-          retention-days: 7
-  web-journeys:
-    name: web-journeys
-    if: always()
-    needs: web-journey-shards
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Require every desktop browser shard to succeed
-        env:
-          SHARD_RESULT: ${{ needs.web-journey-shards.result }}
-        run: test "$SHARD_RESULT" = success
-  windows-foundation:
-    runs-on: windows-2025
-    timeout-minutes: 45
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .node-version
-      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
-        with:
-          version: 11.17.0
-      - run: pnpm install --frozen-lockfile
-      - name: Actual startup, migration, HTTP, persistence and owned process proof
-        run: pnpm test:server
-      - run: pnpm contracts:check
-      - run: pnpm spike:server --duration-seconds 5
-      - name: Keep platform evidence and cleanup receipts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: m1-windows-evidence
-          path: |
-            .scratch/vnext-m1/
-            .scratch/vnext-m0/
-          if-no-files-found: ignore
-          retention-days: 7
-      - name: Keep small gate facts
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
-        with:
-          name: gate-facts-windows
-          path: |
-            .scratch/vnext-m0/suite-*.json
-            .scratch/vnext-m0/coverage-*.json
-            .scratch/vnext-m0/runs/**/owned-resources.json
-            .scratch/vnext-m0/runs/**/results.json
-            .scratch/vnext-m0/runs/**/target.json
-            .scratch/vnext-m0/runs/**/config.json
-            .scratch/vnext-m0/runs/**/target-process-proof.jsonl
-            .scratch/vnext-m1/**/*.json
-          if-no-files-found: ignore
-          retention-days: 7
-  publish-docs:
-    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
-    needs: verify
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-      pages: write
-    concurrency:
-      group: github-pages-publication
-      cancel-in-progress: false
-    steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
-        with:
-          fetch-depth: 0
-      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
-        with:
-          node-version-file: .node-version
-      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
-        with:
-          name: docs-site
-          path: apps/docs/.vitepress/dist
-      - name: Publish artifact and verify matching Pages build
-        env:
-          DOCS_SOURCE_REF: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
-        run: node scripts/publish-docs.mjs --request-build
