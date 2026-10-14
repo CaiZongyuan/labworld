@@ -23,6 +23,8 @@ if (args.some((argument) => argument.startsWith('--profile-shard'))) {
     );
   shard = Number(match[1]);
 }
+if (shard !== 2)
+  throw new Error('This diagnostic requires the original shard 2 arguments');
 const profiles =
     args.length && shard === null
       ? [args]
@@ -40,7 +42,8 @@ const profiles =
                 ? ['tests/e2e/' + name, '--grep', 'motion smoke:']
                 : ['tests/e2e/' + name],
           )
-          .filter((_, index) => shard === null || index % 2 === shard - 1),
+          .filter((_, index) => shard === null || index % 2 === shard - 1)
+          .slice(0, 9),
   resources = new ContractResources(
     join(
       root,

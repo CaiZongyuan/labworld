@@ -1,15 +1,15 @@
 # Isolated diagnostic ref only; never merge into product CI.
-name: CI static model pending diagnosis
+name: CI static model pending prefix diagnosis
 on:
   workflow_dispatch:
 permissions:
   contents: read
 concurrency:
-  group: static-model-pending-diagnosis-${{ github.ref }}
+  group: static-model-pending-prefix-diagnosis-${{ github.ref }}
   cancel-in-progress: false
 jobs:
   original-static:
-    name: One original static case with the frozen model observer
+    name: Original shard 2 prefix through the static case
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     env:
@@ -71,20 +71,21 @@ jobs:
             nodeOptionsPresent: !!process.env.NODE_OPTIONS,
             browserConfiguration: 'Unchanged Desktop Chrome defaults; no custom launch flags; workers1/retries0',
             applicationCache: 'Fresh owned per-profile Vite cache; no application warmup',
-            limitation: 'One profile does not reproduce preceding shard profiles or their host load',
+            limitation: 'Original shard 2 prefix through static; no later profiles or parallel CI jobs',
           });
           JS
-      - name: Execute the complete original static case once
+      - name: Execute the original shard 2 prefix once and stop after static
         id: original
         if: ${{ !cancelled() && steps.environment.outcome == 'success' }}
-        run: pnpm test:e2e tests/e2e/lab-render-metric-readiness.spec.ts
-      - name: Independently reconcile owned resources and exact case coverage
+        run: pnpm test:e2e --profile-shard=2/2
+      - name: Independently reconcile every prefix profile and verify exact coverage
+        id: reconcile
         if: always()
         env:
           ORIGINAL_STEP_OUTCOME: ${{ steps.original.outcome }}
         run: |
           node --experimental-strip-types --input-type=module <<'JS'
-          import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+          import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
           import { execFileSync } from 'node:child_process';
           import { join, resolve } from 'node:path';
           import { ContractResources } from './scripts/lib/contract-resources.mjs';
@@ -110,10 +111,10 @@ jobs:
           for (const path of groupPaths) {
             try {
               const ledger = new ContractResources(path);
-              let actual = ledger.reconcile('hosted-static-original-independent-end');
+              let actual = ledger.reconcile('hosted-static-prefix-independent-end');
               if (actual.consumers.some(value => value.alive || value.actualMembers.length)) {
                 await ledger.recover();
-                actual = ledger.reconcile('hosted-static-original-after-owned-recovery');
+                actual = ledger.reconcile('hosted-static-prefix-after-owned-recovery');
               }
               const supervisor = await processIdentity(ledger.data.supervisor.pid);
               receipt.groups.push({ path, allMembersStopped: actual.consumers.every(value => !value.alive && !value.actualMembers.length), supervisorStopped: !supervisor || supervisor.start !== ledger.data.supervisor.token });
@@ -133,21 +134,52 @@ jobs:
           }
           const suite = suites.length === 1 ? join(evidence, suites[0]) : null;
           const result = suite ? read(join(suite, 'results.json')) : null;
-          const closure = suite ? read(join(suite, 'profile-0-closure.json')) : null;
-          const summary = suite ? read(join(suite, 'profile-0-summary.json')) : null;
-          const expectedFile = 'tests/e2e/lab-render-metric-readiness.spec.ts';
+          const expectedProfiles = [
+            ['tests/e2e/geometry-resource-oracle.spec.ts'],
+            ['tests/e2e/lab-complete-assets.spec.ts'],
+            ['tests/e2e/lab-devices.spec.ts'],
+            ['tests/e2e/lab-history.spec.ts'],
+            ['tests/e2e/lab-layout.spec.ts'],
+            ['tests/e2e/lab-node-assets-world.spec.ts'],
+            ['tests/e2e/lab-operations.spec.ts'],
+            ['tests/e2e/lab-records.spec.ts'],
+            ['tests/e2e/lab-render-metric-readiness.spec.ts'],
+          ];
+          const expectedCounts = [2, 1, 1, 1, 1, 1, 2, 1, 1];
           const expectedTitle = 'render metrics wait for the requested World while its real stream update is delayed';
-          const test = summary?.tests?.[0];
-          receipt.exactOneOriginalCase = suites.length === 1 && result?.profiles?.length === 1 && JSON.stringify(result.profiles[0].args) === JSON.stringify([expectedFile]) && summary?.runnerErrors === 0 && summary.tests.length === 1 && test.file === expectedFile && test.title === expectedTitle && ['passed', 'failed', 'timedOut'].includes(test.status);
+          const linked = path => typeof path === 'string' && resolve(path).startsWith(evidence + '/') && servicePaths.includes(resolve(path));
+          const closures = [];
+          const summaries = [];
+          receipt.profiles = [];
+          for (let index = 0; index < 9; index++) {
+            const profile = result?.profiles?.[index];
+            const summary = suite ? read(join(suite, `profile-${index}-summary.json`)) : null;
+            const closure = suite ? read(join(suite, `profile-${index}-closure.json`)) : null;
+            const selected = !!summary && summary.runnerErrors === 0 && summary.tests.length === expectedCounts[index] && summary.tests.every(test => test.file === expectedProfiles[index][0] && ['passed', 'failed', 'timedOut'].includes(test.status));
+            const matchingArgs = JSON.stringify(profile?.args) === JSON.stringify(expectedProfiles[index]);
+            const closed = closure?.cleanupCompleted === true && groupPaths.includes(closure.browserLedger) && closure.serviceLedgers?.length === 2 && closure.serviceLedgers.every(linked);
+            receipt.profiles.push({ index, expectedArgs: expectedProfiles[index], actualArgs: profile?.args ?? null, exactSelection: selected && matchingArgs, linkedClosure: closed, tests: summary?.tests?.length ?? 0, skipped: summary?.tests?.filter(test => test.status === 'skipped').length ?? 0, runnerErrors: summary?.runnerErrors ?? null, statuses: summary?.tests?.map(test => test.status) ?? [], exitCode: profile?.exitCode ?? null });
+            closures.push(closure);
+            summaries.push(summary);
+          }
+          const test = summaries[8]?.tests?.[0];
+          const uniqueBrowsers = new Set(closures.map(closure => closure?.browserLedger));
+          const uniqueServices = new Set(closures.flatMap(closure => closure?.serviceLedgers ?? []));
+          receipt.exactOriginalPrefix = suites.length === 1 && result?.profiles?.length === 9 && receipt.profiles.every(profile => profile.exactSelection) && test?.title === expectedTitle;
+          receipt.actualProfiles = result?.profiles?.length ?? 0;
+          receipt.actualTests = receipt.profiles.reduce((sum, profile) => sum + profile.tests, 0);
+          receipt.skipped = receipt.profiles.reduce((sum, profile) => sum + profile.skipped, 0);
+          receipt.originalStaticIndex = 8;
           receipt.originalStatus = test?.status ?? null;
           receipt.originalDurationMs = test?.durationMs ?? null;
-          receipt.originalExitCode = result?.profiles?.[0]?.exitCode ?? null;
-          const linked = path => typeof path === 'string' && resolve(path).startsWith(evidence + '/') && servicePaths.includes(resolve(path));
-          receipt.linkedClosure = closure?.cleanupCompleted === true && groupPaths.includes(closure.browserLedger) && closure.serviceLedgers?.length === 2 && closure.serviceLedgers.every(linked);
-          const modelFacts = receipt.linkedClosure ? join(resolve(closure.browserLedger, '..'), 'static-model-pending-facts.json') : null;
+          receipt.originalExitCode = result?.profiles?.[8]?.exitCode ?? null;
+          receipt.linkedClosure = receipt.profiles.every(profile => profile.linkedClosure) && uniqueBrowsers.size === 9 && uniqueServices.size === 18;
+          const modelFacts = receipt.linkedClosure ? join(resolve(closures[8].browserLedger, '..'), 'static-model-pending-facts.json') : null;
           receipt.modelFactsPresent = !!modelFacts && existsSync(modelFacts);
-          receipt.resourcesClosed = receipt.collectionErrors === 0 && receipt.groups.length === 2 && receipt.services.length === 2 && receipt.groups.every(value => value.allMembersStopped && value.supervisorStopped) && receipt.services.every(value => value.clean && value.markedConsumersStopped && value.portNotListening);
-          receipt.classification = !receipt.exactOneOriginalCase ? 'SETUP_OR_SELECTION_FAILURE' : test.status === 'passed' ? 'NON_REPRODUCTION' : 'ORIGINAL_CASE_FAILURE';
+          receipt.modelFactsStatusMatches = receipt.modelFactsPresent && read(modelFacts).status === test?.status;
+          receipt.resourcesClosed = receipt.collectionErrors === 0 && receipt.groups.length === 10 && receipt.services.length === 18 && receipt.groups.every(value => value.allMembersStopped && value.supervisorStopped) && receipt.services.every(value => value.clean && value.markedConsumersStopped && value.portNotListening);
+          receipt.precedingCasesPassed = summaries.slice(0, 8).every(summary => summary?.tests.every(test => test.status === 'passed'));
+          receipt.classification = !receipt.exactOriginalPrefix ? 'SETUP_OR_SELECTION_FAILURE' : test.status !== 'passed' ? 'ORIGINAL_STATIC_FAILURE' : receipt.precedingCasesPassed ? 'NON_REPRODUCTION' : 'PREFIX_FAILURE_STATIC_NON_REPRODUCTION';
           try {
             const inventory = {};
             for (const [kind, args, fields] of [
@@ -165,15 +197,36 @@ jobs:
             write('end-inventory', { at: new Date().toISOString(), dockerOwned: [], inventory });
             receipt.endInventoryRecorded = true;
           } catch { receipt.endInventoryRecorded = false; receipt.collectionErrors++; }
+          const safeNames = /^(static-model-pending-facts|browser-exit-facts|owned-resources|browser-owned-resources|profile-[0-8]-summary|profile-[0-8]-closure)\.json$/;
+          const safeFiles = [];
+          for (const name of children) {
+            if (!/^(browser-suite|lab-word-m1)-[0-9A-Za-z-]+$/.test(name)) continue;
+            const child = join(evidence, name);
+            for (const file of readdirSync(child))
+              if (safeNames.test(file) || (file === 'results.json' && name === suites[0])) safeFiles.push(join(child, file));
+          }
+          for (const file of ['environment.json', 'start-inventory.json', 'end-inventory.json']) {
+            const path = join(directory, file);
+            if (existsSync(path)) safeFiles.push(path);
+          }
+          const summaryPath = resolve('test-results/summary.json');
+          if (existsSync(summaryPath)) safeFiles.push(summaryPath);
+          receipt.artifactLimits = { maxFiles: 62, maxBytes: 2 * 1024 * 1024, actualFiles: safeFiles.length + 1 };
           write('closed-receipt', receipt);
-          console.log(JSON.stringify({ classification: receipt.classification, exactOneOriginalCase: receipt.exactOneOriginalCase, resourcesClosed: receipt.resourcesClosed, modelFactsPresent: receipt.modelFactsPresent, collectionErrors: receipt.collectionErrors }));
-          if (!receipt.exactOneOriginalCase || !receipt.linkedClosure || !receipt.modelFactsPresent || !receipt.resourcesClosed || !receipt.endInventoryRecorded || receipt.collectionErrors) process.exitCode = 1;
+          const bytes = safeFiles.reduce((sum, path) => sum + statSync(path).size, 0) + statSync(join(directory, 'closed-receipt.json')).size;
+          // Reserve space for the final receipt metadata itself before permitting upload.
+          receipt.artifactLimits.actualBytesBeforeFinalMetadata = bytes;
+          receipt.artifactWithinBounds = safeFiles.length + 1 <= 62 && bytes + 1024 <= 2 * 1024 * 1024;
+          write('closed-receipt', receipt);
+          if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `full_evidence_allowed=${receipt.artifactWithinBounds}\n`);
+          console.log(JSON.stringify({ classification: receipt.classification, exactOriginalPrefix: receipt.exactOriginalPrefix, actualProfiles: receipt.actualProfiles, actualTests: receipt.actualTests, resourcesClosed: receipt.resourcesClosed, modelFactsPresent: receipt.modelFactsPresent, artifactWithinBounds: receipt.artifactWithinBounds, collectionErrors: receipt.collectionErrors }));
+          if (!receipt.exactOriginalPrefix || !receipt.linkedClosure || !receipt.modelFactsStatusMatches || !receipt.resourcesClosed || !receipt.endInventoryRecorded || !receipt.artifactWithinBounds || receipt.collectionErrors) process.exitCode = 1;
           JS
-      - name: Upload only safe model facts, verdict and owned cleanup ledgers
-        if: always()
+      - name: Upload only bounded safe prefix facts and owned cleanup ledgers
+        if: ${{ always() && steps.reconcile.outputs.full_evidence_allowed == 'true' }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
-          name: original-static-model-pending-safe-evidence
+          name: original-static-model-pending-prefix-safe-evidence
           path: |
             .scratch/static-pending-hosted/environment.json
             .scratch/static-pending-hosted/start-inventory.json
@@ -183,8 +236,21 @@ jobs:
             .scratch/vnext-m1/**/browser-exit-facts.json
             .scratch/vnext-m1/**/owned-resources.json
             .scratch/vnext-m1/**/browser-owned-resources.json
-            .scratch/vnext-m1/**/profile-0-summary.json
-            .scratch/vnext-m1/**/profile-0-closure.json
+            .scratch/vnext-m1/**/profile-[0-8]-summary.json
+            .scratch/vnext-m1/**/profile-[0-8]-closure.json
+            .scratch/vnext-m1/browser-suite-*/results.json
             test-results/summary.json
           if-no-files-found: error
+          retention-days: 7
+      - name: Retain the small receipt when full evidence is out of bounds or unavailable
+        if: ${{ always() && steps.reconcile.outputs.full_evidence_allowed != 'true' }}
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: original-static-model-pending-prefix-receipt-only
+          path: |
+            .scratch/static-pending-hosted/environment.json
+            .scratch/static-pending-hosted/start-inventory.json
+            .scratch/static-pending-hosted/end-inventory.json
+            .scratch/static-pending-hosted/closed-receipt.json
+          if-no-files-found: warn
           retention-days: 7
