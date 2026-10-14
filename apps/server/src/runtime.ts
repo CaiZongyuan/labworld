@@ -30,6 +30,7 @@ export { serve };
 import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
 import { errorEnvelope } from '../../../packages/server/src/platform/http/errors.ts';
+import { PublicFailure } from '../../../packages/server/src/platform/http/failure.ts';
 import {
   Database,
   schemaVersion,
@@ -108,6 +109,8 @@ export async function run(
   let stop: (() => Promise<void>) | undefined;
   let closing: Promise<void> | undefined;
   let preparing: Promise<Prepared | undefined> | undefined;
+  // Diagnostic branch only: closed phase labels, emitted only after startup fails.
+  let startupPhase = 'database-initialize';
   const admittedHandlers = new Set<Promise<Response>>();
   const ownedStops: Array<() => Promise<void>> = [],
     seenStops = new Set<() => Promise<void>>();
@@ -214,6 +217,7 @@ export async function run(
       clock: options.clock ?? { now: () => new Date().toISOString() },
     };
     const prepareCore = async () => {
+      startupPhase = 'core-prepare';
       const owners: {
         recording?: RecordingService;
         devices?: DeviceRuntime;
@@ -261,6 +265,7 @@ export async function run(
         config.fileOrigin,
         config.directory,
       );
+      startupPhase = 'files-initialize';
       await files.initialize();
       if (closing) return undefined;
       const app = coreApp(context, version, config.auth, log, config.rate);
@@ -276,6 +281,7 @@ export async function run(
           : `http://${config.hostname === '::1' ? '[::1]' : config.hostname}:${config.port}`,
       );
       owners.sourcePresence = sourcePresence;
+      startupPhase = 'source-presence-initialize';
       await sourcePresence.initialize();
       sourceRoutes(app, sourcePresence, (c) =>
         motionTransportAllowed(c.env?.incoming),
@@ -294,6 +300,7 @@ export async function run(
       owners.recording = recording;
       recording.configureRobots(new RobotControls(context, recording.capture));
       // Resolve committed WAL witnesses while old capture owners still exist.
+      startupPhase = 'recording-initialize';
       await recording.initialize();
       const devices = new DeviceRuntime(
         context,
@@ -302,6 +309,7 @@ export async function run(
         options.deviceExecutionGate,
       );
       owners.devices = devices;
+      startupPhase = 'devices-initialize';
       await devices.initialize();
       worldRoutes(app, world, () => devices.ready);
       const fixtures = new MotionFixtures(world, config.motionFixture);
@@ -321,7 +329,9 @@ export async function run(
       );
       owners.sessions = sessions;
       sessions.configureRecording(recording);
+      startupPhase = 'sessions-initialize';
       await sessions.initialize();
+      startupPhase = 'recording-recover-legacy';
       await recording.recoverLegacy();
       recordingRoutes(app, recording);
       sessionRoutes(
@@ -382,6 +392,7 @@ export async function run(
         log,
       );
       owners.sources = sources;
+      startupPhase = 'sources-initialize';
       await sources.initialize(config.managedSynthetic || config.newtonManaged);
       sessions.configure(
         (input) => sources.launch(input),
@@ -435,6 +446,7 @@ export async function run(
       return;
     }
     if (!prepared) throw new Error('Server preparation was cancelled');
+    startupPhase = 'serve';
     server = serve(
       {
         fetch: async (request, ...args) => {
@@ -488,6 +500,27 @@ export async function run(
     });
     return { stop: close, ownStop };
   } catch (error) {
+    if (process.env.LAB_WORD_WINDOWS_RECOVERY_DIAGNOSTIC === 'true') {
+      const allowed = [
+        'lab.recording_gate_timeout',
+        'lab.recording_prepare_timeout',
+        'lab.recording_read_timeout',
+        'lab.recording_event_prepare_timeout',
+        'lab.recording_event_commit_timeout',
+        'lab.recording_event_abort_timeout',
+        'lab.recording_drain_timeout',
+        'lab.recording_seal_timeout',
+        'lab.recording_ack_timeout',
+      ];
+      log({
+        event: 'server.start_diagnostic',
+        phase: startupPhase,
+        code:
+          error instanceof PublicFailure && allowed.includes(error.code)
+            ? error.code
+            : 'UNKNOWN',
+      });
+    }
     log({
       event: 'server.start_failed',
       message: error instanceof Error ? error.message : 'Startup failed',

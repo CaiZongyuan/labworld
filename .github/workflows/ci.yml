@@ -8,7 +8,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   windows-source-client-diagnostic:
-    name: Original Windows normal Python source client diagnostic
+    name: Original Windows Source and completed-Task recovery diagnostics
     runs-on: windows-2025
     timeout-minutes: 10
     env:
@@ -43,5 +43,22 @@ jobs:
             .scratch/vnext-m1/**/source-client-diagnostic.json
             .scratch/vnext-m1/**/owned-resources.json
             .scratch/vnext-m1/**/source-client-resources.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Confirm the original completed-Task selector without running a case
+        if: always()
+        run: node scripts/windows-completed-task-diagnostic.mjs --discover
+      - name: Original Windows completed-Task kill and recovery diagnostic
+        if: always()
+        run: node scripts/windows-completed-task-diagnostic.mjs
+      - name: Keep separate closed Recording diagnostic facts and fixture ledger
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: windows-completed-task-diagnostic
+          path: |
+            .scratch/windows-completed-task-diagnostic/**/summary.json
+            .scratch/windows-completed-task-diagnostic/**/test-summary.json
+            .scratch/windows-completed-task-diagnostic/**/owned-resources.json
           if-no-files-found: error
           retention-days: 7
