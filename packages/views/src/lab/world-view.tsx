@@ -589,6 +589,8 @@ export default function WorldView() {
     <section
       className="lab-page world-page"
       aria-busy={busy}
+      data-resource-world-version={world.data?.version}
+      data-resource-world-nodes={world.data?.nodes.length}
       onKeyDown={(event) => {
         if (
           event.key !== 'Escape' ||

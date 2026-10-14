@@ -17,7 +17,7 @@ export function MetricSampler({
       performance as Performance & { memory?: { usedJSHeapSize?: number } }
     ).memory;
     const heap = memory?.usedJSHeapSize;
-    onMetrics({
+    const metrics: RenderMetrics = {
       sampledAt: performance.now(),
       completedRenderFrame: gl.info.render.frame,
       fps,
@@ -30,7 +30,17 @@ export function MetricSampler({
         typeof heap === 'number' && Number.isFinite(heap)
           ? heap / 1024 / 1024
           : null,
-    });
+    };
+    // DEBUG-geometry379: observe the original sample donor, without changing its values.
+    const canvas = gl.domElement as HTMLCanvasElement & {
+      resourceDiagnostics?: () => unknown;
+      resourceSample?: unknown;
+    };
+    canvas.resourceSample = {
+      metrics,
+      diagnostics: canvas.resourceDiagnostics?.() ?? null,
+    };
+    onMetrics(metrics);
     sample.current = { elapsed: 0, frames: 0 };
   });
   return null;

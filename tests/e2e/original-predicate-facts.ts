@@ -1,6 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { authoritativeWorld } from './resource-world-facts';
 
 type Case = 'layout' | 'geometries' | 'history';
 const rows: Partial<Record<Case, number>> = {};
@@ -43,6 +44,30 @@ export async function geometryFact(
       completedRenderFrame: numeric(panel?.dataset.completedRenderFrame),
       geometries: numeric(panel?.dataset.geometries),
       textures: numeric(panel?.dataset.textures),
+      resource:
+        (
+          document.querySelector('canvas') as
+            | (HTMLCanvasElement & {
+                resourceDiagnostics?: () => { world?: { lab?: string } };
+              })
+            | null
+        )?.resourceDiagnostics?.() ?? null,
+      displayedVersion:
+        document
+          .querySelector('.world-page')
+          ?.getAttribute('data-resource-world-version') ?? null,
+      displayedNodes:
+        document
+          .querySelector('.world-page')
+          ?.getAttribute('data-resource-world-nodes') ?? null,
+      busy:
+        document.querySelector('.world-page')?.getAttribute('aria-busy') ??
+        null,
+      sampleDonor:
+        (
+          document.querySelector('canvas') as
+            (HTMLCanvasElement & { resourceSample?: unknown }) | null
+        )?.resourceSample ?? null,
     };
   });
   const { text, ...fields } = sample;
@@ -51,6 +76,10 @@ export async function geometryFact(
     loop,
     ...fields,
     originalCount: Number.isFinite(Number(text)) ? Number(text) : null,
+    authoritativeWorld: authoritativeWorld(
+      locator.page(),
+      sample.resource?.world?.lab,
+    ),
   });
   return text;
 }

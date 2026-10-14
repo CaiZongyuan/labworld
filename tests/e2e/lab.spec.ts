@@ -10,6 +10,7 @@ import { join } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { observeBrowserSeam } from './lab-browser-facts';
 import { geometryFact, predicateFact } from './original-predicate-facts';
+import { observeResourceWorld } from './resource-world-facts';
 import {
   showObjectDirectory,
   showEntityDetails,
@@ -105,6 +106,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
   browser,
 }) => {
   test.setTimeout(150000);
+  observeResourceWorld(page);
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.name));
   let importFacts = 0,
@@ -410,6 +412,7 @@ test('a persistent Lab shares independent Entities, real multi-model picking and
     baseURL: process.env.E2E_WEB_URL,
   });
   const other = await second.newPage();
+  observeResourceWorld(other);
   other.on('pageerror', (error) => errors.push(error.name));
   await other.goto('/register');
   await other

@@ -25,6 +25,7 @@ import {
   type WebGLRenderer,
   type Object3D,
   type Camera,
+  type BufferGeometry,
 } from 'three';
 import type {
   LabEntity,
@@ -50,6 +51,34 @@ import {
 } from './motion-scene';
 
 type Tuple = [number, number, number];
+// DEBUG-geometry379: observer-only owner identity, with weak renderer ownership.
+const resourceOwners = new WeakMap<object, number>();
+const resourceDisposals = new Map<number, number>();
+const resourceTransitions: object[] = [];
+let resourceOwnerSequence = 0;
+function resourceOwner(renderer: object) {
+  let id = resourceOwners.get(renderer);
+  if (!id) resourceOwners.set(renderer, (id = ++resourceOwnerSequence));
+  return id;
+}
+function resourceSignature(value: string) {
+  let hash = 2166136261;
+  for (const char of value)
+    hash = Math.imul(hash ^ char.charCodeAt(0), 16777619);
+  return (hash >>> 0).toString(16);
+}
+type ResourceCanvas = HTMLCanvasElement & {
+  resourceCreatedAt?: number;
+  resourceDiagnostics?: () => unknown;
+};
+type ResourceGroup = Group & {
+  resourceStatus?: {
+    loaded: boolean;
+    loading: boolean;
+    error: string | null;
+    meshes: number;
+  };
+};
 function Block({
   position = [0, 0, 0],
   size = [1, 1, 1],
@@ -482,6 +511,7 @@ function Imported({
   onReady,
   onError,
   appearance,
+  onResourceStatus,
 }: {
   asset: ModelAsset;
   nodeId: string;
@@ -489,8 +519,35 @@ function Imported({
   onReady: () => void;
   onError: (id: string, appearance: Appearance, error: boolean) => void;
   appearance: Appearance;
+  onResourceStatus: (status: ResourceGroup['resourceStatus']) => void;
 }) {
-  const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
+  const { model, error, loading } = useLoadedModel(asset, renderer, ignoreInfo);
+  useEffect(() => {
+    if (!model || !renderer) return;
+    const id = resourceOwner(renderer);
+    const geometries = new Set<BufferGeometry>();
+    model.scene.traverse((object) => {
+      const geometry = (object as Object3D & { geometry?: BufferGeometry })
+        .geometry;
+      if (geometry) geometries.add(geometry);
+    });
+    const disposed = () =>
+      resourceDisposals.set(id, (resourceDisposals.get(id) ?? 0) + 1);
+    for (const geometry of geometries)
+      geometry.addEventListener('dispose', disposed);
+    return () => {
+      for (const geometry of geometries)
+        geometry.removeEventListener('dispose', disposed);
+    };
+  }, [model, renderer]);
+  useEffect(() => {
+    onResourceStatus({
+      loaded: !!model,
+      loading,
+      error,
+      meshes: model?.info.meshes ?? 0,
+    });
+  }, [model, error, loading, onResourceStatus]);
   useEffect(() => {
     if (model?.id === asset.id) onReady();
   }, [model, asset.id, onReady]);
@@ -540,6 +597,13 @@ const NodeModel = memo(function NodeModel({
 }) {
   const group = useRef<Group>(null);
   const outer = useRef<Group>(null);
+  const resourceStatus = useCallback(
+    (status: ResourceGroup['resourceStatus']) => {
+      if (outer.current)
+        (outer.current as ResourceGroup).resourceStatus = status;
+    },
+    [],
+  );
   useEffect(() => {
     if (!outer.current) return;
     return motionScene.register(
@@ -601,6 +665,7 @@ const NodeModel = memo(function NodeModel({
             onReady={measure}
             onError={onError}
             appearance={appearance}
+            onResourceStatus={resourceStatus}
           />
         ) : (
           <Builtin entity={entity} connected={connected} />
@@ -694,7 +759,89 @@ function Scene({
   useEffect(() => () => motionScene.reset(), [motionScene]);
   const root = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
-  const { camera, size, gl, frameloop, invalidate } = useThree();
+  const { camera, size, gl, scene, frameloop, invalidate } = useThree();
+  const resourceWorld = useRef(world);
+  useEffect(() => {
+    resourceWorld.current = world;
+  }, [world]);
+  useEffect(() => {
+    const canvas = gl.domElement as ResourceCanvas;
+    const id = resourceOwner(gl);
+    const inspect = () => {
+      const nodes: object[] = [];
+      const geometries = new Set<string>();
+      let meshes = 0;
+      scene.traverse((object) => {
+        const renderable = object as Object3D & {
+          isMesh?: boolean;
+          geometry?: { uuid: string };
+          resourceStatus?: ResourceGroup['resourceStatus'];
+        };
+        if (renderable.isMesh) meshes++;
+        if (renderable.geometry) geometries.add(renderable.geometry.uuid);
+        if (object.name.startsWith('scene-node:')) {
+          let nodeMeshes = 0;
+          object.traverse((child) => {
+            if ((child as Object3D & { isMesh?: boolean }).isMesh) nodeMeshes++;
+          });
+          nodes.push({
+            node: resourceSignature(object.name.slice(11)),
+            meshes: nodeMeshes,
+            status: renderable.resourceStatus ?? null,
+          });
+        }
+      });
+      const current = resourceWorld.current;
+      return {
+        renderer: id,
+        createdAt: canvas.resourceCreatedAt ?? null,
+        frame: gl.info.render.frame,
+        geometries: gl.info.memory.geometries,
+        textures: gl.info.memory.textures,
+        triangles: gl.info.render.triangles,
+        meshCount: meshes,
+        sceneGeometries: geometries.size,
+        geometrySignature: resourceSignature([...geometries].sort().join(',')),
+        disposedModelGeometries: resourceDisposals.get(id) ?? 0,
+        disposalHistory: [...resourceDisposals].map(([renderer, count]) => ({
+          renderer,
+          count,
+        })),
+        transitions: resourceTransitions.slice(-16),
+        world: {
+          version: current.version,
+          lab: resourceSignature(current.lab.id),
+          nodeCount: current.nodes.length,
+          entityCount: current.entities.length,
+          assetCount: current.assets.length,
+          nodeSignature: resourceSignature(
+            current.nodes
+              .map((node) => node.id)
+              .sort()
+              .join(','),
+          ),
+        },
+        nodes,
+      };
+    };
+    resourceTransitions.push({
+      event: 'created',
+      renderer: id,
+      at: canvas.resourceCreatedAt,
+    });
+    canvas.resourceDiagnostics = inspect;
+    return () => {
+      resourceTransitions.push({
+        event: 'unmounted',
+        renderer: id,
+        at: performance.now(),
+        geometries: gl.info.memory.geometries,
+        disposedModelGeometries: resourceDisposals.get(id) ?? 0,
+      });
+      if (canvas.resourceDiagnostics === inspect)
+        delete canvas.resourceDiagnostics;
+    };
+  }, [gl, scene]);
   useEffect(() => {
     if (frameloop !== 'demand' || !contentReady) return;
     // Cached paused poses and imperative scene updates need real frames too.
@@ -930,6 +1077,8 @@ export default function WorldViewport(props: {
   );
   const created = useCallback(({ gl }: RootState) => {
     gl.domElement.tabIndex = 0;
+    (gl.domElement as ResourceCanvas).resourceCreatedAt = performance.now();
+    resourceOwner(gl);
     setRenderer(gl);
   }, []);
   const onError = useCallback(
