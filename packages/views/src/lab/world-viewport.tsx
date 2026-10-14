@@ -39,6 +39,11 @@ import { useLoadedModel } from './model-loader';
 import { modelResourceKey } from './model-bytes';
 import { useAppMessage } from '../shell/messages';
 import { MetricSampler } from './metric-sampler';
+import {
+  acquisitionFact,
+  acquisitionIdentity,
+  acquisitionResource,
+} from './model-acquisition-facts';
 import type { RenderMetrics } from './viewport-state';
 import { Alert, AlertDescription } from '@labos-threejs/ui/components/alert';
 import { Button } from '@labos-threejs/ui/components/button';
@@ -462,6 +467,19 @@ function sameAppearance(first: Appearance | undefined, second: Appearance) {
     first.renderer === second.renderer
   );
 }
+function diagnosticAppearance(value: Appearance | undefined) {
+  const resourceAt = value?.key.indexOf(':[') ?? -1;
+  return {
+    key: value ? acquisitionResource('appearance:' + value.key) : 0,
+    resource:
+      value?.authority && value.apiClient && resourceAt >= 0
+        ? acquisitionResource(value.key.slice(resourceAt + 1))
+        : 0,
+    owner: value?.renderer ? acquisitionIdentity(value.renderer) : 0,
+    authority: value?.authority ? acquisitionIdentity(value.authority) : 0,
+    client: value?.apiClient ? acquisitionIdentity(value.apiClient) : 0,
+  };
+}
 function nodeAppearance(
   node: SceneNode,
   entity: LabEntity,
@@ -492,7 +510,13 @@ function Imported({
 }) {
   const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
   useEffect(() => {
-    if (model?.id === asset.id) onReady();
+    if (model?.id === asset.id) {
+      acquisitionFact('imported-ready', {
+        model: acquisitionIdentity(model.scene),
+        callback: acquisitionIdentity(onReady),
+      });
+      onReady();
+    }
   }, [model, asset.id, onReady]);
   useEffect(
     () => onError(nodeId, appearance, !!error),
@@ -565,6 +589,11 @@ const NodeModel = memo(function NodeModel({
     null,
   );
   const measure = useCallback(() => {
+    acquisitionFact('node-measure', {
+      node: acquisitionResource('node:' + node.id),
+      ...diagnosticAppearance(appearance),
+      groupPresent: !!group.current,
+    });
     if (!group.current) return;
     group.current.updateWorldMatrix(true, true);
     const box = new Box3().setFromObject(group.current);
@@ -919,16 +948,23 @@ export default function WorldViewport(props: {
   const [failed, setFailed] = useState<Record<string, Appearance>>({});
   const [readyIds, setReadyIds] = useState<Record<string, Appearance>>({});
   const pointer = useRef({ x: 0, y: 0 });
-  const onReady = useCallback(
-    (id: string, appearance: Appearance) =>
-      setReadyIds((previous) =>
-        sameAppearance(previous[id], appearance)
-          ? previous
-          : { ...previous, [id]: appearance },
-      ),
-    [],
-  );
+  const onReady = useCallback((id: string, appearance: Appearance) => {
+    acquisitionFact('ready-callback', {
+      viewport: acquisitionIdentity(pointer),
+      node: acquisitionResource('node:' + id),
+      ...diagnosticAppearance(appearance),
+    });
+    setReadyIds((previous) =>
+      sameAppearance(previous[id], appearance)
+        ? previous
+        : { ...previous, [id]: appearance },
+    );
+  }, []);
   const created = useCallback(({ gl }: RootState) => {
+    acquisitionFact('canvas-created', {
+      viewport: acquisitionIdentity(pointer),
+      owner: acquisitionIdentity(gl),
+    });
     gl.domElement.tabIndex = 0;
     setRenderer(gl);
   }, []);
@@ -948,6 +984,11 @@ export default function WorldViewport(props: {
   );
   useEffect(() => {
     renderer?.domElement.setAttribute('aria-label', props.label);
+    if (renderer)
+      acquisitionFact('renderer-labelled', {
+        viewport: acquisitionIdentity(pointer),
+        owner: acquisitionIdentity(renderer),
+      });
   }, [renderer, props.label]);
   const onBusy = props.onBusy;
   const entityById = new Map(
@@ -996,6 +1037,53 @@ export default function WorldViewport(props: {
   const hasContinuousMotion =
     !!props.motion && props.motion.freshness(performance.now()) !== 'paused';
   useEffect(() => onBusy(pending), [pending, onBusy]);
+  useEffect(() => {
+    for (const node of props.world.nodes) {
+      const entity = props.world.entities.find(
+        (value) => value.id === node.entity_id,
+      );
+      if (!entity || entity.archived_at) continue;
+      const asset =
+        props.frozenAssets?.get(node.id) ??
+        props.assets.find(
+          (value) =>
+            value.source === 'remote' &&
+            value.asset.representation.id === node.representation_id,
+        );
+      const current = nodeAppearance(node, entity, asset, renderer);
+      const wanted = diagnosticAppearance(current);
+      const ready = diagnosticAppearance(readyIds[node.id]);
+      const rejected = diagnosticAppearance(failed[node.id]);
+      acquisitionFact('current-appearance', {
+        viewport: acquisitionIdentity(pointer),
+        node: acquisitionResource('node:' + node.id),
+        currentKey: wanted.key,
+        currentResource: wanted.resource,
+        currentOwner: wanted.owner,
+        currentAuthority: wanted.authority,
+        currentClient: wanted.client,
+        readyKey: ready.key,
+        readyOwner: ready.owner,
+        readyAuthority: ready.authority,
+        readyClient: ready.client,
+        failedKey: rejected.key,
+        failedOwner: rejected.owner,
+        failedAuthority: rejected.authority,
+        failedClient: rejected.client,
+        readyMatchesCurrent: sameAppearance(readyIds[node.id], current),
+        failedMatchesCurrent: sameAppearance(failed[node.id], current),
+        pending,
+      });
+    }
+  }, [
+    props.world,
+    props.assets,
+    props.frozenAssets,
+    renderer,
+    readyIds,
+    failed,
+    pending,
+  ]);
   return (
     <>
       <Canvas

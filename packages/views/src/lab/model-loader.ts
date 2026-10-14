@@ -26,6 +26,11 @@ import {
   modelResourceKey,
   type ModelByteLease,
 } from './model-bytes';
+import {
+  acquisitionFact,
+  acquisitionIdentity,
+  acquisitionResource,
+} from './model-acquisition-facts';
 
 export type LoadedModel = {
   id: string;
@@ -184,6 +189,17 @@ export function useLoadedModel(
   useEffect(() => {
     if (!renderer) return;
     const remoteAsset = currentRemoteAsset();
+    const diagnostic =
+      remoteAsset && apiClient && authority
+        ? {
+            owner: acquisitionIdentity(renderer),
+            authority: acquisitionIdentity(authority),
+            client: acquisitionIdentity(apiClient),
+            resource: acquisitionResource(input),
+            load: acquisitionIdentity(identity),
+          }
+        : null;
+    if (diagnostic) acquisitionFact('load-start', diagnostic);
     const controller = new AbortController();
     let lease: ModelByteLease | undefined;
     let loaded: LoadedModel | null = null;
@@ -203,15 +219,36 @@ export function useLoadedModel(
           if (!response.ok) throw new ModelImportError('failed');
           buffer = await response.arrayBuffer();
         }
+        if (diagnostic) acquisitionFact('parse-start', diagnostic);
         const next = await parseModel(buffer.slice(0), id, renderer);
+        if (diagnostic)
+          acquisitionFact('parse-complete', {
+            ...diagnostic,
+            model: acquisitionIdentity(next.scene),
+            meshes: next.info.meshes,
+            aborted: controller.signal.aborted,
+          });
         if (controller.signal.aborted) {
           disposeModel(next.scene);
           return;
         }
         loaded = next;
+        if (diagnostic)
+          acquisitionFact('model-ready', {
+            ...diagnostic,
+            meshes: next.info.meshes,
+          });
         setState({ identity, model: next, loading: false, error: null });
         onInfo(id, next.info);
       } catch (cause) {
+        if (diagnostic)
+          acquisitionFact('load-error', {
+            ...diagnostic,
+            aborted: controller.signal.aborted,
+            abortError:
+              cause instanceof DOMException && cause.name === 'AbortError',
+            modelImportError: cause instanceof ModelImportError,
+          });
         if (!controller.signal.aborted)
           setState({
             identity,
@@ -224,6 +261,8 @@ export function useLoadedModel(
       }
     })();
     return () => {
+      if (diagnostic)
+        acquisitionFact('load-cleanup', { ...diagnostic, model: !!loaded });
       controller.abort();
       lease?.release();
       if (loaded) disposeModel(loaded.scene);
