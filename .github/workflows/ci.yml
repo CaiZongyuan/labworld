@@ -197,13 +197,16 @@ jobs:
             write('end-inventory', { at: new Date().toISOString(), dockerOwned: [], inventory });
             receipt.endInventoryRecorded = true;
           } catch { receipt.endInventoryRecorded = false; receipt.collectionErrors++; }
-          const safeNames = /^(static-model-pending-facts|browser-exit-facts|owned-resources|browser-owned-resources|profile-[0-8]-summary|profile-[0-8]-closure)\.json$/;
           const safeFiles = [];
           for (const name of children) {
-            if (!/^(browser-suite|lab-word-m1)-[0-9A-Za-z-]+$/.test(name)) continue;
+            if (!/^(browser-suite|lab-word-m1)-/.test(name)) continue;
             const child = join(evidence, name);
+            if (!statSync(child).isDirectory()) continue;
+            const safeNames = name.startsWith('browser-suite-')
+              ? /^(owned-resources|results|profile-[0-8]-summary|profile-[0-8]-closure)\.json$/
+              : /^(static-model-pending-facts|browser-exit-facts|owned-resources|browser-owned-resources)\.json$/;
             for (const file of readdirSync(child))
-              if (safeNames.test(file) || (file === 'results.json' && name === suites[0])) safeFiles.push(join(child, file));
+              if (safeNames.test(file)) safeFiles.push(join(child, file));
           }
           for (const file of ['environment.json', 'start-inventory.json', 'end-inventory.json']) {
             const path = join(directory, file);
@@ -232,13 +235,14 @@ jobs:
             .scratch/static-pending-hosted/start-inventory.json
             .scratch/static-pending-hosted/end-inventory.json
             .scratch/static-pending-hosted/closed-receipt.json
-            .scratch/vnext-m1/**/static-model-pending-facts.json
-            .scratch/vnext-m1/**/browser-exit-facts.json
-            .scratch/vnext-m1/**/owned-resources.json
-            .scratch/vnext-m1/**/browser-owned-resources.json
-            .scratch/vnext-m1/**/profile-[0-8]-summary.json
-            .scratch/vnext-m1/**/profile-[0-8]-closure.json
+            .scratch/vnext-m1/browser-suite-*/owned-resources.json
             .scratch/vnext-m1/browser-suite-*/results.json
+            .scratch/vnext-m1/browser-suite-*/profile-[0-8]-summary.json
+            .scratch/vnext-m1/browser-suite-*/profile-[0-8]-closure.json
+            .scratch/vnext-m1/lab-word-m1-*/static-model-pending-facts.json
+            .scratch/vnext-m1/lab-word-m1-*/browser-exit-facts.json
+            .scratch/vnext-m1/lab-word-m1-*/owned-resources.json
+            .scratch/vnext-m1/lab-word-m1-*/browser-owned-resources.json
             test-results/summary.json
           if-no-files-found: error
           retention-days: 7
