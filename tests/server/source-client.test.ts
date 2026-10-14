@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import { ServerProcess, until } from '../support/server-process.ts';
 import { CoreHttp } from '../support/core-http.ts';
 import { processIdentity } from '../support/server-resources.ts';
+import { SourceClientDiagnostic } from '../support/source-client-diagnostic.ts';
 
 const python = process.platform === 'win32' ? 'python' : 'python3';
 const available = spawnSync(python, ['--version']).status === 0;
@@ -30,6 +31,9 @@ test(
     target.env.APP_ORIGIN = target.url;
     let child: ChildProcess | undefined;
     let logs = '';
+    const diagnostic = new SourceClientDiagnostic(target.evidence);
+    let verdict: 'failed' | 'passed' = 'failed';
+    let stage = 'setup';
     try {
       await target.start();
       const member = new CoreHttp(target.url);
@@ -56,9 +60,11 @@ test(
       );
       const file = join(target.directory, 'source-config.json');
       await writeFile(file, JSON.stringify(config), { mode: 0o600 });
+      await diagnostic.files(file);
       await target.startInProcess(
         'owned-python-presence-process',
         async () => {
+          diagnostic.launching();
           child = spawn(
             python,
             [
@@ -73,19 +79,25 @@ test(
             ],
             { stdio: ['ignore', 'pipe', 'pipe'] },
           );
+          diagnostic.launched(child);
           child.stdout!.on('data', (bytes) => {
             logs += String(bytes);
+            diagnostic.output(bytes, 'stdout');
           });
 
           child.stderr!.on('data', (bytes) => {
             logs += String(bytes);
+            diagnostic.output(bytes, 'stderr');
           });
           await once(child, 'spawn');
+          diagnostic.identityStarted();
+          const identity = await processIdentity(child.pid!);
+          diagnostic.identityCompleted(identity);
           await writeFile(
             join(target.evidence, 'source-client-resources.json'),
             JSON.stringify({
               owner: 'issue-87 normal source client test',
-              process: await processIdentity(child.pid!),
+              process: identity,
               config_file: file,
               credential_in_ledger: false,
               native_program_owned: false,
@@ -94,6 +106,8 @@ test(
         },
         () => stop(child),
       );
+      stage = 'online-7000ms';
+      diagnostic.observe('before-online-check', child);
       const connected = await until(
         () =>
           member.json<{ connection_state: string; phase: string }>('GET', path),
@@ -101,18 +115,28 @@ test(
         7000,
       );
       assert.equal(connected.phase, 'ready');
+      stage = 'exit-wait';
       await until(
         async () => child!.exitCode,
         (code) => code !== null,
       );
+      stage = 'exit-code';
       assert.equal(child!.exitCode, 0, logs);
+      stage = 'offline';
       assert.equal(
         (await member.json<{ connection_state: string }>('GET', path))
           .connection_state,
         'offline',
       );
+      stage = 'credential-log';
       assert.equal(logs.includes(config.credential), false);
+      stage = 'connected-log';
       assert.match(logs, /"state": "connected"/);
+      verdict = 'passed';
+      await diagnostic.save(verdict, 'original-case-passed', child);
+    } catch (error) {
+      await diagnostic.save(verdict, 'original-case-failed-' + stage, child);
+      throw error;
     } finally {
       await stop(child);
       await target.cleanup();
@@ -126,6 +150,7 @@ test(
           native_program_owned: false,
         }),
       );
+      await diagnostic.cleanup(verdict, child);
     }
   },
 );
