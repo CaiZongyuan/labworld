@@ -9,7 +9,42 @@ export function browserExitFacts(directory) {
     controls = [];
   let failure = null,
     backendTruncated = false,
-    controlsTruncated = false;
+    controlsTruncated = false,
+    controlPhase = 'unknown';
+  const controlPhases = [
+    'read-control',
+    'parse-control',
+    'validate-revision',
+    'clock-send',
+    'clock-ack',
+    'reply-write',
+    'rename',
+  ];
+  const errorNames = [
+    'Error',
+    'TypeError',
+    'SyntaxError',
+    'RangeError',
+    'AggregateError',
+    'TimeoutError',
+    'SystemError',
+  ];
+  const errorCodes = [
+    'ENOENT',
+    'EACCES',
+    'EPERM',
+    'EISDIR',
+    'ENOTDIR',
+    'EBUSY',
+    'EMFILE',
+    'ENFILE',
+    'EIO',
+    'EINVAL',
+    'ERR_IPC_CHANNEL_CLOSED',
+    'ERR_IPC_DISCONNECTED',
+    'ERR_INVALID_ARG_TYPE',
+    'ERR_INVALID_STATE',
+  ];
   const now = () => performance.now() - started;
   const code = (value) =>
     Number.isInteger(value) && value >= 0 && value <= 255 ? value : null;
@@ -27,6 +62,9 @@ export function browserExitFacts(directory) {
     'reset-machine-clock',
   ];
   return {
+    controlPhase(phase) {
+      controlPhase = controlPhases.includes(phase) ? phase : 'unknown';
+    },
     backendExit(exitCode, exitSignal, state) {
       if (backendExits.length >= 16) {
         backendTruncated = true;
@@ -51,8 +89,9 @@ export function browserExitFacts(directory) {
         stage: ['begun', 'completed'].includes(stage) ? stage : 'unknown',
       });
     },
-    failure(kind) {
-      failure ??= {
+    failure(kind, error) {
+      if (failure) return;
+      failure = {
         monotonicMs: now(),
         kind: ['backend-exit', 'backend-restart', 'controlled-action'].includes(
           kind,
@@ -60,6 +99,19 @@ export function browserExitFacts(directory) {
           ? kind
           : 'unknown',
       };
+      if (kind === 'controlled-action') {
+        failure.phase = controlPhase;
+        failure.errorName = 'OtherError';
+        failure.errorCode = null;
+        try {
+          const name = error?.name,
+            code = error?.code;
+          failure.errorName = errorNames.includes(name) ? name : 'OtherError';
+          failure.errorCode = errorCodes.includes(code) ? code : null;
+        } catch {
+          // Arbitrary error properties cannot change supervisor failure behavior.
+        }
+      }
     },
     browserExit(exitCode, exitSignal, state) {
       try {

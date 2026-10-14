@@ -338,7 +338,11 @@ try {
     watcher = watch(dirname(controlFile), (_event, name) => {
       if (String(name) !== basename(controlFile)) return;
       controlling = controlling.then(async () => {
-        const request = JSON.parse(await readFile(controlFile, 'utf8'));
+        exitFacts.controlPhase('read-control');
+        const serialized = await readFile(controlFile, 'utf8');
+        exitFacts.controlPhase('parse-control');
+        const request = JSON.parse(serialized);
+        exitFacts.controlPhase('validate-revision');
         if (closed || request.revision <= handled) return;
         handled = request.revision;
         exitFacts.control(request.action, 'begun');
@@ -366,23 +370,27 @@ try {
             request.action,
           )
         ) {
+          exitFacts.controlPhase('clock-send');
           const acknowledged = once(backend.child, 'message');
           backend.child.send({ action: request.action });
+          exitFacts.controlPhase('clock-ack');
           const [message] = await acknowledged;
           if (message.event !== 'machine-clock-advanced')
             throw new Error('Owned expiry clock control failed');
           facts = { domain_now: message.now };
         } else throw new Error('Unknown owned browser control');
+        exitFacts.controlPhase('reply-write');
         await writeFile(
           replyFile + '.next',
           JSON.stringify({ revision: handled, ...(facts ? { facts } : {}) }),
         );
+        exitFacts.controlPhase('rename');
         await rename(replyFile + '.next', replyFile);
         exitFacts.control(request.action, 'completed');
       });
-      controlling.catch(() => {
+      controlling.catch((error) => {
         failed = true;
-        exitFacts.failure('controlled-action');
+        exitFacts.failure('controlled-action', error);
         void close();
       });
     });
