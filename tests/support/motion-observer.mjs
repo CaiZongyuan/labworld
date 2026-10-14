@@ -35,8 +35,8 @@ if (
   const scope = new AsyncLocalStorage();
   const sockets = new Map();
   const gateways = new Set();
-  const recordingServices = new Set();
-  const recordingOwners = new WeakMap();
+  // Retain only the first 16 actual owners through final flush, including releases.
+  const recordingOwners = [];
   let recordingOwnersObserved = 0;
   let recordingOwnersOmitted = 0;
   if (process.env.RECORDING_FIRST_FAULT_DIAGNOSTIC === 'true') {
@@ -49,8 +49,7 @@ if (
     RecordingService.prototype.createOwner = function (...args) {
       const owner = createOwner.apply(this, args);
       if (recordingOwnersObserved < 16) {
-        recordingServices.add(this);
-        recordingOwners.set(owner, ++recordingOwnersObserved);
+        recordingOwners.push({ ownerNumber: ++recordingOwnersObserved, owner });
       } else recordingOwnersOmitted++;
       return owner;
     };
@@ -226,14 +225,11 @@ if (
       liveGateways: gateways.size,
       recordingOwnersObserved,
       recordingOwnersOmitted,
-      recordingFirstFaults: [...recordingServices]
-        .flatMap((service) =>
-          [...service.owners.values()].flatMap((owner) => {
-            const ownerNumber = recordingOwners.get(owner);
-            return ownerNumber && owner.diagnosticFirstFault
-              ? [{ ownerNumber, ...owner.diagnosticFirstFault }]
-              : [];
-          }),
+      recordingFirstFaults: recordingOwners
+        .flatMap(({ ownerNumber, owner }) =>
+          owner.diagnosticFirstFault
+            ? [{ ownerNumber, ...owner.diagnosticFirstFault }]
+            : [],
         )
         .slice(0, 16),
       rssBytes: process.memoryUsage().rss,
