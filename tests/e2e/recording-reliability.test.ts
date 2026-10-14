@@ -1428,7 +1428,8 @@ test(
               ).length,
               childConnected: f.target.child?.connected ?? null,
               childExited: f.target.child
-                ? f.target.child.exitCode !== null
+                ? f.target.child.exitCode !== null ||
+                  f.target.child.signalCode !== null
                 : null,
               childExitCode: f.target.child?.exitCode ?? null,
             },
