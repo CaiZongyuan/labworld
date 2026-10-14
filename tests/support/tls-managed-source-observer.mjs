@@ -138,3 +138,102 @@ export function observeTlsManagedSources() {
   };
   return () => ({ omitted, records: [...records.values()].slice(0, 16) });
 }
+
+export function observeTlsRecordingDisconnects() {
+  const records = new Map();
+  let omitted = 0;
+  const transportClasses = new Set([
+    'Error',
+    'TypeError',
+    'RangeError',
+    'SyntaxError',
+    'AggregateError',
+    'DOMException',
+  ]);
+  const transportCodes = new Set([
+    'ECONNRESET',
+    'EPIPE',
+    'ETIMEDOUT',
+    'ECONNABORTED',
+    'ENETDOWN',
+    'ENETRESET',
+    'ENETUNREACH',
+    'EHOSTUNREACH',
+    'EBADF',
+    'EPROTO',
+    'WS_ERR_TOO_MANY_BUFFERED_PARTS',
+    'WS_ERR_UNEXPECTED_RSV_2_3',
+    'WS_ERR_UNEXPECTED_RSV_1',
+    'WS_ERR_INVALID_OPCODE',
+    'WS_ERR_EXPECTED_FIN',
+    'WS_ERR_INVALID_CONTROL_PAYLOAD_LENGTH',
+    'WS_ERR_EXPECTED_MASK',
+    'WS_ERR_UNEXPECTED_MASK',
+    'WS_ERR_UNSUPPORTED_DATA_PAYLOAD_LENGTH',
+    'WS_ERR_UNSUPPORTED_MESSAGE_LENGTH',
+    'WS_ERR_INVALID_UTF8',
+    'WS_ERR_INVALID_CLOSE_CODE',
+  ]);
+  const number = (value) => (Number.isFinite(value) ? value : null);
+  const uuid = (value) =>
+    typeof value === 'string' &&
+    /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value)
+      ? value
+      : null;
+  globalThis[Symbol.for('labos.tls.recording-disconnect-observer')] = (
+    observation,
+    error,
+  ) => {
+    try {
+      const recordingId = uuid(observation.recordingId);
+      if (
+        !recordingId ||
+        !['heartbeat-age', 'transport-error'].includes(observation.branch) ||
+        records.has(recordingId)
+      )
+        return;
+      if (records.size >= 16) {
+        omitted++;
+        return;
+      }
+      let transportError = null;
+      if (observation.branch === 'transport-error') {
+        transportError = { class: 'unknown', code: 'unknown' };
+        try {
+          if (error instanceof Error && transportClasses.has(error.name))
+            transportError.class = error.name;
+          if (error && transportCodes.has(error.code))
+            transportError.code = error.code;
+        } catch {
+          // Unknown or throwing properties never retain error messages.
+        }
+      }
+      records.set(recordingId, {
+        recordingId,
+        sessionId: uuid(observation.sessionId),
+        ownerPid: Number.isSafeInteger(observation.ownerPid)
+          ? observation.ownerPid
+          : null,
+        nodeEpoch: number(observation.nodeEpoch),
+        branch: observation.branch,
+        faultWallAt: number(observation.faultWallAt),
+        faultMonotonicAt: number(observation.faultMonotonicAt),
+        checkedLastPongWallAt: number(observation.checkedLastPongWallAt),
+        checkedWallAgeMs: number(observation.checkedWallAgeMs),
+        heartbeatGraceMs: number(observation.heartbeatGraceMs),
+        wsReadyState: [0, 1, 2, 3].includes(observation.wsReadyState)
+          ? observation.wsReadyState
+          : null,
+        admitted: observation.admitted === true,
+        lastActualPongWallAt: number(observation.lastActualPongWallAt),
+        lastActualPongMonotonicAt: number(
+          observation.lastActualPongMonotonicAt,
+        ),
+        transportError,
+      });
+    } catch {
+      // A diagnostic callback cannot alter the original fail call.
+    }
+  };
+  return () => ({ omitted, records: [...records.values()].slice(0, 16) });
+}

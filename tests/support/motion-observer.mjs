@@ -41,6 +41,12 @@ if (
           await import('./tls-managed-source-observer.mjs')
         ).observeTlsManagedSources()
       : undefined;
+  const recordingDisconnectSnapshot =
+    process.env.TLS_MANAGED_SOURCE_DIAGNOSTIC === 'true'
+      ? (
+          await import('./tls-managed-source-observer.mjs')
+        ).observeTlsRecordingDisconnects()
+      : undefined;
   // Retain only the first 16 actual owners through final flush, including releases.
   const recordingOwners = [];
   let recordingOwnersObserved = 0;
@@ -230,6 +236,7 @@ if (
       liveSockets: sockets.size,
       liveGateways: gateways.size,
       managedSources: managedSourceSnapshot?.(),
+      recordingDisconnects: recordingDisconnectSnapshot?.(),
       recordingOwnersObserved,
       recordingOwnersOmitted,
       recordingFirstFaults: recordingOwners

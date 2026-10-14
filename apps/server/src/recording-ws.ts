@@ -97,6 +97,43 @@ export class RecordingWebSockets {
       faulted = false;
     let inflight: Uint8Array | undefined;
     let lastPong = Date.now();
+    const diagnostic = process.env.TLS_MANAGED_SOURCE_DIAGNOSTIC === 'true';
+    let lastActualPongWallAt: number | null = null;
+    let lastActualPongMonotonicAt: number | null = null;
+    const observeDisconnect = (
+      branch: 'heartbeat-age' | 'transport-error',
+      checkedWallAt: number,
+      error?: unknown,
+    ) => {
+      if (!diagnostic || faulted) return;
+      try {
+        const observe = (globalThis as { [key: symbol]: unknown })[
+          Symbol.for('labos.tls.recording-disconnect-observer')
+        ];
+        if (typeof observe === 'function')
+          observe(
+            {
+              recordingId,
+              sessionId: scope?.bootstrap.session_id ?? null,
+              ownerPid: process.pid,
+              nodeEpoch: performance.timeOrigin,
+              branch,
+              faultWallAt: checkedWallAt,
+              faultMonotonicAt: performance.now(),
+              checkedLastPongWallAt: lastPong,
+              checkedWallAgeMs: checkedWallAt - lastPong,
+              heartbeatGraceMs: this.heartbeatGraceMs,
+              wsReadyState: ws.readyState,
+              admitted,
+              lastActualPongWallAt,
+              lastActualPongMonotonicAt,
+            },
+            error,
+          );
+      } catch {
+        // Observation cannot change the original fault or transport behavior.
+      }
+    };
     let tokens = 16,
       tokenAt = Date.now();
     const fail = (reason: string) => {
@@ -150,7 +187,9 @@ export class RecordingWebSockets {
     const timeout = setTimeout(() => fail('source_disconnected'), 3000);
     const heartbeat = setInterval(() => {
       if (!admitted || faulted || ws.readyState !== WebSocket.OPEN) return;
-      if (Date.now() - lastPong >= this.heartbeatGraceMs) {
+      const checkedWallAt = Date.now();
+      if (checkedWallAt - lastPong >= this.heartbeatGraceMs) {
+        observeDisconnect('heartbeat-age', checkedWallAt);
         fail('source_disconnected');
         return;
       }
@@ -163,6 +202,10 @@ export class RecordingWebSockets {
     heartbeat.unref();
     const pong = () => {
       lastPong = Date.now();
+      if (diagnostic) {
+        lastActualPongWallAt = lastPong;
+        lastActualPongMonotonicAt = performance.now();
+      }
     };
     const cleanup = () => {
       if (closed) return;
@@ -179,7 +222,8 @@ export class RecordingWebSockets {
       ws.off('error', terminate);
       ws.off('close', cleanup);
     };
-    const terminate = () => {
+    const terminate = (error: unknown) => {
+      if (diagnostic) observeDisconnect('transport-error', Date.now(), error);
       fail('source_disconnected');
       ws.terminate();
     };
