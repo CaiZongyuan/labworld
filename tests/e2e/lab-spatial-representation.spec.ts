@@ -517,7 +517,7 @@ test('explicit location frames the selected object while selection and real obse
   if (process.env.LAB_NODE_EVIDENCE)
     writeFileSync(
       join(process.env.LAB_NODE_EVIDENCE, 'spatial-acceptance-1440.png'),
-      await page.screenshot({ fullPage: true }),
+      await page.screenshot(),
     );
   const touchRecoveries: {
     width: number;
@@ -642,7 +642,7 @@ test('explicit location frames the selected object while selection and real obse
           process.env.LAB_NODE_EVIDENCE,
           `spatial-acceptance-${viewport.width}.png`,
         ),
-        await page.screenshot({ fullPage: true }),
+        await page.screenshot(),
       );
   }
 });
