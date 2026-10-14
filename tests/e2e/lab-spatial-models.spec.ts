@@ -9,10 +9,12 @@ const sceneStyle =
   '.world-priority-label,.world-priority-labels,.world-canvas-tools,.world-transform-tools,.lab-perf { visibility: hidden !important; }';
 async function frame(
   page: Page,
-  area?: { x: number; y: number; width: number; height: number },
+  area?: { x: number; y: number; width: number; height: number } | null,
 ) {
   const canvas =
-    area ?? (await page.locator('.world-viewport canvas').boundingBox());
+    area === undefined
+      ? await page.locator('.world-viewport canvas').boundingBox()
+      : area;
   expect(canvas).not.toBeNull();
   return page.screenshot({ clip: canvas!, style: sceneStyle });
 }
@@ -425,17 +427,41 @@ test('registered native representations form the accepted space and retain last 
   await expect(page.getByRole('img', { name: /^照明 01:/ })).toContainText(
     '最后报告值',
   );
-  const afterStop = await frame(page);
+  const afterStopArea = await page
+    .locator('.world-viewport canvas')
+    .boundingBox();
+  const afterStop = await frame(page, afterStopArea);
   const stoppedPixels = await changedPixels(page, reportedLight, afterStop);
   expect(stoppedPixels).toBe(0);
+  const publicAppearance = () =>
+    page
+      .evaluate(() => {
+        const canvas = document.querySelector<HTMLCanvasElement>(
+          '.world-viewport canvas',
+        );
+        const light = document.querySelector('[aria-label^="照明 01:"]');
+        const alert = document.querySelector('.world-link-alert');
+        return {
+          canvas: canvas
+            ? { width: canvas.width, height: canvas.height }
+            : null,
+          offlineAlert: alert?.getBoundingClientRect().toJSON() ?? null,
+          lightValue: light?.querySelector('strong')?.textContent ?? null,
+          lastReported: light?.textContent?.includes('最后报告值') ?? false,
+        };
+      })
+      .catch(() => null);
+  const afterStopAppearance = await publicAppearance();
+  let offlineFrame: Buffer | undefined;
+  let offlineArea: typeof afterStopArea = null;
+  let offlineAppearance: Awaited<ReturnType<typeof publicAppearance>> = null;
   try {
     await context.setOffline(true);
     await expect(page.getByText('连接中断', { exact: true })).toBeVisible();
-    const offlinePixels = await changedPixels(
-      page,
-      afterStop,
-      await frame(page),
-    );
+    offlineArea = await page.locator('.world-viewport canvas').boundingBox();
+    offlineFrame = await frame(page, offlineArea);
+    offlineAppearance = await publicAppearance();
+    const offlinePixels = await changedPixels(page, afterStop, offlineFrame);
     expect(offlinePixels).toBe(0);
     retain('light-last-appearance.json', {
       stoppedPixels,
@@ -443,6 +469,32 @@ test('registered native representations form the accepted space and retain last 
       reading: await page.getByRole('img', { name: /^照明 01:/ }).innerText(),
     });
   } finally {
+    if (process.env.LAB_NODE_EVIDENCE && offlineFrame)
+      try {
+        for (const [phase, png] of [
+          ['after-stop', afterStop],
+          ['offline', offlineFrame],
+        ] as const)
+          writeFileSync(
+            join(process.env.LAB_NODE_EVIDENCE, `native-light-${phase}.png`),
+            png,
+            { mode: 0o600 },
+          );
+        retain('native-light-offline-geometry.json', {
+          afterStop: {
+            clip: afterStopArea,
+            png: [afterStop.readUInt32BE(16), afterStop.readUInt32BE(20)],
+            public: afterStopAppearance,
+          },
+          offline: {
+            clip: offlineArea,
+            png: [offlineFrame.readUInt32BE(16), offlineFrame.readUInt32BE(20)],
+            public: offlineAppearance,
+          },
+        });
+      } catch {
+        // Optional failure evidence cannot replace the original pixel assertion.
+      }
     await context.setOffline(false);
   }
   await expect(page.getByText('实时同步', { exact: true })).toBeVisible();
