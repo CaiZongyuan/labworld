@@ -572,7 +572,7 @@ for (const offset of [-30000, 30000])
         await f.api.json(
           'POST',
           sessionPath(f.lab, machine.session.id) + '/viewer-tickets',
-          undefined,
+          { preferred_rate_hz: 30 },
           201,
         );
         const recording = await publicRecording(
