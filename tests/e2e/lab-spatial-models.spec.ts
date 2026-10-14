@@ -9,14 +9,18 @@ const sceneStyle =
   '.world-priority-label,.world-priority-labels,.world-canvas-tools,.world-transform-tools,.lab-perf { visibility: hidden !important; }';
 async function frame(
   page: Page,
-  area?: { x: number; y: number; width: number; height: number },
+  area?: { x: number; y: number; width: number; height: number } | null,
 ) {
   const canvas =
-    area ?? (await page.locator('.world-viewport canvas').boundingBox());
+    area === undefined
+      ? await page.locator('.world-viewport canvas').boundingBox()
+      : area;
   expect(canvas).not.toBeNull();
   return page.screenshot({ clip: canvas!, style: sceneStyle });
 }
 async function changedPixels(page: Page, before: Buffer, after: Buffer) {
+  expect(after.readUInt32BE(16)).toBe(before.readUInt32BE(16));
+  expect(after.readUInt32BE(20)).toBe(before.readUInt32BE(20));
   if (before.equals(after)) {
     retain('native-last-pixel-measurement.json', { changed: 0, bounds: null });
     return 0;
@@ -425,17 +429,80 @@ test('registered native representations form the accepted space and retain last 
   await expect(page.getByRole('img', { name: /^照明 01:/ })).toContainText(
     '最后报告值',
   );
-  const afterStop = await frame(page);
+  const originalViewport = page.viewportSize();
+  expect(originalViewport).not.toBeNull();
+  const sceneCanvas = page.locator('.world-viewport canvas');
+  const canvasDimensions = () =>
+    sceneCanvas.evaluate((canvas) => {
+      const drawing = canvas as HTMLCanvasElement;
+      const area = canvas.getBoundingClientRect();
+      return {
+        width: area.width,
+        height: area.height,
+        drawingWidth: drawing.width,
+        drawingHeight: drawing.height,
+        dpr: devicePixelRatio,
+      };
+    });
+  const baselineDimensions = await canvasDimensions();
+  const afterStopArea = await sceneCanvas.boundingBox();
+  const afterStop = await frame(page, afterStopArea);
   const stoppedPixels = await changedPixels(page, reportedLight, afterStop);
   expect(stoppedPixels).toBe(0);
+  const publicAppearance = async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        page
+          .evaluate(() => {
+            const canvas = document.querySelector<HTMLCanvasElement>(
+              '.world-viewport canvas',
+            );
+            const light = document.querySelector('[aria-label^="照明 01:"]');
+            const alert = document.querySelector('.world-link-alert');
+            return {
+              canvas: canvas
+                ? { width: canvas.width, height: canvas.height }
+                : null,
+              offlineAlert: alert?.getBoundingClientRect().toJSON() ?? null,
+              lightValue: light?.querySelector('strong')?.textContent ?? null,
+              lastReported: light?.textContent?.includes('最后报告值') ?? false,
+            };
+          })
+          .catch(() => null),
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), 250);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+  const afterStopAppearance = await publicAppearance();
+  let offlineFrame: Buffer | undefined;
+  let offlineArea: typeof afterStopArea = null;
+  let offlineAreaBeforeAdjustment: typeof afterStopArea = null;
+  let viewportHeightAdjustment: number | null = null;
+  let offlineAppearance: Awaited<ReturnType<typeof publicAppearance>> = null;
   try {
     await context.setOffline(true);
     await expect(page.getByText('连接中断', { exact: true })).toBeVisible();
-    const offlinePixels = await changedPixels(
-      page,
-      afterStop,
-      await frame(page),
-    );
+    const offlineAlert = page.locator('.world-link-alert');
+    await expect(offlineAlert).toBeVisible();
+    offlineAreaBeforeAdjustment = await sceneCanvas.boundingBox();
+    expect(offlineAreaBeforeAdjustment).not.toBeNull();
+    viewportHeightAdjustment =
+      baselineDimensions.height - offlineAreaBeforeAdjustment!.height;
+    await page.setViewportSize({
+      width: originalViewport!.width,
+      height: originalViewport!.height + viewportHeightAdjustment,
+    });
+    await expect.poll(canvasDimensions).toEqual(baselineDimensions);
+    await expect(offlineAlert).toBeVisible();
+    offlineArea = await sceneCanvas.boundingBox();
+    offlineFrame = await frame(page, offlineArea);
+    offlineAppearance = await publicAppearance();
+    const offlinePixels = await changedPixels(page, afterStop, offlineFrame);
     expect(offlinePixels).toBe(0);
     retain('light-last-appearance.json', {
       stoppedPixels,
@@ -443,7 +510,42 @@ test('registered native representations form the accepted space and retain last 
       reading: await page.getByRole('img', { name: /^照明 01:/ }).innerText(),
     });
   } finally {
-    await context.setOffline(false);
+    if (process.env.LAB_NODE_EVIDENCE && offlineFrame)
+      try {
+        for (const [phase, png] of [
+          ['after-stop', afterStop],
+          ['offline', offlineFrame],
+        ] as const)
+          writeFileSync(
+            join(process.env.LAB_NODE_EVIDENCE, `native-light-${phase}.png`),
+            png,
+            { mode: 0o600 },
+          );
+        retain('native-light-offline-geometry.json', {
+          originalViewport,
+          baselineDimensions,
+          offlineAreaBeforeAdjustment,
+          viewportHeightAdjustment,
+          adjustedViewport: page.viewportSize(),
+          afterStop: {
+            clip: afterStopArea,
+            png: [afterStop.readUInt32BE(16), afterStop.readUInt32BE(20)],
+            public: afterStopAppearance,
+          },
+          offline: {
+            clip: offlineArea,
+            png: [offlineFrame.readUInt32BE(16), offlineFrame.readUInt32BE(20)],
+            public: offlineAppearance,
+          },
+        });
+      } catch {
+        // Optional failure evidence cannot replace the original pixel assertion.
+      }
+    try {
+      await context.setOffline(false);
+    } finally {
+      await page.setViewportSize(originalViewport!);
+    }
   }
   await expect(page.getByText('实时同步', { exact: true })).toBeVisible();
   const world = await (
