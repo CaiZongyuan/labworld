@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { expect, test } from 'vitest';
 import { StrictMode, useEffect } from 'react';
-import { Mesh, type WebGLRenderer } from 'three';
+import { Mesh, type Material, type WebGLRenderer } from 'three';
 import {
   createApiClient,
   type CurrentSession,
@@ -45,14 +45,15 @@ const renderer = {
 const ignoreInfo = () => {};
 function modelAsset(
   authority: object,
+  resource: LabAsset = remote,
 ): Extract<ModelAsset, { source: 'remote' }> {
   return {
-    id: remote.id,
-    name: remote.name,
+    id: resource.id,
+    name: resource.name,
     fileName: 'cube.glb',
     bytes: file.byteLength,
     source: 'remote',
-    asset: remote,
+    asset: resource,
     apiClient: client,
     authority,
   };
@@ -85,45 +86,208 @@ function SessionProbe({ identity }: { identity: CurrentSession }) {
 }
 function serve(failFirst = false) {
   let authorizations = 0;
+  let bodyReads = 0;
   let hold = false;
+  let failedAsset: string | undefined;
   let release!: () => void;
   const held = new Promise<void>((resolve) => {
     release = resolve;
   });
   server.use(
-    http.get('http://api.test/api/v1/lab/assets/:id/download', async () => {
-      authorizations++;
-      if (failFirst && authorizations === 1)
-        return new HttpResponse(null, { status: 403 });
-      if (hold) await held;
-      return HttpResponse.json({
-        url: 'http://api.test/objects/cube',
-        method: 'GET',
-        headers: {},
-        expires_at: '2026-10-14T00:01:00Z',
-        file: {
-          id: remote.representation.file_id,
-          file_name: 'cube.glb',
-          content_type: 'model/gltf-binary',
-          size: file.byteLength,
-          sha256: remote.representation.sha256,
-          created_at: remote.created_at,
-          previewable: true,
-        },
-      });
-    }),
-    http.get('http://api.test/objects/cube', () =>
-      HttpResponse.arrayBuffer(bytes),
+    http.get(
+      'http://api.test/api/v1/lab/assets/:id/download',
+      async ({ params }) => {
+        authorizations++;
+        if (failFirst && authorizations === 1)
+          return new HttpResponse(null, { status: 403 });
+        if (hold) await held;
+        if (params.id === failedAsset)
+          return new HttpResponse(null, { status: 503 });
+        return HttpResponse.json({
+          url: 'http://api.test/objects/cube',
+          method: 'GET',
+          headers: {},
+          expires_at: '2026-10-14T00:01:00Z',
+          file: {
+            id: remote.representation.file_id,
+            file_name: 'cube.glb',
+            content_type: 'model/gltf-binary',
+            size: file.byteLength,
+            sha256: remote.representation.sha256,
+            created_at: remote.created_at,
+            previewable: true,
+          },
+        });
+      },
     ),
+    http.get('http://api.test/objects/cube', () => {
+      bodyReads++;
+      return HttpResponse.arrayBuffer(bytes);
+    }),
   );
   return {
     hold: () => {
       hold = true;
     },
+    failAsset: (id: string) => {
+      failedAsset = id;
+      hold = true;
+    },
     release,
     authorizations: () => authorizations,
+    bodyReads: () => bodyReads,
   };
 }
+
+const alternative: LabAsset = {
+  ...remote,
+  id: '30000000-0000-0000-0000-000000000004',
+  name: 'Alternative cube',
+  representation: {
+    ...remote.representation,
+    id: '30000000-0000-0000-0000-000000000005',
+  },
+};
+
+function disposalEvents(model: LoadedModel) {
+  const geometries = new Set<Mesh['geometry']>();
+  const materials = new Set<Material>();
+  model.scene.traverse((object) => {
+    if (!(object instanceof Mesh)) return;
+    geometries.add(object.geometry);
+    for (const material of Array.isArray(object.material)
+      ? object.material
+      : [object.material])
+      materials.add(material);
+  });
+  let geometryEvents = 0,
+    materialEvents = 0;
+  for (const geometry of geometries)
+    geometry.addEventListener('dispose', () => {
+      geometryEvents++;
+    });
+  for (const material of materials)
+    material.addEventListener('dispose', () => {
+      materialEvents++;
+    });
+  return () => ({ geometries: geometryEvents, materials: materialEvents });
+}
+
+test('a same-scope asset switch retains the real usable GLTF across HTTP503 and reauthorizes recovery', async () => {
+  const transport = serve();
+  const authority = {};
+  const firstAsset = modelAsset(authority);
+  const secondAsset = modelAsset(authority, alternative);
+  const seen: LoadedModel[] = [];
+  const loaded = (model: LoadedModel) => {
+    seen.push(model);
+  };
+  const view = render(<Probe asset={firstAsset} onModel={loaded} />);
+  try {
+    await waitFor(() => expect(seen).toHaveLength(1));
+    const first = seen[0];
+    const firstDisposals = disposalEvents(first);
+    transport.failAsset(secondAsset.id);
+    view.rerender(<Probe asset={secondAsset} onModel={loaded} />);
+    const duringLoading = screen.getByLabelText('model').textContent;
+    const disposedDuringLoading = firstDisposals();
+    await waitFor(() => expect(transport.authorizations()).toBe(2));
+    transport.release();
+    await waitFor(() =>
+      expect(screen.getByLabelText('model')).toHaveTextContent(/\|failed$/),
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText('model')).toHaveTextContent(
+        first.scene.uuid + '|12|failed',
+      ),
+    );
+    expect(duringLoading).toBe(first.scene.uuid + '|12|loading');
+    expect(disposedDuringLoading).toEqual({ geometries: 0, materials: 0 });
+    expect(seen).toHaveLength(1);
+    expect(seen[0].id).toBe(firstAsset.id);
+    expect(firstDisposals()).toEqual({ geometries: 0, materials: 0 });
+
+    view.rerender(<Probe asset={firstAsset} onModel={loaded} />);
+    await waitFor(() => expect(seen).toHaveLength(2));
+    expect(transport.authorizations()).toBe(3);
+    expect(transport.bodyReads()).toBe(2);
+    const recovered = seen[1];
+    expect(recovered.scene).not.toBe(first.scene);
+    expect(screen.getByLabelText('model')).toHaveTextContent(
+      recovered.scene.uuid + '|12|idle',
+    );
+    expect(firstDisposals()).toEqual({ geometries: 1, materials: 1 });
+    const recoveredDisposals = disposalEvents(recovered);
+    view.unmount();
+    expect(recoveredDisposals()).toEqual({ geometries: 1, materials: 1 });
+    expect(firstDisposals()).toEqual({ geometries: 1, materials: 1 });
+  } finally {
+    transport.release();
+    view.unmount();
+  }
+});
+
+test.each(['authority', 'client', 'renderer', 'representation'] as const)(
+  'a retained fallback is hidden and released on %s invalidation',
+  async (change) => {
+    const transport = serve();
+    const authority = {};
+    const firstAsset = modelAsset(authority);
+    const secondAsset = modelAsset(authority, alternative);
+    let first: LoadedModel | undefined;
+    const loaded = (model: LoadedModel) => {
+      first ??= model;
+    };
+    const view = render(<Probe asset={firstAsset} onModel={loaded} />);
+    try {
+      await waitFor(() => expect(first).toBeDefined());
+      const disposed = disposalEvents(first!);
+      transport.failAsset(secondAsset.id);
+      view.rerender(<Probe asset={secondAsset} onModel={loaded} />);
+      await waitFor(() => expect(transport.authorizations()).toBe(2));
+      transport.release();
+      await waitFor(() =>
+        expect(screen.getByLabelText('model')).toHaveTextContent(
+          first!.scene.uuid + '|12|failed',
+        ),
+      );
+      expect(disposed()).toEqual({ geometries: 0, materials: 0 });
+      const next =
+        change === 'representation'
+          ? modelAsset(authority, {
+              ...remote,
+              representation: {
+                ...remote.representation,
+                id: '30000000-0000-0000-0000-000000000006',
+              },
+            })
+          : {
+              ...secondAsset,
+              ...(change === 'authority' ? { authority: {} } : {}),
+              ...(change === 'client'
+                ? { apiClient: createApiClient('http://api.test') }
+                : {}),
+            };
+      const nextRenderer =
+        change === 'renderer'
+          ? ({ extensions: { has: () => false } } as unknown as WebGLRenderer)
+          : renderer;
+      view.rerender(
+        <Probe asset={next} onModel={loaded} modelRenderer={nextRenderer} />,
+      );
+      expect(screen.getByLabelText('model')).toHaveTextContent(
+        'none|0|loading',
+      );
+      expect(disposed()).toEqual({ geometries: 1, materials: 1 });
+      await waitFor(() => expect(transport.authorizations()).toBe(3));
+      view.unmount();
+      expect(disposed()).toEqual({ geometries: 1, materials: 1 });
+    } finally {
+      transport.release();
+      view.unmount();
+    }
+  },
+);
 
 test.each(['authority', 'representation', 'client', 'renderer'] as const)(
   'a %s change hides the old same-asset model before the next load completes',
