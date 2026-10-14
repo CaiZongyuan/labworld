@@ -1,9 +1,36 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 const title =
   'recording actual native sync completion waits for public reads while committed interruption sync remains owned';
-const predecessor =
-  'recording actual native sync completion hold bounds ordinary caller during idle Pause and retains owned writer';
-const expected = [predecessor, title];
+const expected = [
+  'recording genuine schema-v3 ended Session adopts exact snapshot and dependency custody without replay across two reopens',
+  'recording legacy adoption quota preserves original Session pins and bytes and refuses new admission until honest retry',
+  'recording timestamp oracle preserves six digits and distinguishes UTC offset year boundaries',
+  'recording active Command capture reports the whole HTTP SQL operation and exact accepted fact without changing no-Recording budgets',
+  'recording retained reads enforce identities, Lab binding and delete CSRF while preserving bytes',
+  'recording sparse trusted reports preserve independent microsecond watermarks and omit rejected facts',
+  'recording relative clock backward step preserves paused source, durable ACK and renewed ticket',
+  'recording relative clock forward step preserves paused source, durable ACK and renewed ticket',
+  'recording selected bytes survive sparse live delivery and exact duplicate ACK',
+  'recording ACK-only network loss retries exact uncertain packet without duplicate append',
+  'recording boundary rejects changed pose with identical sequence/time A=1000',
+  'recording boundary rejects changed pose with identical sequence/time A=3000',
+  'recording write failure preserves external durable bytes and interrupts without further ACK',
+  'recording pending command baseline preserves original input and idempotent acceptance',
+  'recording actual SIGKILL after prepared recovers only witnessed command events with exact timestamps',
+  'recording actual SIGKILL after committed recovers only witnessed command events with exact timestamps',
+  'recording shared resource deletion releases only its owner and deletion tombstone survives reopen',
+  'recording acknowledged bytes survive actual stopped-directory backup and new-directory restore',
+  'recording completed Task survives actual kill before marker while physics stays paused at A=1000',
+  'recording successor readiness write failure leaves no active unrecorded Reset Session',
+  'recording Reset capture handoff accounts for a concurrent ordinary Command exactly once',
+  'recording managed publication survives revocation of the initiating Agent credential',
+  'recording oracle matches literal high-epoch packet and rejects altered ACK/content',
+  'recording Reset post-commit marker failure compensates successor without restart or Lab blockage',
+  'recording actual Core publication failure retains ACKed candidate identity and bytes through retry and second reopen',
+  'recording actual native write completion hold bounds ordinary caller during idle Pause and retains owned writer',
+  'recording actual native sync completion hold bounds ordinary caller during idle Pause and retains owned writer',
+  'recording actual native sync completion waits for public reads while committed interruption sync remains owned',
+];
 const classes = new Set([
   'Error',
   'AssertionError',
@@ -60,7 +87,7 @@ export default async function* report(events) {
       ...failure,
       locations: [
         ...stack.matchAll(
-          /(recording-reliability\.test\.ts|recording-machine\.ts|recording-public-support\.ts):([0-9]+):([0-9]+)/g,
+          /(recording-legacy\.test\.ts|recording-reliability\.test\.ts|recording-machine\.ts|recording-public-support\.ts):([0-9]+):([0-9]+)/g,
         ),
       ]
         .slice(0, 8)
@@ -74,32 +101,41 @@ export default async function* report(events) {
   const targetRows = selected.filter((row) => row.title === title);
   const targetExactOne =
     targetRows.length === 1 && targetRows[0].status !== 'skipped';
-  const exactTwo =
-    selected.length === 2 &&
+  const exactPrefix =
+    selected.length === 28 &&
     selected.every(
       (row, index) => row.title === expected[index] && row.status !== 'skipped',
     ) &&
-    totals?.tests === 2 &&
+    totals?.tests === 28 &&
     totals.skipped === 0 &&
     totals.cancelled === 0 &&
     startupFailures.length === 0 &&
     unexpectedCompletions === 0 &&
     targetExactOne;
+  const earliestFailure =
+    selected.find((row) => row.status === 'failed') ?? null;
+  const allPassed =
+    exactPrefix && selected.every((row) => row.status === 'passed');
   const summary = {
     candidate: process.env.DIAGNOSTIC_HEAD,
     scope:
-      'Original immediate native-sync predecessor then exact original target; no raw output/errors',
+      'Original legacy 4 then reliability 1-24 through exact target; no raw output/errors',
     selected,
     startupFailures,
     unexpectedCompletions,
     totals,
-    exactTwo,
+    exactPrefix,
     targetExactOne,
-    targetOutcome: exactTwo ? targetRows[0].status : 'unknown',
-    verdict: !exactTwo
+    targetOutcome:
+      targetExactOne && totals?.cancelled === 0
+        ? targetRows[0].status
+        : 'unknown',
+    earliestFailure,
+    allPassed,
+    verdict: !exactPrefix
       ? 'selection-or-startup-failure'
-      : selected[0].status === 'failed'
-        ? 'predecessor-case-failure'
+      : earliestFailure && earliestFailure.title !== title
+        ? 'prefix-case-failure'
         : targetRows[0].status === 'passed'
           ? 'non-reproduction'
           : 'original-case-failure',
@@ -110,12 +146,15 @@ export default async function* report(events) {
     JSON.stringify(summary, null, 2) + '\n',
     { mode: 0o600 },
   );
-  if (!exactTwo) process.exitCode = 1;
+  if (!exactPrefix) process.exitCode = 1;
   yield JSON.stringify({
-    exactTwo,
+    exactPrefix,
     targetExactOne,
     verdict: summary.verdict,
     targetOutcome: summary.targetOutcome,
+    earliestFailure: earliestFailure
+      ? { title: earliestFailure.title, status: earliestFailure.status }
+      : null,
     totals,
   }) + '\n';
 }

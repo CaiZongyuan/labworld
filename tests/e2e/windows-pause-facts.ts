@@ -67,6 +67,7 @@ const events: Record<string, string | number | boolean | null>[] = [];
 const closes: Partial<Record<'live' | 'reliable', object>> = {};
 let dropped = 0;
 let generation = 0;
+let failureCaptured = false;
 
 export function pauseFixtureStart() {
   if (!pauseFactsEnabled) return;
@@ -75,6 +76,7 @@ export function pauseFixtureStart() {
   delete closes.live;
   delete closes.reliable;
   dropped = 0;
+  failureCaptured = false;
 }
 export function pausePeerGeneration() {
   return generation;
@@ -294,8 +296,10 @@ export async function capturePauseFailure(
   sessionPath: string,
   recordingPath: string,
   directory: string,
+  stage: 'initial-ready-failure' | 'control-failure',
 ) {
-  if (!pauseFactsEnabled) return;
+  if (!pauseFactsEnabled || failureCaptured) return;
+  failureCaptured = true;
   const originalFailureAt = performance.now();
   try {
     const atFailure = {
@@ -312,7 +316,8 @@ export async function capturePauseFailure(
       JSON.stringify(
         {
           scope:
-            'Only after the original control failure; same Node monotonic clock; no assertion time inferred',
+            'Only after the original ready/control rejection; same Node monotonic clock; no assertion time inferred',
+          stage,
           originalFailureAt,
           capturedAt: performance.now(),
           eventCap: 64,

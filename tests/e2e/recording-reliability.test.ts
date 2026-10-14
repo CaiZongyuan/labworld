@@ -57,6 +57,7 @@ import {
   pauseStage,
   capturePauseFailure,
   pauseFixtureStart,
+  pauseFactsEnabled,
 } from './windows-pause-facts.ts';
 
 test(
@@ -433,7 +434,19 @@ async function admission(f: Context) {
 async function start(f: Context) {
   const a = await admission(f),
     machine = new RecordingMachine(a.session, a.admitted, f.target.url);
-  await machine.ready();
+  try {
+    await machine.ready();
+  } catch (cause) {
+    if (pauseFactsEnabled)
+      await capturePauseFailure(
+        f.api,
+        sessionPath(f.lab, machine.session.id),
+        recordingPath(f.lab, machine.scope.recording_id),
+        f.target.evidence,
+        'initial-ready-failure',
+      );
+    throw cause;
+  }
   const initial = selectedFrame(a.session, 1n, 0n);
   await machine.capture([initial]);
   machine.liveFrame(initial);
@@ -457,6 +470,7 @@ async function boundary(
       sessionPath(f.lab, machine.session.id),
       recordingPath(f.lab, machine.scope.recording_id),
       f.target.evidence,
+      'control-failure',
     );
     throw cause;
   }
