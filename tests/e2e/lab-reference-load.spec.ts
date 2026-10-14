@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { cpus, totalmem, release, arch } from 'node:os';
 import { type LabWorld } from '../../packages/sdk/src/index';
 import {
@@ -12,6 +12,7 @@ import {
   capture,
   retainFailure,
 } from './lab-foundation-support';
+import { publishServiceControlRequest } from '../support/service-control-request';
 
 test.use({ locale: 'zh-CN' });
 test.afterEach(retainFailure);
@@ -311,11 +312,10 @@ test('one hundred Entities and twenty 1 Hz devices remain bounded in two real br
       reply = process.env.E2E_SERVICE_CONTROL_REPLY!;
     if (!control || !reply)
       throw new Error('Run the owned Node reference profile');
-    await writeFile(
-      control + '.next',
-      JSON.stringify({ revision: 1, action: 'inspect-store' }),
-    );
-    await rename(control + '.next', control);
+    await publishServiceControlRequest(control, {
+      revision: 1,
+      action: 'inspect-store',
+    });
     await expect
       .poll(async () => {
         try {

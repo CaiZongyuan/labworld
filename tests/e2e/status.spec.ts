@@ -1,5 +1,6 @@
-import { readFile, rename, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { expect, test } from '@playwright/test';
+import { publishServiceControlRequest } from '../support/service-control-request';
 
 // These public endpoints use fresh contexts and never handle credentials.
 // The device language follows the browser in the product, so journeys that
@@ -48,11 +49,10 @@ test('a closed embedded database makes readiness fail while the process remains 
     throw new Error('Run the isolated Node status profile');
   let revision = 0;
   async function requestControl(action: string) {
-    await writeFile(
-      control + '.next',
-      JSON.stringify({ revision: ++revision, action }),
-    );
-    await rename(control + '.next', control);
+    await publishServiceControlRequest(control, {
+      revision: ++revision,
+      action,
+    });
     await expect
       .poll(async () => {
         try {
