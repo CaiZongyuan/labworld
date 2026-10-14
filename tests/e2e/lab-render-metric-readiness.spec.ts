@@ -102,6 +102,9 @@ test('render metrics wait for the requested World while its real stream update i
   await page.goto(`/lab?lab=${lab.id}`);
   const initial = await api.json<{ version: string }>('GET', base + '/world');
   await waitForWorldVersion(page, initial.version);
+  await expect(
+    page.locator('.world-page').getByLabel('三维视口', { exact: true }),
+  ).toBeVisible();
   await expect(page.locator('.world-page')).toHaveAttribute(
     'aria-busy',
     'false',
