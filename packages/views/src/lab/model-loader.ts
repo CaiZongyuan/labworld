@@ -26,6 +26,11 @@ import {
   modelResourceKey,
   type ModelByteLease,
 } from './model-bytes';
+import {
+  acquisitionFact,
+  acquisitionIdentity,
+  acquisitionResource,
+} from './model-acquisition-facts';
 
 export type LoadedModel = {
   id: string;
@@ -184,6 +189,16 @@ export function useLoadedModel(
   useEffect(() => {
     if (!renderer) return;
     const remoteAsset = currentRemoteAsset();
+    const diagnostic =
+      remoteAsset && apiClient && authority
+        ? {
+            owner: acquisitionIdentity(renderer),
+            authority: acquisitionIdentity(authority),
+            client: acquisitionIdentity(apiClient),
+            resource: acquisitionResource(input),
+          }
+        : null;
+    if (diagnostic) acquisitionFact('load-start', diagnostic);
     const controller = new AbortController();
     let lease: ModelByteLease | undefined;
     let loaded: LoadedModel | null = null;
@@ -209,6 +224,11 @@ export function useLoadedModel(
           return;
         }
         loaded = next;
+        if (diagnostic)
+          acquisitionFact('model-ready', {
+            ...diagnostic,
+            meshes: next.info.meshes,
+          });
         setState({ identity, model: next, loading: false, error: null });
         onInfo(id, next.info);
       } catch (cause) {
@@ -224,6 +244,8 @@ export function useLoadedModel(
       }
     })();
     return () => {
+      if (diagnostic)
+        acquisitionFact('load-cleanup', { ...diagnostic, model: !!loaded });
       controller.abort();
       lease?.release();
       if (loaded) disposeModel(loaded.scene);

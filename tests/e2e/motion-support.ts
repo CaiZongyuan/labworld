@@ -179,7 +179,15 @@ export async function register(page: Page) {
   await page.getByRole('button', { name: '创建账号', exact: true }).click();
   await expect(page).toHaveURL(/\/lab$/);
 }
-export async function prepare(page: Page, browser: Browser) {
+export async function prepare(
+  page: Page,
+  browser: Browser,
+  ownerObserver?: {
+    bind: (page: Page, index: number) => Promise<void>;
+    phase: (page: number, phase: string) => void;
+  },
+) {
+  await ownerObserver?.bind(page, 0);
   await register(page);
   const session = await (await page.request.get('/api/v1/auth/session')).json();
   const api = new CoreHttp(process.env.E2E_API_URL!);
@@ -209,9 +217,11 @@ export async function prepare(page: Page, browser: Browser) {
     viewport: { width: 1440, height: 1000 },
   });
   const second = await secondContext.newPage();
+  await ownerObserver?.bind(second, 1);
   await register(second);
   const modelAcquisitions: { authorizations: number; reads: number }[] = [];
-  for (const viewer of [page, second]) {
+  for (const [index, viewer] of [page, second].entries()) {
+    ownerObserver?.phase(index, 'counter-attached-before-navigation');
     const counts = { authorizations: 0, reads: 0 };
     modelAcquisitions.push(counts);
     viewer.on('request', (request) => {
@@ -220,7 +230,9 @@ export async function prepare(page: Page, browser: Browser) {
         counts.authorizations++;
       if (path === `/objects/${asset.representation.file_id}`) counts.reads++;
     });
+    ownerObserver?.phase(index, 'navigation-requested');
     await viewer.goto(`/lab?lab=${lab.id}`);
+    ownerObserver?.phase(index, 'navigation-resolved');
     await expect(
       viewer.getByRole('heading', {
         name: 'Independent motion Lab',
@@ -229,6 +241,7 @@ export async function prepare(page: Page, browser: Browser) {
     ).toBeVisible();
     await expectInitialSceneReady(viewer.locator('.world-page'));
     await viewer.getByRole('button', { name: '性能', exact: true }).click();
+    ownerObserver?.phase(index, 'scene-ready-and-performance-open');
   }
   return {
     fixture,

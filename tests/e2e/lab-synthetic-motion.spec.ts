@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { bindMotionPeer, type MotionPeer } from '../support/motion-socket';
 import { WebSocket } from 'ws';
 import { assertResourceConvergence } from './motion-resources';
+import { ModelAcquisitionOwnerObserver } from './model-acquisition-owner-observer';
 import {
   assertTrajectory,
   assertAdvanced,
@@ -37,9 +38,10 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
   test.setTimeout(150000);
   stage('smoke-start', { product: process.env.MOTION_E2E_PRODUCT_COMMIT });
   const actors = await Actors.create('motion-smoke');
+  const ownerObserver = new ModelAcquisitionOwnerObserver();
   let context;
   try {
-    const world = await prepare(page, browser);
+    const world = await prepare(page, browser, ownerObserver);
     context = world.secondContext;
     receipt('model-acquisitions', world.modelAcquisitions);
     expect(world.modelAcquisitions).toEqual([
@@ -186,6 +188,7 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
     });
     stage('smoke-pass');
   } finally {
+    await ownerObserver.close();
     await context?.close();
     await actors.cleanup();
     stage('smoke-actors-cleaned');

@@ -37,6 +37,11 @@ import type {
 import type { ModelAsset } from './catalog';
 import { useLoadedModel } from './model-loader';
 import { modelResourceKey } from './model-bytes';
+import {
+  acquisitionFact,
+  acquisitionIdentity,
+  acquisitionResource,
+} from './model-acquisition-facts';
 import { useAppMessage } from '../shell/messages';
 import { MetricSampler } from './metric-sampler';
 import type { RenderMetrics } from './viewport-state';
@@ -492,6 +497,19 @@ function Imported({
 }) {
   const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
   useEffect(() => {
+    if (model && renderer && asset.source === 'remote')
+      acquisitionFact('scene-attached', {
+        owner: acquisitionIdentity(renderer),
+        authority: acquisitionIdentity(asset.authority),
+        client: acquisitionIdentity(asset.apiClient),
+        resource: acquisitionResource(modelResourceKey(asset.asset)),
+        scene: acquisitionIdentity(model.scene),
+        meshes: model.info.meshes,
+        triangles: model.info.triangles,
+        parent: !!model.scene.parent,
+      });
+  }, [model, renderer, asset]);
+  useEffect(() => {
     if (model?.id === asset.id) onReady();
   }, [model, asset.id, onReady]);
   useEffect(
@@ -929,6 +947,7 @@ export default function WorldViewport(props: {
     [],
   );
   const created = useCallback(({ gl }: RootState) => {
+    acquisitionFact('canvas-created', { owner: acquisitionIdentity(gl) });
     gl.domElement.tabIndex = 0;
     setRenderer(gl);
   }, []);

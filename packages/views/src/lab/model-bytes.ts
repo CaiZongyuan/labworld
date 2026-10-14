@@ -4,6 +4,11 @@ import {
   type LabAsset,
 } from '@labos-threejs/sdk';
 import { ModelImportError } from './glb';
+import {
+  acquisitionFact,
+  acquisitionIdentity,
+  acquisitionResource,
+} from './model-acquisition-facts';
 
 export type ModelByteSource = {
   asset: LabAsset;
@@ -27,6 +32,7 @@ export function modelResourceKey(asset: LabAsset) {
 }
 
 class Attempt {
+  readonly diagnosticId = acquisitionIdentity(this);
   readonly controller = new AbortController();
   readonly bytes: Promise<ArrayBuffer>;
   consumers = 0;
@@ -37,11 +43,19 @@ class Attempt {
   ) {
     this.bytes = this.read(source).then(
       (bytes) => {
+        acquisitionFact('attempt-settled', {
+          attempt: this.diagnosticId,
+          success: true,
+        });
         this.settled = true;
         this.retire(this);
         return bytes;
       },
       (error) => {
+        acquisitionFact('attempt-settled', {
+          attempt: this.diagnosticId,
+          success: false,
+        });
         this.settled = true;
         this.retire(this);
         throw error;
@@ -49,6 +63,13 @@ class Attempt {
     );
   }
   private async read(source: ModelByteSource) {
+    const counters = {
+      attempt: this.diagnosticId,
+      authority: acquisitionIdentity(source.authority),
+      client: acquisitionIdentity(source.apiClient),
+      resource: acquisitionResource(modelResourceKey(source.asset)),
+    };
+    acquisitionFact('capability-start', counters);
     const r = source.asset.representation;
     const { data } = await getLabAssetDownload({
       client: source.apiClient,
@@ -56,16 +77,18 @@ class Attempt {
       signal: this.controller.signal,
       throwOnError: true,
     });
-    if (
-      data.file.id !== r.file_id ||
-      data.file.sha256 !== r.sha256 ||
-      data.file.size !== r.size
-    )
-      throw new ModelImportError('invalid');
+    const metadataMatch =
+      data.file.id === r.file_id &&
+      data.file.sha256 === r.sha256 &&
+      data.file.size === r.size;
+    acquisitionFact('capability-ready', { ...counters, metadataMatch });
+    if (!metadataMatch) throw new ModelImportError('invalid');
+    acquisitionFact('bytes-start', counters);
     const response = await fetch(data.url, {
       headers: data.headers,
       signal: this.controller.signal,
     });
+    acquisitionFact('bytes-response', { ...counters, status: response.status });
     if (!response.ok) throw new ModelImportError('failed');
     const bytes = await response.arrayBuffer();
     if (bytes.byteLength !== r.size) throw new ModelImportError('invalid');
@@ -101,6 +124,17 @@ export function acquireModelBytes(
   }
   const shared = attempt;
   shared.consumers++;
+  const counters = {
+    owner: acquisitionIdentity(owner),
+    authority: acquisitionIdentity(source.authority),
+    client: acquisitionIdentity(source.apiClient),
+    resource: acquisitionResource(key),
+    attempt: shared.diagnosticId,
+  };
+  acquisitionFact('lease-acquired', {
+    ...counters,
+    consumers: shared.consumers,
+  });
   let active = true;
   let rejectWait: (reason: unknown) => void = () => {};
   const release = () => {
@@ -108,6 +142,11 @@ export function acquireModelBytes(
     active = false;
     signal.removeEventListener('abort', release);
     shared.consumers--;
+    acquisitionFact('lease-released', {
+      ...counters,
+      consumers: shared.consumers,
+      aborted: signal.aborted,
+    });
     rejectWait(signal.reason ?? aborted());
     if (shared.consumers === 0 && !shared.settled) {
       shared.retire(shared);
