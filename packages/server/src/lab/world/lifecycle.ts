@@ -9,7 +9,8 @@ import {
   registerBinding,
   worldId,
 } from './entities.ts';
-import { catalog } from './catalog.ts';
+import { resolveDefinitionIn } from '../asset-registry/service.ts';
+import { validateAssetConfiguration } from '../asset-registry/validation.ts';
 import { validConfiguration, type LabEntity } from './domain.ts';
 async function idle(tx: DbSession, entity: LabEntity) {
   const result = await tx.execute<{ busy: boolean }>(
@@ -80,10 +81,10 @@ export async function entityLifecycle(
             'This Entity is archived',
           );
         await idle(tx, entity);
-        const definition = catalog.find(
-          (entry) =>
-            entry.id === input?.definition_id &&
-            entry.version === input.definition_version,
+        const definition = await resolveDefinitionIn(
+          tx,
+          input?.definition_id ?? '',
+          input?.definition_version ?? '',
         );
         if (!definition)
           throw new PublicFailure(
@@ -97,6 +98,10 @@ export async function entityLifecycle(
             'lab.invalid_input',
             'Use valid Entity configuration',
           );
+        validateAssetConfiguration(
+          definition.asset_version,
+          input.configuration,
+        );
         const incompatible = await tx.execute<{ incompatible: boolean }>(
           sql`select exists(select 1 from lab.entity_relationships r join lab.entities other on other.id=case when r.source_id=${entity.id}::uuid then r.target_id else r.source_id end where (r.source_id=${entity.id}::uuid or r.target_id=${entity.id}::uuid) and ((r.kind='simulates' and other.definition_id<>${definition.id}) or ((r.kind='located_in' and r.target_id=${entity.id}::uuid or r.kind='contains' and r.source_id=${entity.id}::uuid) and ${definition.category} not in('furniture','location','labware')))) as incompatible`,
         );
@@ -113,7 +118,8 @@ export async function entityLifecycle(
           await tx.execute(
             sql`update lab.runtime_bindings set current=false where entity_id=${entity.id}::uuid and current`,
           );
-        await registerBinding(tx, entity.id, definition.id, entity.reality);
+        if (!definition.asset_version)
+          await registerBinding(tx, entity.id, definition.id, entity.reality);
       }
       await databaseAudit.record(tx, {
         actorId: actor.user.id,

@@ -17,6 +17,7 @@ import {
   freshRenderMetrics,
   markRenderMetrics,
   remainingMetricBudget,
+  waitForWorldVersion,
   type RenderMetricSample,
   type RenderMetricMark,
 } from './fresh-render-metrics';
@@ -35,6 +36,8 @@ async function pixels(page: Page, filename: string) {
     await failure().catch(() => {});
     throw error;
   }
+  if (process.env.LAB_NODE_EVIDENCE)
+    writeFileSync(join(process.env.LAB_NODE_EVIDENCE, filename), png);
   const colors = await page.evaluate(async (encoded) => {
     const image = new Image();
     image.src = `data:image/png;base64,${encoded}`;
@@ -222,6 +225,11 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
         'test-results/lab-foundation/t09-resource-counts.json',
         JSON.stringify(resources, null, 2),
       );
+      if (process.env.LAB_NODE_EVIDENCE)
+        writeFileSync(
+          join(process.env.LAB_NODE_EVIDENCE, 't09-resource-counts.json'),
+          JSON.stringify(resources, null, 2),
+        );
       return reading;
     }
     async function appearance(representation: string) {
@@ -241,6 +249,8 @@ test('real Entity lifecycle retains Tasks and sources across GLB replacement, no
       await expect
         .poll(async () => (await get(path)).representation_id)
         .toBe(representation || null);
+      const updated = await get(`/api/v1/lab/labs/${lab}/world`);
+      await waitForWorldVersion(page, updated.version);
     }
     // Hold the real file download to observe replacement loading before it resolves.
     let release!: () => void;

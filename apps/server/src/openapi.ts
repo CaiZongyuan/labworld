@@ -1,4 +1,6 @@
 import { sessionRoutes } from '../../../packages/server/src/lab/sessions/routes.ts';
+import { sourceRoutes } from '../../../packages/server/src/lab/sources/routes.ts';
+import type { SourceService } from '../../../packages/server/src/lab/sources/service.ts';
 import { recordingRoutes } from '../../../packages/server/src/lab/recordings/routes.ts';
 import type { RecordingService } from '../../../packages/server/src/lab/recordings/service.ts';
 import type { SimulationSessions } from '../../../packages/server/src/lab/sessions/service.ts';
@@ -11,6 +13,8 @@ import { coreApp } from './app.ts';
 import { configuration } from './config.ts';
 import type { FoundationContext } from '../../../packages/server/src/platform/context.ts';
 import { assetRoutes } from '../../../packages/server/src/lab/assets/routes.ts';
+import { assetRegistryRoutes } from '../../../packages/server/src/lab/asset-registry/routes.ts';
+import type { AssetRegistry } from '../../../packages/server/src/lab/asset-registry/service.ts';
 import type { FileService } from '../../../packages/server/src/core/files/use-cases.ts';
 import { worldRoutes } from '../../../packages/server/src/lab/world/routes.ts';
 import { progressRoutes } from '../../../packages/server/src/lab/progress/routes.ts';
@@ -39,9 +43,11 @@ const app = coreApp(
   () => {},
 );
 sessionRoutes(app, undefined as unknown as SimulationSessions);
+sourceRoutes(app, undefined as unknown as SourceService);
 recordingRoutes(app, undefined as unknown as RecordingService);
 machineRoutes(app, undefined as unknown as MachineService);
 assetRoutes(app, undefined as unknown as FileService);
+assetRegistryRoutes(app, undefined as unknown as AssetRegistry);
 worldRoutes(app, undefined as unknown as WorldService);
 motionRoutes(app, undefined as unknown as MotionFixtures);
 progressRoutes(app, undefined as unknown as ProgressService);

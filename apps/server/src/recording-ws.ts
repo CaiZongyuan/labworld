@@ -96,9 +96,10 @@ export class RecordingWebSockets {
       closed = false,
       faulted = false;
     let inflight: Uint8Array | undefined;
-    let lastPong = Date.now();
+    // These connection-local values measure durations, never UTC timestamps.
+    let lastPong = performance.now();
     let tokens = 16,
-      tokenAt = Date.now();
+      tokenAt = performance.now();
     const fail = (reason: string) => {
       if (faulted) return;
       faulted = true;
@@ -125,7 +126,7 @@ export class RecordingWebSockets {
           const ids = new Set(pending.map((c) => c.command_id));
           for (const id of sent.keys()) if (!ids.has(id)) sent.delete(id);
           for (const command of pending) {
-            const now = Date.now(),
+            const now = performance.now(),
               old = sent.get(command.command_id);
             if (
               old &&
@@ -150,7 +151,7 @@ export class RecordingWebSockets {
     const timeout = setTimeout(() => fail('source_disconnected'), 3000);
     const heartbeat = setInterval(() => {
       if (!admitted || faulted || ws.readyState !== WebSocket.OPEN) return;
-      if (Date.now() - lastPong >= this.heartbeatGraceMs) {
+      if (performance.now() - lastPong >= this.heartbeatGraceMs) {
         fail('source_disconnected');
         return;
       }
@@ -162,7 +163,7 @@ export class RecordingWebSockets {
     }, 1000);
     heartbeat.unref();
     const pong = () => {
-      lastPong = Date.now();
+      lastPong = performance.now();
     };
     const cleanup = () => {
       if (closed) return;
@@ -235,7 +236,7 @@ export class RecordingWebSockets {
               throw new Error('Recording READY exceeds wire budget');
             ws.send(ready);
             admitted = true;
-            lastPong = Date.now();
+            lastPong = performance.now();
             clearTimeout(timeout);
           } catch {
             fail('invalid_packet');
@@ -245,7 +246,7 @@ export class RecordingWebSockets {
         void admission.finally(() => this.admissions.delete(admission));
         return;
       }
-      const now = Date.now();
+      const now = performance.now();
       tokens = Math.min(16, tokens + ((now - tokenAt) * 64) / 1000);
       tokenAt = now;
       if (tokens < 1) {

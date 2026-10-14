@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
-import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { WebSocket, type ClientOptions } from 'ws';
 import { randomUUID } from 'node:crypto';
+import { publishServiceControlRequest } from '../support/service-control-request';
 import type {
   SimulationSession,
   SessionMotionTicket,
@@ -469,10 +470,10 @@ test('external trusted source: real machine admission and Recording are fenced o
     const agentPeer = new SecurityPeer(session, await ticket(agent, session));
     await agentPeer.admitted();
     const started = performance.now();
-    writeFileSync(
-      process.env.E2E_SERVICE_CONTROL!,
-      JSON.stringify({ revision: 1, action: 'expire-machine-clock' }),
-    );
+    await publishServiceControlRequest(process.env.E2E_SERVICE_CONTROL!, {
+      revision: 1,
+      action: 'expire-machine-clock',
+    });
     const reply = await eventually(
       async () => {
         try {
@@ -558,10 +559,10 @@ test('external trusted source: real machine admission and Recording are fenced o
     await cleanupPeers();
     await f?.secondContext.close();
     if (process.env.E2E_SERVICE_CONTROL) {
-      writeFileSync(
-        process.env.E2E_SERVICE_CONTROL,
-        JSON.stringify({ revision: 2, action: 'reset-machine-clock' }),
-      );
+      await publishServiceControlRequest(process.env.E2E_SERVICE_CONTROL, {
+        revision: 2,
+        action: 'reset-machine-clock',
+      });
       await eventually(
         async () => {
           try {

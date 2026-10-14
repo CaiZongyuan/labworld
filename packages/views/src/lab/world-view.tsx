@@ -71,6 +71,7 @@ import { useAppMessage } from '../shell/messages';
 import { ErrorAlert } from '../shell/error-alert';
 import { errorCodeOf } from '@labos-threejs/core';
 import { useCatalog, type ModelAsset } from './catalog';
+import { useModelAuthority } from './model-authority';
 import { PerformancePanel, Tool } from './view-controls';
 import { ViewportBoundary } from './viewport-boundary';
 import type { RenderMetrics } from './viewport-state';
@@ -81,6 +82,7 @@ import WorldDialog, {
 import DevicePanel, { defaultDeviceInput } from './device-panel';
 import EntityDetail from './entity-detail';
 import { entityWithConfirmedRun } from './source-state';
+import { SourceControls } from './source-controls';
 import RecordsPanel from './records-panel';
 import OperationsView from './operations-view';
 import EntityLifecyclePanel from './entity-lifecycle-panel';
@@ -281,6 +283,7 @@ export default function WorldView() {
       ) ?? [],
     [world.data?.entities, sourceAttempts],
   );
+  const modelAuthority = useModelAuthority(apiClient, identity);
   const modelAssets = useMemo(
     () =>
       world.data?.assets.map((asset): ModelAsset => ({
@@ -291,8 +294,9 @@ export default function WorldView() {
         source: 'remote',
         asset,
         apiClient,
+        authority: modelAuthority,
       })) ?? [],
-    [world.data?.assets, apiClient],
+    [world.data?.assets, apiClient, modelAuthority],
   );
   const renderSnapshot =
     !editing &&
@@ -332,10 +336,11 @@ export default function WorldView() {
           source: 'remote',
           asset,
           apiClient,
+          authority: modelAuthority,
         });
     }
     return byNode;
-  }, [renderSnapshot, apiClient]);
+  }, [renderSnapshot, apiClient, modelAuthority]);
   const selected = entities.find((entity) => entity.id === selection.at(-1));
   const inspectorVisible =
     !recordsView &&
@@ -789,6 +794,13 @@ export default function WorldView() {
         {editing && simulation.session && !simulation.session.ended_at ? (
           <span role="status">{message('session.nextStartHint')}</span>
         ) : null}
+        <SourceControls
+          apiClient={apiClient}
+          userId={identity.user.id}
+          labId={labId ?? null}
+          csrfToken={identity.csrf_token}
+          disabled={readOnly}
+        />
         <MotionControls
           key={labId}
           motion={motion}

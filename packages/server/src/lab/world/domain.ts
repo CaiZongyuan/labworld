@@ -22,6 +22,7 @@ export type AssetDefinition = {
   capabilities: DefinitionCapability[];
   state: unknown;
   interfaces: { id: string; implemented: boolean }[];
+  asset_version?: import('../asset-registry/domain.ts').AssetVersion;
 };
 export type RuntimeBinding = {
   id: string;

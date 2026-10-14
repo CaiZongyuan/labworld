@@ -31,6 +31,8 @@ let releaseExecution: (() => void) | undefined;
 // Private trusted ordinary-device ingress, captured from the unchanged real
 // runtime composition. No HTTP route, Row mutation or physics Task authority.
 let ordinaryReport: DeviceRuntime['report'] | undefined;
+const actualWallNow = Date.now;
+let nextWallOffset: number | undefined;
 const initializeDeviceRuntime = DeviceRuntime.prototype.initialize;
 DeviceRuntime.prototype.initialize = async function () {
   await initializeDeviceRuntime.call(this);
@@ -84,6 +86,27 @@ WebSocketServer.prototype.handleUpgrade = function (
       });
     }
     callback(ws, incoming);
+    if (
+      /^\/api\/v1\/lab\/recordings\/[0-9a-f-]{36}\/source$/.test(
+        request.url ?? '',
+      )
+    )
+      ws.on('pong', () => {
+        if (nextWallOffset === undefined) return;
+        // Register after production's Pong handler so its actual sample
+        // precedes the wall step. No heartbeat, source or journal fact is faked.
+        const offset = nextWallOffset;
+        nextWallOffset = undefined;
+        const before = actualWallNow();
+        Date.now = () => actualWallNow() + offset;
+        process.send!({
+          event: 'wall-clock-stepped',
+          offset_ms: offset,
+          before_wall_at: before,
+          after_wall_at: Date.now(),
+          monotonic_at: performance.now(),
+        });
+      });
   });
 };
 function stopPressureObserver() {
@@ -114,7 +137,9 @@ type NativeIo = {
   close_requested_while_held: boolean;
   closed: boolean;
 };
-let ioArm: { method: NativeMethod; recording_id: string } | undefined;
+type NativeArm = { method: NativeMethod; recording_id: string; kind?: string };
+let ioArm: NativeArm | undefined;
+let nextIoArm: typeof ioArm;
 const heldIo = new Map<NativeIo, () => void>();
 const ioEvidence: NativeIo[] = [];
 const ioRoot = resolve(process.env.LAB_WORD_DATA_DIR!, 'recordings');
@@ -170,7 +195,12 @@ const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
     method: NativeMethod,
     startNative: () => Promise<T>,
   ) {
-    if (!ioArm || ioArm.method !== method || ioArm.recording_id !== recordingId)
+    if (
+      !ioArm ||
+      ioArm.method !== method ||
+      ioArm.recording_id !== recordingId ||
+      (ioArm.kind && ioArm.kind !== planned?.kind)
+    )
       return startNative();
     ioArm = undefined;
     const entry: NativeIo = {
@@ -228,6 +258,10 @@ const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
       return await result;
     } finally {
       heldIo.delete(entry);
+      if (nextIoArm) {
+        ioArm = nextIoArm;
+        nextIoArm = undefined;
+      }
       entry.product_state = 'settled';
       saveIo();
       process.send!({ event: 'actual-io-settled', method, fd: entry.fd, path });
@@ -239,9 +273,7 @@ const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
       // per-sample observer runs during ordinary browser or pressure journeys.
       const bytes = args[0] as Buffer;
       try {
-        planned = readRecordingRecords(bytes).find(
-          (record) => record.kind === 'business.prepare',
-        );
+        planned = readRecordingRecords(bytes)[0];
       } catch {
         planned = undefined;
       }
@@ -340,9 +372,10 @@ process.on(
   'message',
   (message: {
     operation: string;
+    offset_ms?: number;
     fault?: Arm;
     held?: boolean;
-    io?: { method: NativeMethod; recording_id: string };
+    io?: NativeArm;
     report?: {
       binding: string;
       run: string;
@@ -352,7 +385,11 @@ process.on(
       quality: string;
     };
   }) => {
-    if (message.operation === 'arm') {
+    if (message.operation === 'step-wall-after-recording-pong') {
+      assert(message.offset_ms === -30000 || message.offset_ms === 30000);
+      nextWallOffset = message.offset_ms;
+      process.send!({ event: 'wall-clock-step-armed' });
+    } else if (message.operation === 'arm') {
       assert(!arm && !release);
       arm = message.fault;
       process.send!({ event: 'armed' });
@@ -371,6 +408,11 @@ process.on(
       assert(message.io && ['write', 'sync'].includes(message.io.method));
       ioArm = message.io;
       process.send!({ event: 'actual-io-armed', ...ioArm });
+    } else if (message.operation === 'arm-next-io') {
+      assert(heldIo.size === 1 && !ioArm && !nextIoArm);
+      assert(message.io && ['write', 'sync'].includes(message.io.method));
+      nextIoArm = message.io;
+      process.send!({ event: 'actual-next-io-armed', ...nextIoArm });
     } else if (message.operation === 'release-io') {
       releaseIo();
       process.send!({ event: 'actual-io-release-requested' });
@@ -432,10 +474,13 @@ await run(undefined, {
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const)
   process.once(signal, () => {
+    nextWallOffset = undefined;
+    Date.now = actualWallNow;
     arm = undefined;
     release?.();
     releaseExecution?.();
     ioArm = undefined;
+    nextIoArm = undefined;
     releaseIo();
     stopPressureObserver();
     promises.open = originalOpen;

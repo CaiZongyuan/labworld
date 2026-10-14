@@ -605,6 +605,37 @@
       "group": "实验室",
       "type": "tutorial",
       "previous": "entity-lifecycle"
+    },
+    {
+      "id": "source-presence",
+      "source": "docs/tutorials/source-presence.md",
+      "sourceEn": "docs/tutorials/source-presence.en.md",
+      "route": "tutorials/source-presence.md",
+      "title": "来源在线与接入配置",
+      "titleEn": "Source presence and configuration",
+      "group": "实验室",
+      "type": "tutorial",
+      "previous": "quickstart"
+    },
+    {
+      "id": "complete-assets",
+      "source": "docs/guides/complete-assets.md",
+      "sourceEn": "docs/guides/complete-assets.en.md",
+      "route": "guides/complete-assets.md",
+      "title": "完整资产版本",
+      "titleEn": "Complete asset versions",
+      "group": "开发",
+      "type": "guide"
+    },
+    {
+      "id": "newton-source-tools",
+      "source": "docs/guides/newton-source-tools.md",
+      "sourceEn": "docs/guides/newton-source-tools.en.md",
+      "route": "guides/newton-source-tools.md",
+      "title": "原 Newton 场景与原生采样",
+      "titleEn": "Original Newton scene and native sampling",
+      "group": "开发",
+      "type": "guide"
     }
   ],
   "references": [

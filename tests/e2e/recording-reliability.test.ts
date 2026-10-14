@@ -285,12 +285,30 @@ type Context = {
   messages: Record<string, unknown>[];
 };
 
-async function incomplete(f: Context, session: string) {
+async function incomplete(
+  f: Context,
+  session: string,
+  onReadTimeout?: () => Promise<void>,
+) {
   const recording = await recordingForSession(f.api, f.lab, session);
   await recordingEventually(
-    () =>
-      f.api.json<RecordingMetadata>('GET', recordingPath(f.lab, recording.id)),
-    (value) => value.status === 'incomplete',
+    async () => {
+      const response = await f.api.response(
+        'GET',
+        recordingPath(f.lab, recording.id),
+      );
+      // Session interruption and native completion precede journal reconciliation.
+      // Retry only its explicit public read deadline under the existing 10s budget.
+      if (response.status === 503) {
+        const body = (await response.json()) as { error: { code: string } };
+        assert.equal(body.error.code, 'lab.recording_read_timeout');
+        await onReadTimeout?.();
+        return null;
+      }
+      assert.equal(response.status, 200);
+      return (await response.json()) as RecordingMetadata;
+    },
+    (value) => value?.status === 'incomplete' && value.ended_at !== null,
     10000,
   );
   return publicRecording(f.api, f.lab, recording.id);
@@ -477,6 +495,115 @@ async function cleanup(f: Context) {
     await f.target.cleanup();
   }
 }
+
+for (const offset of [-30000, 30000])
+  test(
+    `recording relative clock ${offset < 0 ? 'backward' : 'forward'} step preserves paused source, durable ACK and renewed ticket`,
+    { timeout: 120000 },
+    async () => {
+      const f = await fixture();
+      try {
+        const machine = await start(f);
+        await boundary(f, machine, 'pause', 1000000000n);
+        await ipc(
+          f,
+          { operation: 'step-wall-after-recording-pong', offset_ms: offset },
+          'wall-clock-step-armed',
+        );
+        const stepped = await recordingEventually(
+          () =>
+            f.messages.find(
+              (message) => message.event === 'wall-clock-stepped',
+            ),
+          Boolean,
+        );
+        assert(stepped);
+        assert.equal(stepped.offset_ms, offset);
+        assert.ok(
+          Math.abs(
+            Number(stepped.after_wall_at) -
+              Number(stepped.before_wall_at) -
+              offset,
+          ) < 1000,
+          'The fixture must step the actual server wall clock after its real Pong',
+        );
+
+        // A backward wall step must not remove existing packet-rate tokens.
+        // Preserve the public Session assertion even when ACK capture fails.
+        let ackError: unknown;
+        if (offset < 0)
+          try {
+            await machine.capture([
+              selectedFrame(machine.session, 3n, 1000000000n, 0.25),
+            ]);
+          } catch (error) {
+            ackError = error;
+          }
+        let nextPing = false;
+        const ping = () => {
+          nextPing = true;
+        };
+        machine.reliable.socket.on('ping', ping);
+        let current: SimulationSession;
+        try {
+          current = await recordingEventually(
+            () =>
+              f.api.json<SimulationSession>(
+                'GET',
+                sessionPath(f.lab, machine.session.id),
+              ),
+            (session) => nextPing || session.status === 'interrupted',
+            5000,
+          );
+        } finally {
+          machine.reliable.socket.off('ping', ping);
+        }
+        assert.equal(
+          current.status,
+          'paused',
+          'Wall-clock correction must not interrupt a source that answered real Pong',
+        );
+        assert.equal(machine.reliable.socket.readyState, WebSocket.OPEN);
+        if (ackError) throw ackError;
+        if (offset > 0)
+          await machine.capture([
+            selectedFrame(machine.session, 3n, 1000000000n, 0.25),
+          ]);
+        await f.api.json(
+          'POST',
+          sessionPath(f.lab, machine.session.id) + '/viewer-tickets',
+          { preferred_rate_hz: 30 },
+          201,
+        );
+        const recording = await publicRecording(
+          f.api,
+          f.lab,
+          machine.scope.recording_id,
+        );
+        assert.equal(recording.metadata.status, 'open');
+        assert.equal(recording.metadata.prefix.last_source_sequence, '3');
+        assertSelectedBytes(
+          recordedSourcePackets(recording.records),
+          machine.packets.map((packet) => packet.bytes),
+        );
+        recordingReceipt(
+          `recording-relative-clock-${offset < 0 ? 'backward' : 'forward'}`,
+          {
+            offsetMs: offset,
+            serverStep: stepped,
+            sessionStatus: current.status,
+            sourceSocketOpen: true,
+            sourceSequence: recording.metadata.prefix.last_source_sequence,
+            renewedTicketStatus: 201,
+            durableSelectedBytesMatch: true,
+          },
+        );
+      } finally {
+        await cleanup(f);
+      }
+    },
+  );
+
 function exactTime(value: unknown) {
   if (typeof value !== 'string') return value;
   const time =
@@ -1770,9 +1897,15 @@ async function withinIoBudget<T>(
   }
 }
 
-for (const method of ['write', 'sync'] as const)
+for (const { method, reconciliation } of [
+  { method: 'write', reconciliation: false },
+  { method: 'sync', reconciliation: false },
+  { method: 'sync', reconciliation: true },
+] as const)
   test(
-    `recording actual native ${method} completion hold bounds ordinary caller during idle Pause and retains owned writer`,
+    reconciliation
+      ? 'recording actual native sync completion waits for public reads while committed interruption sync remains owned'
+      : `recording actual native ${method} completion hold bounds ordinary caller during idle Pause and retains owned writer`,
     { timeout: 120000 },
     async () => {
       const f = await fixture(1000);
@@ -1941,6 +2074,20 @@ for (const method of ['write', 'sync'] as const)
             ),
           );
         } else await raw.arrayBuffer();
+        if (reconciliation) {
+          await ipc(
+            f,
+            {
+              operation: 'arm-next-io',
+              io: {
+                method: 'sync',
+                recording_id: recording.id,
+                kind: 'business.commit',
+              },
+            },
+            'actual-next-io-armed',
+          );
+        }
         await ipc(
           f,
           { operation: 'release-io' },
@@ -1952,13 +2099,39 @@ for (const method of ['write', 'sync'] as const)
           Boolean,
         );
         await state(f, machine.session.id, 'interrupted');
+        if (reconciliation) {
+          const commit = await recordingEventually(
+            () =>
+              f.messages.find((message) => message.event === 'actual-io-held'),
+            Boolean,
+          );
+          assert.equal(
+            (commit!.planned as RecordingRecord).kind,
+            'business.commit',
+          );
+        }
         assert.equal(
           (await f.api.response('GET', path + '/commands/' + plannedCommand.id))
             .status,
           404,
           'Timed-out intent continued into acceptance after native completion release',
         );
-        const readback = await incomplete(f, machine.session.id);
+        let readTimeouts = 0;
+        const readback = await incomplete(
+          f,
+          machine.session.id,
+          reconciliation
+            ? async () => {
+                readTimeouts++;
+                await ipc(
+                  f,
+                  { operation: 'release-io' },
+                  'actual-io-release-requested',
+                );
+              }
+            : undefined,
+        );
+        if (reconciliation) assert(readTimeouts > 0);
         assertSelectedBytes(recordedSourcePackets(readback.records), confirmed);
         assert(
           !readback.events.some(
@@ -1984,21 +2157,43 @@ for (const method of ['write', 'sync'] as const)
           (command) => command.status === 'succeeded',
         );
         assert.equal(applied.status, 'succeeded');
-        recordingReceipt('recording-native-io-' + method, {
-          method,
-          D,
-          observerMillis,
-          witnessToChecksMillis: performance.now() - witnessAt,
-          originalNativeCallStarted: true,
-          kernelMayAlreadyHaveCompleted: true,
-          controlledStatus: response.status,
-          stillOwnedOpenFdAtDeadline: true,
-          linuxFdProbe: process.platform === 'linux',
-          rawReadStatus: raw.status,
-          noLateAcceptanceOrACK: true,
-          subsequentOrdinaryCommand: next.id,
-          ledgerPath,
-        });
+        if (reconciliation) {
+          const retained = await publicRecording(f.api, f.lab, recording.id);
+          assert.deepEqual(retained.segments, readback.segments);
+          assert.equal(retained.metadata.ended_at, readback.metadata.ended_at);
+          assert.equal(
+            (await f.api.response('DELETE', `/api/v1/lab/assets/${f.asset.id}`))
+              .status,
+            409,
+            'Recovered terminal Recording must retain its exact dependencies',
+          );
+        }
+        recordingReceipt(
+          'recording-native-io-' +
+            method +
+            (reconciliation ? '-reconciliation' : ''),
+          {
+            method,
+            D,
+            observerMillis,
+            witnessToChecksMillis: performance.now() - witnessAt,
+            originalNativeCallStarted: true,
+            kernelMayAlreadyHaveCompleted: true,
+            controlledStatus: response.status,
+            stillOwnedOpenFdAtDeadline: true,
+            linuxFdProbe: process.platform === 'linux',
+            rawReadStatus: raw.status,
+            noLateAcceptanceOrACK: true,
+            exactConfirmedSourcePackets: confirmed.length,
+            recordingEnded: readback.metadata.ended_at !== null,
+            readTimeouts,
+            ...(reconciliation
+              ? { readTimeoutCode: 'lab.recording_read_timeout' }
+              : {}),
+            subsequentOrdinaryCommand: next.id,
+            ledgerPath,
+          },
+        );
       } finally {
         // Resolve only our test hold before the normal owner shutdown can await or
         // close the real handle. Abnormal process recovery remains ServerProcess's.

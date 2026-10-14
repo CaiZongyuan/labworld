@@ -1,0 +1,38 @@
+{
+  "algorithm": "labworld-scene-f64hex-v1",
+  "encoder_vector": {
+    "value": {
+      "2": 0,
+      "10": 0,
+      "": [1e-8, "\n\"\\"],
+      "𐀀": null,
+      "n": [true, 1, 1, "1"]
+    },
+    "sha256": "sha256:49950612f86fa1b26bbe53fa69cc85d1fa9c0dfc3f2b480573e38f89bfd0a475"
+  },
+  "manifest_vector": {
+    "schema_version": 1,
+    "scene_hash_algorithm": "labworld-scene-f64hex-v1",
+    "source_id": "7e99f905-7839-4bf2-80f6-001102031989",
+    "coordinate_frame": "rh-y-up-m",
+    "source_coordinate_frame": "rh-z-up-m",
+    "objects": [],
+    "components": [],
+    "resources": [],
+    "bodies": [],
+    "joints": [],
+    "source_hierarchy": [],
+    "initial_state": {
+      "poses": [],
+      "joints": []
+    },
+    "probe": {
+      "2": 0,
+      "10": 0,
+      "": [1e-8, "\n\"\\"],
+      "𐀀": null,
+      "n": [true, 1, 1, "1"]
+    },
+    "scene_hash": "sha256:5c14d68a18f214fb17b6e82ba92d946da0f83911ee4454f21e6492d14d68dda6"
+  }
+}

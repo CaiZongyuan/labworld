@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "asset_id": "tutorial/centrifuge-c",
+  "version": "1.0.0",
+  "name": "示例离心机 C",
+  "name_en": "Example centrifuge C",
+  "category": "instrument",
+  "manufacturer": "Tutorial Instruments",
+  "model": "Example C",
+  "description": "The cube is an interface fixture, not a centrifuge geometry or simulation.",
+  "source": "Lab World tutorial; illustrative information",
+  "license": "CC0",
+  "specifications": {
+    "speed": { "unit": "rpm", "minimum": 0, "maximum": 15000 }
+  },
+  "configuration_schema": {
+    "type": "object",
+    "properties": {
+      "initial_temperature": { "type": "number", "unit": "degC" }
+    },
+    "additionalProperties": false
+  },
+  "state_schema": {
+    "type": "object",
+    "properties": {
+      "speed": { "type": "number", "unit": "rpm" },
+      "temperature": { "type": "number", "unit": "degC" }
+    }
+  },
+  "capabilities": [
+    {
+      "id": "centrifuge.start",
+      "version": "1.0",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "rpm": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15000,
+            "unit": "rpm"
+          }
+        }
+      },
+      "result": {
+        "type": "object",
+        "properties": { "task_started": { "type": "boolean" } }
+      },
+      "description": "Describes parameters and results; execution is not enabled."
+    }
+  ],
+  "resources": [
+    {
+      "key": "body",
+      "format": "glb",
+      "file": "../../tests/fixtures/lab/cube.glb"
+    }
+  ],
+  "representations": [
+    {
+      "key": "web",
+      "purpose": "visual",
+      "resource_keys": ["body"],
+      "components": [
+        {
+          "key": "body",
+          "resource_key": "body",
+          "local_origin": { "position": [0, 0, 0], "quaternion": [0, 0, 0, 1] }
+        }
+      ]
+    }
+  ]
+}

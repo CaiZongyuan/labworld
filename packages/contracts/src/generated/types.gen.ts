@@ -335,6 +335,7 @@ export type AssetDefinition = {
     capabilities: Array<DefinitionCapability>;
     state: unknown;
     interfaces: Array<DefinitionInterface>;
+    asset_version?: CompleteAssetVersion;
 };
 
 export type DefinitionCapability = {
@@ -348,6 +349,86 @@ export type DefinitionCapability = {
 export type DefinitionInterface = {
     id: string;
     implemented: boolean;
+};
+
+export type CompleteAssetVersion = {
+    id: string;
+    asset_id: string;
+    namespace: string;
+    version: string;
+    content_sha256: string;
+    definition: AssetBusinessDefinition;
+    resources: Array<VersionResource>;
+    representations: Array<VersionRepresentation>;
+    created_by: string;
+    created_at: string;
+};
+
+export type AssetBusinessDefinition = {
+    schema_version: 1;
+    asset_id: string;
+    version: string;
+    name: string;
+    name_en?: string;
+    category: string;
+    manufacturer?: string;
+    model?: string;
+    description?: string;
+    source: string;
+    license: string;
+    specifications: {
+        [key: string]: unknown;
+    };
+    configuration_schema: {
+        [key: string]: unknown;
+    };
+    state_schema: {
+        [key: string]: unknown;
+    };
+    capabilities: Array<AssetCapabilityDescription>;
+};
+
+export type AssetCapabilityDescription = {
+    id: string;
+    version: string;
+    parameters: {
+        [key: string]: unknown;
+    };
+    result: {
+        [key: string]: unknown;
+    };
+    description?: string;
+};
+
+export type VersionResource = AssetResourceInput & {
+    file_name: string;
+    content_type: string;
+    representation_id: string | null;
+    verification: 'glb-validated' | 'json-parsed' | 'pdf-header' | 'usd-header' | 'opaque';
+};
+
+export type AssetResourceInput = {
+    key: string;
+    file_id: string;
+    format: 'glb' | 'usd' | 'urdf' | 'pdf' | 'json';
+    sha256: string;
+    size: number;
+};
+
+export type VersionRepresentation = {
+    key: string;
+    purpose: 'visual' | 'simulation' | 'documentation';
+    resource_keys: Array<string>;
+    components: Array<AssetComponent>;
+};
+
+export type AssetComponent = {
+    key: string;
+    resource_key: string;
+    local_origin: {
+        position: Array<number>;
+        quaternion: Array<number>;
+    };
 };
 
 export type RuntimeBinding = {
@@ -596,6 +677,64 @@ export type PublisherAdmissionRequest = {
     machine_id: string;
 };
 
+export type LabSourcePage = {
+    data: Array<LabSource>;
+};
+
+export type LabSource = {
+    id: string;
+    lab_id: string;
+    name: string;
+    connection_state: 'offline' | 'connected';
+    phase: 'initializing' | 'ready' | null;
+    authorization: 'unconfigured' | 'authorized' | 'expired' | 'revoked';
+    credential_expires_at: string | null;
+    source_run_id: string | null;
+    connection_id: string | null;
+    epoch: string;
+    last_seen_at: string | null;
+    created_at: string;
+};
+
+export type RegisterLabSource = {
+    name: string;
+};
+
+export type LabSourceConfiguration = {
+    format: 'lab-world-source-v1';
+    server_url: string;
+    lab_id: string;
+    source_id: string;
+    machine_id: string;
+    credential: string;
+    expires_at: string;
+};
+
+export type LabSourceConnection = {
+    connection_id: string;
+    epoch: string;
+    heartbeat_interval_ms: number;
+};
+
+export type ConnectLabSource = {
+    machine_id: string;
+    source_run_id: string;
+    phase: 'initializing' | 'ready';
+};
+
+export type LabSourceHeartbeat = {
+    machine_id: string;
+    connection_id: string;
+    epoch: string;
+    phase: 'initializing' | 'ready';
+};
+
+export type DisconnectLabSource = {
+    machine_id: string;
+    connection_id: string;
+    epoch: string;
+};
+
 export type LabRecordingPage = {
     data: Array<LabRecording>;
     next_cursor: string | null;
@@ -720,6 +859,38 @@ export type CreateAssetUpload = {
     license: string;
     version: string;
     file: UploadInput;
+};
+
+export type ImportAssetVersion = {
+    schema_version: 1;
+    asset_id: string;
+    version: string;
+    name: string;
+    name_en?: string;
+    category: string;
+    manufacturer?: string;
+    model?: string;
+    description?: string;
+    source: string;
+    license: string;
+    specifications: {
+        [key: string]: unknown;
+    };
+    configuration_schema: {
+        [key: string]: unknown;
+    };
+    state_schema: {
+        [key: string]: unknown;
+    };
+    capabilities: Array<AssetCapabilityDescription>;
+    resources: Array<AssetResourceInput>;
+    representations: Array<VersionRepresentation>;
+};
+
+export type AssetVersionPage = {
+    data: Array<CompleteAssetVersion>;
+    has_more: boolean;
+    next_cursor: string | null;
 };
 
 export type LabLayout = {
@@ -1947,6 +2118,270 @@ export type AdmitLabSessionPublisherResponses = {
 
 export type AdmitLabSessionPublisherResponse = AdmitLabSessionPublisherResponses[keyof AdmitLabSessionPublisherResponses];
 
+export type ListLabSourcesData = {
+    body?: never;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources';
+};
+
+export type ListLabSourcesErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListLabSourcesError = ListLabSourcesErrors[keyof ListLabSourcesErrors];
+
+export type ListLabSourcesResponses = {
+    200: LabSourcePage;
+};
+
+export type ListLabSourcesResponse = ListLabSourcesResponses[keyof ListLabSourcesResponses];
+
+export type RegisterLabSourceData = {
+    body: RegisterLabSource;
+    path: {
+        lab_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources';
+};
+
+export type RegisterLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RegisterLabSourceError = RegisterLabSourceErrors[keyof RegisterLabSourceErrors];
+
+export type RegisterLabSourceResponses = {
+    201: LabSource;
+};
+
+export type RegisterLabSourceResponse = RegisterLabSourceResponses[keyof RegisterLabSourceResponses];
+
+export type GetLabSourceData = {
+    body?: never;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}';
+};
+
+export type GetLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetLabSourceError = GetLabSourceErrors[keyof GetLabSourceErrors];
+
+export type GetLabSourceResponses = {
+    200: LabSource;
+};
+
+export type GetLabSourceResponse = GetLabSourceResponses[keyof GetLabSourceResponses];
+
+export type CreateLabSourceConfigurationData = {
+    body: {
+        [key: string]: never;
+    };
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/configuration';
+};
+
+export type CreateLabSourceConfigurationErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CreateLabSourceConfigurationError = CreateLabSourceConfigurationErrors[keyof CreateLabSourceConfigurationErrors];
+
+export type CreateLabSourceConfigurationResponses = {
+    201: LabSourceConfiguration;
+};
+
+export type CreateLabSourceConfigurationResponse = CreateLabSourceConfigurationResponses[keyof CreateLabSourceConfigurationResponses];
+
+export type RevokeLabSourceData = {
+    body: {
+        [key: string]: never;
+    };
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/revoke';
+};
+
+export type RevokeLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type RevokeLabSourceError = RevokeLabSourceErrors[keyof RevokeLabSourceErrors];
+
+export type RevokeLabSourceResponses = {
+    /**
+     * Source access revoked.
+     */
+    204: void;
+};
+
+export type RevokeLabSourceResponse = RevokeLabSourceResponses[keyof RevokeLabSourceResponses];
+
+export type ConnectLabSourceData = {
+    body: ConnectLabSource;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/connections';
+};
+
+export type ConnectLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ConnectLabSourceError = ConnectLabSourceErrors[keyof ConnectLabSourceErrors];
+
+export type ConnectLabSourceResponses = {
+    201: LabSourceConnection;
+};
+
+export type ConnectLabSourceResponse = ConnectLabSourceResponses[keyof ConnectLabSourceResponses];
+
+export type HeartbeatLabSourceData = {
+    body: LabSourceHeartbeat;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/heartbeat';
+};
+
+export type HeartbeatLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type HeartbeatLabSourceError = HeartbeatLabSourceErrors[keyof HeartbeatLabSourceErrors];
+
+export type HeartbeatLabSourceResponses = {
+    200: LabSource;
+};
+
+export type HeartbeatLabSourceResponse = HeartbeatLabSourceResponses[keyof HeartbeatLabSourceResponses];
+
+export type DisconnectLabSourceData = {
+    body: DisconnectLabSource;
+    path: {
+        lab_id: string;
+        source_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/labs/{lab_id}/sources/{source_id}/disconnect';
+};
+
+export type DisconnectLabSourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    /**
+     * Request budget exceeded; retry after the specified seconds
+     */
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type DisconnectLabSourceError = DisconnectLabSourceErrors[keyof DisconnectLabSourceErrors];
+
+export type DisconnectLabSourceResponses = {
+    /**
+     * Source connection released.
+     */
+    204: void;
+};
+
+export type DisconnectLabSourceResponse = DisconnectLabSourceResponses[keyof DisconnectLabSourceResponses];
+
 export type ListLabRecordingsData = {
     body?: never;
     path: {
@@ -2466,6 +2901,209 @@ export type StartAssetUploadResponses = {
 };
 
 export type StartAssetUploadResponse = StartAssetUploadResponses[keyof StartAssetUploadResponses];
+
+export type ListCompleteAssetVersionsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        asset_id?: string;
+        version?: string;
+        cursor?: string;
+        limit?: string;
+    };
+    url: '/api/v1/lab/asset-versions';
+};
+
+export type ListCompleteAssetVersionsErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ListCompleteAssetVersionsError = ListCompleteAssetVersionsErrors[keyof ListCompleteAssetVersionsErrors];
+
+export type ListCompleteAssetVersionsResponses = {
+    200: AssetVersionPage;
+};
+
+export type ListCompleteAssetVersionsResponse = ListCompleteAssetVersionsResponses[keyof ListCompleteAssetVersionsResponses];
+
+export type ImportCompleteAssetVersionData = {
+    body: ImportAssetVersion;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/asset-versions';
+};
+
+export type ImportCompleteAssetVersionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type ImportCompleteAssetVersionError = ImportCompleteAssetVersionErrors[keyof ImportCompleteAssetVersionErrors];
+
+export type ImportCompleteAssetVersionResponses = {
+    201: CompleteAssetVersion;
+};
+
+export type ImportCompleteAssetVersionResponse = ImportCompleteAssetVersionResponses[keyof ImportCompleteAssetVersionResponses];
+
+export type GetCompleteAssetVersionData = {
+    body?: never;
+    path: {
+        version_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-versions/{version_id}';
+};
+
+export type GetCompleteAssetVersionErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type GetCompleteAssetVersionError = GetCompleteAssetVersionErrors[keyof GetCompleteAssetVersionErrors];
+
+export type GetCompleteAssetVersionResponses = {
+    200: CompleteAssetVersion;
+};
+
+export type GetCompleteAssetVersionResponse = GetCompleteAssetVersionResponses[keyof GetCompleteAssetVersionResponses];
+
+export type DownloadAssetVersionResourceData = {
+    body?: never;
+    path: {
+        version_id: string;
+        resource_key: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-versions/{version_id}/resources/{resource_key}/download';
+};
+
+export type DownloadAssetVersionResourceErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type DownloadAssetVersionResourceError = DownloadAssetVersionResourceErrors[keyof DownloadAssetVersionResourceErrors];
+
+export type DownloadAssetVersionResourceResponses = {
+    200: DownloadCapability;
+};
+
+export type DownloadAssetVersionResourceResponse = DownloadAssetVersionResourceResponses[keyof DownloadAssetVersionResourceResponses];
+
+export type StartAssetResourceUploadData = {
+    body: UploadInput;
+    path?: never;
+    query?: never;
+    url: '/api/v1/lab/asset-resource-uploads';
+};
+
+export type StartAssetResourceUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type StartAssetResourceUploadError = StartAssetResourceUploadErrors[keyof StartAssetResourceUploadErrors];
+
+export type StartAssetResourceUploadResponses = {
+    201: UploadCapability;
+};
+
+export type StartAssetResourceUploadResponse = StartAssetResourceUploadResponses[keyof StartAssetResourceUploadResponses];
+
+export type CompleteAssetResourceUploadData = {
+    body?: never;
+    path: {
+        upload_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-resource-uploads/{upload_id}/complete';
+};
+
+export type CompleteAssetResourceUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CompleteAssetResourceUploadError = CompleteAssetResourceUploadErrors[keyof CompleteAssetResourceUploadErrors];
+
+export type CompleteAssetResourceUploadResponses = {
+    200: FileInfo;
+};
+
+export type CompleteAssetResourceUploadResponse = CompleteAssetResourceUploadResponses[keyof CompleteAssetResourceUploadResponses];
+
+export type CancelAssetResourceUploadData = {
+    body?: never;
+    path: {
+        upload_id: string;
+    };
+    query?: never;
+    url: '/api/v1/lab/asset-resource-uploads/{upload_id}';
+};
+
+export type CancelAssetResourceUploadErrors = {
+    400: ApiErrorResponse;
+    401: ApiErrorResponse;
+    403: ApiErrorResponse;
+    404: ApiErrorResponse;
+    409: ApiErrorResponse;
+    413: ApiErrorResponse;
+    422: ApiErrorResponse;
+    429: ApiErrorResponse;
+    503: ApiErrorResponse;
+};
+
+export type CancelAssetResourceUploadError = CancelAssetResourceUploadErrors[keyof CancelAssetResourceUploadErrors];
+
+export type CancelAssetResourceUploadResponses = {
+    204: void;
+};
+
+export type CancelAssetResourceUploadResponse = CancelAssetResourceUploadResponses[keyof CancelAssetResourceUploadResponses];
 
 export type SaveLabLayoutData = {
     body: SaveLabLayout;

@@ -41,6 +41,18 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
   try {
     const world = await prepare(page, browser);
     context = world.secondContext;
+    try {
+      await expect
+        .poll(() => world.modelAcquisitions.map((counts) => ({ ...counts })), {
+          timeout: 5000,
+        })
+        .toEqual([
+          { authorizations: 1, reads: 1 },
+          { authorizations: 1, reads: 1 },
+        ]);
+    } finally {
+      receipt('model-acquisitions', world.modelAcquisitions);
+    }
     const wireA = wireObserver(page),
       wireB = wireObserver(world.second);
     const denied = await rawAdmission(

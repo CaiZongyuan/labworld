@@ -31,9 +31,11 @@ import type {
   SceneNode,
   Placement,
   MotionBuffer,
+  ApiClient,
 } from '@labos-threejs/sdk';
 import type { ModelAsset } from './catalog';
 import { useLoadedModel, disposeModel } from './model-loader';
+import { modelResourceKey } from './model-bytes';
 import {
   builtinKinds,
   createBuiltinModel,
@@ -184,11 +186,40 @@ function Builtin({
   );
 }
 const ignoreInfo = () => {};
-function appearanceKey(node: SceneNode, entity: LabEntity) {
-  return (
+type Appearance = {
+  key: string;
+  authority: object | null;
+  apiClient: ApiClient | null;
+  renderer: WebGLRenderer | null;
+};
+function appearanceKey(node: SceneNode, entity: LabEntity, asset?: ModelAsset) {
+  const key =
     node.representation_id ??
-    `${entity.definition_id}@${entity.definition_version}`
+    `${entity.definition_id}@${entity.definition_version}`;
+  return asset?.source === 'remote'
+    ? `${key}:${modelResourceKey(asset.asset)}`
+    : key;
+}
+function sameAppearance(first: Appearance | undefined, second: Appearance) {
+  return (
+    first?.key === second.key &&
+    first.authority === second.authority &&
+    first.apiClient === second.apiClient &&
+    first.renderer === second.renderer
   );
+}
+function nodeAppearance(
+  node: SceneNode,
+  entity: LabEntity,
+  asset: ModelAsset | undefined,
+  renderer: WebGLRenderer | null,
+): Appearance {
+  return {
+    key: appearanceKey(node, entity, asset),
+    authority: asset?.source === 'remote' ? asset.authority : null,
+    apiClient: asset?.source === 'remote' ? asset.apiClient : null,
+    renderer,
+  };
 }
 function Imported({
   asset,
@@ -202,8 +233,8 @@ function Imported({
   nodeId: string;
   renderer: WebGLRenderer | null;
   onReady: () => void;
-  onError: (id: string, appearance: string, error: boolean) => void;
-  appearance: string;
+  onError: (id: string, appearance: Appearance, error: boolean) => void;
+  appearance: Appearance;
 }) {
   const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
   useEffect(() => {
@@ -254,8 +285,8 @@ const NodeModel = memo(function NodeModel({
   renderer: WebGLRenderer | null;
   selected: boolean;
   onSelect: (id: string, additive: boolean, nodeId?: string) => void;
-  onReady: (id: string, appearance: string) => void;
-  onError: (id: string, appearance: string, error: boolean) => void;
+  onReady: (id: string, appearance: Appearance) => void;
+  onError: (id: string, appearance: Appearance, error: boolean) => void;
   active: boolean;
   onTarget: (id: string, object: Group | null) => void;
   onLocate: (nodeId: string) => void;
@@ -272,7 +303,13 @@ const NodeModel = memo(function NodeModel({
       node.placement,
     );
   }, [motionScene, node.id, entity.id, node.placement]);
-  const appearance = appearanceKey(node, entity);
+  const key = appearanceKey(node, entity, asset);
+  const authority = asset?.source === 'remote' ? asset.authority : null;
+  const apiClient = asset?.source === 'remote' ? asset.apiClient : null;
+  const appearance = useMemo(
+    () => ({ key, authority, apiClient, renderer }),
+    [key, authority, apiClient, renderer],
+  );
   useEffect(() => {
     if (!active || !outer.current) return;
     onTarget(node.id, outer.current);
@@ -393,8 +430,8 @@ function Scene({
   top: boolean;
   reducedMotion: boolean;
   contentReady: boolean;
-  onError: (id: string, appearance: string, error: boolean) => void;
-  onReady: (id: string, appearance: string) => void;
+  onError: (id: string, appearance: Appearance, error: boolean) => void;
+  onReady: (id: string, appearance: Appearance) => void;
   activeNodeId?: string;
   transformMode: 'translate' | 'rotate' | 'scale' | null;
   onPlacement: (id: string, placement: Placement) => void;
@@ -483,7 +520,7 @@ function Scene({
     [assets],
   );
   const ready = useCallback(
-    (id: string, appearance: string) => {
+    (id: string, appearance: Appearance) => {
       setLoaded((value) => value + 1);
       onReady(id, appearance);
     },
@@ -698,13 +735,13 @@ export default function WorldViewport(props: {
     return () => preference.removeEventListener('change', changed);
   }, []);
   const [renderer, setRenderer] = useState<WebGLRenderer | null>(null);
-  const [failed, setFailed] = useState<Record<string, string>>({});
-  const [readyIds, setReadyIds] = useState<Record<string, string>>({});
+  const [failed, setFailed] = useState<Record<string, Appearance>>({});
+  const [readyIds, setReadyIds] = useState<Record<string, Appearance>>({});
   const pointer = useRef({ x: 0, y: 0 });
   const onReady = useCallback(
-    (id: string, appearance: string) =>
+    (id: string, appearance: Appearance) =>
       setReadyIds((previous) =>
-        previous[id] === appearance
+        sameAppearance(previous[id], appearance)
           ? previous
           : { ...previous, [id]: appearance },
       ),
@@ -715,13 +752,13 @@ export default function WorldViewport(props: {
     setRenderer(gl);
   }, []);
   const onError = useCallback(
-    (id: string, appearance: string, error: boolean) =>
+    (id: string, appearance: Appearance, error: boolean) =>
       setFailed((previous) => {
         if (error)
-          return previous[id] === appearance
+          return sameAppearance(previous[id], appearance)
             ? previous
             : { ...previous, [id]: appearance };
-        if (!previous[id]) return previous;
+        if (!sameAppearance(previous[id], appearance)) return previous;
         const next = { ...previous };
         delete next[id];
         return next;
@@ -735,18 +772,38 @@ export default function WorldViewport(props: {
   const entityById = new Map(
     props.world.entities.map((entity) => [entity.id, entity]),
   );
+  const assetByRepresentation = new Map(
+    props.assets.flatMap((asset) =>
+      asset.source === 'remote'
+        ? [[asset.asset.representation.id, asset] as const]
+        : [],
+    ),
+  );
+  const currentAppearance = (node: SceneNode, entity: LabEntity) =>
+    nodeAppearance(
+      node,
+      entity,
+      props.frozenAssets?.get(node.id) ??
+        (node.representation_id
+          ? assetByRepresentation.get(node.representation_id)
+          : undefined),
+      renderer,
+    );
   const pending = props.world.nodes.some((node) => {
     const entity = entityById.get(node.entity_id);
     if (!entity || entity.archived_at) return false;
-    const appearance = appearanceKey(node, entity);
-    return readyIds[node.id] !== appearance && failed[node.id] !== appearance;
+    const appearance = currentAppearance(node, entity);
+    return (
+      !sameAppearance(readyIds[node.id], appearance) &&
+      !sameAppearance(failed[node.id], appearance)
+    );
   });
   const hasFailure = props.world.nodes.some((node) => {
     const entity = entityById.get(node.entity_id);
     return (
       entity &&
       !entity.archived_at &&
-      failed[node.id] === appearanceKey(node, entity)
+      sameAppearance(failed[node.id], currentAppearance(node, entity))
     );
   });
   const hasVisibleCentrifuge = props.world.nodes.some((node) => {

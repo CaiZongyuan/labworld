@@ -1,0 +1,18 @@
+{
+  "source": "Independent frozen observer f6170c9, fixture w2KNeD: renderer-local completed frames and partial/full GLB donor snapshots.",
+  "old": { "completedRenderFrame": 80, "geometries": 17, "textures": 4 },
+  "newEmpty": { "completedRenderFrame": 4, "geometries": 1, "textures": 0 },
+  "newEmptyNext": { "completedRenderFrame": 5, "geometries": 1, "textures": 0 },
+  "partial": {
+    "completedRenderFrame": 22,
+    "geometries": 23,
+    "textures": 4,
+    "loadedModels": 0
+  },
+  "complete": {
+    "completedRenderFrame": 30,
+    "geometries": 31,
+    "textures": 4,
+    "loadedModels": 3
+  }
+}
