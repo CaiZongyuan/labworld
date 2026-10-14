@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import type { CurrentSession } from '../../packages/contracts/src/generated/types.gen.ts';
-import { captureTlsTicketFailure } from './tls-ticket-failure';
+import { captureTlsTicketFailure } from './tls-ticket-failure.ts';
 export class CoreHttp {
   cookie?: string;
   csrf?: string;
