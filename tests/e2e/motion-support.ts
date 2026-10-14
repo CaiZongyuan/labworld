@@ -212,6 +212,7 @@ export async function prepare(page: Page, browser: Browser) {
   await register(second);
   const modelAcquisitions: { authorizations: number; reads: number }[] = [];
   for (const viewer of [page, second]) {
+    await viewer.goto('about:blank');
     const counts = { authorizations: 0, reads: 0 };
     modelAcquisitions.push(counts);
     viewer.on('request', (request) => {
