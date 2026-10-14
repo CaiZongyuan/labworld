@@ -88,6 +88,11 @@ type RecordingRow = {
   charged_bytes: number;
 };
 type Boundary = { sequence: string; time: string; sha256: string };
+type FaultObservation = {
+  phase: string;
+  errorCode: string | null;
+  eventTypes: string[];
+};
 type Owner = {
   row: RecordingRow;
   session: Session;
@@ -105,6 +110,21 @@ type Owner = {
   connected: boolean;
   resolving?: Promise<void>;
   fault?: string;
+  diagnosticFirstFault?: FaultObservation & {
+    atMonotonicMs: number;
+    startedAtEpochMs: number | null;
+    code: string;
+    sourcePackets: string;
+    sourceFrames: string;
+    sourceEvents: string;
+    serverEvents: string;
+    lastSimTimeNs: string;
+    sourceEnded: boolean;
+    pendingBatches: number;
+    pendingIO: number;
+    durabilityTimeoutMs: number;
+  };
+  diagnosticCommitFailure?: FaultObservation;
   inflight?: {
     digest: string;
     sequence: bigint;
@@ -130,6 +150,57 @@ const fail = (
   message = code,
   status: 400 | 403 | 404 | 409 | 413 | 429 | 503 = 409,
 ) => new PublicFailure(status, 'lab.' + code, message);
+// Diagnostic branch only: no arbitrary messages, identities or payloads escape.
+const diagnosticFaultCode = (value: unknown) => {
+  if (typeof value !== 'string') return 'unknown';
+  const bare = value.startsWith('lab.') ? value.slice(4) : value;
+  return [
+    'recording_ack_timeout',
+    'recording_prepare_timeout',
+    'recording_prepare_failed',
+    'recording_read_timeout',
+    'recording_event_prepare_timeout',
+    'recording_event_prepare_failed',
+    'recording_event_capacity',
+    'recording_event_commit_timeout',
+    'recording_event_commit_failed',
+    'recording_session_event_commit_failed',
+    'recording_event_abort_timeout',
+    'recording_abort_failed',
+    'recording_gate_timeout',
+    'recording_drain_timeout',
+    'recording_seal_timeout',
+    'recording_seal_failed',
+    'recording_event_bytes_missing',
+    'recording_committed_payload_missing',
+    'recording_witness_changed',
+    'recording_sequence_gap',
+    'recording_altered_duplicate',
+    'recording_time_rollback',
+    'recording_source_end_rejected',
+    'recording_lifecycle_event_rejected',
+    'recording_initial_state_rejected',
+    'recording_source_rate',
+    'recording_closed',
+    'recording_source_ended',
+    'recording_recovery_digest',
+    'recording_recovery_gap',
+    'live_boundary_digest_mismatch',
+    'source_disconnected',
+    'source_crashed',
+    'source_failed',
+    'ack_timeout',
+    'sync_failed',
+    'recorder_capacity',
+    'invalid_packet',
+    'altered_duplicate',
+    'server_shutdown',
+    'server_restarted',
+    'write_failed',
+  ].includes(bare)
+    ? value
+    : 'unknown';
+};
 const recordingColumns = sql`id::text,session_id::text,lab_id::text,created_by::text,snapshot_hash,manifest_file_id::text,manifest_sha256,capture_entity_ids,status,reason,started_at,ended_at,event_sequence::text,checkpoint,charged_bytes::float8`;
 const publicRow = (
   row: RecordingRow,
@@ -219,6 +290,65 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   private fence: (id: string, reason: string) => void = () => {};
   private control: (id: string) => MotionSessionControl | undefined = () =>
     undefined;
+  private faultObservation(
+    phase: string,
+    error: unknown,
+    events: RecordingBusinessEvent[] = [],
+  ): FaultObservation {
+    return {
+      phase,
+      errorCode:
+        error instanceof PublicFailure ? diagnosticFaultCode(error.code) : null,
+      eventTypes: [
+        ...new Set(
+          events
+            .map((event) => event.event_type)
+            .filter((type) =>
+              [
+                'session.changed',
+                'program.changed',
+                'command.changed',
+                'task.changed',
+                'observation.report',
+              ].includes(type),
+            ),
+        ),
+      ].slice(0, 5),
+    };
+  }
+  private rememberFirstFault(
+    owner: Owner,
+    reason: string,
+    observation: FaultObservation = {
+      phase: 'unknown',
+      errorCode: null,
+      eventTypes: [],
+    },
+  ) {
+    if (
+      process.env.RECORDING_FIRST_FAULT_DIAGNOSTIC !== 'true' ||
+      owner.fault ||
+      owner.diagnosticFirstFault
+    )
+      return;
+    owner.diagnosticFirstFault = {
+      ...observation,
+      atMonotonicMs: performance.now(),
+      startedAtEpochMs: Number.isFinite(Date.parse(owner.row.started_at))
+        ? Date.parse(owner.row.started_at)
+        : null,
+      code: diagnosticFaultCode(reason),
+      sourcePackets: owner.prefix.source_packet_sequence,
+      sourceFrames: owner.prefix.last_source_sequence,
+      sourceEvents: owner.prefix.last_source_event_sequence,
+      serverEvents: String(owner.eventSequence),
+      lastSimTimeNs: owner.prefix.last_sim_time_ns,
+      sourceEnded: owner.prefix.source_ended,
+      pendingBatches: owner.pending.size,
+      pendingIO: owner.io.size,
+      durabilityTimeoutMs: this.limits.durability_timeout_ms,
+    };
+  }
   constructor(
     world: WorldService,
     files: FileService,
@@ -293,11 +423,30 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     actual: Promise<T>,
     code: string,
     millis = this.limits.durability_timeout_ms,
+    events: RecordingBusinessEvent[] = [],
   ) {
     try {
       return await this.bounded(actual, millis, code);
     } catch (error) {
-      this.faultSession(owner.session.id, code);
+      const phase =
+        code === 'recording_ack_timeout'
+          ? owner.prefix.source_prefix_sha256 === null
+            ? 'source-header'
+            : 'source-packet'
+          : ((
+              {
+                recording_prepare_timeout: 'prepare',
+                recording_event_prepare_timeout: 'business-prepare',
+                recording_event_commit_timeout: 'business-commit',
+                recording_event_abort_timeout: 'abort',
+                recording_seal_timeout: 'seal',
+              } as Record<string, string>
+            )[code] ?? 'unknown');
+      this.faultSession(
+        owner.session.id,
+        code,
+        this.faultObservation(phase, error, events),
+      );
       throw error;
     }
   }
@@ -306,8 +455,9 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     work: () => Promise<T>,
     code: string,
     millis?: number,
+    events?: RecordingBusinessEvent[],
   ) {
-    return this.waitIO(owner, this.actualIO(owner, work), code, millis);
+    return this.waitIO(owner, this.actualIO(owner, work), code, millis, events);
   }
   private preparationMillis() {
     return Math.max(
@@ -1152,6 +1302,11 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         ready: true,
       };
     } catch (error) {
+      this.rememberFirstFault(
+        owner,
+        'recording_prepare_failed',
+        this.faultObservation('prepare', error),
+      );
       owner.fault = 'recording_prepare_failed';
       await this.world.context.db.transaction(this.operation(), (tx) =>
         tx.execute(
@@ -1192,6 +1347,11 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     const owner = this.owner(session.id);
     if (owner) {
       owner.session = session;
+      this.rememberFirstFault(owner, reason, {
+        phase: 'prepare',
+        errorCode: null,
+        eventTypes: [],
+      });
       owner.fault = reason;
       owner.row.status = 'incomplete';
       owner.row.reason = reason;
@@ -1374,12 +1534,22 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       owner.fault
     )
       return;
+    this.rememberFirstFault(owner, reason, {
+      phase: 'source-fault',
+      errorCode: null,
+      eventTypes: [],
+    });
     owner.fault = reason;
     this.fence(owner.session.id, reason);
   }
-  faultSession(sessionId: string, reason: string) {
+  faultSession(
+    sessionId: string,
+    reason: string,
+    observation?: FaultObservation,
+  ) {
     const owner = this.owner(sessionId);
     if (!owner || owner.fault) return;
+    this.rememberFirstFault(owner, reason, observation);
     owner.fault = reason;
     this.fence(sessionId, reason);
   }
@@ -1429,6 +1599,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       this.faultSession(
         owner.session.id,
         error instanceof Error ? error.message : 'write_failed',
+        this.faultObservation('source-packet', error),
       );
       throw error;
     });
@@ -1731,6 +1902,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             () => owner.journal.sealAll(),
             'recording_event_prepare_timeout',
             remaining(),
+            events,
           );
         const batch: PreparedEventBatch = {
           recording_id: owner.row.id,
@@ -1752,6 +1924,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             owner.journal.append('business.prepare', { ...batch }, this.now()),
           'recording_event_prepare_timeout',
           remaining(),
+          events,
         );
         if (
           owner.fault &&
@@ -1765,7 +1938,11 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         );
         result.push(batch);
       } catch (error) {
-        this.faultSession(owner.session.id, 'recording_event_prepare_failed');
+        this.faultSession(
+          owner.session.id,
+          'recording_event_prepare_failed',
+          this.faultObservation('business-prepare', error, events),
+        );
         throw error;
       }
     }
@@ -1824,6 +2001,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       batch.marking,
       'recording_event_commit_timeout',
       Math.max(1, deadline - performance.now()),
+      batch.events,
     );
   }
   async commit(batches: PreparedEventBatch[]) {
@@ -1838,6 +2016,14 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         await this.mark(owner, batch, false, deadline);
         owner.eventSequence =
           BigInt(batch.first_event_sequence) + BigInt(batch.event_count) - 1n;
+      } catch (error) {
+        if (process.env.RECORDING_FIRST_FAULT_DIAGNOSTIC === 'true')
+          owner.diagnosticCommitFailure = this.faultObservation(
+            'business-commit',
+            error,
+            batch.events,
+          );
+        throw error;
       } finally {
         batch.finalizerFinished = true;
       }
@@ -1856,10 +2042,16 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
               this.now(),
             ),
           'recording_event_abort_timeout',
+          undefined,
+          b.events,
         );
         owner.pending.delete(b.batch_id);
       } catch (error) {
-        this.faultSession(owner.session.id, 'recording_abort_failed');
+        this.faultSession(
+          owner.session.id,
+          'recording_abort_failed',
+          this.faultObservation('abort', error, b.events),
+        );
         throw error;
       }
     }
@@ -1912,7 +2104,14 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         owner.row.status === 'open' &&
         (!recordingIds || recordingIds.includes(owner.row.id))
       )
-        this.faultSession(owner.session.id, reason);
+        this.faultSession(
+          owner.session.id,
+          reason,
+          reason === 'recording_event_commit_failed' ||
+            reason === 'recording_session_event_commit_failed'
+            ? owner.diagnosticCommitFailure
+            : undefined,
+        );
   }
   async finish(session: Session, reason: string, complete: boolean) {
     const owner = this.owner(session.id);
@@ -1939,7 +2138,11 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
         await drain(this.resolveCommitted(owner));
         await drain(owner.journal.barrier());
       } catch (error) {
-        this.faultSession(session.id, 'recording_drain_timeout');
+        this.faultSession(
+          session.id,
+          'recording_drain_timeout',
+          this.faultObservation('drain', error),
+        );
         throw error;
       }
       const integral =
@@ -2016,7 +2219,11 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       for (const [ticket, entry] of this.tickets)
         if (entry.scope.session.id === session.id) this.tickets.delete(ticket);
     }).catch(async (error) => {
-      this.faultSession(session.id, 'recording_seal_failed');
+      this.faultSession(
+        session.id,
+        'recording_seal_failed',
+        this.faultObservation('seal', error),
+      );
       await this.robots?.end(session, false);
       owner.row.status = 'incomplete';
       owner.row.reason = owner.fault ?? 'recording_seal_failed';
@@ -2195,17 +2402,28 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
           );
           batch.marked = true;
           owner.pending.set(batch.batch_id, batch);
-        } else if (receipts.rows.length)
+        } else if (receipts.rows.length) {
+          this.rememberFirstFault(owner, 'recording_event_bytes_missing', {
+            phase: 'recovery',
+            errorCode: null,
+            eventTypes: [],
+          });
           owner.fault = 'recording_event_bytes_missing';
-        else
+        } else
           await owner.journal.append(
             'business.abort',
             { batch_id: batch.batch_id },
             this.now(),
           );
       }
-      if (owner.journal.corruptReason)
+      if (owner.journal.corruptReason) {
+        this.rememberFirstFault(owner, owner.journal.corruptReason, {
+          phase: 'recovery',
+          errorCode: null,
+          eventTypes: [],
+        });
         owner.fault = owner.journal.corruptReason;
+      }
       if (
         (row.status === 'complete' || row.status === 'incomplete') &&
         row.checkpoint.seal

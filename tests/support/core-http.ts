@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import type { CurrentSession } from '../../packages/contracts/src/generated/types.gen.ts';
+import { captureTlsTicketFailure } from './tls-ticket-failure';
 export class CoreHttp {
   cookie?: string;
   csrf?: string;
@@ -38,6 +39,14 @@ export class CoreHttp {
     extra: Record<string, string> = {},
   ): Promise<T> {
     const response = await this.response(method, path, body, extra);
+    if (
+      process.env.TLS_MANAGED_SOURCE_DIAGNOSTIC === 'true' &&
+      method === 'POST' &&
+      status === 201 &&
+      response.status !== status &&
+      path.endsWith('/viewer-tickets')
+    )
+      await captureTlsTicketFailure(this, path, response);
     assert.equal(response.status, status, `${method} ${path.split('?')[0]}`);
     return status === 204 ? (undefined as T) : ((await response.json()) as T);
   }

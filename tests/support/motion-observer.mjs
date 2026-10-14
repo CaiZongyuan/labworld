@@ -35,6 +35,31 @@ if (
   const scope = new AsyncLocalStorage();
   const sockets = new Map();
   const gateways = new Set();
+  const managedSourceSnapshot =
+    process.env.TLS_MANAGED_SOURCE_DIAGNOSTIC === 'true'
+      ? (
+          await import('./tls-managed-source-observer.mjs')
+        ).observeTlsManagedSources()
+      : undefined;
+  // Retain only the first 16 actual owners through final flush, including releases.
+  const recordingOwners = [];
+  let recordingOwnersObserved = 0;
+  let recordingOwnersOmitted = 0;
+  if (process.env.RECORDING_FIRST_FAULT_DIAGNOSTIC === 'true') {
+    const { RecordingService } = await import(
+      pathToFileURL(
+        join(root, `packages/server/src/lab/recordings/service.${extension}`),
+      )
+    );
+    const createOwner = RecordingService.prototype.createOwner;
+    RecordingService.prototype.createOwner = function (...args) {
+      const owner = createOwner.apply(this, args);
+      if (recordingOwnersObserved < 16) {
+        recordingOwners.push({ ownerNumber: ++recordingOwnersObserved, owner });
+      } else recordingOwnersOmitted++;
+      return owner;
+    };
+  }
   const stats = {
     pid: process.pid,
     boundary:
@@ -204,6 +229,16 @@ if (
       ...stats,
       liveSockets: sockets.size,
       liveGateways: gateways.size,
+      managedSources: managedSourceSnapshot?.(),
+      recordingOwnersObserved,
+      recordingOwnersOmitted,
+      recordingFirstFaults: recordingOwners
+        .flatMap(({ ownerNumber, owner }) =>
+          owner.diagnosticFirstFault
+            ? [{ ownerNumber, ...owner.diagnosticFirstFault }]
+            : [],
+        )
+        .slice(0, 16),
       rssBytes: process.memoryUsage().rss,
       at: new Date().toISOString(),
     };

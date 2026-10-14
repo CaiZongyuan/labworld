@@ -30,6 +30,22 @@ type Ledger = {
   evidence_file?: string;
 };
 const execute = promisify(execFile);
+// Isolated diagnostic only: preserve source ownership and original callbacks.
+function observeManagedChild(
+  sessionId: string,
+  event: 'spawn' | 'stop',
+  child?: ChildProcess,
+) {
+  if (process.env.TLS_MANAGED_SOURCE_DIAGNOSTIC !== 'true') return;
+  try {
+    const observe = (globalThis as { [key: symbol]: unknown })[
+      Symbol.for('labos.tls.managed-source-observer')
+    ];
+    if (typeof observe === 'function') observe(sessionId, event, child);
+  } catch {
+    // A diagnostic callback cannot change source behavior.
+  }
+}
 async function identity(pid: number): Promise<Identity | undefined> {
   if (!Number.isSafeInteger(pid) || pid < 1)
     throw new Error('Invalid process identity');
@@ -301,6 +317,7 @@ export class SyntheticSources {
       finishAdmission = resolve;
     });
     const stop = async () => {
+      if (!newton) observeManagedChild(input.session.id, 'stop');
       cancelled = true;
       this.prepared.delete(input.session.id);
       if (stopping) return stopping;
@@ -405,6 +422,7 @@ export class SyntheticSources {
           },
         },
       );
+      if (!newton) observeManagedChild(input.session.id, 'spawn', child);
       finishPreparation();
       child.once('close', () => {
         closed = true;
