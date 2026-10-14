@@ -6,6 +6,11 @@ import { randomUUID } from 'node:crypto';
 import { CoreHttp } from '../support/core-http';
 import { publishAsset } from '../support/lab-assets-http';
 import {
+  captureFrontierFailure,
+  gateProjection,
+  observeFrontierTraffic,
+} from './browser-frontier-facts';
+import {
   freshRenderMetrics,
   markRenderMetrics,
   waitForWorldVersion,
@@ -99,16 +104,33 @@ test('render metrics wait for the requested World while its real stream update i
     .fill('contract-isolated-password');
   await page.getByRole('button', { name: '登录', exact: true }).click();
   await expect(page).toHaveURL(/\/lab$/);
-  await page.goto(`/lab?lab=${lab.id}`);
-  const initial = await api.json<{ version: string }>('GET', base + '/world');
-  await waitForWorldVersion(page, initial.version);
-  await expect(
-    page.locator('.world-page').getByLabel('三维视口', { exact: true }),
-  ).toBeVisible();
-  await expect(page.locator('.world-page')).toHaveAttribute(
-    'aria-busy',
-    'false',
-  );
+  const frontier = observeFrontierTraffic(page, base, entity.id);
+  let initial: { version: string };
+  try {
+    await page.goto(`/lab?lab=${lab.id}`);
+    initial = await api.json<{ version: string }>('GET', base + '/world');
+    await waitForWorldVersion(page, initial.version);
+    await expect(
+      page.locator('.world-page').getByLabel('三维视口', { exact: true }),
+    ).toBeVisible();
+    try {
+      await expect(page.locator('.world-page')).toHaveAttribute(
+        'aria-busy',
+        'false',
+      );
+    } catch (error) {
+      const observed = frontier.stop();
+      await captureFrontierFailure(
+        'initial-render-ready',
+        page,
+        observed,
+        gateProjection(initial, entity.id, 'world'),
+      );
+      throw error;
+    }
+  } finally {
+    frontier.stop();
+  }
   await page.getByRole('button', { name: '性能', exact: true }).click();
   await expect(page.locator('.lab-perf')).toBeVisible();
   const mark = await markRenderMetrics(page);

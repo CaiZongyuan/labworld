@@ -8,6 +8,11 @@ import type {
 import { assertAdvanced } from './motion-oracle';
 import { verifyMachineAuthority } from './simulation-session-machine';
 import {
+  closedCategory,
+  originalMaskedCaptureDimensions,
+  originalMaskedCaptureFacts,
+} from './browser-frontier-facts';
+import {
   assertSessionGeometry,
   assertSessionFrame,
 } from './simulation-session-oracle';
@@ -314,7 +319,11 @@ test('session lifecycle: real Python and two frozen GLB views follow authoritati
     await originalCanvas.dispose();
 
     phase = 'saved-placement-frozen-render';
-    const frozenImage = await maskedCanvas(f.second),
+    const originalCaptures: Buffer[] = [];
+    const retain = (bytes: Buffer) => {
+      originalCaptures.push(bytes);
+    };
+    const frozenImage = await maskedCanvas(f.second, retain),
       edited = await world(f.api, f.lab.id),
       editedNode = edited.nodes.find(
         (n) => n.id === f.installation.targets[0].node_id,
@@ -335,7 +344,7 @@ test('session lifecycle: real Python and two frozen GLB views follow authoritati
       paused,
       boundary,
     );
-    expect(await maskedCanvas(f.second)).toBe(frozenImage);
+    expect(await maskedCanvas(f.second, retain)).toBe(frozenImage);
     const pinnedAppearance = await appearancePixels(
       f.second,
       'session-active-pinned-green',
@@ -363,7 +372,43 @@ test('session lifecycle: real Python and two frozen GLB views follow authoritati
       paused,
       boundary,
     );
-    expect(await maskedCanvas(f.second)).toBe(frozenImage);
+    const afterAppearanceImage = await maskedCanvas(f.second, retain);
+    try {
+      expect(afterAppearanceImage).toBe(frozenImage);
+    } catch (error) {
+      const atFailureMs = performance.now();
+      try {
+        const postFailureOriginalCaptureDecode =
+          await originalMaskedCaptureFacts(f.second, originalCaptures);
+        receipt('session-frozen-appearance-failure', {
+          phase: 'saved-placement-frozen-render',
+          atFailureMs,
+          originalHttpStatus: attemptedAppearance.status,
+          appearanceRejected,
+          originalErrorCode: closedCategory(appearanceResult.error?.code, [
+            'lab.session_in_use',
+          ]),
+          originalPlacementEqualityPassed: true,
+          originalAppearanceEqualityPassed:
+            afterAppearanceImage === frozenImage,
+          pinnedAppearance,
+          originalCaptureOrder: [
+            'frozen',
+            'after-placement',
+            'after-appearance',
+          ],
+          originalCaptureDimensions:
+            originalMaskedCaptureDimensions(originalCaptures),
+          colorScope: 'whole-masked-original-images',
+          postFailureOriginalCaptureDecode,
+        });
+      } catch {
+        /* Keep the original immediate equality failure. */
+      }
+      throw error;
+    } finally {
+      originalCaptures.length = 0;
+    }
 
     phase = 'resume-new-anchor';
     const welcomeCounts = [

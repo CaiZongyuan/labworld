@@ -209,8 +209,16 @@ export async function recordingEventually<T>(
   diagnostic?: 'A' | 'B',
 ) {
   const deadline = performance.now() + timeout;
+  type Observation = {
+    poll: number;
+    elapsedMs: number;
+    metadata: ReturnType<typeof recordingCompletionMetadata>;
+  };
   let polls = 0,
-    last: unknown,
+    last: ReturnType<typeof recordingCompletionMetadata> | undefined,
+    first: Observation | undefined,
+    firstTerminal: Observation | undefined,
+    lastOriginalPollElapsedMs: number | null = null,
     outcome = 'read-or-predicate-error';
   try {
     do {
@@ -218,6 +226,19 @@ export async function recordingEventually<T>(
       if (diagnostic) {
         polls++;
         last = recordingCompletionMetadata(value);
+        const observation = {
+          poll: polls,
+          elapsedMs: performance.now() - (deadline - timeout),
+          metadata: last,
+        };
+        lastOriginalPollElapsedMs = observation.elapsedMs;
+        first ??= observation;
+        if (
+          ['complete', 'incomplete', 'deleting', 'deleted'].includes(
+            last.status ?? '',
+          )
+        )
+          firstTerminal ??= observation;
       }
       if (accepted(value)) {
         outcome = 'accepted';
@@ -236,6 +257,9 @@ export async function recordingEventually<T>(
           originalTimeoutMs: timeout,
           elapsedMs: performance.now() - (deadline - timeout),
           polls,
+          firstOriginalPoll: first ?? null,
+          firstOriginalTerminal: firstTerminal ?? null,
+          lastOriginalPollElapsedMs,
           last: last ?? null,
         });
       } catch {
@@ -244,7 +268,7 @@ export async function recordingEventually<T>(
   }
 }
 
-/** Last metadata from the original read only; identities and complete bodies stay private. */
+/** Closed metadata from original polls only; identities and complete bodies stay private. */
 export function recordingCompletionMetadata(value: unknown) {
   const body = value as RecordingMetadata & {
     gaps?: unknown[];
@@ -278,27 +302,107 @@ export function recordingCompletionMetadata(value: unknown) {
       'complete',
       'incomplete',
     ]),
-    reason: category(body?.reason, [
-      'stop_requested',
-      'reset_requested',
-      'stopped',
-      'source_ended',
-      'source_disconnected',
-      'source_failed',
-      'server_shutdown',
-      'server_restarted',
-      'recording_prepare_failed',
-      'recording_event_prepare_failed',
-      'recording_abort_failed',
-      'recording_drain_timeout',
-      'recording_seal_failed',
-      'live_boundary_digest_mismatch',
-      'recording_event_bytes_missing',
-      'integrity_unconfirmed',
-      'offline_archive_recovery',
-      'reset_source_drain_incomplete',
-      'reset_prepare_failed',
-    ]),
+    reason: category(
+      body?.reason === 'Recording operation deadline reached'
+        ? 'recording_operation_deadline'
+        : body?.reason,
+      [
+        'stop_requested',
+        'reset_requested',
+        'stopped',
+        'source_ended',
+        'source_disconnected',
+        'source_failed',
+        'server_shutdown',
+        'server_restarted',
+        'recording_prepare_failed',
+        'recording_event_prepare_failed',
+        'recording_abort_failed',
+        'recording_drain_timeout',
+        'recording_seal_failed',
+        'live_boundary_digest_mismatch',
+        'recording_event_bytes_missing',
+        'integrity_unconfirmed',
+        'offline_archive_recovery',
+        'reset_source_drain_incomplete',
+        'reset_prepare_failed',
+        'machine_auth_timeout',
+        'machine_expired',
+        'machine_revoked',
+        'publisher_disconnected',
+        'publisher_heartbeat_timeout',
+        'recording_ack_timeout',
+        'recording_altered_duplicate',
+        'recording_archive_unsealed',
+        'recording_baseline_capacity',
+        'recording_capacity',
+        'recording_closed',
+        'recording_committed_payload_missing',
+        'recording_corrupt_sealed_segment',
+        'recording_corrupt_tail',
+        'recording_dependency_changed',
+        'recording_dependency_not_adopted',
+        'recording_event_abort_timeout',
+        'recording_event_capacity',
+        'recording_event_commit_timeout',
+        'recording_event_conflict',
+        'recording_event_prepare_timeout',
+        'recording_event_window_capacity',
+        'recording_gate_timeout',
+        'recording_hook_timeout',
+        'recording_in_use',
+        'recording_ingress_capacity',
+        'recording_initial_state_rejected',
+        'recording_invalid_cursor',
+        'recording_invalid_owner',
+        'recording_invalid_record',
+        'recording_lifecycle_event_rejected',
+        'recording_manifest_capacity',
+        'recording_mutation_capacity',
+        'recording_not_found',
+        'recording_not_ready',
+        'recording_ordinal_gap',
+        'recording_operation_deadline',
+        'recording_owned_directory_changed',
+        'recording_owned_file_changed',
+        'recording_owner_changed',
+        'recording_prepare_timeout',
+        'recording_read_timeout',
+        'recording_recovery_capacity',
+        'recording_recovery_digest',
+        'recording_recovery_gap',
+        'recording_robot_event_rejected',
+        'recording_scope_mismatch',
+        'recording_seal_changed',
+        'recording_seal_timeout',
+        'recording_segment_capacity',
+        'recording_segment_changed',
+        'recording_segment_not_found',
+        'recording_sequence_gap',
+        'recording_short_write',
+        'recording_source_conflict',
+        'recording_source_end_rejected',
+        'recording_source_ended',
+        'recording_source_rate',
+        'recording_stage_capacity',
+        'recording_stage_changed',
+        'recording_stage_not_ready',
+        'recording_ticket_capacity',
+        'recording_time_rollback',
+        'recording_torn_tail',
+        'recording_unauthorized',
+        'recording_unavailable',
+        'recording_unknown_owned_file',
+        'recording_witness_changed',
+        'session_interrupted',
+        'source_ack_timeout',
+        'source_control_unavailable',
+        'source_exited',
+        'source_preparation_failed',
+        'source_progress_timeout',
+        'source_unavailable',
+      ],
+    ),
     sourceEnded:
       typeof body?.prefix?.source_ended === 'boolean'
         ? body.prefix.source_ended

@@ -565,14 +565,15 @@ export async function pauseBoundary(
   owned.push(reader);
   return reader.boundary(session);
 }
-export async function maskedCanvas(page: Page) {
-  return createHash('sha256')
-    .update(
-      await page
-        .locator('canvas')
-        .screenshot({ mask: [page.locator('.lab-perf')] }),
-    )
-    .digest('hex');
+export async function maskedCanvas(
+  page: Page,
+  retain?: (bytes: Buffer) => void,
+) {
+  const bytes = await page
+    .locator('canvas')
+    .screenshot({ mask: [page.locator('.lab-perf')] });
+  retain?.(bytes);
+  return createHash('sha256').update(bytes).digest('hex');
 }
 export async function appearancePixels(page: Page, label: string) {
   const buffer = await page.locator('canvas').screenshot();

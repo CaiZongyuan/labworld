@@ -7,6 +7,10 @@ import type {
   LabWorld,
 } from '../../packages/sdk/src/index';
 import { member } from './lab-foundation-support';
+import {
+  captureFrontierFailure,
+  observeFrontierTraffic,
+} from './browser-frontier-facts';
 
 const evidence =
   process.env.LAB_RECORDS_EVIDENCE ??
@@ -166,12 +170,27 @@ test('real Lab records retain failed pages, export the current page and open the
       (item) => item.name === 'Recorded centrifuge',
     )!;
     const path = `/api/v1/lab/labs/${lab}/entities/${entity.id}`;
-    await centrifuge
-      .getByRole('button', { name: '启动程序', exact: true })
-      .click();
-    await expect(
-      centrifuge.getByRole('button', { name: '开始离心', exact: true }),
-    ).toBeEnabled();
+    const frontier = observeFrontierTraffic(
+      page,
+      `/api/v1/lab/labs/${lab}`,
+      entity.id,
+    );
+    try {
+      await centrifuge
+        .getByRole('button', { name: '启动程序', exact: true })
+        .click();
+      try {
+        await expect(
+          centrifuge.getByRole('button', { name: '开始离心', exact: true }),
+        ).toBeEnabled();
+      } catch (error) {
+        const observed = frontier.stop();
+        await captureFrontierFailure('centrifuge-enabled', page, observed);
+        throw error;
+      }
+    } finally {
+      frontier.stop();
+    }
     await centrifuge.getByLabel('目标转速 (rpm)').fill('500');
     await centrifuge.getByLabel('目标温度 (degC)').fill('22');
     await centrifuge.getByLabel('任务时长 (s)').fill('6');
