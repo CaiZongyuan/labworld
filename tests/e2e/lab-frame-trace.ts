@@ -5,7 +5,7 @@ import { Worker } from 'node:worker_threads';
 import type { Complete, TraceOwner } from './lab-frame-trace-project';
 
 const categories =
-  'toplevel,devtools.timeline,disabled-by-default-devtools.timeline,disabled-by-default-v8.cpu_profiler';
+  'toplevel,devtools.timeline,disabled-by-default-devtools.timeline';
 type MarkName =
   | 'start-response'
   | 'assertion-start'
@@ -16,7 +16,8 @@ type MarkName =
 type TraceFile =
   | 'centrifuge-start-frame-trace.json'
   | 'light-start-frame-trace.json'
-  | 'observer-readiness-frame-trace.json';
+  | 'observer-readiness-frame-trace.json'
+  | 'workbench-readiness-frame-trace.json';
 async function deadline<T>(promise: Promise<T>, milliseconds: number) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -34,6 +35,120 @@ async function deadline<T>(promise: Promise<T>, milliseconds: number) {
   }
 }
 
+type Identity = {
+  frame: string;
+  loaderId: string;
+  path: string;
+  nodeMs: number;
+  generation: number;
+};
+const documentPath = (url: string) => {
+  try {
+    const path = new URL(url).pathname;
+    return ['/lab', '/register', '/login'].includes(path) ? path : '<REDACTED>';
+  } catch {
+    return '<REDACTED>';
+  }
+};
+const documentToken = (value: unknown): value is string =>
+  typeof value === 'string' && /^[0-9a-f-]{16,80}$/i.test(value);
+// Diagnostic state from the owned Page/CDP session, never renderer internals.
+export class DocumentIdentity {
+  coverage = false;
+  coverageStartedMs = 0;
+  generation = 0;
+  current?: Omit<Identity, 'nodeMs' | 'generation'>;
+  eligible?: Identity;
+  changes: { nodeMs: number; generation: number; kind: string }[] = [];
+  attempts: {
+    nodeMs: number;
+    generation: number;
+    status: 'ack' | 'unavailable' | 'rejected';
+  }[] = [];
+  enable(nodeMs: number) {
+    if (this.changes.some((change) => change.kind !== 'navigation')) return;
+    this.coverage = true;
+    this.coverageStartedMs = nodeMs;
+  }
+  private change(kind: string, nodeMs: number) {
+    this.generation++;
+    this.eligible = undefined;
+    if (this.changes.length < 64)
+      this.changes.push({ nodeMs, generation: this.generation, kind });
+    else this.coverage = false;
+  }
+  navigate(
+    frame: { id: string; loaderId?: string; url: string },
+    nodeMs: number,
+  ) {
+    this.change('navigation', nodeMs);
+    this.current =
+      documentToken(frame.id) && documentToken(frame.loaderId)
+        ? {
+            frame: frame.id,
+            loaderId: frame.loaderId,
+            path: documentPath(frame.url),
+          }
+        : undefined;
+  }
+  lose(kind: string, nodeMs: number) {
+    this.change(kind, nodeMs);
+    this.coverage = false;
+    this.current = undefined;
+  }
+  accept(
+    frame: { id: string; loaderId?: string; url: string },
+    generation: number,
+    nodeMs: number,
+  ) {
+    const candidate = {
+      frame: frame.id,
+      loaderId: frame.loaderId,
+      path: documentPath(frame.url),
+    };
+    const valid =
+      this.coverage &&
+      generation === this.generation &&
+      documentToken(candidate.frame) &&
+      documentToken(candidate.loaderId) &&
+      candidate.path === '/lab' &&
+      (!this.current ||
+        (this.current.frame === candidate.frame &&
+          this.current.loaderId === candidate.loaderId &&
+          this.current.path === candidate.path));
+    this.attempt(valid ? 'ack' : 'rejected', generation, nodeMs);
+    if (!valid) {
+      if (
+        generation === this.generation &&
+        (this.eligible || this.current?.path === '/lab')
+      )
+        this.lose('ambiguous-ack', nodeMs);
+      return;
+    }
+    this.current = candidate as NonNullable<DocumentIdentity['current']>;
+    this.eligible = { ...this.current, nodeMs, generation };
+  }
+  attempt(
+    status: 'ack' | 'unavailable' | 'rejected',
+    generation: number,
+    nodeMs: number,
+  ) {
+    if (this.attempts.length < 64)
+      this.attempts.push({ status, generation, nodeMs });
+    else this.lose('attempt-overflow', nodeMs);
+  }
+  snapshot() {
+    return {
+      coverage: this.coverage,
+      coverageStartedMs: this.coverageStartedMs,
+      generation: this.generation,
+      eligible: this.eligible,
+      changes: [...this.changes],
+      attempts: [...this.attempts],
+    };
+  }
+}
+
 const owned = new WeakMap<TestInfo, Set<FrameTrace>>();
 
 class FrameTrace {
@@ -42,18 +157,8 @@ class FrameTrace {
   private sessions = new Set<CDPSession>();
   private browserSession?: CDPSession;
   private complete?: Promise<Complete>;
-  private targetFrame?: string;
-  private otherFrames: (string | undefined)[] = [];
   private pageSessions = new Map<Page, Promise<CDPSession>>();
-  private activeDocuments?: {
-    status: 'ack' | 'unavailable';
-    frames: ({
-      frame: string;
-      loaderId?: string;
-      path: string;
-      nodeMs: number;
-    } | null)[];
-  };
+  private documents = new Map<Page, DocumentIdentity>();
   private closed = false;
   private finishPromise?: Promise<void>;
   private armed = false;
@@ -89,7 +194,35 @@ class FrameTrace {
   private pageSession(page: Page) {
     let pending = this.pageSessions.get(page);
     if (!pending) {
-      pending = this.session(() => page.context().newCDPSession(page));
+      const identity = new DocumentIdentity();
+      this.documents.set(page, identity);
+      pending = this.session(() => page.context().newCDPSession(page)).then(
+        async (session) => {
+          session.on('Page.frameNavigated', ({ frame }) => {
+            if (!frame.parentId) identity.navigate(frame, performance.now());
+          });
+          session.on('Page.navigatedWithinDocument', ({ frameId, url }) => {
+            if (
+              identity.current?.frame === frameId &&
+              documentPath(url) !== identity.current.path
+            )
+              identity.lose('path-change', performance.now());
+          });
+          session.on('Page.frameDetached', ({ frameId }) => {
+            if (!identity.current || identity.current.frame === frameId)
+              identity.lose('frame-detached', performance.now());
+          });
+          session.on('Inspector.detached', () =>
+            identity.lose('inspector-detached', performance.now()),
+          );
+          session.on('close', () =>
+            identity.lose('session-closed', performance.now()),
+          );
+          await session.send('Page.enable');
+          if (!this.closed) identity.enable(performance.now());
+          return session;
+        },
+      );
       this.pageSessions.set(page, pending);
     }
     return pending;
@@ -97,36 +230,22 @@ class FrameTrace {
 
   async captureActiveDocuments() {
     if (!this.enabled) return;
-    const frames = await Promise.all(
+    await Promise.all(
       [this.page, ...this.otherPages].map(async (page) => {
+        let identity: DocumentIdentity | undefined;
+        let generation = -1;
         try {
-          const tree = await deadline(
-            this.pageSession(page).then((session) =>
-              session.send('Page.getFrameTree'),
-            ),
-            250,
-          );
-          const frame = tree.frameTree.frame;
-          const pathname = new URL(frame.url).pathname;
-          return {
-            frame: frame.id as string,
-            loaderId: frame.loaderId as string | undefined,
-            path: ['/lab', '/register', '/login'].includes(pathname)
-              ? pathname
-              : '<REDACTED>',
-            nodeMs: performance.now(),
-          };
+          const pending = this.pageSession(page);
+          identity = this.documents.get(page)!;
+          const session = await deadline(pending, 250);
+          generation = identity.generation;
+          const tree = await deadline(session.send('Page.getFrameTree'), 250);
+          identity.accept(tree.frameTree.frame, generation, performance.now());
         } catch {
-          return null;
+          identity?.attempt('unavailable', generation, performance.now());
         }
       }),
     );
-    this.activeDocuments = {
-      status: frames[0] ? 'ack' : 'unavailable',
-      frames,
-    };
-    if (frames[0]) this.targetFrame = frames[0].frame;
-    this.otherFrames = frames.slice(1).map((frame) => frame?.frame);
   }
 
   async arm() {
@@ -330,10 +449,20 @@ class FrameTrace {
       clockBeforeMs: this.clockBeforeMs,
       clockAfterMs: this.clockAfterMs,
       marks: this.marks,
-      targetFrame: this.targetFrame,
-      otherFrames: this.otherFrames,
+      targetFrame: this.documents.get(this.page)?.eligible?.frame,
+      otherFrames: this.otherPages.map(
+        (page) => this.documents.get(page)?.eligible?.frame,
+      ),
       otherPageCount: this.otherPages.length,
-      activeDocuments: this.activeDocuments,
+      activeDocuments: {
+        status: this.documents.get(this.page)?.eligible ? 'ack' : 'unavailable',
+        frames: [this.page, ...this.otherPages].map(
+          (page) => this.documents.get(page)?.eligible ?? null,
+        ),
+      },
+      documentIdentities: [this.page, ...this.otherPages].map(
+        (page) => this.documents.get(page)?.snapshot() ?? null,
+      ),
       repoRoot: process.cwd(),
     };
     const worker = new Worker(

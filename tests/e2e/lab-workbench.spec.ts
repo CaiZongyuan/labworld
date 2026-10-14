@@ -8,6 +8,8 @@ import {
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { predicateFact } from './original-predicate-facts';
+import { startFrameTrace, releaseFrameTraces } from './lab-frame-trace';
+import { observeResourceTiming } from './lab-resource-timing';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -16,6 +18,7 @@ const evidence =
   process.env.LAB_WORKBENCH_EVIDENCE ?? '.scratch/workbench/application';
 mkdirSync(evidence, { recursive: true });
 const rectangleChecks: unknown[] = [];
+test.afterEach(releaseFrameTraces);
 test.beforeEach(() => {
   rectangleChecks.length = 0;
 });
@@ -203,11 +206,28 @@ test('the real spatial workbench gives the canvas most of the business area and 
   });
   page.on('requestfailed', (request) => closed.add(request));
   page.on('requestfinished', (request) => closed.add(request));
-  await page.goto(`/lab?lab=${labId}`);
-  await expect(page.locator('.world-page')).toHaveAttribute(
-    'aria-busy',
-    'false',
+  const frameTrace = await startFrameTrace(
+    page,
+    'workbench-readiness-frame-trace.json',
+    test.info(),
   );
+  const resourceTiming = observeResourceTiming(page);
+  try {
+    await page.goto(`/lab?lab=${labId}`);
+    resourceTiming.capture('post-goto');
+    void frameTrace.captureActiveDocuments();
+    frameTrace.mark('assertion-start');
+    resourceTiming.capture('assertion-start');
+    await expect(page.locator('.world-page')).toHaveAttribute(
+      'aria-busy',
+      'false',
+    );
+  } finally {
+    frameTrace.mark('assertion-end');
+    resourceTiming.mark('assertion-end');
+    await frameTrace.finish(true);
+    await resourceTiming.finish();
+  }
   await expect(
     page.getByRole('complementary', { name: '对象目录' }),
   ).toBeHidden();

@@ -58,6 +58,20 @@ export type TraceOwner = {
       nodeMs: number;
     } | null)[];
   };
+  documentIdentities?: ({
+    coverage: boolean;
+    coverageStartedMs: number;
+    generation: number;
+    eligible?: {
+      frame: string;
+      loaderId: string;
+      path: string;
+      generation: number;
+      nodeMs: number;
+    };
+    changes: { nodeMs: number; generation: number; kind: string }[];
+    attempts?: { nodeMs: number; generation: number; status: string }[];
+  } | null)[];
   repoRoot?: string;
 };
 const structuralNames = new Set([
@@ -259,7 +273,37 @@ export function projectTrace(
           entry.ts <= assertion &&
           entry.pid !== pid,
       );
+  const startNodeMs = owner.marks
+    .filter((mark) => mark.name === 'assertion-start')
+    .at(-1)?.nodeMs;
+  const endNodeMs = owner.marks
+    .filter((mark) => mark.name === 'assertion-end')
+    .at(-1)?.nodeMs;
+  const documentsVerified =
+    owner.documentIdentities?.length === owner.otherPageCount + 1 &&
+    owner.documentIdentities.every((identity, index) => {
+      const ack = identity?.eligible;
+      const document = owner.activeDocuments?.frames[index];
+      return (
+        !!identity?.coverage &&
+        startNodeMs !== undefined &&
+        endNodeMs !== undefined &&
+        identity.coverageStartedMs <= startNodeMs &&
+        ack?.generation === identity.generation &&
+        !!frameToken(ack?.frame) &&
+        !!frameToken(ack?.loaderId) &&
+        ack?.path === '/lab' &&
+        ack.nodeMs <= endNodeMs &&
+        ack.frame === document?.frame &&
+        ack.loaderId === document?.loaderId &&
+        !identity.changes.some(
+          (change) =>
+            change.nodeMs >= startNodeMs && change.nodeMs <= endNodeMs,
+        )
+      );
+    });
   const known =
+    documentsVerified &&
     offsetUs !== null &&
     assertion !== null &&
     assertion !== undefined &&
@@ -281,6 +325,7 @@ export function projectTrace(
         ?.some((entry) => entry.pid === pid),
     );
   const mapping = {
+    documentsVerified: !!documentsVerified,
     status: known ? 'mapped-target-frame' : 'unknown',
     targetRootCaptured: !!owner.targetFrame,
     otherRootsCaptured: owner.otherFrames.filter(Boolean).length,
@@ -411,6 +456,7 @@ export function projectTrace(
     marks,
     mapping,
     activeDocuments: owner.activeDocuments ?? null,
+    documentIdentities: owner.documentIdentities ?? null,
     census: {
       names: Object.fromEntries(names),
       otherNames,
