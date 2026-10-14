@@ -71,6 +71,7 @@ jobs:
           path: |
             .scratch/post-orbit-predicate/*-result.json
             .scratch/vnext-m1/*/post-orbit-predicate.json
+            .scratch/vnext-m1/*/post-orbit-grid-control.json
             .scratch/vnext-m1/*/original-layout-facts.jsonl
             .scratch/vnext-m1/*/post-orbit-before.png
             .scratch/vnext-m1/*/post-orbit-after.png

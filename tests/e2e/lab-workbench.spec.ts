@@ -8,6 +8,7 @@ import {
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { predicateFact } from './original-predicate-facts';
+import { boundedBrowserFact } from './lab-browser-facts';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
@@ -256,6 +257,27 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
         }
       } catch {
         /* An optional write cannot replace the original cause. */
+      }
+      try {
+        const control = await boundedBrowserFact(async () => {
+          const pressed = await page
+            .locator('.world-canvas-tools')
+            .getByRole('button', { name: /^(网格|Grid)$/, exact: true })
+            .getAttribute('aria-pressed');
+          return pressed === 'true' ? true : pressed === 'false' ? false : null;
+        });
+        if (process.env.LAB_NODE_EVIDENCE)
+          writeFileSync(
+            join(process.env.LAB_NODE_EVIDENCE, 'post-orbit-grid-control.json'),
+            JSON.stringify({
+              scope: 'after-original-predicate',
+              predicateTerminal: postOrbit.terminal,
+              control,
+            }) + '\n',
+            { mode: 0o600 },
+          );
+      } catch {
+        /* Optional post-verdict evidence cannot replace or grant a verdict. */
       }
       postOrbitFact(postOrbit.phase);
     }
