@@ -53,6 +53,7 @@ import {
   type RecordingEvent,
   type RecordingMetadata,
 } from './recording-public-support.ts';
+import { pauseStage, capturePauseFailure } from './windows-pause-facts.ts';
 
 test(
   'recording retained reads enforce identities, Lab binding and delete CSRF while preserving bytes',
@@ -396,11 +397,14 @@ async function transition(f: Context, session: string, action: string) {
     'GET',
     sessionPath(f.lab, session),
   );
-  return f.api.json<SimulationSession>(
+  pauseStage('transition-request', action);
+  const changed = await f.api.json<SimulationSession>(
     'POST',
     sessionPath(f.lab, session) + '/' + action,
     { expected_revision: current.revision },
   );
+  pauseStage('transition-returned', action);
+  return changed;
 }
 async function admission(f: Context) {
   const starting = await f.api.json<SimulationSession>(
@@ -438,8 +442,21 @@ async function boundary(
   time: bigint,
 ) {
   await transition(f, machine.session.id, action);
-  const control = await machine.control(action),
-    last = machine.selected.at(-1)!;
+  pauseStage('control-wait', action);
+  let control: Awaited<ReturnType<RecordingMachine['control']>>;
+  try {
+    control = await machine.control(action);
+  } catch (cause) {
+    await capturePauseFailure(
+      f.api,
+      sessionPath(f.lab, machine.session.id),
+      recordingPath(f.lab, machine.scope.recording_id),
+      f.target.evidence,
+    );
+    throw cause;
+  }
+  pauseStage('control-returned', action);
+  const last = machine.selected.at(-1)!;
   const frame = selectedFrame(
     machine.session,
     last.readBigUInt64LE(16) + 1n,

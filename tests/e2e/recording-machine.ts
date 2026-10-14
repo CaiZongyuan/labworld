@@ -23,6 +23,11 @@ import {
   ownRecordingSocket,
   recordingEventually,
 } from './recording-public-support.ts';
+import {
+  pausePeerMessage,
+  pausePeerError,
+  pausePeerClose,
+} from './windows-pause-facts.ts';
 
 export type RecordingBootstrap = RecordingIdentity & {
   ticket: string;
@@ -63,14 +68,20 @@ class Peer {
     this.socket = new WebSocket(url, origin ? { origin } : undefined);
     ownRecordingSocket(this.socket, role, scope.session_id, scope.recording_id);
     this.socket.on('error', (error) => {
+      pausePeerError(role, error);
       this.failure = error;
     });
+    this.socket.once('close', (code, reason) =>
+      pausePeerClose(role, code, reason),
+    );
     this.socket.on('message', (data, binary) => {
       try {
         assert(!binary, 'Machine received unexpected binary control');
         assert(rawBytes(data).length <= 16384);
         assert(this.messages.length < 64, 'Verifier control inbox overflow');
-        this.messages.push(JSON.parse(rawBytes(data).toString('utf8')));
+        const message = JSON.parse(rawBytes(data).toString('utf8'));
+        pausePeerMessage(role, message);
+        this.messages.push(message);
       } catch (error) {
         this.failure = error instanceof Error ? error : new Error('WireError');
         this.socket.terminate();
