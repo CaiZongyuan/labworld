@@ -247,8 +247,10 @@ export async function recordingEventually<T>(
 /** Last metadata from the original read only; identities and complete bodies stay private. */
 export function recordingCompletionMetadata(value: unknown) {
   const body = value as RecordingMetadata & {
+    started_at?: unknown;
     gaps?: unknown[];
     seal?: {
+      reason?: unknown;
       source_ended?: boolean;
       segment_count?: number;
       integrity?: string;
@@ -264,6 +266,67 @@ export function recordingCompletionMetadata(value: unknown) {
     typeof item === 'string' && /^(0|[1-9][0-9]{0,19})$/.test(item)
       ? item
       : null;
+  const epoch = (item: unknown) => {
+    if (
+      typeof item !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(item)
+    )
+      return null;
+    const millis = Date.parse(item);
+    return Number.isSafeInteger(millis) ? millis : null;
+  };
+  const reasons = [
+    'stop_requested',
+    'reset_requested',
+    'stopped',
+    'source_ended',
+    'source_disconnected',
+    'source_failed',
+    'server_shutdown',
+    'server_restarted',
+    'recording_prepare_failed',
+    'recording_prepare_timeout',
+    'recording_ack_timeout',
+    'recording_read_timeout',
+    'recording_event_prepare_failed',
+    'recording_event_capacity',
+    'recording_event_prepare_timeout',
+    'recording_event_commit_failed',
+    'recording_event_commit_timeout',
+    'recording_session_event_commit_failed',
+    'recording_event_abort_timeout',
+    'recording_abort_failed',
+    'recording_gate_timeout',
+    'recording_drain_timeout',
+    'recording_seal_failed',
+    'recording_seal_timeout',
+    'recording_sequence_gap',
+    'recording_altered_duplicate',
+    'recording_time_rollback',
+    'recording_initial_state_rejected',
+    'recording_lifecycle_event_rejected',
+    'recording_source_end_rejected',
+    'recording_source_rate',
+    'recording_source_ended',
+    'recording_closed',
+    'live_boundary_digest_mismatch',
+    'recording_event_bytes_missing',
+    'recording_committed_payload_missing',
+    'recording_witness_changed',
+    'integrity_unconfirmed',
+    'offline_archive_recovery',
+    'reset_source_drain_incomplete',
+    'reset_prepare_failed',
+    'write_failed',
+    'ack_timeout',
+    'sync_failed',
+    'source_crashed',
+    'recorder_capacity',
+    'invalid_packet',
+    'altered_duplicate',
+  ];
+  const reason = (item: unknown) =>
+    category(item, [...reasons, ...reasons.map((code) => 'lab.' + code)]);
   return {
     status: category(body?.status, [
       'preparing',
@@ -278,27 +341,9 @@ export function recordingCompletionMetadata(value: unknown) {
       'complete',
       'incomplete',
     ]),
-    reason: category(body?.reason, [
-      'stop_requested',
-      'reset_requested',
-      'stopped',
-      'source_ended',
-      'source_disconnected',
-      'source_failed',
-      'server_shutdown',
-      'server_restarted',
-      'recording_prepare_failed',
-      'recording_event_prepare_failed',
-      'recording_abort_failed',
-      'recording_drain_timeout',
-      'recording_seal_failed',
-      'live_boundary_digest_mismatch',
-      'recording_event_bytes_missing',
-      'integrity_unconfirmed',
-      'offline_archive_recovery',
-      'reset_source_drain_incomplete',
-      'reset_prepare_failed',
-    ]),
+    reason: reason(body?.reason),
+    startedAtEpochMs: epoch(body?.started_at),
+    endedAtEpochMs: epoch(body?.ended_at),
     sourceEnded:
       typeof body?.prefix?.source_ended === 'boolean'
         ? body.prefix.source_ended
@@ -308,6 +353,17 @@ export function recordingCompletionMetadata(value: unknown) {
     sourceEvents: count(body?.prefix?.last_source_event_sequence),
     lastSimTimeNs: count(body?.prefix?.last_sim_time_ns),
     gapCount: Array.isArray(body?.gaps) ? body.gaps.length : null,
+    gaps: Array.isArray(body?.gaps)
+      ? body.gaps.slice(0, 8).map((item) => {
+          const gap = item as Record<string, unknown> | null;
+          return {
+            reason: reason(gap?.reason),
+            afterSourceSequence: count(gap?.after_source_sequence),
+            afterServerEventSequence: count(gap?.after_server_event_sequence),
+          };
+        })
+      : null,
+    sealReason: reason(body?.seal?.reason),
     sealSourceEnded:
       typeof body?.seal?.source_ended === 'boolean'
         ? body.seal.source_ended

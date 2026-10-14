@@ -35,6 +35,26 @@ if (
   const scope = new AsyncLocalStorage();
   const sockets = new Map();
   const gateways = new Set();
+  const recordingServices = new Set();
+  const recordingOwners = new WeakMap();
+  let recordingOwnersObserved = 0;
+  let recordingOwnersOmitted = 0;
+  if (process.env.RECORDING_FIRST_FAULT_DIAGNOSTIC === 'true') {
+    const { RecordingService } = await import(
+      pathToFileURL(
+        join(root, `packages/server/src/lab/recordings/service.${extension}`),
+      )
+    );
+    const createOwner = RecordingService.prototype.createOwner;
+    RecordingService.prototype.createOwner = function (...args) {
+      const owner = createOwner.apply(this, args);
+      if (recordingOwnersObserved < 16) {
+        recordingServices.add(this);
+        recordingOwners.set(owner, ++recordingOwnersObserved);
+      } else recordingOwnersOmitted++;
+      return owner;
+    };
+  }
   const stats = {
     pid: process.pid,
     boundary:
@@ -204,6 +224,18 @@ if (
       ...stats,
       liveSockets: sockets.size,
       liveGateways: gateways.size,
+      recordingOwnersObserved,
+      recordingOwnersOmitted,
+      recordingFirstFaults: [...recordingServices]
+        .flatMap((service) =>
+          [...service.owners.values()].flatMap((owner) => {
+            const ownerNumber = recordingOwners.get(owner);
+            return ownerNumber && owner.diagnosticFirstFault
+              ? [{ ownerNumber, ...owner.diagnosticFirstFault }]
+              : [];
+          }),
+        )
+        .slice(0, 16),
       rssBytes: process.memoryUsage().rss,
       at: new Date().toISOString(),
     };
