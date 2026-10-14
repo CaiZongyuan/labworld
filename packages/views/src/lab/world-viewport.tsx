@@ -625,7 +625,7 @@ function Scene({
         receiveShadow
       >
         <planeGeometry args={[30, 30]} />
-        <shadowMaterial transparent opacity={0.18} />
+        <shadowMaterial transparent opacity={0.18} depthWrite={false} />
       </mesh>
       <group ref={root}>
         {world.nodes.map((node) => {
