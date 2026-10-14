@@ -31,6 +31,7 @@ const summary = {
   verdict: 'discovery-only',
   testCounts: {},
   failures: [],
+  failureLogs: [],
   cleanup: [],
 };
 const save = () =>
@@ -59,6 +60,27 @@ const codes = new Set([
   'lab.recording_ack_timeout',
   'UNKNOWN',
 ]);
+const observeFailures = (text) => {
+  for (const line of text.split('\n')) {
+    const event = line.match(/(\{"event":"server.start_diagnostic"[^\n]*?\})/);
+    if (!event) continue;
+    try {
+      const value = JSON.parse(event[1]);
+      if (
+        phases.has(value.phase) &&
+        codes.has(value.code) &&
+        summary.failures.length < 16 &&
+        !summary.failures.some(
+          (previous) =>
+            previous.phase === value.phase && previous.code === value.code,
+        )
+      )
+        summary.failures.push({ phase: value.phase, code: value.code });
+    } catch {
+      // Original test verdict is preserved even if an observer cannot decode.
+    }
+  }
+};
 const fixtureRoot = '.scratch/vnext-m1';
 const fixtures = async () =>
   (await readdir(fixtureRoot).catch(() => [])).filter((name) =>
@@ -103,15 +125,6 @@ if (process.argv.includes('--discover')) {
   for (const line of text.split('\n')) {
     const count = line.match(/ℹ (tests|pass|fail|cancelled|skipped) (\d+)/);
     if (count) summary.testCounts[count[1]] = Number(count[2]);
-    const event = line.match(/(\{"event":"server.start_diagnostic"[^\n]*?\})/);
-    if (!event) continue;
-    try {
-      const value = JSON.parse(event[1]);
-      if (phases.has(value.phase) && codes.has(value.code))
-        summary.failures.push({ phase: value.phase, code: value.code });
-    } catch {
-      // Original test verdict is preserved even if an observer cannot decode.
-    }
   }
   for (const name of await fixtures()) {
     if (before.has(name)) continue;
@@ -126,6 +139,18 @@ if (process.argv.includes('--discover')) {
       consumers: ledger.inProcessConsumers?.length ?? 0,
       launchIntent: !!ledger.launchIntent,
     });
+    // stop()/cleanup() append the actual child log; reporter output can truncate it.
+    try {
+      observeFailures(
+        await readFile(join(fixtureRoot, name, 'server.log'), 'utf8'),
+      );
+      summary.failureLogs.push({ fixture: name, state: 'read' });
+    } catch (error) {
+      summary.failureLogs.push({
+        fixture: name,
+        state: error?.code === 'ENOENT' ? 'missing' : 'unreadable',
+      });
+    }
   }
   const cleaned =
     summary.cleanup.length === 1 &&
