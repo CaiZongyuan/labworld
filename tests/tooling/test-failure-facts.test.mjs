@@ -71,7 +71,7 @@ function safe(value) {
 
 test('failure facts preserve first terminal and owned first failure without raw data', async () => {
   facts.beginFailureFixture();
-  const state = facts.createStateFacts('running');
+  const state = facts.createStateFacts('running', 20);
   facts.recordStateRead(
     state,
     { status: 'starting', revision: 1, reason: null, ended_at: null },
@@ -105,12 +105,45 @@ test('failure facts preserve first terminal and owned first failure without raw 
   assert.equal(value.last.revision, 3);
   safe(value);
   facts.beginFailureFixture();
-  const later = facts.createStateFacts('running');
+  const later = facts.createStateFacts('running', 20);
   facts.recordStateRead(later, { status: 'starting' }, 1);
   await facts.captureStateFailure(later, '/first', new Error(sentinel));
   assert.deepEqual(files.get('/first/test-failure-facts.json'), value);
   await facts.captureStateFailure(state, '/stale', new Error(sentinel));
   assert.equal(files.has('/stale/test-failure-facts.json'), false);
+});
+
+test('state failure receipts use the unchanged explicit consumer poll policy', async () => {
+  for (const [consumer, pollDelayMs] of [
+    ['reliability', 20],
+    ['authority', 25],
+  ]) {
+    const path =
+      consumer === 'authority'
+        ? '../server/session-authority.test.ts'
+        : '../e2e/recording-reliability.test.ts';
+    const call = find(
+      source(path),
+      (node) =>
+        ts.isCallExpression(node) &&
+        node.expression.getText() === 'createStateFacts',
+    )[0];
+    assert.equal(call.arguments[1].getText(), String(pollDelayMs));
+    facts.beginFailureFixture();
+    const observed = facts.createStateFacts('running', pollDelayMs);
+    facts.recordStateRead(observed, { status: 'starting', ended_at: null }, 1);
+    await facts.captureStateFailure(
+      observed,
+      '/poll-policy-' + consumer,
+      new Error(sentinel),
+    );
+    const receipt = files.get(
+      '/poll-policy-' + consumer + '/test-failure-facts.json',
+    );
+    assert.equal(receipt.pollDelayMs, pollDelayMs);
+    assert.equal(receipt.originalWaitMs, 10000);
+    assert.equal(receipt.requestAbortMs, 10000);
+  }
 });
 
 test('original Task receipt rejection keeps signal exit and late receipt separate from confirmation', async () => {
@@ -338,7 +371,7 @@ test('evidence writer failure never replaces original rejection', async () => {
   writeFails = true;
   try {
     await facts.captureStateFailure(
-      facts.createStateFacts('running'),
+      facts.createStateFacts('running', 20),
       '/write-failed',
       new Error(sentinel),
     );

@@ -398,7 +398,7 @@ async function ipc(f: Context, message: object, event: string) {
   );
 }
 async function state(f: Context, id: string, status: string) {
-  const facts = createStateFacts(status);
+  const facts = createStateFacts(status, 20);
   try {
     return await recordingEventually(
       async () => {

@@ -384,11 +384,12 @@ const sessionStatuses = new Set([
   'interrupted',
   'reset',
 ]);
-export function createStateFacts(requested: string) {
+export function createStateFacts(requested: string, pollDelayMs: 20 | 25) {
   return {
     generation,
     started: performance.now(),
     requestedStatus: category(requested, sessionStatuses),
+    pollDelayMs,
     polls: 0,
     phase: 'not-read',
     last: null as object | null,
@@ -462,7 +463,7 @@ export async function captureStateFailure(
     stage: 'session-state-failure',
     originalWaitMs: 10000,
     requestAbortMs: 10000,
-    pollDelayMs: 20,
+    pollDelayMs: facts.pollDelayMs,
     requestedStatus: facts.requestedStatus,
     originalFailureAt: performance.now(),
     elapsedMs: performance.now() - facts.started,

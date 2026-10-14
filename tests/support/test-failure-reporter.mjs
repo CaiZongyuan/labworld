@@ -45,12 +45,18 @@ export default async function* report(events) {
       };
     if (!['test:pass', 'test:fail'].includes(type)) continue;
     const error = data.details?.error?.cause ?? data.details?.error;
+    const cancelled = [
+      'testAborted',
+      'cancelledByParent',
+      'testTimeoutFailure',
+    ].includes(data.details?.error?.failureType);
     const file =
       typeof data.file === 'string' && allowed.has(resolve(data.file))
         ? relative('.', resolve(data.file)).replaceAll('\\', '/')
         : null;
     if (
       type === 'test:fail' &&
+      !cancelled &&
       (!file ||
         !data.line ||
         (typeof data.name === 'string' && allowed.has(resolve(data.name))))
@@ -63,9 +69,11 @@ export default async function* report(events) {
       column: numeric(data.column),
       status: data.skip
         ? 'skipped'
-        : type === 'test:pass'
-          ? 'passed'
-          : 'failed',
+        : cancelled
+          ? 'cancelled'
+          : type === 'test:pass'
+            ? 'passed'
+            : 'failed',
       durationMs: numeric(data.details?.duration_ms),
       target: data.name === target,
       errorClass: classes.has(error?.name)
@@ -85,7 +93,7 @@ export default async function* report(events) {
     earliestFailure: cases.find((row) => row.status === 'failed') ?? null,
     targetExactlyOnce: targets.length === 1,
     targetOutcome:
-      targets.length === 1 && totals?.cancelled === 0
+      targets.length === 1 && ['passed', 'failed'].includes(targets[0].status)
         ? targets[0].status
         : 'unknown',
     cases,

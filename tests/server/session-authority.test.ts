@@ -776,7 +776,7 @@ async function fixture(name: string, grace = 60000) {
     return client.json<Session>('GET', base + `/sessions/${session.id}`);
   }
   async function state(session: Session, status: string) {
-    const facts = createStateFacts(status);
+    const facts = createStateFacts(status, 25);
     try {
       return await until(
         async () => {
