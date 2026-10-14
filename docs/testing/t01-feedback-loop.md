@@ -39,3 +39,5 @@
 多阶段协作使用 [development-timeline](../../.agents/skills/development-timeline/SKILL.md)轻量记录阶段、等待和返工。报告说明已记录的进展与未知部分，不追加产品验证或合并门禁。
 
 Windows CI 为原始完整 `pnpm test:server` 启用 `TEST_FAILURE_FACTS=1`。测试 fixture 拥有并保留 `.scratch/vnext-m1/lab-word-m1-*/test-failure-facts.json`，现有 `gate-facts-windows` artifact 收集这些 JSON。记录只含首次操作失败的公开状态、限定错误与清理前资源事实；原测试结果决定通过或失败。失败后追加的读取明确标为确认，不证明等待期间的状态。文件不含凭据、URL、业务 ID、payload 或原始日志。资源清理仍由创建 fixture 负责，完整套件以实际 owned ledger 和消费者为准。
+
+读取失败时，优先下载 `test-failure-facts-windows`。其明确白名单只含完整套件安全摘要、fixture 失败事实和实际资源 reconciliation JSON。
