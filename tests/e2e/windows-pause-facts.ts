@@ -198,7 +198,7 @@ export function pausePeerClose(
 async function boundedMetadata(
   api: CoreHttp,
   path: string,
-  kind: 'session' | 'recording',
+  kind: 'session' | 'recording' | 'task',
 ) {
   const started = performance.now(),
     controller = new AbortController();
@@ -254,14 +254,26 @@ async function boundedMetadata(
             'stopped',
             'interrupted',
           ]
-        : [
-            'preparing',
-            'open',
-            'complete',
-            'incomplete',
-            'deleting',
-            'deleted',
-          ],
+        : kind === 'task'
+          ? [
+              'pending',
+              'preparing',
+              'running',
+              'decelerating',
+              'completed',
+              'cancelled',
+              'failed',
+              'unknown',
+              'interrupted',
+            ]
+          : [
+              'preparing',
+              'open',
+              'complete',
+              'incomplete',
+              'deleting',
+              'deleted',
+            ],
     );
     const error =
       body.error && typeof body.error === 'object'
@@ -276,6 +288,16 @@ async function boundedMetadata(
       status: category(body.status, allowed),
       reason: reason(body.reason),
       errorCode: reason(error?.code),
+      revision:
+        typeof body.revision === 'number' && Number.isSafeInteger(body.revision)
+          ? body.revision
+          : null,
+      ended:
+        typeof body.ended_at === 'string'
+          ? true
+          : body.ended_at === null
+            ? false
+            : null,
     };
   } catch {
     return {
@@ -560,5 +582,55 @@ async function safePublicFailure(directory: string, value: object) {
     );
   } catch {
     // Evidence cannot replace the exact original failure.
+  }
+}
+
+export async function captureTaskReceiptFailure(
+  api: CoreHttp,
+  taskPath: string,
+  sessionPath: string,
+  directory: string,
+  ownerGeneration: number,
+  snapshot: {
+    originalRejectedAt: number;
+    matchingReceiptCount: number;
+    messageCount: number;
+    armedReceiptCount: number;
+    childConnected: boolean | null;
+    childExited: boolean | null;
+    childExitCode: number | null;
+  },
+  cause: unknown,
+) {
+  if (ownerGeneration !== generation || !claimFailure(directory)) return;
+  const atFailure = {
+    originalRejectedAt: snapshot.originalRejectedAt,
+    matchingReceiptCount: snapshot.matchingReceiptCount,
+    receiptPresentAtRejection: snapshot.matchingReceiptCount > 0,
+    messageCount: snapshot.messageCount,
+    armedReceiptCount: snapshot.armedReceiptCount,
+    childConnected: snapshot.childConnected,
+    childExited: snapshot.childExited,
+    childExitCode: snapshot.childExitCode,
+  };
+  try {
+    const postFailureReads = await Promise.all([
+      boundedMetadata(api, taskPath, 'task'),
+      boundedMetadata(api, sessionPath, 'session'),
+    ]);
+    await safePublicFailure(directory, {
+      stage: 'task-receipt-failure',
+      scope:
+        'Original IPC receipt wait rejected; these later HTTP reads are only post-failure public confirmation, never a during-wait result or Result/recovery proof',
+      originalWaitMs: 20000,
+      pollDelayMs: 20,
+      postFailureReadAbortMs: 250,
+      postFailureBodyCap: 65536,
+      atFailure,
+      postFailureReads,
+      ...closedError(cause),
+    });
+  } catch {
+    // Observation cannot replace the original receipt-wait cause.
   }
 }

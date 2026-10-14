@@ -62,6 +62,8 @@ import {
   pauseStateRead,
   pauseStateReadError,
   pauseStateFailure,
+  pausePeerGeneration,
+  captureTaskReceiptFailure,
 } from './windows-pause-facts.ts';
 
 test(
@@ -1399,11 +1401,41 @@ test(
         { 'idempotency-key': randomUUID() },
       );
       assert(command.task_id);
-      const reached = await recordingEventually(
-        () => f.messages.find((message) => message.event === 'fault-reached'),
-        Boolean,
-        20000,
-      );
+      const generation = pausePeerGeneration();
+      let reached: Record<string, unknown> | undefined;
+      try {
+        reached = await recordingEventually(
+          () => f.messages.find((message) => message.event === 'fault-reached'),
+          Boolean,
+          20000,
+        );
+      } catch (cause) {
+        if (pauseFactsEnabled)
+          await captureTaskReceiptFailure(
+            f.api,
+            path + '/tasks/' + command.task_id,
+            sessionPath(f.lab, machine.session.id),
+            f.target.evidence,
+            generation,
+            {
+              originalRejectedAt: performance.now(),
+              matchingReceiptCount: f.messages.filter(
+                (message) => message.event === 'fault-reached',
+              ).length,
+              messageCount: f.messages.length,
+              armedReceiptCount: f.messages.filter(
+                (message) => message.event === 'armed',
+              ).length,
+              childConnected: f.target.child?.connected ?? null,
+              childExited: f.target.child
+                ? f.target.child.exitCode !== null
+                : null,
+              childExitCode: f.target.child?.exitCode ?? null,
+            },
+            cause,
+          );
+        throw cause;
+      }
       assert(reached);
       assert(
         performance.now() - pausedAt > 1000,
