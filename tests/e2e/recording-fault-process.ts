@@ -31,6 +31,8 @@ let releaseExecution: (() => void) | undefined;
 // Private trusted ordinary-device ingress, captured from the unchanged real
 // runtime composition. No HTTP route, Row mutation or physics Task authority.
 let ordinaryReport: DeviceRuntime['report'] | undefined;
+const actualWallNow = Date.now;
+let nextWallOffset: number | undefined;
 const initializeDeviceRuntime = DeviceRuntime.prototype.initialize;
 DeviceRuntime.prototype.initialize = async function () {
   await initializeDeviceRuntime.call(this);
@@ -84,6 +86,27 @@ WebSocketServer.prototype.handleUpgrade = function (
       });
     }
     callback(ws, incoming);
+    if (
+      /^\/api\/v1\/lab\/recordings\/[0-9a-f-]{36}\/source$/.test(
+        request.url ?? '',
+      )
+    )
+      ws.on('pong', () => {
+        if (nextWallOffset === undefined) return;
+        // Register after production's Pong handler so its actual sample
+        // precedes the wall step. No heartbeat, source or journal fact is faked.
+        const offset = nextWallOffset;
+        nextWallOffset = undefined;
+        const before = actualWallNow();
+        Date.now = () => actualWallNow() + offset;
+        process.send!({
+          event: 'wall-clock-stepped',
+          offset_ms: offset,
+          before_wall_at: before,
+          after_wall_at: Date.now(),
+          monotonic_at: performance.now(),
+        });
+      });
   });
 };
 function stopPressureObserver() {
@@ -349,6 +372,7 @@ process.on(
   'message',
   (message: {
     operation: string;
+    offset_ms?: number;
     fault?: Arm;
     held?: boolean;
     io?: NativeArm;
@@ -361,7 +385,11 @@ process.on(
       quality: string;
     };
   }) => {
-    if (message.operation === 'arm') {
+    if (message.operation === 'step-wall-after-recording-pong') {
+      assert(message.offset_ms === -30000 || message.offset_ms === 30000);
+      nextWallOffset = message.offset_ms;
+      process.send!({ event: 'wall-clock-step-armed' });
+    } else if (message.operation === 'arm') {
       assert(!arm && !release);
       arm = message.fault;
       process.send!({ event: 'armed' });
@@ -446,6 +474,8 @@ await run(undefined, {
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const)
   process.once(signal, () => {
+    nextWallOffset = undefined;
+    Date.now = actualWallNow;
     arm = undefined;
     release?.();
     releaseExecution?.();

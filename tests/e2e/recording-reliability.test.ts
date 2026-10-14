@@ -495,6 +495,115 @@ async function cleanup(f: Context) {
     await f.target.cleanup();
   }
 }
+
+for (const offset of [-30000, 30000])
+  test(
+    `recording relative clock ${offset < 0 ? 'backward' : 'forward'} step preserves paused source, durable ACK and renewed ticket`,
+    { timeout: 120000 },
+    async () => {
+      const f = await fixture();
+      try {
+        const machine = await start(f);
+        await boundary(f, machine, 'pause', 1000000000n);
+        await ipc(
+          f,
+          { operation: 'step-wall-after-recording-pong', offset_ms: offset },
+          'wall-clock-step-armed',
+        );
+        const stepped = await recordingEventually(
+          () =>
+            f.messages.find(
+              (message) => message.event === 'wall-clock-stepped',
+            ),
+          Boolean,
+        );
+        assert(stepped);
+        assert.equal(stepped.offset_ms, offset);
+        assert.ok(
+          Math.abs(
+            Number(stepped.after_wall_at) -
+              Number(stepped.before_wall_at) -
+              offset,
+          ) < 1000,
+          'The fixture must step the actual server wall clock after its real Pong',
+        );
+
+        // A backward wall step must not remove existing packet-rate tokens.
+        // Preserve the public Session assertion even when ACK capture fails.
+        let ackError: unknown;
+        if (offset < 0)
+          try {
+            await machine.capture([
+              selectedFrame(machine.session, 3n, 1000000000n, 0.25),
+            ]);
+          } catch (error) {
+            ackError = error;
+          }
+        let nextPing = false;
+        const ping = () => {
+          nextPing = true;
+        };
+        machine.reliable.socket.on('ping', ping);
+        let current: SimulationSession;
+        try {
+          current = await recordingEventually(
+            () =>
+              f.api.json<SimulationSession>(
+                'GET',
+                sessionPath(f.lab, machine.session.id),
+              ),
+            (session) => nextPing || session.status === 'interrupted',
+            5000,
+          );
+        } finally {
+          machine.reliable.socket.off('ping', ping);
+        }
+        assert.equal(
+          current.status,
+          'paused',
+          'Wall-clock correction must not interrupt a source that answered real Pong',
+        );
+        assert.equal(machine.reliable.socket.readyState, WebSocket.OPEN);
+        if (ackError) throw ackError;
+        if (offset > 0)
+          await machine.capture([
+            selectedFrame(machine.session, 3n, 1000000000n, 0.25),
+          ]);
+        await f.api.json(
+          'POST',
+          sessionPath(f.lab, machine.session.id) + '/viewer-tickets',
+          undefined,
+          201,
+        );
+        const recording = await publicRecording(
+          f.api,
+          f.lab,
+          machine.scope.recording_id,
+        );
+        assert.equal(recording.metadata.status, 'open');
+        assert.equal(recording.metadata.prefix.last_source_sequence, '3');
+        assertSelectedBytes(
+          recordedSourcePackets(recording.records),
+          machine.packets.map((packet) => packet.bytes),
+        );
+        recordingReceipt(
+          `recording-relative-clock-${offset < 0 ? 'backward' : 'forward'}`,
+          {
+            offsetMs: offset,
+            serverStep: stepped,
+            sessionStatus: current.status,
+            sourceSocketOpen: true,
+            sourceSequence: recording.metadata.prefix.last_source_sequence,
+            renewedTicketStatus: 201,
+            durableSelectedBytesMatch: true,
+          },
+        );
+      } finally {
+        await cleanup(f);
+      }
+    },
+  );
+
 function exactTime(value: unknown) {
   if (typeof value !== 'string') return value;
   const time =
