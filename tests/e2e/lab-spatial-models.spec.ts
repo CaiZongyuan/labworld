@@ -433,24 +433,35 @@ test('registered native representations form the accepted space and retain last 
   const afterStop = await frame(page, afterStopArea);
   const stoppedPixels = await changedPixels(page, reportedLight, afterStop);
   expect(stoppedPixels).toBe(0);
-  const publicAppearance = () =>
-    page
-      .evaluate(() => {
-        const canvas = document.querySelector<HTMLCanvasElement>(
-          '.world-viewport canvas',
-        );
-        const light = document.querySelector('[aria-label^="照明 01:"]');
-        const alert = document.querySelector('.world-link-alert');
-        return {
-          canvas: canvas
-            ? { width: canvas.width, height: canvas.height }
-            : null,
-          offlineAlert: alert?.getBoundingClientRect().toJSON() ?? null,
-          lightValue: light?.querySelector('strong')?.textContent ?? null,
-          lastReported: light?.textContent?.includes('最后报告值') ?? false,
-        };
-      })
-      .catch(() => null);
+  const publicAppearance = async () => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      return await Promise.race([
+        page
+          .evaluate(() => {
+            const canvas = document.querySelector<HTMLCanvasElement>(
+              '.world-viewport canvas',
+            );
+            const light = document.querySelector('[aria-label^="照明 01:"]');
+            const alert = document.querySelector('.world-link-alert');
+            return {
+              canvas: canvas
+                ? { width: canvas.width, height: canvas.height }
+                : null,
+              offlineAlert: alert?.getBoundingClientRect().toJSON() ?? null,
+              lightValue: light?.querySelector('strong')?.textContent ?? null,
+              lastReported: light?.textContent?.includes('最后报告值') ?? false,
+            };
+          })
+          .catch(() => null),
+        new Promise<null>((resolve) => {
+          timer = setTimeout(() => resolve(null), 250);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  };
   const afterStopAppearance = await publicAppearance();
   let offlineFrame: Buffer | undefined;
   let offlineArea: typeof afterStopArea = null;
