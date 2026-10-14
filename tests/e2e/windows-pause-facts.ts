@@ -66,6 +66,19 @@ const actions = new Set(['pause', 'resume', 'stop']);
 const events: Record<string, string | number | boolean | null>[] = [];
 const closes: Partial<Record<'live' | 'reliable', object>> = {};
 let dropped = 0;
+let generation = 0;
+
+export function pauseFixtureStart() {
+  if (!pauseFactsEnabled) return;
+  generation++;
+  events.length = 0;
+  delete closes.live;
+  delete closes.reliable;
+  dropped = 0;
+}
+export function pausePeerGeneration() {
+  return generation;
+}
 
 function category(value: unknown, values: Set<string>) {
   return typeof value === 'string' && values.has(value)
@@ -104,8 +117,18 @@ export function pauseStage(
 ) {
   if (pauseFactsEnabled) emit({ stage, action: category(action, actions) });
 }
-export function pausePeerMessage(role: string, value: unknown) {
-  if (!pauseFactsEnabled || !value || typeof value !== 'object') return;
+export function pausePeerMessage(
+  role: string,
+  value: unknown,
+  ownerGeneration: number,
+) {
+  if (
+    !pauseFactsEnabled ||
+    ownerGeneration !== generation ||
+    !value ||
+    typeof value !== 'object'
+  )
+    return;
   const message = value as Record<string, unknown>,
     kind = category(message.type, messageTypes);
   if (!kind || kind === 'unknown') return;
@@ -118,8 +141,12 @@ export function pausePeerMessage(role: string, value: unknown) {
     reason: reason(message.reason),
   });
 }
-export function pausePeerError(role: string, error: Error) {
-  if (!pauseFactsEnabled) return;
+export function pausePeerError(
+  role: string,
+  error: Error,
+  ownerGeneration: number,
+) {
+  if (!pauseFactsEnabled || ownerGeneration !== generation) return;
   const code = (error as Error & { code?: unknown }).code;
   emit({
     stage: 'peer-error',
@@ -146,8 +173,13 @@ export function pausePeerError(role: string, error: Error) {
     ),
   });
 }
-export function pausePeerClose(role: string, code: number, bytes: Buffer) {
-  if (!pauseFactsEnabled) return;
+export function pausePeerClose(
+  role: string,
+  code: number,
+  bytes: Buffer,
+  ownerGeneration: number,
+) {
+  if (!pauseFactsEnabled || ownerGeneration !== generation) return;
   const owner = channel(role);
   if (!owner) return;
   const value = {

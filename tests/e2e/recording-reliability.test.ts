@@ -53,7 +53,11 @@ import {
   type RecordingEvent,
   type RecordingMetadata,
 } from './recording-public-support.ts';
-import { pauseStage, capturePauseFailure } from './windows-pause-facts.ts';
+import {
+  pauseStage,
+  capturePauseFailure,
+  pauseFixtureStart,
+} from './windows-pause-facts.ts';
 
 test(
   'recording retained reads enforce identities, Lab binding and delete CSRF while preserving bytes',
@@ -316,6 +320,7 @@ async function incomplete(
 }
 
 async function fixture(ack = 3000): Promise<Context> {
+  pauseFixtureStart();
   const target = await new ServerProcess().create();
   target.entry = 'tests/e2e/recording-fault-process.ts';
   target.ipc = true;

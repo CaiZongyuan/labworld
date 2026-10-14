@@ -27,6 +27,7 @@ import {
   pausePeerMessage,
   pausePeerError,
   pausePeerClose,
+  pausePeerGeneration,
 } from './windows-pause-facts.ts';
 
 export type RecordingBootstrap = RecordingIdentity & {
@@ -65,14 +66,15 @@ class Peer {
     scope: RecordingIdentity,
     origin?: string,
   ) {
+    const generation = pausePeerGeneration();
     this.socket = new WebSocket(url, origin ? { origin } : undefined);
     ownRecordingSocket(this.socket, role, scope.session_id, scope.recording_id);
     this.socket.on('error', (error) => {
-      pausePeerError(role, error);
+      pausePeerError(role, error, generation);
       this.failure = error;
     });
     this.socket.once('close', (code, reason) =>
-      pausePeerClose(role, code, reason),
+      pausePeerClose(role, code, reason, generation),
     );
     this.socket.on('message', (data, binary) => {
       try {
@@ -80,7 +82,7 @@ class Peer {
         assert(rawBytes(data).length <= 16384);
         assert(this.messages.length < 64, 'Verifier control inbox overflow');
         const message = JSON.parse(rawBytes(data).toString('utf8'));
-        pausePeerMessage(role, message);
+        pausePeerMessage(role, message, generation);
         this.messages.push(message);
       } catch (error) {
         this.failure = error instanceof Error ? error : new Error('WireError');
