@@ -56,7 +56,7 @@ jobs:
       - name: Discover exactly one original case
         run: pnpm exec playwright test tests/e2e/lab-workbench.spec.ts --grep 'the real spatial workbench gives the canvas' --list --reporter=list
       - name: Unchanged original workbench case with predicate evidence
-        run: E2E_LAB_REFERENCE_LOAD=1 pnpm test:e2e tests/e2e/lab-workbench.spec.ts --grep 'the real spatial workbench gives the canvas'
+        run: VITE_LAB_CONTROL_UPDATE_OBSERVER=true E2E_LAB_REFERENCE_LOAD=1 pnpm test:e2e tests/e2e/lab-workbench.spec.ts --grep 'the real spatial workbench gives the canvas'
       - name: Read-only final resource inventory
         if: always()
         run: |
@@ -72,6 +72,7 @@ jobs:
             .scratch/post-orbit-predicate/*-result.json
             .scratch/vnext-m1/*/post-orbit-predicate.json
             .scratch/vnext-m1/*/post-orbit-grid-control.json
+            .scratch/vnext-m1/*/post-orbit-control-updates.json
             .scratch/vnext-m1/*/original-layout-facts.jsonl
             .scratch/vnext-m1/*/post-orbit-before.png
             .scratch/vnext-m1/*/post-orbit-after.png

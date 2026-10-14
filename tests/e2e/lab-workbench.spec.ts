@@ -9,10 +9,16 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { predicateFact } from './original-predicate-facts';
 import { boundedBrowserFact } from './lab-browser-facts';
+import {
+  associateControlUpdates,
+  safeControlSnapshot,
+  type CaptureInterval,
+  type ComparisonObservation,
+} from './control-update-attribution';
 
 const desktopMigration = process.env.LAB_WORD_MIGRATION_DESKTOP === 'true';
 
-test.use({ locale: 'zh-CN', reducedMotion: 'reduce' });
+test.use({ locale: 'zh-CN', reducedMotion: 'no-preference' });
 const evidence =
   process.env.LAB_WORKBENCH_EVIDENCE ?? '.scratch/workbench/application';
 mkdirSync(evidence, { recursive: true });
@@ -143,9 +149,32 @@ async function seed(page: Page) {
   return { labId, entityId, world };
 }
 
-async function difference(page: Page, first: Buffer, second: Buffer) {
-  return page.evaluate(
-    async ([left, right]) => {
+async function difference(
+  page: Page,
+  first: Buffer,
+  second: Buffer,
+  observe?: (value: ComparisonObservation) => void,
+) {
+  const nodeStart = observe ? performance.now() : 0;
+  const result = await page.evaluate(
+    async ([left, right, observing]: [string, string, boolean]) => {
+      const browserStart = observing ? performance.now() : 0;
+      const finish = (ratio: number) => {
+        if (!observing) return ratio;
+        const browserEnd = performance.now();
+        let observation: unknown = null;
+        try {
+          const canvas = document.querySelector('.world-viewport canvas') as
+            | (HTMLCanvasElement & {
+                getControlUpdateObservation?: () => unknown;
+              })
+            | null;
+          observation = canvas?.getControlUpdateObservation?.() ?? null;
+        } catch {
+          /* Missing observation remains unknown. */
+        }
+        return { ratio, browserStart, browserEnd, observation };
+      };
       const load = async (encoded: string) => {
         const image = new Image();
         image.src = `data:image/png;base64,${encoded}`;
@@ -163,7 +192,7 @@ async function difference(page: Page, first: Buffer, second: Buffer) {
       };
       const a = await load(left),
         b = await load(right);
-      if (a.width !== b.width || a.height !== b.height) return 1;
+      if (a.width !== b.width || a.height !== b.height) return finish(1);
       let changed = 0,
         samples = 0;
       for (let i = 0; i < a.pixels.length; i += 16) {
@@ -176,20 +205,48 @@ async function difference(page: Page, first: Buffer, second: Buffer) {
         )
           changed++;
       }
-      return changed / samples;
+      return finish(changed / samples);
     },
-    [first.toString('base64'), second.toString('base64')],
+    [first.toString('base64'), second.toString('base64'), !!observe] as [string, string, boolean],
   );
+  if (typeof result === 'number') return result;
+  if (observe) {
+    try {
+      observe({
+        nodeStart,
+        nodeEnd: performance.now(),
+        browserStart: result.browserStart,
+        browserEnd: result.browserEnd,
+        observation: safeControlSnapshot(result.observation),
+      });
+    } catch {
+      /* Evidence cannot change the original numeric ratio. */
+    }
+  }
+  return result.ratio;
 }
 
 async function settledCanvas(page: Page, observePostOrbit = false) {
-  let pair: { before: Buffer; after: Buffer } | undefined;
+  let pair:
+    | {
+        before: Buffer;
+        after: Buffer;
+        beforeCapture: CaptureInterval;
+        afterCapture: CaptureInterval;
+        comparison?: ComparisonObservation;
+      }
+    | undefined;
   if (observePostOrbit) {
     postOrbit.reached = true;
     postOrbitFact('initial-capture-start');
   }
   try {
+    const initialCaptureStart = performance.now();
     let previous = await page.locator('canvas').screenshot();
+    let previousCapture = {
+      nodeStart: initialCaptureStart,
+      nodeEnd: performance.now(),
+    };
     if (observePostOrbit) {
       postOrbit.beforePng = pngDimensions(previous);
       postOrbitFact('initial-capture-end');
@@ -201,10 +258,20 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
             postOrbit.attempt++;
             postOrbitFact('capture-start');
           }
+          const captureStart = performance.now();
           const next = await page.locator('canvas').screenshot();
+          const nextCapture = {
+            nodeStart: captureStart,
+            nodeEnd: performance.now(),
+          };
           if (observePostOrbit) {
             if (postOrbit.terminal === null) {
-              pair = { before: previous, after: next };
+              pair = {
+                before: previous,
+                after: next,
+                beforeCapture: previousCapture,
+                afterCapture: nextCapture,
+              };
               postOrbit.beforePng = pngDimensions(previous);
               postOrbit.afterPng = pngDimensions(next);
               postOrbitFact('capture-end');
@@ -215,7 +282,17 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
                 nodeMs: performance.now(),
               });
           }
-          const delta = await difference(page, previous, next);
+          const delta = await difference(
+            page,
+            previous,
+            next,
+            observePostOrbit
+              ? (value) => {
+                  if (postOrbit.terminal === null && pair)
+                    pair.comparison = value;
+                }
+              : undefined,
+          );
           if (observePostOrbit) {
             const ratio = Number.isFinite(delta) ? delta : null;
             if (postOrbit.terminal === null) {
@@ -229,6 +306,7 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
               });
           }
           previous = next;
+          previousCapture = nextCapture;
           return delta;
         },
         { timeout: 30000 },
@@ -254,6 +332,26 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
             { mode: 0o600 },
           );
           postOrbit.pairWritten = true;
+          writeFileSync(
+            join(
+              process.env.LAB_NODE_EVIDENCE,
+              'post-orbit-control-updates.json',
+            ),
+            JSON.stringify({
+              scope:
+                'same original retained pair; conservative calibrated window',
+              predicateTerminal: postOrbit.terminal,
+              beforeCapture: pair.beforeCapture,
+              afterCapture: pair.afterCapture,
+              comparison: pair.comparison ?? null,
+              attribution: associateControlUpdates(
+                pair.beforeCapture,
+                pair.afterCapture,
+                pair.comparison,
+              ),
+            }) + '\n',
+            { mode: 0o600 },
+          );
         }
       } catch {
         /* An optional write cannot replace the original cause. */

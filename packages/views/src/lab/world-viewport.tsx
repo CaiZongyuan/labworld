@@ -52,6 +52,7 @@ import {
   MotionSceneController,
   type MotionDiagnosticCanvas,
 } from './motion-scene';
+import { ControlUpdateObserver } from './control-update-observer';
 
 type Tuple = [number, number, number];
 function Block({
@@ -445,6 +446,35 @@ function Scene({
   const root = useRef<Group>(null);
   const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
   const { camera, size, gl, frameloop, invalidate } = useThree();
+  const controlObservation = useMemo(
+    () =>
+      import.meta.env.VITE_LAB_CONTROL_UPDATE_OBSERVER === 'true'
+        ? new ControlUpdateObserver()
+        : null,
+    [],
+  );
+  const bindControls = useCallback(
+    (value: ComponentRef<typeof OrbitControls> | null) => {
+      controls.current = value;
+      controlObservation?.bind(value, gl.domElement);
+    },
+    [controlObservation, gl],
+  );
+  useEffect(() => {
+    controlObservation?.bind(controls.current, gl.domElement);
+    return () => controlObservation?.detach();
+  }, [controlObservation, gl]);
+  // Bracket only the pinned Drei provider's priority -1 callback. These hooks
+  // neither render nor invalidate; counts describe callbacks, not GPU frames.
+  useFrame(() => controlObservation?.frame(true), -2);
+  useFrame(() => controlObservation?.frame(false), -0.5);
+  const framingUpdate = useCallback(() => {
+    const current = controls.current;
+    if (!current) return;
+    if (controlObservation)
+      controlObservation.framingUpdate(() => current.update());
+    else current.update();
+  }, [controlObservation]);
   useEffect(() => {
     if (frameloop !== 'demand' || !contentReady) return;
     // Cached paused poses and imperative scene updates need real frames too.
@@ -477,7 +507,7 @@ function Scene({
     const ease = 1 - (1 - progress) ** 3;
     camera.position.lerpVectors(moving.from, moving.to, ease);
     controls.current.target.lerpVectors(moving.fromTarget, moving.target, ease);
-    controls.current.update();
+    framingUpdate();
     if (progress === 1) transition.current = null;
   });
   const framing = useRef<{
@@ -563,7 +593,7 @@ function Scene({
       transition.current = null;
       camera.position.copy(pose.position);
       controls.current.target.copy(pose.target);
-      controls.current.update();
+      framingUpdate();
     } else
       transition.current = {
         from: camera.position.clone(),
@@ -583,6 +613,7 @@ function Scene({
     top,
     reducedMotion,
     contentReady,
+    framingUpdate,
   ]);
   return (
     <>
@@ -687,12 +718,18 @@ function Scene({
         />
       ) : null}
       <OrbitControls
-        ref={controls}
+        ref={controlObservation ? bindControls : controls}
         makeDefault
         enableDamping={!reducedMotion}
-        onStart={() => {
+        onStart={(event) => {
+          controlObservation?.gesture(true, event?.target);
           transition.current = null;
         }}
+        onEnd={
+          controlObservation
+            ? (event) => controlObservation.gesture(false, event?.target)
+            : undefined
+        }
         maxPolarAngle={Math.PI * 0.48}
         minDistance={0.1}
         maxDistance={10000}
