@@ -18,6 +18,7 @@ const matchers = new Set([
   'toHaveCount',
   'toBe',
   'toBeGreaterThan',
+  'toBeLessThan',
   'toBeLessThanOrEqual',
 ]);
 const protocolMethods = new Set([
@@ -66,7 +67,7 @@ export function publicFailure(error) {
   const message = stripVTControlCharacters(error.message ?? '');
   const named = /^([A-Za-z]*Error):/.exec(message)?.[1];
   const matcher =
-    /\b(toHaveAttribute|toBeVisible|toHaveCount|toBeGreaterThan|toBeLessThanOrEqual|toBe)\b/.exec(
+    /\b(toHaveAttribute|toBeVisible|toHaveCount|toBeGreaterThan|toBeLessThanOrEqual|toBeLessThan|toBe)\b/.exec(
       message,
     )?.[1];
   const busy =
@@ -76,7 +77,7 @@ export function publicFailure(error) {
   const timeout = timeoutFacts(message);
   const count = /resolved to (\d+) elements/.exec(message)?.[1];
   const numericExpected =
-    /^Expected:\s*(<=|>|=)?\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*$/im.exec(
+    /^Expected:\s*(<=|<|>|=)?\s*(-?\d+(?:\.\d+)?(?:e[+-]?\d+)?)\s*$/im.exec(
       message,
     );
   const numericReceived =
@@ -84,6 +85,7 @@ export function publicFailure(error) {
   const numericMatcher = [
     'toBe',
     'toBeGreaterThan',
+    'toBeLessThan',
     'toBeLessThanOrEqual',
   ].includes(matcher);
   const numeric =

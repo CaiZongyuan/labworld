@@ -114,3 +114,25 @@ test('timeout and action diagnostics retain only bounded facts and fixed states'
   });
   assert.equal(repeated.callLog.length, 12);
 });
+
+test('less-than pixel predicate projects only bounded numeric facts and excludes unknown secrets', () => {
+  const secret = 'private-cookie-and-signed-url-must-not-be-retained';
+  const result = publicFailure({
+    message: `expect(received).toBeLessThan(expected)\nExpected: < 0.002\nReceived: 0.004\n${secret}\nCall log:\n- Timeout 30000ms exceeded while waiting on the predicate`,
+  });
+  assert.equal(result.matcher, 'toBeLessThan');
+  assert.deepEqual(result.numeric, {
+    expected: 0.002,
+    received: 0.004,
+    operator: '<',
+  });
+  assert.equal(result.timeoutMs, 30000);
+  assert.equal(result.rawMessageRetained, false);
+  assert.ok(!JSON.stringify(result).includes(secret));
+  assert.equal(
+    publicFailure({
+      message: `expect(received).toBeLessThan(expected)\nExpected: < 0.002\nReceived: ${secret}`,
+    }).numeric,
+    null,
+  );
+});

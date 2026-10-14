@@ -16,8 +16,62 @@ const evidence =
   process.env.LAB_WORKBENCH_EVIDENCE ?? '.scratch/workbench/application';
 mkdirSync(evidence, { recursive: true });
 const rectangleChecks: unknown[] = [];
+type PostOrbitPhase =
+  | 'unreached'
+  | 'initial-capture-start'
+  | 'initial-capture-end'
+  | 'capture-start'
+  | 'capture-end'
+  | 'comparison-start'
+  | 'comparison-end';
+let postOrbit = {
+  reached: false,
+  phase: 'unreached' as PostOrbitPhase,
+  attempt: 0,
+  nodeMs: 0,
+  lastRatio: null as number | null,
+  beforePng: null as number[] | null,
+  afterPng: null as number[] | null,
+  terminal: null as 'passed' | 'failed' | null,
+  pairWritten: false,
+};
+function postOrbitFact(phase: PostOrbitPhase) {
+  postOrbit.phase = phase;
+  postOrbit.nodeMs = performance.now();
+  predicateFact('layout', { stage: 'post-orbit-' + phase, ...postOrbit });
+  try {
+    if (process.env.LAB_NODE_EVIDENCE)
+      writeFileSync(
+        join(process.env.LAB_NODE_EVIDENCE, 'post-orbit-predicate.json'),
+        JSON.stringify(postOrbit) + '\n',
+        { mode: 0o600 },
+      );
+  } catch {
+    /* Optional evidence never changes the original assertion. */
+  }
+}
+function pngDimensions(png: Buffer) {
+  try {
+    return [png.readUInt32BE(16), png.readUInt32BE(20)];
+  } catch {
+    return null;
+  }
+}
+
 test.beforeEach(() => {
   rectangleChecks.length = 0;
+  postOrbit = {
+    reached: false,
+    phase: 'unreached',
+    attempt: 0,
+    nodeMs: 0,
+    lastRatio: null,
+    beforePng: null,
+    afterPng: null,
+    terminal: null,
+    pairWritten: false,
+  };
+  postOrbitFact('unreached');
 });
 test.afterEach(async ({ page }, info) => {
   const stem = info.title.includes('orbited') ? 'desktop' : 'mobile';
@@ -127,20 +181,85 @@ async function difference(page: Page, first: Buffer, second: Buffer) {
   );
 }
 
-async function settledCanvas(page: Page) {
-  let previous = await page.locator('canvas').screenshot();
-  await expect
-    .poll(
-      async () => {
-        const next = await page.locator('canvas').screenshot();
-        const delta = await difference(page, previous, next);
-        previous = next;
-        return delta;
-      },
-      { timeout: 30000 },
-    )
-    .toBeLessThan(0.002);
-  return previous;
+async function settledCanvas(page: Page, observePostOrbit = false) {
+  let pair: { before: Buffer; after: Buffer } | undefined;
+  if (observePostOrbit) {
+    postOrbit.reached = true;
+    postOrbitFact('initial-capture-start');
+  }
+  try {
+    let previous = await page.locator('canvas').screenshot();
+    if (observePostOrbit) {
+      postOrbit.beforePng = pngDimensions(previous);
+      postOrbitFact('initial-capture-end');
+    }
+    await expect
+      .poll(
+        async () => {
+          if (observePostOrbit) {
+            postOrbit.attempt++;
+            postOrbitFact('capture-start');
+          }
+          const next = await page.locator('canvas').screenshot();
+          if (observePostOrbit) {
+            if (postOrbit.terminal === null) {
+              pair = { before: previous, after: next };
+              postOrbit.beforePng = pngDimensions(previous);
+              postOrbit.afterPng = pngDimensions(next);
+              postOrbitFact('capture-end');
+              postOrbitFact('comparison-start');
+            } else
+              predicateFact('layout', {
+                stage: 'post-orbit-late-capture',
+                nodeMs: performance.now(),
+              });
+          }
+          const delta = await difference(page, previous, next);
+          if (observePostOrbit) {
+            const ratio = Number.isFinite(delta) ? delta : null;
+            if (postOrbit.terminal === null) {
+              postOrbit.lastRatio = ratio;
+              postOrbitFact('comparison-end');
+            } else
+              predicateFact('layout', {
+                stage: 'post-orbit-late-comparison',
+                ratio,
+                nodeMs: performance.now(),
+              });
+          }
+          previous = next;
+          return delta;
+        },
+        { timeout: 30000 },
+      )
+      .toBeLessThan(0.002);
+    if (observePostOrbit) postOrbit.terminal = 'passed';
+    return previous;
+  } catch (error) {
+    if (observePostOrbit) postOrbit.terminal = 'failed';
+    throw error;
+  } finally {
+    if (observePostOrbit) {
+      try {
+        if (process.env.LAB_NODE_EVIDENCE && pair) {
+          writeFileSync(
+            join(process.env.LAB_NODE_EVIDENCE, 'post-orbit-before.png'),
+            pair.before,
+            { mode: 0o600 },
+          );
+          writeFileSync(
+            join(process.env.LAB_NODE_EVIDENCE, 'post-orbit-after.png'),
+            pair.after,
+            { mode: 0o600 },
+          );
+          postOrbit.pairWritten = true;
+        }
+      } catch {
+        /* An optional write cannot replace the original cause. */
+      }
+      postOrbitFact(postOrbit.phase);
+    }
+  }
 }
 
 async function canvasPixels(page: Page) {
@@ -255,7 +374,7 @@ test('the real spatial workbench gives the canvas most of the business area and 
     { steps: 20 },
   );
   await page.mouse.up();
-  const orbited = await settledCanvas(page);
+  const orbited = await settledCanvas(page, true);
   const orbitDelta = await difference(page, beforeOrbit, orbited);
   writeFileSync(
     join(evidence, 'orbit-movement.json'),
