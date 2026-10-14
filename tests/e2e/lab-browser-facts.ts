@@ -29,6 +29,7 @@ type Capture<T> =
 
 export async function boundedBrowserFact<T>(
   capture: () => Promise<T>,
+  maximumMillis = 250,
 ): Promise<Capture<T>> {
   const started = performance.now();
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -55,7 +56,7 @@ export async function boundedBrowserFact<T>(
               status: 'timeout',
               elapsedMs: performance.now() - started,
             }),
-          250,
+          maximumMillis,
         );
       }),
     ]);

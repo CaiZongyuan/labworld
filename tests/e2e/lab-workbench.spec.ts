@@ -259,25 +259,58 @@ async function settledCanvas(page: Page, observePostOrbit = false) {
         /* An optional write cannot replace the original cause. */
       }
       try {
-        const [control, reducedMotionPreference] = await Promise.all([
-          boundedBrowserFact(async () => {
-            const pressed = await page
-              .locator('.world-canvas-tools')
-              .getByRole('button', { name: /^(网格|Grid)$/, exact: true })
-              .getAttribute('aria-pressed');
-            return pressed === 'true'
-              ? true
-              : pressed === 'false'
-                ? false
-                : null;
-          }),
-          boundedBrowserFact(() =>
-            page.evaluate(
-              () =>
-                window.matchMedia('(prefers-reduced-motion: reduce)').matches,
-            ),
-          ),
-        ]);
+        const observed = await boundedBrowserFact(
+          () =>
+            page.evaluate(() => {
+              const controls = Array.from(
+                document.querySelectorAll<HTMLButtonElement>(
+                  '.world-canvas-tools button',
+                ),
+              ).filter((button) =>
+                ['网格', 'Grid'].includes(
+                  button.getAttribute('aria-label') ?? '',
+                ),
+              );
+              const pressed =
+                controls.length === 1
+                  ? controls[0].getAttribute('aria-pressed')
+                  : null;
+              const preference = window.matchMedia(
+                '(prefers-reduced-motion: reduce)',
+              ).matches;
+              return {
+                grid:
+                  pressed === 'true'
+                    ? true
+                    : pressed === 'false'
+                      ? false
+                      : null,
+                reducedMotion:
+                  typeof preference === 'boolean' ? preference : null,
+              };
+            }),
+          1000,
+        );
+        const captured =
+          observed.status === 'ack' && observed.elapsedMs >= 1000
+            ? { status: 'timeout' as const, elapsedMs: observed.elapsedMs }
+            : observed;
+        const receipt = (value: boolean | null) => ({
+          status:
+            captured.status === 'ack'
+              ? value === null
+                ? 'unknown'
+                : 'ack'
+              : captured.status,
+          elapsedMs: captured.elapsedMs,
+          value: captured.status === 'ack' ? value : null,
+        });
+        const control = receipt(
+          captured.status === 'ack' ? captured.value.grid : null,
+        );
+        const reducedMotionPreference = receipt(
+          captured.status === 'ack' ? captured.value.reducedMotion : null,
+        );
         if (process.env.LAB_NODE_EVIDENCE)
           writeFileSync(
             join(process.env.LAB_NODE_EVIDENCE, 'post-orbit-grid-control.json'),
