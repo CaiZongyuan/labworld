@@ -1,6 +1,6 @@
 # 用 Node 服务保存数字资产
 
-目标：Member 发布 GLB，Agent 读取同一份原始字节，再验证失败后的恢复。需要 Node 24、pnpm 和 Linux 或 Windows。命令在仓库根目录运行，会写入你选择的开发数据目录。
+目标：Member 发布 GLB，Agent 读取同一份原始字节，再验证失败后的恢复。需要 Node 24、pnpm 和 Linux/WSL。命令在仓库根目录运行，会写入你选择的开发数据目录。
 
 先按[服务基础](server-foundation.md)启动 `pnpm dev`。当前 Node 服务提供持久资产、Lab、Entity、Scene Node 与布局。设备执行、业务订阅和历史仍在迁移；完整生成 SDK 的来源切换尚未完成。
 

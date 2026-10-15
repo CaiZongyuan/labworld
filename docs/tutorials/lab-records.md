@@ -1,6 +1,6 @@
 # 查询整个 Lab 的运行记录
 
-当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/Windows 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
+当前服务使用 Node 24 与 TypeScript，默认验证 desktop web。命令在仓库根目录运行；Linux/WSL 不需要 Docker。实现入口见[Node 设备](../guides/server-devices.md)、[同步](../guides/server-sync.md)和[追溯](../guides/server-traceability.md)。
 
 目标：在工作台查看同一 Lab 的 Command、Task、Event 和设备程序 Run，打开原始记录并导出当前页。生成 SDK 提供相同的有界查询。
 

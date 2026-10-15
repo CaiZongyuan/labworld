@@ -29,7 +29,7 @@ if (values.recover) {
     throw new Error('Contract target must be candidate');
   if (process.platform !== 'linux')
     throw new Error(
-      'Owned full-contract process groups run on Linux; Windows Node checks use the server suite',
+      'Owned full-contract process groups run on Linux/WSL; on Windows, run this command inside WSL',
     );
   const runId = values['run-id'] ?? `${Date.now()}-${randomUUID().slice(0, 8)}`;
   if (!/^[a-zA-Z0-9-]+$/.test(runId))

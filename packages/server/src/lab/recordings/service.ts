@@ -287,11 +287,18 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     void actual.finally(() => owner.io.delete(actual)).catch(() => {});
     return actual;
   }
+  private durabilityMillis() {
+    // Startup recovery has no live Publisher ACK to meet. Keep its I/O finite
+    // under the same budget as initial Recording preparation.
+    return this.recovering
+      ? this.preparationMillis()
+      : this.limits.durability_timeout_ms;
+  }
   private async waitIO<T>(
     owner: Owner,
     actual: Promise<T>,
     code: string,
-    millis = this.limits.durability_timeout_ms,
+    millis = this.durabilityMillis(),
   ) {
     try {
       return await this.bounded(actual, millis, code);
@@ -1719,7 +1726,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
             owner.entities.has(event.entity_id),
       );
       if (!events.length) continue;
-      const deadline = performance.now() + this.limits.durability_timeout_ms;
+      const deadline = performance.now() + this.durabilityMillis();
       const remaining = () => Math.max(1, deadline - performance.now());
       try {
         await this.bounded(
@@ -1812,7 +1819,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
     owner: Owner,
     batch: PreparedEventBatch,
     recovered = false,
-    deadline = performance.now() + this.limits.durability_timeout_ms,
+    deadline = performance.now() + this.durabilityMillis(),
   ) {
     if (batch.marked) return;
     if (!batch.marking)
@@ -1846,7 +1853,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
   async commit(batches: PreparedEventBatch[]) {
     for (const batch of batches) {
       const owner = this.owners.get(batch.recording_id)!;
-      const deadline = performance.now() + this.limits.durability_timeout_ms;
+      const deadline = performance.now() + this.durabilityMillis();
       try {
         await waitRecordingFault(
           this.faults.committed?.(batch.recording_id, batch.batch_id),
@@ -1943,7 +1950,7 @@ export class RecordingService implements RecordingSourceAuthority, CaptureHost {
       return;
     await this.gate([session.lab_id], async () => {
       if (owner.row.checkpoint.seal && owner.row.ended_at) return;
-      const deadline = performance.now() + this.limits.durability_timeout_ms;
+      const deadline = performance.now() + this.durabilityMillis();
       const drain = <T>(work: Promise<T>) =>
         this.bounded(
           work,

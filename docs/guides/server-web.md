@@ -19,17 +19,7 @@ pnpm build
 LAB_WORD_DATA_DIR=.scratch/hosted-lab SERVER_PORT=3100 APP_ORIGIN=http://127.0.0.1:3100 FILE_PUBLIC_ORIGIN=http://127.0.0.1:3100 LAB_WORD_WEB_DIR=apps/web/dist pnpm start
 ```
 
-PowerShell：
-
-```powershell
-pnpm build
-$env:LAB_WORD_DATA_DIR = '.scratch/hosted-lab'
-$env:SERVER_PORT = '3100'
-$env:APP_ORIGIN = 'http://127.0.0.1:3100'
-$env:FILE_PUBLIC_ORIGIN = 'http://127.0.0.1:3100'
-$env:LAB_WORD_WEB_DIR = 'apps/web/dist'
-pnpm start
-```
+Windows 用户在 WSL 终端执行上述命令。
 
 `pnpm start` 运行编译后的服务。构建包含 SQL、JSON catalog 与 WASM codec，依赖由 pnpm 锁定。
 

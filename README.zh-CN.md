@@ -10,7 +10,7 @@
 
 ## 运行应用
 
-使用 Linux 或 Windows，以及仓库锁定的 [Node](.node-version) 和 [pnpm](package.json)。
+使用 Linux/WSL，以及仓库锁定的 [Node](.node-version) 和 [pnpm](package.json)。
 
 ```bash
 git clone https://github.com/CaiZongyuan/labworld.git

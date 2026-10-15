@@ -1250,6 +1250,8 @@ test(
       );
       await f.target.stop('SIGKILL');
       await closeRecordingSockets();
+      // Slow real journal-sync completion past live D=333ms during recovery.
+      f.target.env.RECORDING_E2E_STARTUP_SYNC_DELAY_MS = '500';
       await f.target.start();
       await f.api.login(f.email);
       const readback = await incomplete(f, machine.session.id);

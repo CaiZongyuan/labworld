@@ -92,6 +92,6 @@ pnpm test:contract --recover .scratch/vnext-m0/runs/<run-id>/owned-resources.jso
 
 恢复在发出信号前核对 PID、启动 token、PGID/session、运行标记和子进程 proof。身份不明或被替换的消费者保持不变。含 Docker 归属的历史 ledger 会被拒绝，不修改其中资源；既有根服务、卷与数据继续保留。完成后的 run 目录保留证据/数据以复现，进程 reconciliation 记录已停止消费者。
 
-完整标记进程组执行/恢复适用于 Linux。Windows CI 执行真实 Node 启动、迁移、持久化、目录归属与服务合同子集，历史 M0 Rust/Linux 回执不能代替当前 Windows 证据。
+完整标记进程组执行/恢复与本地服务验证使用 Linux/WSL。Ubuntu CI 执行完整 Node 服务、合同和 Web 检查；原生 Windows CI 已移除。历史平台回执只保留其原验证范围。
 
 用 `pnpm test:contract:lifecycle` 检查真实中断和 wrapper 子进程恢复。该命令使用独立 Node 数据与有标记的进程。CI 在最终候选运行完整合同；本地绿色和 Draft PR 不能代替最终 CI。

@@ -11,9 +11,11 @@ import { ContractResources } from './lib/contract-resources.mjs';
 import { launch, resolveRoot } from './lib/process.mjs';
 import { browserExitFacts } from './lib/browser-exit-facts.mjs';
 
-// Linux browser supplement; the server's Linux/Windows gate remains independent.
+// Owned Linux/WSL browser entry; hosted CI runs the same stack on Ubuntu.
 if (process.platform !== 'linux')
-  throw new Error('This owned browser supervisor currently supports Linux');
+  throw new Error(
+    'This owned browser supervisor supports Linux/WSL; run it inside WSL on Windows',
+  );
 const backend = new ServerProcess(),
   web = new ServerProcess();
 const args = process.argv.slice(2),

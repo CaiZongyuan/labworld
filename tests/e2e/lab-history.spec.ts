@@ -7,6 +7,7 @@ import {
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { boundedBrowserFact } from './lab-browser-facts';
+import { expectInitialSceneReady } from './initial-scene-ready';
 import {
   historyWorldProjection,
   predicateFact,
@@ -161,6 +162,11 @@ test('members and Agents query real history, recover a failed page and clean exp
   };
   page.on('response', originalResponse);
   try {
+    await expectInitialSceneReady(page.locator('.world-page'));
+    await canvasPixels(
+      page,
+      'test-results/lab-foundation/t08-history-initial-canvas.png',
+    );
     predicateFact('history', { stage: 'before-original-start-click' });
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })

@@ -81,6 +81,8 @@ Reset ends the old Session and Recording, then creates new identities for both. 
 
 A reliable ACK confirms only contiguous source facts whose file sync completed. Network send completion, live frame receipt and applied actions are separate confirmations. Capacity exhaustion, write failure, confirmation timeout or source failure stops or interrupts the Session and preserves explicit incomplete status. Actions do not replay automatically.
 
+On restart, the server recovers committed Task facts and seals interrupted Recordings before opening HTTP access. Recovery writes use the same finite ten-second budget as Recording preparation. Live reception keeps the source's negotiated durability deadline.
+
 ## Pagination And SDK
 
 These reads require an active Member identity for the Lab, or an Agent key with `lab:full`:

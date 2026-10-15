@@ -1,6 +1,6 @@
 # Query Bounded Trends With Preserved Sources
 
-The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux/WSL without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
 
 Goal: query one Entity's temperature or actual speed with the generated SDK. Identify real samples, sampling resolution, and history gaps.
 

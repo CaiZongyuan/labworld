@@ -1,6 +1,6 @@
 # 用 Node 运行设备程序
 
-目标：运行两个独立照明实例，再观察传感器和离心 Task。先完成[Node 世界](server-world.md)，准备 Member 会话和有效的 `lab:full` Agent 密钥。需要仓库指定的 Node 24、pnpm 与 Linux 或 Windows。以下命令在仓库根目录运行，会写入开发数据。
+目标：运行两个独立照明实例，再观察传感器和离心 Task。先完成[Node 世界](server-world.md)，准备 Member 会话和有效的 `lab:full` Agent 密钥。需要仓库指定的 Node 24、pnpm 与 Linux/WSL。以下命令在仓库根目录运行，会写入开发数据。
 
 ## 得到真实设备报告
 

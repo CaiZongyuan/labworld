@@ -2,6 +2,9 @@ import { expect, test, type Page } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { showEntityOperations, showObjectDirectory } from './lab-desktop';
+import { predicateFact } from './original-predicate-facts';
+import { boundedBrowserFact } from './lab-browser-facts';
+import type { LabWorld } from '../../packages/contracts/src/generated/types.gen';
 
 test.use({ locale: 'zh-CN' });
 
@@ -42,9 +45,60 @@ test('3D readings retain confirmed stopped facts and all rotors stop claiming cu
 }, info) => {
   test.setTimeout(60000);
   const facts: Record<string, unknown> = {};
+  let worldResponses = 0;
+  // Copy only already-received public facts; never export identities or values.
+  page.on('response', (response) => {
+    if (!/\/world$/.test(response.url()) || worldResponses >= 12) return;
+    const ordinal = ++worldResponses;
+    void boundedBrowserFact(async () => {
+      const world = (await response.json()) as LabWorld;
+      return {
+        status: response.status(),
+        entities: world.entities.slice(0, 2).map((entity) => ({
+          running: entity.program_run?.status === 'running',
+          bindingMatches: entity.binding?.id === entity.program_run?.binding_id,
+          properties: ['speed', 'temperature'].map((name) => {
+            const property = entity.observation?.properties?.[name];
+            const received = Date.parse(property?.received_at ?? '');
+            return {
+              present: !!property,
+              finiteValue:
+                typeof property?.value === 'number' &&
+                Number.isFinite(property.value),
+              runMatches:
+                !!property && property.run_id === entity.program_run?.id,
+              bindingMatches:
+                !!property && property.binding_id === entity.binding?.id,
+              current: property?.freshness === 'current',
+              good: property?.quality === 'good',
+              sourceTimeValid: Number.isFinite(
+                Date.parse(property?.observed_at ?? ''),
+              ),
+              ageMs: Number.isFinite(received)
+                ? Math.max(0, Math.min(1e12, Date.now() - received))
+                : null,
+            };
+          }),
+        })),
+      };
+    })
+      .then((capture) =>
+        predicateFact('observation', {
+          stage: 'received-world',
+          ordinal,
+          capture,
+        }),
+      )
+      .catch(() => {});
+  });
   await page.addInitScript(() => {
     const originalFetch = window.fetch.bind(window);
-    const delivery = { held: false, release: [] as (() => void)[] };
+    const delivery = {
+      held: false,
+      release: [] as (() => void)[],
+      counts: {} as Record<string, number>,
+      runtimeAvailable: null as boolean | null,
+    };
     Object.assign(window, { worldDelivery: delivery });
     window.fetch = async (input, init) => {
       const response = await originalFetch(input, init);
@@ -66,7 +120,24 @@ test('3D readings retain confirmed stopped facts and all rotors stop claiming cu
             while ((end = buffered.indexOf('\n\n')) >= 0) {
               const frame = buffered.slice(0, end + 2);
               buffered = buffered.slice(end + 2);
-              const send = () => target.enqueue(encoder.encode(frame));
+              const send = () => {
+                const kind =
+                  /"type"\s*:\s*"(snapshot|update|runtime_status|heartbeat|access_ended)"/.exec(
+                    frame,
+                  )?.[1] ?? 'other';
+                target.enqueue(encoder.encode(frame));
+                delivery.counts[kind] = Math.min(
+                  1e9,
+                  (delivery.counts[kind] ?? 0) + 1,
+                );
+                if (kind === 'runtime_status') {
+                  const available = /"available"\s*:\s*(true|false)/.exec(
+                    frame,
+                  )?.[1];
+                  if (available)
+                    delivery.runtimeAvailable = available === 'true';
+                }
+              };
               if (
                 delivery.held &&
                 /"type"\s*:\s*"(?:snapshot|update)"/.test(frame)
@@ -114,9 +185,64 @@ test('3D readings retain confirmed stopped facts and all rotors stop claiming cu
       await inspector
         .getByRole('button', { name: '启动程序', exact: true })
         .click();
-      await expect(inspector.getByLabel('关键观测有效性')).toHaveText(
-        '当前关键观测有效',
-      );
+      predicateFact('observation', {
+        stage: 'before-original-validity',
+        slot: name === 'Rotor A' ? 0 : 1,
+      });
+      try {
+        await expect(inspector.getByLabel('关键观测有效性')).toHaveText(
+          '当前关键观测有效',
+        );
+      } catch (error) {
+        const capture = await boundedBrowserFact(() =>
+          page.evaluate(() => {
+            const states: Record<string, string> = {
+              当前关键观测有效: 'current',
+              尚无当前有效关键观测: 'not-current',
+              实时同步: 'live',
+              正在连接: 'connecting',
+              连接中断: 'offline',
+            };
+            const state = (selector: string) => {
+              const element = document.querySelector(selector);
+              return element
+                ? (states[element.textContent?.trim() ?? ''] ?? 'other')
+                : 'missing';
+            };
+            const delivery = (
+              window as unknown as {
+                worldDelivery: {
+                  held: boolean;
+                  counts: Record<string, number>;
+                  runtimeAvailable: boolean | null;
+                };
+              }
+            ).worldDelivery;
+            return {
+              validity: state('[aria-label="关键观测有效性"]'),
+              connection: state('.lab-heading [aria-live="polite"]'),
+              worldHeld: delivery.held,
+              deliveredEvents: delivery.counts,
+              runtimeAvailable: delivery.runtimeAvailable,
+              programRunning:
+                document
+                  .querySelector(
+                    '.device-panel .lab-section-heading [data-slot="badge"]',
+                  )
+                  ?.textContent?.trim() === '运行中',
+              runtimeUnavailableAlert: Array.from(
+                document.querySelectorAll('.device-panel [role="alert"]'),
+              ).some((alert) => alert.textContent?.includes('运行端尚未就绪')),
+            };
+          }),
+        );
+        predicateFact('observation', {
+          stage: 'original-validity-failed',
+          slot: name === 'Rotor A' ? 0 : 1,
+          capture,
+        });
+        throw error;
+      }
     }
     await showObjectDirectory(page);
     await page

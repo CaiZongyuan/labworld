@@ -2,6 +2,8 @@
 
 目标：为自己的 Lab World 变更选择能观察结果的公开检查。命令从仓库根目录执行，完整职责见[测试策略](strategy.md)。
 
+服务与开发环境使用 Linux/WSL，Windows 用户从 WSL 终端运行下列命令。CI 在 Ubuntu 上执行完整 Node、合同与浏览器 Web 检查；不再运行原生 Windows job。
+
 ## 选择入口
 
 | 变更              | 命令                                      | 观察结果与前提                                                       |
@@ -31,6 +33,18 @@
 首次进入含模型的 World 或资产查看器时，浏览器检查通过 `expectInitialSceneReady` 最多等待 15 秒，并继续检查实际模型、像素与错误状态。[实际 GitHub Ubuntu/SwiftShader 诊断](https://github.com/CaiZongyuan/labworld/actions/runs/38074047499) 在 9.269 秒观察到正确的 20 模型场景；原 5 秒失败仍保留。这个测试环境等待只用于初始场景，不改变产品性能承诺、后续操作或恢复等待、600 秒运动验收及计数预算。
 
 ## 失败与证据
+
+motion smoke 的原始三角形轮询失败、trusted WSS 首旅程的旧 Recording 完成轮询失败，以及该 WSS 旅程失败时在清理前采集的 250ms UI／公开 Session 快照，会将脱敏事实写入 `original-*-facts.jsonl`，由正式 CI 的小型 `gate-facts-web-journeys-<shard>` 产物保留。
+
+需要 GitHub Ubuntu 上的单个原始 Web profile 时，将 `your-branch` 替换为已推送的分支：
+
+```bash
+gh workflow run perf-nightly.yml --ref your-branch -f diagnose_web=history
+```
+
+`history` 运行完整历史用例文件；`motion` 运行原始 motion smoke；`resources` 运行完整 `lab.spec.ts`（四个用例及原有同进程历史）。它们沿用正式 CI 的 Node/Web 监督入口、Chromium 和默认桌面 Web 范围，只有 motion 安装固定 Python 依赖。省略输入或选择 `none` 仍运行原合成报告，`soak_duration_secs` 用法不变。诊断按分支与 profile 隔离并发，不取消 nightly。
+
+查看 `diagnose-web (not CI)` 的 collected/executed/skipped 数量；零执行或全部跳过会失败。下载 `diagnose-web-<profile>` 产物中的安全事实、summary 和 ownership/closure 回执，并核对实际 head。它不保留原始 trace、请求头或服务日志。该入口仅缩短已选失败的反馈；成功不替代正式 verify 或浏览器分片/汇总检查，也不重置诊断预算。
 
 如果 Docker、Chromium 或依赖缺失，记录命令、失败条件和未验证范围，不把跳过视为通过。后端检查使用隔离资源，不清理开发或生产数据。
 

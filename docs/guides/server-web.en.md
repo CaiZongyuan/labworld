@@ -19,17 +19,7 @@ pnpm build
 LAB_WORD_DATA_DIR=.scratch/hosted-lab SERVER_PORT=3100 APP_ORIGIN=http://127.0.0.1:3100 FILE_PUBLIC_ORIGIN=http://127.0.0.1:3100 LAB_WORD_WEB_DIR=apps/web/dist pnpm start
 ```
 
-PowerShell:
-
-```powershell
-pnpm build
-$env:LAB_WORD_DATA_DIR = '.scratch/hosted-lab'
-$env:SERVER_PORT = '3100'
-$env:APP_ORIGIN = 'http://127.0.0.1:3100'
-$env:FILE_PUBLIC_ORIGIN = 'http://127.0.0.1:3100'
-$env:LAB_WORD_WEB_DIR = 'apps/web/dist'
-pnpm start
-```
+On Windows, run the commands above in a WSL terminal.
 
 `pnpm start` runs the compiled service. The build includes its SQL, JSON catalog and WASM codecs; installed dependencies remain pinned by pnpm.
 

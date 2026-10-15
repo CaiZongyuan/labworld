@@ -8,6 +8,7 @@ import type {
   SimulationSession,
   SessionMotionTicket,
   CreatedApiKey,
+  LabRecording,
 } from '../../packages/contracts/src/generated/types.gen';
 import { CoreHttp } from '../support/core-http';
 import { register } from './motion-support';
@@ -39,6 +40,8 @@ import { readSessionFrame } from './simulation-session-oracle';
 import { OwnedMotionActor } from './secure-motion-source';
 import { assertPrivateDenial } from './secure-motion-oracle';
 import { assertSourceWitness } from './secure-source-witness';
+import { boundedBrowserFact } from './lab-browser-facts';
+import { lifecycleFacts, predicateFact } from './original-predicate-facts';
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 
@@ -316,15 +319,40 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     assertSessionGeometry(await pose(page, active.id), active);
     assertSessionGeometry(await pose(f.second, active.id), active);
     const oldRecording = await recordingForSession(f.api, f.lab.id, old.id);
-    await eventually(
-      () =>
-        f!.api.json<{ status: string }>(
-          'GET',
-          recordingPath(f!.lab.id, oldRecording.id),
-        ),
-      (value) => value.status === 'complete',
-      10000,
-    );
+    let lastMetadata: object = { capture: 'not-observed' };
+    try {
+      await eventually(
+        () =>
+          f!.api
+            .json<LabRecording>(
+              'GET',
+              recordingPath(f!.lab.id, oldRecording.id),
+            )
+            .then((value) => {
+              try {
+                lastMetadata = {
+                  ...lifecycleFacts(value),
+                  sourceEnded:
+                    typeof value.prefix?.source_ended === 'boolean'
+                      ? value.prefix.source_ended
+                      : null,
+                  sealPresent: !!value.seal,
+                };
+              } catch {
+                lastMetadata = { capture: 'projection-error' };
+              }
+              return value;
+            }),
+        (value) => value.status === 'complete',
+        10000,
+      );
+    } catch (error) {
+      predicateFact('recording', {
+        boundary: 'original-wss-old-recording-poll-failed',
+        lastMetadata,
+      });
+      throw error;
+    }
     const oldRead = await publicRecording(f.api, f.lab.id, oldRecording.id);
     assert.equal(oldRead.metadata.snapshot_hash, old.snapshot.hash);
     assert.equal(oldRead.metadata.prefix.source_ended, true);
@@ -378,6 +406,82 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       successorEpoch: active.epoch,
     });
     active = undefined;
+  } catch (error) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 250);
+    try {
+      const [ui, session] = await Promise.all([
+        boundedBrowserFact(() =>
+          page.evaluate(() => {
+            const states: Record<string, string> = {
+              未连接: 'disconnected',
+              正在连接: 'connecting',
+              等待发布者: 'waiting',
+              运动已连接: 'live',
+              运动过期: 'stale',
+              运动已暂停: 'paused',
+              运动中断: 'interrupted',
+              会话已关闭: 'closed',
+              连接失败: 'error',
+            };
+            const status = Array.from(
+              document.querySelectorAll(
+                '[role="dialog"] [role="status"][aria-label="运动接收"]',
+              ),
+            ).find((element) => element.getClientRects().length > 0);
+            const label = Object.keys(states).find((label) =>
+              status?.textContent?.trim().startsWith(label),
+            );
+            const now = performance.now();
+            return {
+              motionStatus: label
+                ? states[label]
+                : status
+                  ? 'OTHER'
+                  : 'missing',
+              online: navigator.onLine,
+              browserMonotonicMs:
+                Number.isFinite(now) && Math.abs(now) <= 1e12 ? now : null,
+            };
+          }),
+        ),
+        boundedBrowserFact(async () => {
+          if (!f || !active) return { capture: 'not-observed' };
+          try {
+            const response = await fetch(
+              f.api.url + sessionPath(f.lab.id, active.id),
+              {
+                headers: {
+                  ...f.api.headers,
+                  cookie: f.api.cookie ?? '',
+                  origin: f.api.url,
+                },
+                signal: controller.signal,
+              },
+            );
+            const body: unknown = await response.json();
+            return {
+              capture: 'ack',
+              httpStatus: response.status,
+              ...lifecycleFacts(body),
+            };
+          } catch {
+            return { capture: 'timeout-or-read-error' };
+          }
+        }),
+      ]);
+      predicateFact('recording', {
+        boundary: 'original-wss-journey-failed',
+        ui,
+        session,
+      });
+    } catch {
+      // Evidence collection never replaces the original assertion failure.
+    } finally {
+      clearTimeout(timer);
+      controller.abort();
+    }
+    throw error;
   } finally {
     await page
       .context()

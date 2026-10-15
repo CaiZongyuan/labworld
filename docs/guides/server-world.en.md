@@ -1,6 +1,6 @@
 # Register Worlds and Layouts with the Node Server
 
-Goal: create a persistent Lab, register independent Entities, share a representation, then save a layout and recover from 409. Complete [Node digital assets](server-assets.en.md) first. Prepare a Member and an active `lab:full` Agent key. You need Node 24, pnpm, and Linux or Windows. `pnpm dev` requires no Docker. Run commands from the repository root. They write development data.
+Goal: create a persistent Lab, register independent Entities, share a representation, then save a layout and recover from 409. Complete [Node digital assets](server-assets.en.md) first. Prepare a Member and an active `lab:full` Agent key. You need Node 24, pnpm, and Linux/WSL. `pnpm dev` requires no Docker. Run commands from the repository root. They write development data.
 
 ## Register and Find the Same Identity
 

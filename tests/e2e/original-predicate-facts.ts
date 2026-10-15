@@ -2,7 +2,8 @@ import type { Locator } from '@playwright/test';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-type Case = 'layout' | 'geometries' | 'history';
+type Case =
+  'layout' | 'geometries' | 'history' | 'observation' | 'motion' | 'recording';
 const rows: Partial<Record<Case, number>> = {};
 
 /** Owned, best-effort evidence; a failed write never changes the original verdict. */
@@ -19,6 +20,30 @@ export function predicateFact(name: Case, fact: object) {
   } catch {
     // Missing evidence remains unknown; do not replace a product/test failure.
   }
+}
+
+/** Closed public lifecycle fields only; never export a response body or identity. */
+export function lifecycleFacts(value: unknown) {
+  const body = value as { status?: unknown; reason?: unknown } | null;
+  const code = (value: unknown, known: string) => {
+    if (value === null) return null;
+    if (typeof value !== 'string') return 'UNKNOWN';
+    return known.split(/\s+/).includes(value) ? value : 'OTHER';
+  };
+  return {
+    status: code(
+      body?.status,
+      'starting running pausing paused resuming stopping stopped reset interrupted preparing open complete incomplete deleting deleted',
+    ),
+    reason: code(
+      body?.reason,
+      `reset_requested reset_source_drain_incomplete source_disconnected recorder_capacity recording_capacity
+       invalid_packet altered_duplicate recording_ack_timeout recording_drain_timeout recording_seal_failed recording_seal_timeout
+       recording_event_prepare_failed recording_event_commit_failed recording_event_prepare_timeout recording_event_commit_timeout
+       recording_session_event_commit_failed recording_prepare_failed recording_abort_failed recording_event_bytes_missing
+       server_shutdown publisher_disconnected source_ack_timeout source_progress_timeout machine_revoked machine_expired source_unavailable`,
+    ),
+  };
 }
 
 /** One DOM read replaces the original innerText read, with the same return value. */

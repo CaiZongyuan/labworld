@@ -2,6 +2,8 @@
 
 Goal: select public checks that observe your Lab World change. Run from the repository root. The [testing strategy](strategy.md) defines responsibilities.
 
+Server and development environments use Linux/WSL. On Windows, run these commands in a WSL terminal. CI runs complete Node, contract and browser Web checks on Ubuntu; it no longer runs a native Windows job.
+
 ## Choose An Entry
 
 | Change                         | Command                                   | Evidence and prerequisites                                                               |
@@ -31,6 +33,18 @@ Production component checks will observe import controls, selection, loading/err
 On the first load of a World with models or an asset viewer, browser checks use `expectInitialSceneReady` to wait up to 15 seconds, then retain the actual model, pixel and error checks. The [actual GitHub Ubuntu/SwiftShader diagnosis](https://github.com/CaiZongyuan/labworld/actions/runs/38074047499) observed the correct 20-model scene after 9.269 seconds; the original five-second failure remains recorded. This test-environment wait applies only to the initial scene. Product performance promises, later action and recovery waits, the 600-second motion acceptance and count budgets remain unchanged.
 
 ## Failure And Evidence
+
+Failures of motion smoke's original triangle poll and the first trusted WSS journey's old Recording completion poll, plus the 250ms UI/public Session snapshot taken before cleanup when that WSS journey fails, write redacted facts to `original-*-facts.jsonl`, retained in formal CI's small `gate-facts-web-journeys-<shard>` artifact.
+
+For one original Web profile on GitHub Ubuntu, replace `your-branch` with a pushed branch:
+
+```bash
+gh workflow run perf-nightly.yml --ref your-branch -f diagnose_web=history
+```
+
+`history` runs the complete history test file; `motion` runs the original motion smoke; `resources` runs all four cases and retained same-process history in `lab.spec.ts`. They reuse CI's owned Node/Web supervisor, Chromium and default desktop Web scope. Only motion installs the pinned Python dependencies. Omitting the input or selecting `none` preserves the synthetic reports and existing `soak_duration_secs` behavior. Diagnostic concurrency is isolated by branch and profile, so it does not cancel nightly reports.
+
+Read the collected/executed/skipped counts in `diagnose-web (not CI)`; zero executed cases or only skipped cases fail. Download safe facts, the summary and ownership/closure receipts from `diagnose-web-<profile>`, and check the actual head. Raw traces, request headers and service logs are excluded. This entry shortens feedback for a selected failure. Success does not replace formal verify or browser shards/aggregate checks, or reset a diagnosis budget.
 
 Record commands, missing prerequisites and unverified scope when Docker, Chromium or dependencies are unavailable. Skipped checks are not passes. Backend checks use isolated resources and do not clean development or production data.
 

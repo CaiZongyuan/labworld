@@ -4,7 +4,7 @@ This guide is for developers of Lab World Server. The current foundation provide
 
 ## Get the first result
 
-Use Linux or Windows and the Node 24 and pnpm versions specified by the repository. Run these commands at the repository root. Docker, Rust and an external database are not required.
+Use Linux/WSL and the Node 24 and pnpm versions specified by the repository. Run these commands at the repository root. Docker, Rust and an external database are not required.
 
 ```bash
 pnpm install --frozen-lockfile
@@ -35,15 +35,7 @@ Linux shell example:
 LAB_WORD_DATA_DIR=.scratch/my-foundation-data SERVER_PORT=3100 WEB_PORT=5180 APP_ORIGIN=http://127.0.0.1:5180 pnpm dev
 ```
 
-The same example in PowerShell:
-
-```powershell
-$env:LAB_WORD_DATA_DIR = '.scratch/my-foundation-data'
-$env:SERVER_PORT = '3100'
-$env:WEB_PORT = '5180'
-$env:APP_ORIGIN = 'http://127.0.0.1:5180'
-pnpm dev
-```
+The same example in On Windows, use the same Linux commands in a WSL terminal.
 
 Only one process can open a canonical data directory. If a second start fails, preserve the original process and directory. Do not delete the directory to remove exclusivity. The default loopback listener is for local development. Team access requires an HTTPS reverse proxy supplied by the deployment owner.
 
@@ -60,7 +52,7 @@ Service tests start real child processes. They verify health, errors, persistenc
 
 `pnpm contracts:baseline:check` compares complete retained HTTP semantics with the immutable M0 baseline. Official generation and drift checks use Node; typecheck covers real SDK consumers. Isolated output retains official-directory and alias protection.
 
-`pnpm check` runs static/generation/ownership and complete frontend/tooling checks before service and full HTTP/SSE suites, builds, deterministic budgets and docs. Linux CI adds real desktop Web and built production journeys. Windows verifies Node service behavior. Integration and Migration Gate remain separate decisions.
+`pnpm check` runs static/generation/ownership and complete frontend/tooling checks before service and full HTTP/SSE suites, builds, deterministic budgets and docs. Ubuntu CI validates the Node service, real desktop Web and built production journeys. Local development and validation use Linux/WSL. Integration and Migration Gate remain separate decisions.
 
 ## Replay the persistence spike
 
