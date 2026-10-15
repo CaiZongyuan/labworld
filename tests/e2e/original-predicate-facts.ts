@@ -2,7 +2,7 @@ import type { Locator } from '@playwright/test';
 import { appendFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-type Case = 'layout' | 'geometries' | 'history';
+type Case = 'layout' | 'geometries' | 'history' | 'observation';
 const rows: Partial<Record<Case, number>> = {};
 
 /** Owned, best-effort evidence; a failed write never changes the original verdict. */
