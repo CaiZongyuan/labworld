@@ -2,6 +2,8 @@
 
 Lab World 的产品目标是实验室数字孪生。当前应用提供持久 Lab、独立 Entity、多节点场景、服务器资产库和版本化定义。用户可以编辑布局、登记人工关系，并运行后端照明、温度与离心程序。术语见 [CONTEXT](../../CONTEXT.md)。
 
+当前仅交付浏览器 Web 版本。近期里程碑是[通用 Newton 刚体同步](https://github.com/CaiZongyuan/labworld/issues/103)。Electron 桌面应用与安装包不在交付范围内。
+
 ## 模型与设备的关系
 
 ```text

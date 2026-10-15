@@ -2,6 +2,8 @@
 
 Lab World is a laboratory digital twin. The application provides persistent Labs, independent Entities, multi-node scenes, a server Asset Library and versioned definitions. Users can edit layouts, register manual relationships and run backend lighting, temperature and centrifuge programs. See the [glossary](../../CONTEXT.md).
 
+The delivery target is the browser Web application. The next milestone is [generic Newton rigid-body synchronization](https://github.com/CaiZongyuan/labworld/issues/103). Electron desktop applications and installers are outside the delivery scope.
+
 ## Models And Equipment
 
 ```text
