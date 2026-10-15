@@ -41,6 +41,7 @@ import { OwnedMotionActor } from './secure-motion-source';
 import { assertPrivateDenial } from './secure-motion-oracle';
 import { assertSourceWitness } from './secure-source-witness';
 import { predicateFact } from './original-predicate-facts';
+import { boundedBrowserFact } from './lab-browser-facts';
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 
@@ -221,6 +222,7 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
   assert(process.env.E2E_API_URL?.startsWith('https://'));
   let f: Awaited<ReturnType<typeof prepareSession>> | undefined;
   let active: SimulationSession | undefined;
+  let failureStage = 'prepare';
   const contexts = [];
   let signed = 0;
   let currentViewerSocket: import('@playwright/test').WebSocket | undefined;
@@ -237,9 +239,11 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
   });
   try {
     f = await prepareSession(page, browser);
+    failureStage = 'start';
     active = await action(page, f.lab.id, null, 'Start');
     active = await authority(f.api, f.lab.id, active.id, 'running');
     const wire = new SessionRawViewer(active, await ticket(f.api, active));
+    failureStage = 'initial-render';
     for (const [index, viewer] of [page, f.second].entries()) {
       assertSessionGeometry(await pose(viewer, active.id), active);
       await pixels(viewer, 'secure-motion-view-' + index);
@@ -249,6 +253,7 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       oldViewerSocket = currentViewerSocket;
     assert(oldViewerSocket);
     const recoveryDialog = await dialog(page);
+    failureStage = 'offline';
     await page.context().setOffline(true);
     await expect(
       recoveryDialog.getByRole('status', { name: '运动接收' }),
@@ -263,6 +268,7 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     );
     assert.deepEqual((await displayed(page))?.nodes, frozen.nodes);
     await page.context().setOffline(false);
+    failureStage = 'reconnect';
     await expect.poll(() => signed).toBeGreaterThan(firstTickets);
     await eventually(
       async () => displayed(page),
@@ -276,6 +282,7 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       .getByRole('button', { name: '关闭', exact: true })
       .click();
     assertSessionGeometry(await pose(page, active.id), active);
+    failureStage = 'pause';
     await action(page, f.lab.id, active.id, 'Pause');
     const paused = await authority(f.api, f.lab.id, active.id, 'paused');
     const boundary = await wire.boundary(paused);
@@ -303,6 +310,7 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     const oldScopeIssuedAt = performance.now();
     await page.context().setOffline(true);
     const old = active;
+    failureStage = 'reset';
     active = await action(f.second, f.lab.id, old.id, 'Reset');
     active = await authority(f.api, f.lab.id, active.id, 'running');
     assert.notEqual(active.id, old.id);
@@ -317,6 +325,7 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     await page.context().setOffline(false);
     assertSessionGeometry(await pose(page, active.id), active);
     assertSessionGeometry(await pose(f.second, active.id), active);
+    failureStage = 'old-recording';
     const oldRecording = await recordingForSession(f.api, f.lab.id, old.id);
     let metadataReads = 0,
       lastMetadata: object | null = null;
@@ -333,6 +342,11 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
               'deleted',
               'reset_requested',
               'reset_source_drain_incomplete',
+              'source_disconnected',
+              'recorder_capacity',
+              'recording_capacity',
+              'invalid_packet',
+              'altered_duplicate',
               'recording_ack_timeout',
               'recording_drain_timeout',
               'recording_seal_failed',
@@ -459,6 +473,197 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
       successorEpoch: active.epoch,
     });
     active = undefined;
+  } catch (error) {
+    try {
+      const browser = boundedBrowserFact(() =>
+        page.evaluate(() => {
+          const finite = (value: unknown) =>
+            typeof value === 'number' &&
+            Number.isFinite(value) &&
+            Math.abs(value) <= 1e12
+              ? value
+              : null;
+          const decimal = (value: unknown) =>
+            typeof value === 'string' && /^\d{1,20}$/.test(value)
+              ? value
+              : null;
+          const states: Record<string, string> = {
+            未连接: 'disconnected',
+            正在连接: 'connecting',
+            等待发布者: 'waiting',
+            运动已连接: 'live',
+            运动过期: 'stale',
+            运动已暂停: 'paused',
+            运动中断: 'interrupted',
+            会话已关闭: 'closed',
+            连接失败: 'error',
+          };
+          const status = Array.from(
+            document.querySelectorAll(
+              '[role="dialog"] [role="status"][aria-label="运动接收"]',
+            ),
+          ).find((element) => element.getClientRects().length > 0);
+          const text = status?.textContent?.trim() ?? '';
+          const classification = Object.keys(states).find((label) =>
+            text.startsWith(label),
+          );
+          const canvas = document.querySelector('canvas') as
+            | (HTMLCanvasElement & {
+                getMotionDiagnostics?: () => {
+                  rendered_at_ms?: unknown;
+                  nodes?: { sequence?: unknown; sim_time_ns?: unknown }[];
+                } | null;
+              })
+            | null;
+          const value = canvas?.getMotionDiagnostics?.();
+          return {
+            motionStatus: classification
+              ? states[classification]
+              : status
+                ? 'OTHER'
+                : 'missing',
+            online: navigator.onLine,
+            browserMonotonicMs: finite(performance.now()),
+            getterPresent: typeof canvas?.getMotionDiagnostics === 'function',
+            diagnosticPresent: !!value,
+            nodeCount:
+              Array.isArray(value?.nodes) && value.nodes.length <= 1024
+                ? value.nodes.length
+                : null,
+            renderedAt: finite(value?.rendered_at_ms),
+            firstSequence: decimal(value?.nodes?.[0]?.sequence),
+            firstSimTimeNs: decimal(value?.nodes?.[0]?.sim_time_ns),
+          };
+        }),
+      );
+      const publicState = (async () => {
+        if (!f || !active) return { capture: 'not-observed' };
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 250);
+        try {
+          const headers = {
+            ...f.api.headers,
+            cookie: f.api.cookie ?? '',
+            origin: f.api.url,
+          };
+          const [sessionResponse, recordingResponse] = await Promise.all([
+            fetch(f.api.url + sessionPath(f.lab.id, active.id), {
+              headers,
+              signal: controller.signal,
+            }),
+            fetch(f.api.url + recordingPath(f.lab.id) + '?limit=2', {
+              headers,
+              signal: controller.signal,
+            }),
+          ]);
+          const [session, list] = await Promise.all([
+            sessionResponse.json(),
+            recordingResponse.json(),
+          ]);
+          const recording = Array.isArray(list?.data)
+            ? list.data.find(
+                (value: { session_id?: unknown }) =>
+                  value.session_id === active!.id,
+              )
+            : undefined;
+          const pick = (value: unknown, allowed: string[]) =>
+            value === null
+              ? null
+              : typeof value === 'string' && allowed.includes(value)
+                ? value
+                : 'OTHER';
+          const reasons = [
+            'reset_requested',
+            'reset_source_drain_incomplete',
+            'source_disconnected',
+            'recorder_capacity',
+            'recording_capacity',
+            'invalid_packet',
+            'altered_duplicate',
+            'recording_ack_timeout',
+            'recording_drain_timeout',
+            'recording_seal_failed',
+            'recording_seal_timeout',
+            'recording_event_prepare_failed',
+            'recording_event_commit_failed',
+            'recording_event_prepare_timeout',
+            'recording_event_commit_timeout',
+            'recording_session_event_commit_failed',
+            'recording_prepare_failed',
+            'recording_abort_failed',
+            'recording_event_bytes_missing',
+            'server_shutdown',
+            'publisher_disconnected',
+            'source_ack_timeout',
+            'source_progress_timeout',
+            'machine_revoked',
+            'machine_expired',
+            'source_unavailable',
+          ];
+          return {
+            capture: 'ack',
+            sessionHttpStatus: sessionResponse.status,
+            recordingHttpStatus: recordingResponse.status,
+            sessionStatus: pick(session?.status, [
+              'starting',
+              'running',
+              'pausing',
+              'paused',
+              'resuming',
+              'stopping',
+              'stopped',
+              'reset',
+              'interrupted',
+            ]),
+            sessionReason: pick(session?.reason, reasons),
+            sessionEnded: typeof session?.ended_at === 'string',
+            recordingPresent: !!recording,
+            recordingStatus: pick(recording?.status, [
+              'preparing',
+              'open',
+              'complete',
+              'incomplete',
+              'deleting',
+              'deleted',
+            ]),
+            recordingReason: pick(recording?.reason, reasons),
+            sourceEnded:
+              typeof recording?.prefix?.source_ended === 'boolean'
+                ? recording.prefix.source_ended
+                : null,
+          };
+        } catch {
+          return { capture: 'timeout-or-read-error' };
+        } finally {
+          clearTimeout(timer);
+          controller.abort();
+        }
+      })();
+      const [browserFact, publicFact] = await Promise.all([
+        browser,
+        publicState,
+      ]);
+      predicateFact('recording', {
+        stage: 'original-wss-journey-failed',
+        failureStage: [
+          'prepare',
+          'start',
+          'initial-render',
+          'offline',
+          'reconnect',
+          'pause',
+          'reset',
+          'old-recording',
+        ].includes(failureStage)
+          ? failureStage
+          : 'OTHER',
+        browser: browserFact,
+        publicState: publicFact,
+      });
+    } catch {
+      /* Diagnostic failure never replaces the original error. */
+    }
+    throw error;
   } finally {
     await page
       .context()
