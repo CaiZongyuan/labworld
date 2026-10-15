@@ -9,7 +9,7 @@ Apply the author guide's [ASD-STE100-inspired writing rules](../guides/maintain-
 1. Identify the reader, task and page type. Use `overview`, `tutorial`, `guide`, `concept` or `reference` in `docs/site.json`.
 2. Inspect the current public interface, source and existing behavior checks. Use CONTEXT terms and accepted ADRs. Distinguish production capabilities, isolated previews and planned behavior.
 3. Write the smallest complete path from source location to observable result. Tutorials continue the same business code; guides can be entered independently. Explain the reason after the first runnable result.
-4. Deliver Chinese and English sources together with one stable chapter id. Set explicit `previous`/`next` ids when pages form a sequence; absent relationships disable automatic unrelated neighbors.
+4. Deliver Chinese and English sources together with one stable chapter id. A ticket updates affected guides or adds a short guide for a new entrypoint; new tutorial sequences are assembled at Epic completion unless explicitly required by the ticket. Set explicit `previous`/`next` ids when pages form a sequence; absent relationships disable automatic unrelated neighbors.
 5. Update code, tests, source snippets, links and business ownership with the capability. Keep API DTOs and configuration defaults generated from implementation.
 6. Run affected public behavior checks, `pnpm docs:check` and `pnpm docs:build`. Compare visible navigation and layouts with the accepted experience. Use the repository simplification and Standards + Spec review before delivery.
 
@@ -17,13 +17,13 @@ Done when the task can be followed in its declared source version, both language
 
 ## Content responsibilities
 
-| Type | Required content |
-| --- | --- |
-| Tutorial | Starting code state, complete change, files, run/request, expected result, one failure check, next stage |
-| Guide | Goal, prerequisites, public interface, complete minimal implementation, verification, recovery |
-| Concept | Definition, real relationship diagram, minimal example, tradeoff and failure boundary, practical guide |
-| Reference | Source, classified index, types/options/returns/errors/limits, links to usage |
-| Overview | Product scope, current stage, task entry paths and a first result |
+| Type      | Required content                                                                                         |
+| --------- | -------------------------------------------------------------------------------------------------------- |
+| Tutorial  | Starting code state, complete change, files, run/request, expected result, one failure check, next stage |
+| Guide     | Goal, prerequisites, public interface, complete minimal implementation, verification, recovery           |
+| Concept   | Definition, real relationship diagram, minimal example, tradeoff and failure boundary, practical guide   |
+| Reference | Source, classified index, types/options/returns/errors/limits, links to usage                            |
+| Overview  | Product scope, current stage, task entry paths and a first result                                        |
 
 Keep historical tickets and validation reports in maintainer records. The public page describes current behavior. The footer SHA identifies the build source; it does not prove every command was tested.
 

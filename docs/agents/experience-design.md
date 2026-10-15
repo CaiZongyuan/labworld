@@ -40,7 +40,7 @@ Translate the experience into observable acceptance criteria and tests at the in
 
 Before substantial implementation, compare the parent criteria, child ticket, accepted preview and latest explicit corrections in a short design/Spec preflight. A preview approval does not silently waive a contradictory criterion. Resolve settled priorities from existing decisions and record the result; seek a product decision only for a material conflict that remains unresolved.
 
-Implement using the real components and contracts. Prototype code is evidence for the design, not a production-quality implementation. Preserve example ownership and Core independence, update the runnable example and paired tutorials, then run the repository's simplification, required checks and Standards + Spec review.
+Implement using the real components and contracts. Prototype code is evidence for the design, not a production-quality implementation. Preserve example ownership and Core independence, update the runnable example and affected bilingual guides, then run the repository's bounded simplification, required checks and Standards + Spec review. New tutorial sequences follow the documentation cadence in [development-flow.md](development-flow.md).
 
 ## 5. Verify the real application
 
