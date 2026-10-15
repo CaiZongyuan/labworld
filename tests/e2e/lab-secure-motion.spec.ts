@@ -364,24 +364,30 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
             )
             .then((value) => {
               metadataReads++;
-              lastMetadata = {
-                status: code(value.status),
-                reason: code(value.reason),
-                sourceEnded:
-                  typeof value.prefix.source_ended === 'boolean'
-                    ? value.prefix.source_ended
-                    : null,
-                sourcePacketSequence: decimal(
-                  value.prefix.source_packet_sequence,
-                ),
-                lastSourceSequence: decimal(value.prefix.last_source_sequence),
-                lastSourceEventSequence: decimal(
-                  value.prefix.last_source_event_sequence,
-                ),
-                sealPresent: !!value.seal,
-                sealIntegrity: code(value.seal?.integrity),
-                sealReason: code(value.seal?.reason),
-              };
+              try {
+                lastMetadata = {
+                  status: code(value.status),
+                  reason: code(value.reason),
+                  sourceEnded:
+                    typeof value.prefix.source_ended === 'boolean'
+                      ? value.prefix.source_ended
+                      : null,
+                  sourcePacketSequence: decimal(
+                    value.prefix.source_packet_sequence,
+                  ),
+                  lastSourceSequence: decimal(
+                    value.prefix.last_source_sequence,
+                  ),
+                  lastSourceEventSequence: decimal(
+                    value.prefix.last_source_event_sequence,
+                  ),
+                  sealPresent: !!value.seal,
+                  sealIntegrity: code(value.seal?.integrity),
+                  sealReason: code(value.seal?.reason),
+                };
+              } catch {
+                lastMetadata = { capture: 'projection-error' };
+              }
               return value;
             }),
         (value) => value.status === 'complete',
