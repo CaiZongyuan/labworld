@@ -32,6 +32,16 @@ On the first load of a World with models or an asset viewer, browser checks use 
 
 ## Failure And Evidence
 
+For one original Web profile on GitHub Ubuntu, replace `your-branch` with a pushed branch:
+
+```bash
+gh workflow run perf-nightly.yml --ref your-branch -f diagnose_web=history
+```
+
+`history` runs the complete history test file; `motion` runs the original motion smoke; `resources` runs all four cases and retained same-process history in `lab.spec.ts`. They reuse CI's owned Node/Web supervisor, Chromium and default desktop Web scope. Only motion installs the pinned Python dependencies. Omitting the input or selecting `none` preserves the synthetic reports and existing `soak_duration_secs` behavior. Diagnostic concurrency is isolated by branch and profile, so it does not cancel nightly reports.
+
+Read the collected/executed/skipped counts in `diagnose-web (not CI)`; zero executed cases or only skipped cases fail. Download safe facts, the summary and ownership/closure receipts from `diagnose-web-<profile>`, and check the actual head. Raw traces, request headers and service logs are excluded. This entry shortens feedback for a selected failure. Success does not replace formal verify, browser shards/aggregate or Windows checks, or reset a diagnosis budget.
+
 Record commands, missing prerequisites and unverified scope when Docker, Chromium or dependencies are unavailable. Skipped checks are not passes. Backend checks use isolated resources and do not clean development or production data.
 
 Record evidence against a fixed revision, environment and task scope. Reuse genuine TDD red and recovery green as VDD evidence for the same assertion. Local focused checks and one full gate in the responsible environment cover the stable final candidate. Reuse included affected checks. Refresh coverage by semantic impact after repairs or main changes. The [development flow](../agents/development-flow.md) defines the sequence and independent review.

@@ -8,15 +8,21 @@ on:
       soak_duration_secs:
         description: Synthetic M1 report duration in seconds
         default: '300'
+      diagnose_web:
+        description: Optional Web diagnostic profile; none keeps synthetic reports
+        type: choice
+        default: none
+        options: [none, history, motion, resources]
   release:
     types: [published]
 permissions:
   contents: read
 concurrency:
-  group: perf-nightly
+  group: ${{ github.event_name == 'workflow_dispatch' && inputs.diagnose_web && inputs.diagnose_web != 'none' && format('diagnose-web-{0}-{1}', github.ref, inputs.diagnose_web) || 'perf-nightly' }}
   cancel-in-progress: true
 jobs:
   load-reports:
+    if: github.event_name != 'workflow_dispatch' || !inputs.diagnose_web || inputs.diagnose_web == 'none'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -40,3 +46,60 @@ jobs:
           path: .scratch/vnext-m1/
           if-no-files-found: ignore
           retention-days: 30
+  diagnose-web:
+    name: diagnose-web (not CI)
+    if: github.event_name == 'workflow_dispatch' && inputs.diagnose_web && inputs.diagnose_web != 'none'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      E2E_LAB_REFERENCE_LOAD: '1'
+      DIAGNOSE_PROFILE: ${{ inputs.diagnose_web }}
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version-file: .node-version
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: 11.17.0
+      - run: pnpm install --frozen-lockfile
+      - name: Install Chromium for actual Web/WebGL journeys
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Install the pinned optional synthetic Publisher environment
+        if: inputs.diagnose_web == 'motion'
+        run: |
+          python3.12 -m venv .scratch/motion-python
+          .scratch/motion-python/bin/python -m pip install -r tools/synthetic-motion/requirements.txt
+      - name: Run one original owned Web profile
+        shell: bash
+        run: |
+          case "$DIAGNOSE_PROFILE" in
+            history) pnpm test:e2e tests/e2e/lab-history.spec.ts ;;
+            motion) pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion smoke:' ;;
+            resources) pnpm test:e2e tests/e2e/lab.spec.ts ;;
+            *) echo 'Unsupported Web diagnostic profile' >&2; exit 2 ;;
+          esac
+      - name: Report discovered and executed browser cases
+        if: always()
+        run: |
+          node --input-type=module <<'NODE'
+          import { existsSync, readFileSync } from 'node:fs';
+          const path = 'test-results/summary.json';
+          const tests = existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')).tests : [];
+          const skipped = tests.filter((test) => test.status === 'skipped').length;
+          const counts = { collected: tests.length, executed: tests.length - skipped, skipped };
+          console.log(JSON.stringify(counts));
+          if (counts.executed === 0) process.exitCode = 1;
+          NODE
+      - name: Keep safe diagnostic facts and owned cleanup receipts
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: diagnose-web-${{ inputs.diagnose_web }}
+          path: |
+            .scratch/vnext-m1/**/*.json
+            .scratch/vnext-m1/**/*-facts.jsonl
+            .scratch/vnext-m1/**/e2e-journal.jsonl
+            test-results/summary.json
+          if-no-files-found: ignore
+          retention-days: 7

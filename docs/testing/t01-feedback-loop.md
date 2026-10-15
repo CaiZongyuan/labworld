@@ -32,6 +32,16 @@
 
 ## 失败与证据
 
+需要 GitHub Ubuntu 上的单个原始 Web profile 时，将 `your-branch` 替换为已推送的分支：
+
+```bash
+gh workflow run perf-nightly.yml --ref your-branch -f diagnose_web=history
+```
+
+`history` 运行完整历史用例文件；`motion` 运行原始 motion smoke；`resources` 运行完整 `lab.spec.ts`（四个用例及原有同进程历史）。它们沿用正式 CI 的 Node/Web 监督入口、Chromium 和默认桌面 Web 范围，只有 motion 安装固定 Python 依赖。省略输入或选择 `none` 仍运行原合成报告，`soak_duration_secs` 用法不变。诊断按分支与 profile 隔离并发，不取消 nightly。
+
+查看 `diagnose-web (not CI)` 的 collected/executed/skipped 数量；零执行或全部跳过会失败。下载 `diagnose-web-<profile>` 产物中的安全事实、summary 和 ownership/closure 回执，并核对实际 head。它不保留原始 trace、请求头或服务日志。该入口仅缩短已选失败的反馈；成功不替代正式 verify、浏览器分片/汇总或 Windows 检查，也不重置诊断预算。
+
 如果 Docker、Chromium 或依赖缺失，记录命令、失败条件和未验证范围，不把跳过视为通过。后端检查使用隔离资源，不清理开发或生产数据。
 
 在固定的源码版本、环境和任务范围上记录验证。真实 TDD red/green可复用为同一断言的 VDD 证据。稳定最终候选由本地定向检查与负责环境的一次完整门禁覆盖；已包含的 affected 检查不重复运行。修复和 main 前进按语义影响刷新，具体顺序与独立审查见[开发流程](../agents/development-flow.md)。
