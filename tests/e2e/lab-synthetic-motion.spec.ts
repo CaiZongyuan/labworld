@@ -107,6 +107,15 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
     assertTrajectory(advancedB, world.fixture.session_id);
     const geometry = [];
     for (const [viewerIndex, viewer] of [page, world.second].entries()) {
+      const fitStarted = performance.now();
+      await viewer
+        .getByRole('button', { name: '聚焦模型', exact: true })
+        .click();
+      predicateFact('motion', {
+        stage: 'diagnostic-public-scene-fit',
+        viewerIndex,
+        elapsedMs: performance.now() - fitStarted,
+      });
       let last: Awaited<ReturnType<typeof metrics>> | null = null;
       let sample: Awaited<ReturnType<typeof metrics>>;
       try {
@@ -142,6 +151,16 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
       expect(
         Number(sample.stats['三角形']?.replaceAll(',', '')),
       ).toBeGreaterThanOrEqual(240);
+      const actualTriangles = Number(
+        sample.stats['三角形']?.replaceAll(',', ''),
+      );
+      predicateFact('motion', {
+        stage: 'original-rendered-triangles-passed',
+        viewerIndex,
+        actualTriangles: Number.isFinite(actualTriangles)
+          ? actualTriangles
+          : null,
+      });
       geometry.push(sample);
     }
     const exposures = [

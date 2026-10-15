@@ -7,6 +7,7 @@ import {
 } from '@playwright/test';
 import { execFileSync } from 'node:child_process';
 import { boundedBrowserFact } from './lab-browser-facts';
+import { expectInitialSceneReady } from './initial-scene-ready';
 import {
   historyWorldProjection,
   predicateFact,
@@ -47,14 +48,6 @@ test('members and Agents query real history, recover a failed page and clean exp
 }) => {
   test.setTimeout(120000);
   page.setDefaultTimeout(10000);
-  // Diagnostic branch only: retain HTTP/UI history with the public WebGL fallback.
-  await page.addInitScript(() =>
-    Object.defineProperty(window, 'WebGL2RenderingContext', {
-      value: undefined,
-      configurable: true,
-    }),
-  );
-  predicateFact('history', { stage: 'diagnostic-webgl-unavailable' });
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.name));
   await page.setViewportSize({ width: 1440, height: 1000 });
@@ -169,6 +162,19 @@ test('members and Agents query real history, recover a failed page and clean exp
   };
   page.on('response', originalResponse);
   try {
+    const frameStarted = performance.now();
+    predicateFact('history', {
+      stage: 'diagnostic-before-rendered-first-frame',
+    });
+    await expectInitialSceneReady(page.locator('.world-page'));
+    await canvasPixels(
+      page,
+      'test-results/lab-foundation/diagnostic-history-initial-frame.png',
+    );
+    predicateFact('history', {
+      stage: 'diagnostic-rendered-first-frame-ready',
+      elapsedMs: performance.now() - frameStarted,
+    });
     predicateFact('history', { stage: 'before-original-start-click' });
     await inspector
       .getByRole('button', { name: '启动程序', exact: true })
