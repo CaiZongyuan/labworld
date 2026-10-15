@@ -55,6 +55,60 @@ type Admission = {
   };
 };
 
+function diagnosticCode(value: unknown) {
+  const allowed = [
+    'starting',
+    'running',
+    'pausing',
+    'paused',
+    'resuming',
+    'stopping',
+    'stopped',
+    'interrupted',
+    'preparing',
+    'open',
+    'complete',
+    'incomplete',
+    'deleting',
+    'deleted',
+    'recording_event_prepare_timeout',
+    'recording_event_prepare_failed',
+    'recording_event_commit_timeout',
+    'recording_event_commit_failed',
+    'recording_prepare_timeout',
+    'recording_prepare_failed',
+    'recording_ack_timeout',
+    'recording_drain_timeout',
+    'recording_seal_timeout',
+    'recording_seal_failed',
+    'recording_abort_failed',
+    'recording_read_timeout',
+    'recording_interrupted',
+    'source_ack_timeout',
+    'source_progress_timeout',
+    'publisher_disconnected',
+    'server_restarted',
+    'source_unavailable',
+    'machine_revoked',
+    'connection_closed',
+    'Recording socket closed',
+    'Recording socket error',
+    'pause',
+    'resume',
+    'stop',
+    'start',
+    'reset',
+  ];
+  return value === null || value === undefined
+    ? null
+    : typeof value === 'string' && allowed.includes(value)
+      ? value
+      : 'UNKNOWN';
+}
+function diagnosticSequence(value: unknown) {
+  return typeof value === 'string' && /^\d{1,20}$/.test(value) ? value : null;
+}
+
 /** Failure-only body projection; never exports the envelope or changes admission. */
 async function admissionFailureCode(
   response: Response | undefined,
@@ -646,6 +700,29 @@ class Source {
   disconnectMotion() {
     this.ws.terminate();
   }
+  diagnosticState() {
+    const control = this.controls
+      .filter((value) => value.type === 'motion.session_control')
+      .at(-1);
+    return {
+      motionClosed: this.ws.readyState === WebSocket.CLOSED,
+      recordingClosed: this.recording?.readyState === WebSocket.CLOSED,
+      motionFailure: diagnosticCode(this.failure),
+      recordingFailure: diagnosticCode(this.recordingFailure),
+      controlCount: Math.min(1e9, this.controls.length),
+      controlAction: diagnosticCode(control?.action),
+      controlReason: diagnosticCode(control?.reason),
+      receivedFrames: Math.min(1e9, this.frames.length),
+      recordingReady: !!this.recordingReady,
+      recordingRequestPending: !!this.recordingWaiter,
+      sourcePacketSequence: diagnosticSequence(String(this.packetSequence)),
+      lastAckSequence: diagnosticSequence(this.lastAck?.source_packet_sequence),
+      durabilityTimeoutMs:
+        this.recordingReady?.limits.durability_timeout_ms ?? null,
+      lifecycleAckTimeoutMs:
+        this.recordingReady?.limits.lifecycle_ack_timeout_ms ?? null,
+    };
+  }
 }
 async function fixture(name: string, grace = 60000) {
   const target = await new ServerProcess().create();
@@ -701,8 +778,14 @@ async function fixture(name: string, grace = 60000) {
       201,
     );
   }
+  let lastRead: Session | undefined;
   async function read(session: Session) {
-    return client.json<Session>('GET', base + `/sessions/${session.id}`);
+    const value = await client.json<Session>(
+      'GET',
+      base + `/sessions/${session.id}`,
+    );
+    lastRead = value;
+    return value;
   }
   async function state(session: Session, status: string) {
     return until(
@@ -723,6 +806,9 @@ async function fixture(name: string, grace = 60000) {
     admit,
     read,
     state,
+    get lastRead() {
+      return lastRead;
+    },
   };
 }
 
@@ -1155,7 +1241,73 @@ test(
       peers.push(source);
       await source.ready();
       await source.frame();
-      await f.state(session, 'running');
+      try {
+        await f.state(session, 'running');
+      } catch (error) {
+        const sourceAtFailure = source.diagnosticState();
+        let recording: object = { capture: 'not-observed' };
+        try {
+          const response = await fetch(
+            f.target.url + f.base + '/recordings?limit=2',
+            {
+              headers: { cookie: f.client.cookie!, origin: f.target.url },
+              signal: AbortSignal.timeout(250),
+            },
+          );
+          const body = (await response.json()) as {
+            data?: {
+              session_id: string;
+              status: string;
+              reason: string | null;
+              prefix: {
+                source_packet_sequence: string;
+                last_source_sequence: string;
+              };
+            }[];
+          };
+          const row = body.data?.find(
+            (value) => value.session_id === session.id,
+          );
+          recording = {
+            capture: 'ack',
+            httpStatus: response.status,
+            matchingSession: !!row,
+            status: diagnosticCode(row?.status),
+            reason: diagnosticCode(row?.reason),
+            sourcePacketSequence: diagnosticSequence(
+              row?.prefix.source_packet_sequence,
+            ),
+            lastSourceSequence: diagnosticSequence(
+              row?.prefix.last_source_sequence,
+            ),
+          };
+        } catch {
+          recording = { capture: 'timeout-or-read-error' };
+        }
+        try {
+          writeFileSync(
+            join(f.target.evidence, 'pins-running-facts.json'),
+            JSON.stringify(
+              {
+                phase: 'original-snapshot-pins-running-failed',
+                session: {
+                  status: diagnosticCode(f.lastRead?.status),
+                  reason: diagnosticCode(f.lastRead?.reason),
+                  revision: diagnosticSequence(String(f.lastRead?.revision)),
+                },
+                sourceAtFailure,
+                recording,
+              },
+              null,
+              2,
+            ) + '\n',
+            { mode: 0o600 },
+          );
+        } catch {
+          /* Evidence failure never replaces the original assertion. */
+        }
+        throw error;
+      }
       await f.client.error(
         'POST',
         f.base + `/installations/${f.installation.id}/archive`,

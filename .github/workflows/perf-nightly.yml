@@ -12,7 +12,7 @@ on:
         description: Optional Web diagnostic profile; none keeps synthetic reports
         type: choice
         default: none
-        options: [none, history, motion, resources]
+        options: [none, history, motion, resources, session-authority]
   release:
     types: [published]
 permissions:
@@ -49,7 +49,7 @@ jobs:
   diagnose-web:
     name: diagnose-web (not CI)
     if: github.event_name == 'workflow_dispatch' && inputs.diagnose_web && inputs.diagnose_web != 'none'
-    runs-on: ubuntu-24.04
+    runs-on: ${{ inputs.diagnose_web == 'session-authority' && 'windows-2025' || 'ubuntu-24.04' }}
     timeout-minutes: 20
     env:
       E2E_LAB_REFERENCE_LOAD: '1'
@@ -64,6 +64,7 @@ jobs:
           version: 11.17.0
       - run: pnpm install --frozen-lockfile
       - name: Install Chromium for actual Web/WebGL journeys
+        if: inputs.diagnose_web != 'session-authority'
         run: pnpm exec playwright install --with-deps chromium
       - name: Install the pinned optional synthetic Publisher environment
         if: inputs.diagnose_web == 'motion'
@@ -77,10 +78,14 @@ jobs:
             history) pnpm test:e2e tests/e2e/lab-history.spec.ts ;;
             motion) pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion smoke:' ;;
             resources) pnpm test:e2e tests/e2e/lab.spec.ts ;;
+            session-authority)
+              mkdir -p .scratch/vnext-m1
+              node --test --test-concurrency=1 --experimental-strip-types --test-reporter=tap tests/server/session-authority.test.ts | tee .scratch/vnext-m1/session-authority.tap
+              ;;
             *) echo 'Unsupported Web diagnostic profile' >&2; exit 2 ;;
           esac
       - name: Report discovered and executed browser cases
-        if: always()
+        if: always() && inputs.diagnose_web != 'session-authority'
         run: |
           node --input-type=module <<'NODE'
           import { existsSync, readFileSync } from 'node:fs';
@@ -90,6 +95,25 @@ jobs:
           const counts = { collected: tests.length, executed: tests.length - skipped, skipped };
           console.log(JSON.stringify(counts));
           if (counts.executed === 0) process.exitCode = 1;
+          NODE
+      - name: Report honest Node TAP case counts
+        if: always() && inputs.diagnose_web == 'session-authority'
+        shell: bash
+        run: |
+          node --input-type=module <<'NODE'
+          import { existsSync, readFileSync, mkdirSync, writeFileSync } from 'node:fs';
+          const path = '.scratch/vnext-m1/session-authority.tap';
+          const tap = existsSync(path) ? readFileSync(path, 'utf8') : '';
+          const count = (name) => {
+            const value = new RegExp('^# ' + name + ' (\\d+)$', 'm').exec(tap)?.[1];
+            return value && Number(value) <= 1e9 ? Number(value) : null;
+          };
+          const collected = count('tests'), skipped = count('skipped');
+          const counts = { collected, executed: collected === null || skipped === null ? null : collected - skipped, skipped, passed: count('pass'), failed: count('fail') };
+          console.log(JSON.stringify(counts));
+          mkdirSync('.scratch/vnext-m1', { recursive: true });
+          writeFileSync('.scratch/vnext-m1/session-authority-counts.json', JSON.stringify(counts) + '\n');
+          if (counts.executed === null || counts.executed < 1) process.exitCode = 1;
           NODE
       - name: Keep safe diagnostic facts and owned cleanup receipts
         if: always()
