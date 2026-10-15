@@ -1,6 +1,8 @@
 # 快速开始
 
-启动 Node 服务与 Web，创建账户并打开持久 Lab。使用 Linux 或 Windows，以及仓库锁定的 [Node 24.18.0](../../.node-version) 和 [pnpm 11.17.0](../../package.json)。
+启动 Node 服务与 Web，创建账户并打开持久 Lab。使用 Linux/WSL，以及仓库锁定的 [Node 24.18.0](../../.node-version) 和 [pnpm 11.17.0](../../package.json)。
+
+Windows 用户在 WSL 发行版中安装 Node/pnpm，并从 WSL 终端执行本页命令。当前产品通过浏览器 Web 访问；原生 Windows 服务与开发不在当前支持范围。
 
 ```bash
 git clone https://github.com/CaiZongyuan/labworld.git

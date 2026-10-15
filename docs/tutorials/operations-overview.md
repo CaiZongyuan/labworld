@@ -4,7 +4,7 @@
 
 ## 起始状态
 
-先完成[设备操作](device-details.md)、[设备趋势](device-trends.md)或[运行记录](lab-records.md)。Lab 中至少登记一台照明设备和一台温度传感器。使用有效 Member 会话。Agent 使用有效的 `lab:full` API key。当前服务使用 Node 24；Linux 与 Windows 不需要 Docker。
+先完成[设备操作](device-details.md)、[设备趋势](device-trends.md)或[运行记录](lab-records.md)。Lab 中至少登记一台照明设备和一台温度传感器。使用有效 Member 会话。Agent 使用有效的 `lab:full` API key。当前服务使用 Node 24；Linux/WSL 不需要 Docker。
 
 在仓库根目录运行 `pnpm install --frozen-lockfile`，再运行 `pnpm dev`。以下查看操作不修改设备、布局或登记位置。设备操作仍会写入持久记录。
 

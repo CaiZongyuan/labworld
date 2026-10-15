@@ -4,7 +4,7 @@ Goal: scan devices, Tasks, key observations, and attention facts in one Lab. The
 
 ## Starting state
 
-Complete [device operations](device-details.md), [device trends](device-trends.md), or [Lab records](lab-records.md). Register at least one light and one temperature sensor. Use a valid Member session. An Agent needs a valid `lab:full` API key. The server uses Node 24. Linux and Windows do not need Docker.
+Complete [device operations](device-details.md), [device trends](device-trends.md), or [Lab records](lab-records.md). Register at least one light and one temperature sensor. Use a valid Member session. An Agent needs a valid `lab:full` API key. The server uses Node 24. Linux/WSL does not need Docker.
 
 From the repository root, run `pnpm install --frozen-lockfile`, then `pnpm dev`. Viewing does not change devices, layouts, or registered locations. Device operations still write persistent records.
 

@@ -1,6 +1,6 @@
 # Run Device Programs with Node
 
-Goal: run two independent lights, then observe sensors and centrifuge Tasks. Complete [Node World](server-world.en.md) first. Prepare a Member session and an active `lab:full` Agent key. Use the pinned Node 24 and pnpm on Linux or Windows. Run commands from the repository root. These operations write development data.
+Goal: run two independent lights, then observe sensors and centrifuge Tasks. Complete [Node World](server-world.en.md) first. Prepare a Member session and an active `lab:full` Agent key. Use the pinned Node 24 and pnpm on Linux/WSL. Run commands from the repository root. These operations write development data.
 
 ## Get a Real Device Report
 

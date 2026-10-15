@@ -30,7 +30,7 @@ NodeFS 的 `syncToFs` 为空，与默认 `-F` 一起被明确记录。这些事�
 
 ## 范围与后续责任
 
-当前服务入口支持并实际验证 Linux 与 Windows。数据目录租约使用 Linux abstract Unix socket 和 Windows named pipe，由操作系统在进程退出时释放；macOS 入口尚未交付，不声称可运行。Browser Standalone 仍是后续独立决定，不能由本数据库选择推定为已实现。
+2026-10-16 支持范围更新（用户确认）：当前交付为浏览器 Web，服务与开发使用 Linux/WSL，原生 Windows CI 已移除。上表保留此前 Linux/Windows 验证事实。数据目录租约使用 Linux abstract Unix socket 和 Windows named pipe，由操作系统在进程退出时释放；macOS 入口尚未交付，不声称可运行。Browser Standalone 仍是后续独立决定，不能由本数据库选择推定为已实现。
 
 本次合成负载证明基础设施可承载规定的写入和并发形态；它不替代真实 Device Program、业务 SSE、凭据撤销、世界/记录/趋势预算或完整用户旅程的后续合同。全栈迁移、备份恢复和最终客户端切换仍由 Migration Gate 验证。若之后出现可复现的实际数据库判据失败，按已批准备选改用 npm 分发原生 PostgreSQL，更新本 ADR 并重证受影响合同；需要诚实报告其附属数据库进程。
 

@@ -92,6 +92,6 @@ pnpm test:contract --recover .scratch/vnext-m0/runs/<run-id>/owned-resources.jso
 
 Recovery verifies process IDs, start tokens, PGID/session, run markers and child-process proofs before signaling. Unknown or replaced consumers remain intact. Historical ledgers with Docker ownership are refused without changing their resources. Existing root services, volumes and data remain preserved. Completed run directories retain evidence/data for reproduction; process reconciliation records the stopped consumers.
 
-Full marked process-group execution/recovery runs on Linux. Windows CI runs the actual Node startup, migration, persistence, directory ownership and server contract subset. Historical M0 Rust/Linux receipts do not establish current Windows coverage.
+Full marked process-group execution/recovery and local server validation use Linux/WSL. Ubuntu CI runs complete Node service, contract and Web checks; native Windows CI has been removed. Historical platform receipts retain their original scope.
 
 Use `pnpm test:contract:lifecycle` for real interruption and wrapper descendant recovery checks. It uses its own isolated Node data and marked processes. CI runs the complete contract on the final candidate. Local passes and a Draft PR do not replace final CI.

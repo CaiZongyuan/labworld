@@ -1,6 +1,6 @@
 # 用 Node 服务登记世界与布局
 
-目标：建立持久 Lab，登记独立 Entity，共用一个表示，再保存布局并从 409 恢复。先完成[Node 数字资产](server-assets.md)，准备普通 Member 与有效的 `lab:full` Agent 密钥。Node 24、pnpm、Linux 或 Windows 足够；`pnpm dev` 不需要 Docker。命令在仓库根目录运行，会写入开发数据。
+目标：建立持久 Lab，登记独立 Entity，共用一个表示，再保存布局并从 409 恢复。先完成[Node 数字资产](server-assets.md)，准备普通 Member 与有效的 `lab:full` Agent 密钥。Node 24、pnpm、Linux/WSL 足够；`pnpm dev` 不需要 Docker。命令在仓库根目录运行，会写入开发数据。
 
 ## 登记并找到同一身份
 

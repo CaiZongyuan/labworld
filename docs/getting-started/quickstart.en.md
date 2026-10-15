@@ -1,6 +1,8 @@
 # Quick start
 
-Start the Node service and Web application, create an account and open a persistent Lab. Use Linux or Windows with [Node 24.18.0](../../.node-version) and [pnpm 11.17.0](../../package.json).
+Start the Node service and Web application, create an account and open a persistent Lab. Use Linux/WSL with [Node 24.18.0](../../.node-version) and [pnpm 11.17.0](../../package.json).
+
+On Windows, install Node/pnpm inside a WSL distribution and run these commands in its terminal. The product is accessed through a Web browser; native Windows server and development are outside the current supported scope.
 
 ```bash
 git clone https://github.com/CaiZongyuan/labworld.git

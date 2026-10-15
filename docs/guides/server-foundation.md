@@ -4,7 +4,7 @@
 
 ## 得到第一个结果
 
-需要 Linux 或 Windows，以及仓库指定的 Node 24 和 pnpm。以下命令在仓库根目录执行，不需要 Docker、Rust 或外部数据库。
+需要 Linux/WSL，以及仓库指定的 Node 24 和 pnpm。以下命令在仓库根目录执行，不需要 Docker、Rust 或外部数据库。
 
 ```bash
 pnpm install --frozen-lockfile
@@ -35,15 +35,7 @@ Linux shell 的示例：
 LAB_WORD_DATA_DIR=.scratch/my-foundation-data SERVER_PORT=3100 WEB_PORT=5180 APP_ORIGIN=http://127.0.0.1:5180 pnpm dev
 ```
 
-PowerShell 的同一示例：
-
-```powershell
-$env:LAB_WORD_DATA_DIR = '.scratch/my-foundation-data'
-$env:SERVER_PORT = '3100'
-$env:WEB_PORT = '5180'
-$env:APP_ORIGIN = 'http://127.0.0.1:5180'
-pnpm dev
-```
+Windows 用户同样在 WSL 终端使用上述 Linux 命令。
 
 同一规范化数据目录只允许一个进程打开。第二个启动失败时，保留原进程和目录；不要删除目录来解除独占。默认回环监听适合本机开发。团队访问需要部署方提供 HTTPS 反向代理。
 
@@ -60,7 +52,7 @@ pnpm check
 
 `pnpm contracts:baseline:check` 比较完整保留 HTTP 语义与不可变 M0 基准。`pnpm generate` 与 `pnpm contracts:check` 使用正式 Node 来源；类型检查覆盖生成 SDK 的真实消费者。隔离输出仍受正式目录与别名保护。
 
-`pnpm check` 先执行静态/生成/边界、完整前端与工具检查，再执行服务、完整 HTTP/SSE 合同、构建和确定性预算/文档检查。Linux CI 增加真实 desktop web 与构建生产旅程；Windows 验证 Node 服务。此命令不代替最终集成与 Migration Gate 判定。
+`pnpm check` 先执行静态/生成/边界、完整前端与工具检查，再执行服务、完整 HTTP/SSE 合同、构建和确定性预算/文档检查。Ubuntu CI 验证 Node 服务、真实 desktop web 与构建生产旅程；本地开发与验证使用 Linux/WSL。此命令不代替最终集成与 Migration Gate 判定。
 
 ## 重放持久化试验
 

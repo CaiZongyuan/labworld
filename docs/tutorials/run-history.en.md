@@ -1,6 +1,6 @@
 # Query Run History And Clean Expired Records
 
-The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux/WSL without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
 
 Goal: query a centrifuge task and its temperature reports. Change retention in an isolated development deployment. Check the records after cleanup.
 

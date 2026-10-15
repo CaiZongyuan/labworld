@@ -1,6 +1,6 @@
 # Save Digital Assets with the Node Server
 
-Goal: publish a GLB as a Member, read the same original bytes as an Agent, then verify recovery after refusal. You need Node 24, pnpm, and Linux or Windows. Run commands from the repository root. They write the development directory you select.
+Goal: publish a GLB as a Member, read the same original bytes as an Agent, then verify recovery after refusal. You need Node 24, pnpm, and Linux/WSL. Run commands from the repository root. They write the development directory you select.
 
 Start `pnpm dev` using the [service foundation guide](server-foundation.en.md). The Node server provides persistent assets, Labs, Entities, Scene Nodes and layouts. Device execution, business subscriptions and history remain in migration. The source switch for the complete generated SDK is pending.
 

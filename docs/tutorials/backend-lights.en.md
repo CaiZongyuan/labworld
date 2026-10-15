@@ -1,6 +1,6 @@
 # Control Backend Lighting Programs
 
-The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux/WSL without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
 
 Goal: start two independent lights, invoke the same commands as a Member and an Agent, and distinguish command results from observations with an identified source.
 

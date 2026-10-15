@@ -10,7 +10,7 @@ The migration is in progress under [#45](https://github.com/CaiZongyuan/labworld
 
 ## Run the application
 
-Use Linux or Windows with the pinned [Node](.node-version) and [pnpm](package.json).
+Use Linux/WSL with the pinned [Node](.node-version) and [pnpm](package.json).
 
 ```bash
 git clone https://github.com/CaiZongyuan/labworld.git

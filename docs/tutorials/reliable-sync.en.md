@@ -1,6 +1,6 @@
 # Synchronize the World and Recover Connections
 
-The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux or Windows without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
+The current server uses Node 24 and TypeScript. Desktop web is the default scope. Run commands from the repository root on Linux/WSL without Docker. See [Node devices](../guides/server-devices.en.md), [synchronization](../guides/server-sync.en.md), and [operational records](../guides/server-traceability.en.md).
 
 Goal: observe one backend device from two browsers and an Agent, keep the last observation while disconnected, and verify that revoking a credential ends its existing subscription.
 

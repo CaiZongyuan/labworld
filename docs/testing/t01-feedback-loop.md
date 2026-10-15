@@ -2,6 +2,8 @@
 
 目标：为自己的 Lab World 变更选择能观察结果的公开检查。命令从仓库根目录执行，完整职责见[测试策略](strategy.md)。
 
+服务与开发环境使用 Linux/WSL，Windows 用户从 WSL 终端运行下列命令。CI 在 Ubuntu 上执行完整 Node、合同与浏览器 Web 检查；不再运行原生 Windows job。
+
 ## 选择入口
 
 | 变更              | 命令                                      | 观察结果与前提                                                       |
@@ -40,7 +42,7 @@ gh workflow run perf-nightly.yml --ref your-branch -f diagnose_web=history
 
 `history` 运行完整历史用例文件；`motion` 运行原始 motion smoke；`resources` 运行完整 `lab.spec.ts`（四个用例及原有同进程历史）。它们沿用正式 CI 的 Node/Web 监督入口、Chromium 和默认桌面 Web 范围，只有 motion 安装固定 Python 依赖。省略输入或选择 `none` 仍运行原合成报告，`soak_duration_secs` 用法不变。诊断按分支与 profile 隔离并发，不取消 nightly。
 
-查看 `diagnose-web (not CI)` 的 collected/executed/skipped 数量；零执行或全部跳过会失败。下载 `diagnose-web-<profile>` 产物中的安全事实、summary 和 ownership/closure 回执，并核对实际 head。它不保留原始 trace、请求头或服务日志。该入口仅缩短已选失败的反馈；成功不替代正式 verify、浏览器分片/汇总或 Windows 检查，也不重置诊断预算。
+查看 `diagnose-web (not CI)` 的 collected/executed/skipped 数量；零执行或全部跳过会失败。下载 `diagnose-web-<profile>` 产物中的安全事实、summary 和 ownership/closure 回执，并核对实际 head。它不保留原始 trace、请求头或服务日志。该入口仅缩短已选失败的反馈；成功不替代正式 verify 或浏览器分片/汇总检查，也不重置诊断预算。
 
 如果 Docker、Chromium 或依赖缺失，记录命令、失败条件和未验证范围，不把跳过视为通过。后端检查使用隔离资源，不清理开发或生产数据。
 
