@@ -217,6 +217,20 @@ test('the real spatial workbench gives the canvas most of the business area and 
   const rectangles: unknown[] = [];
   for (const width of [1440, 1920]) {
     await page.setViewportSize({ width, height: 1000 });
+    await expect
+      .poll(async () =>
+        page.locator('canvas').evaluate((canvas) => {
+          const actual = canvas.getBoundingClientRect();
+          const viewport = canvas
+            .closest('.world-viewport')!
+            .getBoundingClientRect();
+          return Math.max(
+            Math.abs(actual.width - viewport.width),
+            Math.abs(actual.height - viewport.height),
+          );
+        }),
+      )
+      .toBeLessThanOrEqual(1);
     const canvas = await withinViewport(page, page.locator('canvas'));
     const business = (await page.locator('.world-page').boundingBox())!;
     const ratio =

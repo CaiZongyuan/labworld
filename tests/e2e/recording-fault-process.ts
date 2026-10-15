@@ -120,6 +120,15 @@ const ioEvidence: NativeIo[] = [];
 const ioRoot = resolve(process.env.LAB_WORD_DATA_DIR!, 'recordings');
 const originalOpen = promises.open;
 const ioOutput = process.env.RECORDING_E2E_OUTPUT ?? 'test-results';
+const startupSyncDelay = Number(
+  process.env.RECORDING_E2E_STARTUP_SYNC_DELAY_MS ?? 0,
+);
+assert(
+  Number.isInteger(startupSyncDelay) &&
+    startupSyncDelay >= 0 &&
+    startupSyncDelay <= 1000,
+);
+let starting = true;
 
 function saveIo() {
   mkdirSync(ioOutput, { recursive: true });
@@ -250,7 +259,14 @@ const ownedOpen: typeof originalOpen = async (file, flags, mode) => {
       Reflect.apply(nativeWrite, handle, args),
     );
   }) as typeof handle.write;
-  handle.sync = () => visibleCompletion('sync', nativeSync);
+  handle.sync = async () => {
+    await visibleCompletion('sync', nativeSync);
+    // Delay only the owned journal's real sync completion before HTTP readiness.
+    if (starting && startupSyncDelay)
+      await new Promise<void>((resolve) =>
+        setTimeout(resolve, startupSyncDelay),
+      );
+  };
   handle.close = async () => {
     for (const entry of entries)
       if (entry.product_state === 'held')
@@ -429,6 +445,7 @@ await run(undefined, {
       });
   },
 });
+starting = false;
 
 for (const signal of ['SIGTERM', 'SIGINT'] as const)
   process.once(signal, () => {
