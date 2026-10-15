@@ -21,7 +21,12 @@ export function safeControlSnapshot(
     input <= 1e12;
   if (
     raw.schema !== 'control-update-observer-v1' ||
-    !['covered', 'unknown'].includes(String(raw.status)) ||
+    (raw.status !== 'covered' && raw.status !== 'unknown') ||
+    (raw.reason !== null &&
+      raw.reason !== 'not-attached' &&
+      raw.reason !== 'clock' &&
+      raw.reason !== 'overflow' &&
+      raw.reason !== 'ownership') ||
     !(raw.coveredFrom === null || numeric(raw.coveredFrom)) ||
     !numeric(raw.observedAt) ||
     !Array.isArray(raw.bins) ||
@@ -62,27 +67,46 @@ export function safeControlSnapshot(
     const row = value as Record<string, unknown>;
     if (
       !numeric(row.at) ||
-      !['attach', 'detach', 'lost'].includes(String(row.kind))
+      (row.kind !== 'attach' && row.kind !== 'detach' && row.kind !== 'lost')
     )
       return null;
     ownership.push({
       at: row.at,
-      kind: row.kind as 'attach' | 'detach' | 'lost',
+      kind: row.kind,
     });
   }
   return {
     schema: 'control-update-observer-v1',
-    status: raw.status as 'covered' | 'unknown',
+    status: raw.status,
     coveredFrom: raw.coveredFrom as number | null,
     observedAt: raw.observedAt,
-    reason: ['not-attached', 'clock', 'overflow', 'ownership'].includes(
-      String(raw.reason),
-    )
-      ? (raw.reason as ControlUpdateSnapshot['reason'])
-      : null,
+    reason: raw.reason,
     ownership,
     bins,
   };
+}
+
+function hasContinuousOwner(observation: ControlUpdateSnapshot) {
+  let state: 'detached' | 'attached' | 'lost' = 'detached';
+  let attachedAt: number | null = null;
+  let previousAt = -Infinity;
+  for (const event of observation.ownership) {
+    if (event.at < previousAt || event.at > observation.observedAt)
+      return false;
+    previousAt = event.at;
+    if (event.kind === 'attach') {
+      if (state !== 'detached') return false;
+      state = 'attached';
+      attachedAt = event.at;
+    } else if (event.kind === 'detach') {
+      if (state === 'detached') return false;
+      state = 'detached';
+    } else {
+      if (state === 'detached') return false;
+      state = 'lost';
+    }
+  }
+  return state === 'attached' && attachedAt === observation.coveredFrom;
 }
 
 export function associateControlUpdates(
@@ -92,8 +116,8 @@ export function associateControlUpdates(
 ) {
   if (!comparison)
     return { status: 'unknown', reason: 'comparison-unavailable' };
-  const { nodeStart, nodeEnd, browserStart, browserEnd, observation } =
-    comparison;
+  const { nodeStart, nodeEnd, browserStart, browserEnd } = comparison;
+  const observation = safeControlSnapshot(comparison.observation);
   const times = [
     before.nodeStart,
     before.nodeEnd,
@@ -105,9 +129,13 @@ export function associateControlUpdates(
     browserEnd,
   ];
   if (
-    times.some((value) => !Number.isFinite(value)) ||
+    times.some(
+      (value) => !Number.isFinite(value) || value < 0 || value > 1e12,
+    ) ||
     before.nodeEnd < before.nodeStart ||
     after.nodeEnd < after.nodeStart ||
+    before.nodeEnd > after.nodeStart ||
+    after.nodeEnd > nodeStart ||
     nodeEnd < nodeStart ||
     browserEnd < browserStart
   )
@@ -120,6 +148,8 @@ export function associateControlUpdates(
     return { status: 'unknown', reason: 'clock-inconsistent' };
   const lower = before.nodeStart + offsetLow;
   const upper = after.nodeEnd + offsetHigh;
+  if (lower > upper || !Number.isFinite(lower) || !Number.isFinite(upper))
+    return { status: 'unknown', reason: 'clock-inconsistent' };
   const calibration = {
     offsetLow,
     offsetHigh,
@@ -131,8 +161,11 @@ export function associateControlUpdates(
   if (
     !observation ||
     observation.status !== 'covered' ||
+    observation.reason !== null ||
+    !hasContinuousOwner(observation) ||
     observation.coveredFrom === null ||
     observation.coveredFrom > lower ||
+    observation.observedAt < browserEnd ||
     observation.observedAt < upper ||
     observation.ownership.some(
       (value) => value.at >= lower && value.at <= upper,

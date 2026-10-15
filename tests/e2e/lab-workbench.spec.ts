@@ -207,7 +207,11 @@ async function difference(
       }
       return finish(changed / samples);
     },
-    [first.toString('base64'), second.toString('base64'), !!observe] as [string, string, boolean],
+    [first.toString('base64'), second.toString('base64'), !!observe] as [
+      string,
+      string,
+      boolean,
+    ],
   );
   if (typeof result === 'number') return result;
   if (observe) {

@@ -217,3 +217,190 @@ test('pair association uses bounded calibration and refuses uncovered, changed-o
   );
   assert.equal(associateControlUpdates(a, b, undefined).status, 'unknown');
 });
+
+function coveredComparison() {
+  return {
+    before: { nodeStart: 0, nodeEnd: 30 },
+    after: { nodeStart: 70, nodeEnd: 90 },
+    comparison: {
+      nodeStart: 100,
+      nodeEnd: 120,
+      browserStart: 200,
+      browserEnd: 210,
+      observation: {
+        schema: 'control-update-observer-v1',
+        status: 'covered',
+        coveredFrom: 50,
+        observedAt: 400,
+        reason: null,
+        ownership: [{ at: 50, kind: 'attach' }],
+        bins: [],
+      },
+    },
+  };
+}
+
+for (const field of ['status', 'reason', 'kind'])
+  test(`closed ${field} rejects coercible objects rather than exporting private fields`, () => {
+    const { comparison } = coveredComparison();
+    const sample = comparison.observation;
+    let coercions = 0;
+    const privateEnum = {
+      private: 'must-not-export',
+      toString: () => {
+        coercions++;
+        return field === 'status'
+          ? 'covered'
+          : field === 'kind'
+            ? 'attach'
+            : 'clock';
+      },
+    };
+    if (field === 'kind') sample.ownership[0].kind = privateEnum;
+    else sample[field] = privateEnum;
+    assert.equal(safeControlSnapshot(sample), null);
+    assert.equal(coercions, 0);
+  });
+
+for (const reason of ['not-attached', 'clock', 'overflow', 'ownership'])
+  test(`covered with known ${reason} fault cannot establish coverage`, () => {
+    const { before, after, comparison } = coveredComparison();
+    comparison.observation.reason = reason;
+    assert.equal(
+      associateControlUpdates(before, after, comparison).status,
+      'unknown',
+    );
+  });
+
+for (const [name, ownership, coveredFrom] of [
+  ['missing attach', [], 50],
+  [
+    'detach before window',
+    [
+      { at: 50, kind: 'attach' },
+      { at: 60, kind: 'detach' },
+    ],
+    50,
+  ],
+  [
+    'lost before window',
+    [
+      { at: 50, kind: 'attach' },
+      { at: 60, kind: 'lost' },
+    ],
+    50,
+  ],
+  [
+    'mismatched reattach',
+    [
+      { at: 50, kind: 'attach' },
+      { at: 60, kind: 'detach' },
+      { at: 80, kind: 'attach' },
+    ],
+    50,
+  ],
+  [
+    'detached interval spans window',
+    [
+      { at: 50, kind: 'attach' },
+      { at: 80, kind: 'detach' },
+      { at: 220, kind: 'attach' },
+    ],
+    50,
+  ],
+  [
+    'reversed history',
+    [
+      { at: 50, kind: 'attach' },
+      { at: 40, kind: 'detach' },
+      { at: 80, kind: 'attach' },
+    ],
+    80,
+  ],
+  [
+    'future history',
+    [
+      { at: 50, kind: 'attach' },
+      { at: 450, kind: 'detach' },
+    ],
+    50,
+  ],
+])
+  test(`incoherent ownership ${name} cannot establish coverage`, () => {
+    const { before, after, comparison } = coveredComparison();
+    comparison.observation.ownership = ownership;
+    comparison.observation.coveredFrom = coveredFrom;
+    assert.equal(
+      associateControlUpdates(before, after, comparison).status,
+      'unknown',
+    );
+  });
+
+test('coherent reattachment before the window remains covered', () => {
+  const { before, after, comparison } = coveredComparison();
+  comparison.observation.coveredFrom = 80;
+  comparison.observation.ownership = [
+    { at: 50, kind: 'attach' },
+    { at: 60, kind: 'lost' },
+    { at: 65, kind: 'lost' },
+    { at: 70, kind: 'detach' },
+    { at: 80, kind: 'attach' },
+  ];
+  assert.equal(
+    associateControlUpdates(before, after, comparison).status,
+    'covered-under-clock-model',
+  );
+});
+
+test('projection discards private extras on primitive ownership and bins and rejects unrecognized enums', () => {
+  let now = 50;
+  const observer = new ControlUpdateObserver(() => now++);
+  observer.bind({ update() {} }, {});
+  observer.frame(true);
+  const sample = observer.snapshot();
+  const projected = safeControlSnapshot({
+    ...sample,
+    ownership: sample.ownership.map((event) => ({
+      ...event,
+      private: 'must-not-export',
+    })),
+    bins: sample.bins.map((bin) => ({ ...bin, private: 'must-not-export' })),
+  });
+  assert.equal(projected.status, 'covered');
+  assert(!JSON.stringify(projected).includes('must-not-export'));
+  for (const field of ['status', 'reason'])
+    assert.equal(
+      safeControlSnapshot({ ...sample, [field]: 'unrecognized' }),
+      null,
+    );
+  observer.detach();
+});
+
+for (const [name, before, after, calibration] of [
+  [
+    'reversed captures and containing interval',
+    { nodeStart: 140, nodeEnd: 150 },
+    { nodeStart: 0, nodeEnd: 10 },
+    {},
+  ],
+  [
+    'overlapping captures',
+    { nodeStart: 0, nodeEnd: 80 },
+    { nodeStart: 70, nodeEnd: 90 },
+    {},
+  ],
+  [
+    'comparison before second capture',
+    { nodeStart: 0, nodeEnd: 30 },
+    { nodeStart: 70, nodeEnd: 90 },
+    { nodeStart: 50, nodeEnd: 65, browserStart: 150, browserEnd: 160 },
+  ],
+])
+  test(`invalid chronology ${name} cannot report zero-bin coverage`, () => {
+    const { comparison } = coveredComparison();
+    assert.equal(
+      associateControlUpdates(before, after, { ...comparison, ...calibration })
+        .status,
+      'unknown',
+    );
+  });
