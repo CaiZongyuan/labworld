@@ -34,6 +34,8 @@ On the first load of a World with models or an asset viewer, browser checks use 
 
 ## Failure And Evidence
 
+Failures of motion smoke's original triangle poll and the first trusted WSS journey's old Recording completion poll, plus the 250ms UI/public Session snapshot taken before cleanup when that WSS journey fails, write redacted facts to `original-*-facts.jsonl`, retained in formal CI's small `gate-facts-web-journeys-<shard>` artifact.
+
 For one original Web profile on GitHub Ubuntu, replace `your-branch` with a pushed branch:
 
 ```bash

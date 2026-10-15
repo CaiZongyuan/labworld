@@ -322,6 +322,9 @@ export async function pixels(page: Page, name: string) {
 }
 export async function metrics(page: Page) {
   return page.locator('.lab-perf').evaluate((panel) => ({
+    browserMonotonicMs: performance.now(),
+    sampledAt: panel.getAttribute('data-sampled-at'),
+    completedRenderFrame: panel.getAttribute('data-completed-render-frame'),
     fps: Number(panel.querySelector('.lab-perf-main strong')?.textContent),
     frameMs: Number(
       panel.querySelector('.lab-perf-main small')?.textContent?.split(' ')[0],

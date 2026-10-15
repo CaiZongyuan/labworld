@@ -116,6 +116,7 @@ jobs:
           name: gate-facts-web-journeys-${{ matrix.shard }}
           path: |
             .scratch/vnext-m1/**/*.json
+            .scratch/vnext-m1/**/original-*-facts.jsonl
             test-results/summary.json
           if-no-files-found: ignore
           retention-days: 7

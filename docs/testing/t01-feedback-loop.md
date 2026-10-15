@@ -34,6 +34,8 @@
 
 ## 失败与证据
 
+motion smoke 的原始三角形轮询失败、trusted WSS 首旅程的旧 Recording 完成轮询失败，以及该 WSS 旅程失败时在清理前采集的 250ms UI／公开 Session 快照，会将脱敏事实写入 `original-*-facts.jsonl`，由正式 CI 的小型 `gate-facts-web-journeys-<shard>` 产物保留。
+
 需要 GitHub Ubuntu 上的单个原始 Web profile 时，将 `your-branch` 替换为已推送的分支：
 
 ```bash
