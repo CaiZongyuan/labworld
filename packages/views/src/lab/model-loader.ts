@@ -20,6 +20,7 @@ import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { useEffect, useEffectEvent, useMemo, useState } from 'react';
 import type { ModelAsset, ModelInfo } from './catalog';
+import type { ReadinessObserver } from './readiness-observer';
 import { ModelImportError, validateGLB, type ModelErrorKey } from './glb';
 import {
   acquireModelBytes,
@@ -75,8 +76,15 @@ async function parseModel(
   buffer: ArrayBuffer,
   id: string,
   renderer: WebGLRenderer,
+  observation?: { observer: ReadinessObserver; attempt: number },
 ): Promise<LoadedModel> {
+  observation?.observer.emit('validate-start', {
+    attempt: observation.attempt,
+  });
   validateGLB(buffer);
+  observation?.observer.emit('validate-ready', {
+    attempt: observation.attempt,
+  });
   const decoderPath = `${import.meta.env.BASE_URL}lab-assets/decoders/`;
   const draco = new DRACOLoader().setDecoderPath(`${decoderPath}draco/`);
   const ktx = new KTX2Loader()
@@ -92,7 +100,13 @@ async function parseModel(
       .setDRACOLoader(draco)
       .setKTX2Loader(ktx)
       .setMeshoptDecoder(MeshoptDecoder);
+    observation?.observer.emit('gltf-parse-start', {
+      attempt: observation.attempt,
+    });
     const gltf = await loader.parseAsync(buffer, '');
+    observation?.observer.emit('gltf-parse-ready', {
+      attempt: observation.attempt,
+    });
     if (resourceFailed) {
       disposeModel(gltf.scene);
       throw new ModelImportError('failed');
@@ -139,6 +153,9 @@ async function parseModel(
       disposeModel(gltf.scene);
       throw new ModelImportError('empty');
     }
+    observation?.observer.emit('geometry-ready', {
+      attempt: observation.attempt,
+    });
     return {
       id,
       scene: gltf.scene,
@@ -191,6 +208,7 @@ export function useLoadedModel(
   asset: ModelAsset,
   renderer: WebGLRenderer | null,
   onInfo: (id: string, info: ModelInfo) => void,
+  readiness?: ReadinessObserver,
 ) {
   const input =
     asset.source === 'preset' ? asset.url : modelResourceKey(asset.asset);
@@ -237,6 +255,21 @@ export function useLoadedModel(
     if (!renderer) return;
     const remoteAsset = currentRemoteAsset();
     const controller = new AbortController();
+    const attempt = readiness?.nextAttempt();
+    const observed =
+      attempt !== undefined && readiness
+        ? { observer: readiness, attempt }
+        : undefined;
+    const observe = (
+      phase: Parameters<ReadinessObserver['emit']>[0],
+      bytes?: number,
+    ) =>
+      readiness?.emit(phase, {
+        attempt,
+        bytes,
+        cancelled: controller.signal.aborted || !owner.active,
+      });
+    observe('body-start');
     let lease: ModelByteLease | undefined;
     setState((previous) => ({
       identity,
@@ -261,8 +294,10 @@ export function useLoadedModel(
           if (!response.ok) throw new ModelImportError('failed');
           buffer = await response.arrayBuffer();
         }
-        const next = await parseModel(buffer.slice(0), id, renderer);
+        observe('body-ready', buffer.byteLength);
+        const next = await parseModel(buffer.slice(0), id, renderer, observed);
         if (controller.signal.aborted || !owner.active) {
+          observe('discarded');
           disposeModel(next.scene);
           return;
         }
@@ -274,8 +309,10 @@ export function useLoadedModel(
         owner.instances.add(loaded);
         owner.latest = loaded;
         setState({ identity, instance: loaded, loading: false, error: null });
+        observe('commit-enqueued');
         onInfo(id, next.info);
       } catch (cause) {
+        observe('error');
         if (!controller.signal.aborted)
           setState((previous) => ({
             identity,
@@ -292,9 +329,20 @@ export function useLoadedModel(
     })();
     return () => {
       controller.abort();
+      observe('cancel');
       lease?.release();
     };
-  }, [owner, identity, id, input, apiClient, authority, renderer, onInfo]);
+  }, [
+    owner,
+    identity,
+    id,
+    input,
+    apiClient,
+    authority,
+    renderer,
+    onInfo,
+    readiness,
+  ]);
   return state.identity === identity
     ? {
         model: instance?.model ?? null,

@@ -36,6 +36,7 @@ import type {
 } from '@labos-threejs/sdk';
 import type { ModelAsset } from './catalog';
 import { useLoadedModel } from './model-loader';
+import type { ReadinessObserver } from './readiness-observer';
 import { modelResourceKey } from './model-bytes';
 import { useAppMessage } from '../shell/messages';
 import { MetricSampler } from './metric-sampler';
@@ -482,6 +483,7 @@ function Imported({
   onReady,
   onError,
   appearance,
+  readiness,
 }: {
   asset: ModelAsset;
   nodeId: string;
@@ -489,11 +491,20 @@ function Imported({
   onReady: () => void;
   onError: (id: string, appearance: Appearance, error: boolean) => void;
   appearance: Appearance;
+  readiness?: ReadinessObserver;
 }) {
-  const { model, error } = useLoadedModel(asset, renderer, ignoreInfo);
+  const { model, error } = useLoadedModel(
+    asset,
+    renderer,
+    ignoreInfo,
+    readiness,
+  );
   useEffect(() => {
-    if (model?.id === asset.id) onReady();
-  }, [model, asset.id, onReady]);
+    if (model?.id === asset.id) {
+      readiness?.emit('model-observed');
+      onReady();
+    }
+  }, [model, asset.id, onReady, readiness]);
   useEffect(
     () => onError(nodeId, appearance, !!error),
     [nodeId, appearance, error, onError],
@@ -522,6 +533,7 @@ const NodeModel = memo(function NodeModel({
   active,
   onTarget,
   motionScene,
+  readiness,
 }: {
   node: SceneNode;
   entity: LabEntity;
@@ -537,6 +549,7 @@ const NodeModel = memo(function NodeModel({
   active: boolean;
   onTarget: (id: string, object: Group | null) => void;
   motionScene: MotionSceneController;
+  readiness?: ReadinessObserver;
 }) {
   const group = useRef<Group>(null);
   const outer = useRef<Group>(null);
@@ -573,7 +586,8 @@ const NodeModel = memo(function NodeModel({
     const size = box.getSize(new Vector3()).divide(worldScale);
     setBounds({ center: center.toArray(), size: size.toArray() });
     onReady(node.id, appearance);
-  }, [onReady, node.id, appearance]);
+    readiness?.emit('node-ready-enqueued');
+  }, [onReady, node.id, appearance, readiness]);
   useEffect(() => {
     if (!asset) measure();
   }, [asset, measure]);
@@ -601,6 +615,7 @@ const NodeModel = memo(function NodeModel({
             onReady={measure}
             onError={onError}
             appearance={appearance}
+            readiness={readiness}
           />
         ) : (
           <Builtin entity={entity} connected={connected} />
@@ -669,6 +684,7 @@ function Scene({
   onPlacement,
   onOpenRecentMinute,
   motion,
+  readiness,
 }: {
   world: LabWorld;
   connected: boolean;
@@ -688,6 +704,7 @@ function Scene({
   onPlacement: (id: string, placement: Placement) => void;
   onOpenRecentMinute?: (entityId: string) => void;
   motion?: MotionBuffer | null;
+  readiness?: ReadinessObserver;
 }) {
   const motionScene = useMemo(() => new MotionSceneController(), []);
   useFrame(() => motionScene.update(motion ?? null, performance.now()));
@@ -858,6 +875,7 @@ function Scene({
               active={!!transformMode && node.id === activeNodeId}
               onTarget={targetReady}
               motionScene={motionScene}
+              readiness={readiness}
             />
           );
         })}
@@ -913,6 +931,7 @@ export default function WorldViewport(props: {
   onMetrics: (metrics: RenderMetrics) => void;
   onBusy: (busy: boolean) => void;
   motion?: MotionBuffer | null;
+  readiness?: ReadinessObserver;
 }) {
   const message = useAppMessage('lab');
   const [renderer, setRenderer] = useState<WebGLRenderer | null>(null);
@@ -996,6 +1015,22 @@ export default function WorldViewport(props: {
   const hasContinuousMotion =
     !!props.motion && props.motion.freshness(performance.now()) !== 'paused';
   useEffect(() => onBusy(pending), [pending, onBusy]);
+  useEffect(() => {
+    props.readiness?.emit('viewport', {
+      pending,
+      rendererPresent: !!renderer,
+      nodes: props.world.nodes.length,
+      readyEntries: Object.keys(readyIds).length,
+      failedEntries: Object.keys(failed).length,
+    });
+  }, [
+    pending,
+    props.readiness,
+    renderer,
+    props.world.nodes.length,
+    readyIds,
+    failed,
+  ]);
   return (
     <>
       <Canvas

@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { CoreHttp } from '../support/core-http';
 import { publishAsset } from '../support/lab-assets-http';
+import { observeReadiness } from './readiness-observation';
 import {
   captureFrontierFailure,
   gateProjection,
@@ -105,6 +106,10 @@ test('render metrics wait for the requested World while its real stream update i
   await page.getByRole('button', { name: '登录', exact: true }).click();
   await expect(page).toHaveURL(/\/lab$/);
   const frontier = observeFrontierTraffic(page, base, entity.id);
+  const readinessObserver =
+    process.env.LAB_READINESS_OBSERVER === 'true'
+      ? observeReadiness(page)
+      : null;
   let initial: { version: string };
   try {
     await page.goto(`/lab?lab=${lab.id}`);
@@ -119,7 +124,21 @@ test('render metrics wait for the requested World while its real stream update i
         'false',
       );
     } catch (error) {
+      const originalReadinessCallbacks = readinessObserver?.stop();
       const observed = frontier.stop();
+      try {
+        if (originalReadinessCallbacks)
+          writeFileSync(
+            join(
+              process.env.LAB_NODE_EVIDENCE ?? 'test-results',
+              'initial-readiness-producer-failure.json',
+            ),
+            JSON.stringify(originalReadinessCallbacks, null, 2),
+            { mode: 0o600 },
+          );
+      } catch {
+        /* Preserve the original busy assertion cause. */
+      }
       await captureFrontierFailure(
         'initial-render-ready',
         page,
@@ -129,6 +148,7 @@ test('render metrics wait for the requested World while its real stream update i
       throw error;
     }
   } finally {
+    readinessObserver?.stop();
     frontier.stop();
   }
   await page.getByRole('button', { name: '性能', exact: true }).click();

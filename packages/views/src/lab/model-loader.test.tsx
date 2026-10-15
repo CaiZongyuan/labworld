@@ -13,6 +13,7 @@ import { server } from '../../../../tests/frontend/server';
 import type { ModelAsset } from './catalog';
 import { useLoadedModel, type LoadedModel } from './model-loader';
 import { useModelAuthority } from './model-authority';
+import { ReadinessObserver, type ReadinessFact } from './readiness-observer';
 
 const file = readFileSync('tests/fixtures/lab/cube.glb');
 const bytes = file.buffer.slice(
@@ -63,13 +64,15 @@ function Probe({
   label = 'model',
   onModel,
   modelRenderer = renderer,
+  readiness,
 }: {
   asset: ModelAsset;
   label?: string;
   onModel?: (model: LoadedModel) => void;
   modelRenderer?: WebGLRenderer;
+  readiness?: ReadinessObserver;
 }) {
-  const result = useLoadedModel(asset, modelRenderer, ignoreInfo);
+  const result = useLoadedModel(asset, modelRenderer, ignoreInfo, readiness);
   useEffect(() => {
     if (result.model) onModel?.(result.model);
   }, [result.model, onModel]);
@@ -172,6 +175,47 @@ function disposalEvents(model: LoadedModel) {
     });
   return () => ({ geometries: geometryEvents, materials: materialEvents });
 }
+
+test.each(['observed', 'throwing'] as const)(
+  'readiness %s channel preserves one real GLB load and public model geometry',
+  async (channel) => {
+    const transport = serve();
+    const facts: ReadinessFact[] = [];
+    const observer = new ReadinessObserver((fact) => {
+      if (channel === 'throwing')
+        throw new Error('synthetic channel unavailable');
+      facts.push(fact);
+    });
+    const seen: LoadedModel[] = [];
+    const loaded = (model: LoadedModel) => {
+      seen.push(model);
+    };
+    const view = render(
+      <Probe asset={modelAsset({})} onModel={loaded} readiness={observer} />,
+    );
+    try {
+      await waitFor(() => expect(seen).toHaveLength(1));
+      expect(screen.getByLabelText('model')).toHaveTextContent('|12|idle');
+      expect(transport.authorizations()).toBe(1);
+      expect(transport.bodyReads()).toBe(1);
+      expect(seen[0].bounds.isEmpty()).toBe(false);
+      if (channel === 'observed')
+        expect(facts.map((fact) => fact.phase)).toEqual([
+          'body-start',
+          'body-ready',
+          'validate-start',
+          'validate-ready',
+          'gltf-parse-start',
+          'gltf-parse-ready',
+          'geometry-ready',
+          'commit-enqueued',
+        ]);
+      else expect(facts).toHaveLength(0);
+    } finally {
+      view.unmount();
+    }
+  },
+);
 
 test('a same-scope asset switch retains the real usable GLTF across HTTP503 and reauthorizes recovery', async () => {
   const transport = serve();

@@ -1,4 +1,5 @@
 import {
+  useEffect,
   lazy,
   Suspense,
   useCallback,
@@ -100,6 +101,7 @@ import {
 } from './layout-editor';
 import './lab.css';
 import './world.css';
+import { ReadinessObserver } from './readiness-observer';
 
 const WorldViewport = lazy(() => import('./world-viewport'));
 const NARROW_WORKSPACE_QUERY = '(max-width: 560px)';
@@ -212,6 +214,24 @@ export default function WorldView() {
   const [fit, setFit] = useState(0);
   const [renderVersion, setRenderVersion] = useState(0);
   const [renderBusy, setRenderBusy] = useState(false);
+  const readiness = useMemo(
+    () =>
+      labId && import.meta.env.VITE_LAB_READINESS_OBSERVER === 'true'
+        ? new ReadinessObserver()
+        : undefined,
+    [labId],
+  );
+  useEffect(() => {
+    readiness?.open();
+    return () => readiness?.close();
+  }, [readiness]);
+  useEffect(() => {
+    readiness?.emit('inputs', {
+      labsPending: labs.isPending,
+      worldPending: !!labId && world.isPending,
+      renderBusy,
+    });
+  }, [readiness, labs.isPending, labId, world.isPending, renderBusy]);
   const [performance, setPerformance] = useState(false);
   const [metrics, setMetrics] = useState<RenderMetrics | null>(null);
   const [error, setError] = useState<unknown>(null);
@@ -1097,6 +1117,7 @@ export default function WorldView() {
                     label={message('viewer.viewport')}
                     onMetrics={setMetrics}
                     onBusy={setRenderBusy}
+                    readiness={readiness}
                     motion={
                       editing
                         ? null
