@@ -106,6 +106,9 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
     assertTrajectory(advancedB, world.fixture.session_id);
     const geometry = [];
     for (const viewer of [page, world.second]) {
+      await viewer
+        .getByRole('button', { name: '聚焦模型', exact: true })
+        .click();
       const sample = await eventually(
         () => metrics(viewer),
         (value) => Number(value.stats['三角形']?.replaceAll(',', '')) >= 240,
