@@ -6,7 +6,7 @@
 
 应用提供持久 Lab、资产、Entity、Scene Node、已保存布局、观测、Command、Task、记录和趋势。用户与 Agent 共用保留的 HTTP/SSE 合同。一个 Node 服务持有嵌入数据库、本地字节与运行状态，React Web 消费生成 SDK。
 
-迁移按 [#45](https://github.com/CaiZongyuan/labworld/issues/45)推进。普通开发、构建、检查与合同生成使用 Node；历史 Rust 源码保存在不可变 `legacy-rust-final` tag。参见[产品架构](docs/architecture/lab-word.md)和[领域词汇](CONTEXT.md)。
+Node 迁移已完成。当前计划里程碑是[通用 Newton 刚体同步](https://github.com/CaiZongyuan/labworld/issues/103)：在 Lab World 显示已有场景及实时位姿。普通开发、构建、检查与合同生成使用 Node；历史 Rust 源码保存在不可变 `legacy-rust-final` tag。参见[产品架构](docs/architecture/lab-word.md)和[领域词汇](CONTEXT.md)。
 
 ## 运行应用
 

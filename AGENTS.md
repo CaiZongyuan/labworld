@@ -1,43 +1,17 @@
-# Working in this repository
+# 在本仓库中工作
 
-Read CONTEXT.md before changing domain terminology and the relevant docs/adr/ decisions before changing architecture. [Product scope](docs/architecture/lab-word.md) distinguishes current implementation from target behavior; inspect the repository before assuming a documented command or feature already exists.
+在更改领域术语之前，请阅读 CONTEXT.md；在更改架构之前，请阅读相关的 docs/adr/ 决策。[产品范围](docs/architecture/lab-word.md) 区分当前实现与目标行为；在假定某个已记录的命令或功能已经存在之前，请检查仓库。
 
-## Agent skills
+### 工程流程
 
-For Digital Twin Foundation V1 work, start with [the development handoff](docs/handoffs/digital-twin-foundation-v1.md) for the approved scope, published tickets, accepted preview and current implementation baseline.
+对于面向用户的 UI、UX 或工作流变更，请阅读 [experience-design.md](docs/agents/experience-design.md)。桌面 Web 是默认范围；仅当用户或已批准的任务明确包含移动端时，才添加移动端适配与验证。复用已接受的预览和最新的明确范围变更，包括无需再次预览即可继续的指示。
 
-### Issue tracker
+对于实现，请阅读 docs/agents/development-flow.md 和 docs/testing/strategy.md。通过已商定的公共测试接口处理一个无阻塞的垂直工单。WIP 提交和获授权的草稿 PR 可以保存进度；完成和合并到 main 需要简化、独立的 Standards + Spec 审查以及必需的最终 head CI。项目流程明确覆盖冲突的导入技能默认设置；保持导入技能不变。
 
-Use GitHub Issues in CaiZongyuan/labworld. Before planning, publishing, claiming or completing tickets, read docs/agents/issue-tracker.md.
+在 issue 完成时或 PR 合并前，在最终验证和代码审查之前运行仓库自有的 [reduce-complexity](.agents/skills/reduce-complexity/SKILL.md) 步骤；当变更未变时复用结果。在 Epic 完成时，使用其更广泛的简化调查。将这些步骤编排进仓库工作流，同时保持导入技能不变，以便上游更新。
 
-### Triage labels
+对于协调开发、轻量级阶段记录和交付时分析，请使用 [development-timeline](.agents/skills/development-timeline/SKILL.md)。记录阶段变更、等待和返工，而不是每个动作；其报告不是额外的合并门禁。
 
-Use the agreed five-role vocabulary in docs/agents/triage-labels.md when creating or changing issue state.
+### 环境与跟踪器维护
 
-### Domain docs
-
-The shared glossary is CONTEXT.md; decisions live in docs/adr/. Read docs/agents/domain.md when exploring or changing domain boundaries.
-
-### Documentation
-
-When changing public documentation, navigation or generated references, read docs/agents/documentation.md.
-
-### Engineering flow
-
-For user-facing UI, UX or workflow changes, read [experience-design.md](docs/agents/experience-design.md). Desktop web is the default scope; add mobile adaptation and validation only when the user or approved task explicitly includes them. Reuse accepted previews and the latest explicit scope changes, including an instruction to proceed without another preview.
-
-For implementation, read docs/agents/development-flow.md and docs/testing/strategy.md. Work an unblocked vertical ticket through its agreed public test interfaces. WIP commits and authorized Draft PRs can preserve progress; completion and main merge require simplification, independent Standards + Spec review and required final-head CI. The project flow explicitly overrides conflicting imported-skill defaults; keep imported skills unchanged.
-
-At issue completion or before PR merge, run the repository-owned [reduce-complexity](.agents/skills/reduce-complexity/SKILL.md) step before final validation and code-review; reuse the result when the changes are unchanged. At Epic completion, use its broader simplification survey. Compose these steps in the repository workflow while keeping imported skills unchanged for upstream updates.
-
-For coordinated development, lightweight stage records and delivery-time analysis, use [development-timeline](.agents/skills/development-timeline/SKILL.md). Record stage changes, waits and rework rather than every action; its report is not an additional merge gate.
-
-### Docker resources
-
-At the start of a Docker run or validation phase, inventory containers, volumes, networks and disk usage. Use the run's fixture or supervisor to record temporary resource names, labels, ports and consumers in an owned ledger; reference it from the task checkpoint. Worktrees share the Docker daemon; isolate resources and record the owner of any shared development service.
-
-The creating agent owns cleanup after success, failure, timeout and cancellation. Use `docker rm -f -v <owned-container>` for disposable containers; `--rm` does not stop a container when its creating process exits. Explicitly remove owned temporary named volumes and networks after checking their references. A `finally` block alone does not cover process termination; provide interruption cleanup and recover leftovers after an interrupted run.
-
-Before a normal retry, reconcile the run's owned ledger with actual resources and consumers. After an abnormal exit, session recovery, run completion or ticket completion, reconcile the ledger and the global inventory. Confirm the owner and consumers have stopped before reclaiming a temporary resource. PM checks the recorded reconciliation before declaring delivery complete and reports retained resources with owner and purpose; repeat inspection when evidence is incomplete or ownership is uncertain. Age, an exited container or an unreferenced volume alone does not establish ownership.
-
-Preserve active development services, persistent data and other projects' resources unless the user explicitly authorizes their removal. Cleanup uses an explicit owned-resource list; do not run global Docker prune commands. At run completion, verify and report the remaining containers, volumes, networks and disk usage after cleanup. Normal command retries within that run use the owned ledger rather than repeating a full global inventory.
+在任务清理、会话恢复和每周 PM 维护轮次时，请遵循 [environment-maintenance.md](docs/agents/environment-maintenance.md)，以核对工作树、临时输出、包缓存和未关闭的 issue/PR。保留可恢复的源代码，并在移除前检查实际消费者；记录回收的空间和保留的所有者。
