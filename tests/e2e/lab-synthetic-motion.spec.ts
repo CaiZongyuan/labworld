@@ -3,6 +3,7 @@ import { createHash } from 'node:crypto';
 import { bindMotionPeer, type MotionPeer } from '../support/motion-socket';
 import { WebSocket } from 'ws';
 import { assertResourceConvergence } from './motion-resources';
+import { predicateFact } from './original-predicate-facts';
 import {
   assertTrajectory,
   assertAdvanced,
@@ -105,11 +106,38 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
     assertTrajectory(advancedA, world.fixture.session_id);
     assertTrajectory(advancedB, world.fixture.session_id);
     const geometry = [];
-    for (const viewer of [page, world.second]) {
-      const sample = await eventually(
-        () => metrics(viewer),
-        (value) => Number(value.stats['三角形']?.replaceAll(',', '')) >= 240,
-      );
+    for (const [viewerIndex, viewer] of [page, world.second].entries()) {
+      let last: Awaited<ReturnType<typeof metrics>> | null = null;
+      let sample: Awaited<ReturnType<typeof metrics>>;
+      try {
+        sample = await eventually(
+          async () => {
+            last = await metrics(viewer);
+            return last;
+          },
+          (value) => Number(value.stats['三角形']?.replaceAll(',', '')) >= 240,
+        );
+      } catch (error) {
+        const finite = (value: number | undefined) =>
+          typeof value === 'number' &&
+          Number.isFinite(value) &&
+          Math.abs(value) <= 1e12
+            ? value
+            : null;
+        const snapshot = last as Awaited<ReturnType<typeof metrics>> | null;
+        predicateFact('motion', {
+          stage: 'original-rendered-triangles-failed',
+          viewerIndex,
+          actualTriangles: finite(
+            Number(snapshot?.stats['三角形']?.replaceAll(',', '')),
+          ),
+          hasExpectedTriangleField:
+            !!snapshot && Object.hasOwn(snapshot.stats, '三角形'),
+          fps: finite(snapshot?.fps),
+          frameMs: finite(snapshot?.frameMs),
+        });
+        throw error;
+      }
       // The tracked cube has twelve triangles; twenty rendered copies need 240.
       expect(
         Number(sample.stats['三角形']?.replaceAll(',', '')),

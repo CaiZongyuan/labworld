@@ -47,6 +47,14 @@ test('members and Agents query real history, recover a failed page and clean exp
 }) => {
   test.setTimeout(120000);
   page.setDefaultTimeout(10000);
+  // Diagnostic branch only: retain HTTP/UI history with the public WebGL fallback.
+  await page.addInitScript(() =>
+    Object.defineProperty(window, 'WebGL2RenderingContext', {
+      value: undefined,
+      configurable: true,
+    }),
+  );
+  predicateFact('history', { stage: 'diagnostic-webgl-unavailable' });
   const errors: string[] = [];
   page.on('pageerror', (error) => errors.push(error.name));
   await page.setViewportSize({ width: 1440, height: 1000 });
