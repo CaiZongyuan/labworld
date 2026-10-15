@@ -1,0 +1,2778 @@
+diff --git a/.agents/skills/ask-matt/SKILL.md b/.agents/skills/ask-matt/SKILL.md
+index 8d38b2b..4bfeeb6 100644
+--- a/.agents/skills/ask-matt/SKILL.md
++++ b/.agents/skills/ask-matt/SKILL.md
+@@ -8,6 +8,8 @@ disable-model-invocation: true
+ 
+ You don't remember every skill, so ask.
+ 
++Before stating what a skill does or recommending a step be skipped, read that skill's SKILL.md: the summaries here are for orientation only.
++
+ A **flow** is a path through the skills. Most paths run along one **main flow**, and two **on-ramps** merge onto it. Everything else is standalone, or a vocabulary layer that runs underneath.
+ 
+ ## The main flow: idea → ship
+diff --git a/.agents/skills/code-review/SKILL.md b/.agents/skills/code-review/SKILL.md
+index e28d7ac..373a4f2 100644
+--- a/.agents/skills/code-review/SKILL.md
++++ b/.agents/skills/code-review/SKILL.md
+@@ -10,7 +10,7 @@ Two-axis review of the diff between `HEAD` and a fixed point the user supplies:
+ 
+ Both axes run as **parallel sub-agents** so they don't pollute each other's context, then this skill aggregates their findings.
+ 
+-The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
++The issue tracker should have been provided to you. If not, tell the user to run `/setup-matt-pocock-skills`.
+ 
+ ## Process
+ 
+@@ -26,14 +26,14 @@ Before going further, confirm the fixed point resolves (`git rev-parse <fixed-po
+ 
+ Look for the originating spec, in this order:
+ 
+-1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in `docs/agents/issue-tracker.md`.
++1. Issue references in the commit messages (`#123`, `Closes #45`, GitLab `!67`, etc.), fetched via the workflow in the tracker doc.
+ 2. A path the user passed as an argument.
+ 3. A spec file under `docs/`, `specs/`, or `.scratch/` matching the branch name or feature.
+ 4. If nothing is found, ask the user where the spec is. If they say there isn't one, the **Spec** sub-agent will skip and report "no spec available".
+ 
+ ### 3. Identify the standards sources
+ 
+-Anything in the repo that documents how code should be written, such as `CODING_STANDARDS.md` or `CONTRIBUTING.md`.
++Search the repo for every file that documents how code should be written. When `CODING_STANDARDS.md` or `CONTRIBUTING.md` exists, it must be on the list.
+ 
+ On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
+ 
+@@ -57,6 +57,8 @@ Each smell reads *what it is* → *how to fix*; match it against the diff:
+ 
+ ### 4. Spawn both sub-agents in parallel
+ 
++Issue both sub-agent calls together, in the foreground, and aggregate the reports they return.
++
+ **Standards sub-agent prompt** should include:
+ 
+ - The full diff command and commit list.
+diff --git a/.agents/skills/diagnosing-bugs/SKILL.md b/.agents/skills/diagnosing-bugs/SKILL.md
+index 1b929e2..d039541 100644
+--- a/.agents/skills/diagnosing-bugs/SKILL.md
++++ b/.agents/skills/diagnosing-bugs/SKILL.md
+@@ -122,7 +122,7 @@ A correct seam is one where the test exercises the **real bug pattern** as it oc
+ If a correct seam exists:
+ 
+ 1. Turn the minimised repro into a failing test at that seam.
+-2. Watch it fail.
++2. Watch it fail. If you forced the red by mutating code or a fixture, `diff` against a pristine copy to prove the mutation landed before you trust it.
+ 3. Apply the fix.
+ 4. Watch it pass.
+ 5. Re-run the Phase 1 feedback loop against the original (un-minimised) scenario.
+diff --git a/.agents/skills/grilling/SKILL.md b/.agents/skills/grilling/SKILL.md
+index 8ca78c6..df69d99 100644
+--- a/.agents/skills/grilling/SKILL.md
++++ b/.agents/skills/grilling/SKILL.md
+@@ -21,6 +21,8 @@ Format a round like so:
+ ➡️ <your recommended answer>
+ ```
+ 
++Word each question so "yes" accepts your recommended answer.
++
+ Each round the user answers reshapes the tree: settled decisions push the frontier outward and unblock questions that depended on them. Recompute the frontier and ask the next round. A question whose answer depends on another question still open in this round belongs to a _later_ round, not this one.
+ 
+ Finding _facts_ is your job, never the user's. When a frontier question needs a fact from the environment (filesystem, tools, etc.), dispatch a sub-agent to find it; don't ask the user for anything you could look up yourself. Don't block on it: a running exploration is an unsettled prerequisite, so only the questions downstream of it wait for the sub-agent to report; ask the rest of the frontier now. The _decisions_ are the user's: put each to them and wait.
+diff --git a/.agents/skills/handoff/SKILL.md b/.agents/skills/handoff/SKILL.md
+index 2eb98a5..a224edc 100644
+--- a/.agents/skills/handoff/SKILL.md
++++ b/.agents/skills/handoff/SKILL.md
+@@ -5,7 +5,7 @@ argument-hint: "What will the next session be used for?"
+ disable-model-invocation: true
+ ---
+ 
+-Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS - not the current workspace.
++Write a handoff document summarising the current conversation so a fresh agent can continue the work. Save to the temporary directory of the user's OS (`$TMPDIR`, else `/tmp`; `%TEMP%` on Windows) - not the current workspace.
+ 
+ Include a "suggested skills" section in the document, naming which skills the next agent should call the Skill tool for.
+ 
+diff --git a/.agents/skills/implement/SKILL.md b/.agents/skills/implement/SKILL.md
+index 7a0b11f..bd49e47 100644
+--- a/.agents/skills/implement/SKILL.md
++++ b/.agents/skills/implement/SKILL.md
+@@ -6,10 +6,12 @@ disable-model-invocation: true
+ 
+ Implement the work described by the user in the spec or tickets.
+ 
+-Use /tdd where possible, at pre-agreed seams.
++If the user passes a ticket reference, fetch it from the issue tracker and state its title before starting. If the reference is ambiguous, ask.
++
++Call the Skill tool with "tdd" where possible, at pre-agreed seams.
+ 
+ Run typechecking regularly, single test files regularly, and the full test suite once at the end.
+ 
+-Once done, use /code-review to review the work.
++Once done, call the Skill tool with "code-review" to review the work.
+ 
+ Commit your work to the current branch.
+diff --git a/.agents/skills/setup-matt-pocock-skills/SKILL.md b/.agents/skills/setup-matt-pocock-skills/SKILL.md
+index c0d850b..293c25b 100644
+--- a/.agents/skills/setup-matt-pocock-skills/SKILL.md
++++ b/.agents/skills/setup-matt-pocock-skills/SKILL.md
+@@ -101,6 +101,8 @@ The block:
+ 
+ Include the `### Triage labels` sub-block, and write `docs/agents/triage-labels.md`, only when `triage` is installed and Section B ran. When it isn't, both are omitted.
+ 
++When Section B ran on GitHub or GitLab, create each configured label the tracker lacks (`gh label create` / `glab label create`).
++
+ Then write the docs files using the seed templates in this skill folder as a starting point:
+ 
+ - [issue-tracker-github.md](./issue-tracker-github.md): GitHub issue tracker
+diff --git a/.agents/skills/setup-matt-pocock-skills/issue-tracker-github.md b/.agents/skills/setup-matt-pocock-skills/issue-tracker-github.md
+index b258aeb..a63510f 100644
+--- a/.agents/skills/setup-matt-pocock-skills/issue-tracker-github.md
++++ b/.agents/skills/setup-matt-pocock-skills/issue-tracker-github.md
+@@ -5,8 +5,9 @@ Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all o
+ ## Conventions
+ 
+ - **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
+-- **Read an issue**: `gh issue view <number> --comments`, filtering comments by `jq` and also fetching labels.
++- **Read an issue**: `gh issue view <number> --json number,title,body,labels,comments`.
+ - **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
++- **Make an issue a sub-issue of a parent**: `gh issue create --parent <parent> ...`, or `gh issue edit <parent> --add-sub-issue <child>` afterwards (`gh` 2.94+). Older `gh`: `gh api --method POST repos/<owner>/<repo>/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>` (database id, as in **Blocking** below). Without sub-issues, put `Part of #<parent>` at the top of the child body.
+ - **Comment on an issue**: `gh issue comment <number> --body "..."`
+ - **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
+ - **Close**: `gh issue close <number> --comment "..."`
+@@ -20,7 +21,7 @@ Infer the repo from `git remote -v`; `gh` does this automatically when run insid
+ When set to `yes`, PRs run through the same labels and states as issues, using the `gh pr` equivalents:
+ 
+ - **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>` for the diff.
+-- **List external PRs for triage**: `gh pr list --state open --json number,title,body,labels,author,authorAssociation,comments` then keep only `authorAssociation` of `CONTRIBUTOR`, `FIRST_TIME_CONTRIBUTOR`, or `NONE` (drop `OWNER`/`MEMBER`/`COLLABORATOR`).
++- **List external PRs for triage**: `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open' --jq '.[] | select(.author_association | IN("OWNER","MEMBER","COLLABORATOR") | not) | {number, title, author: .user.login, author_association, labels: [.labels[].name]}'`.
+ - **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
+ 
+ GitHub shares one number space across issues and PRs, so a bare `#42` may be either: resolve with `gh pr view 42` and fall back to `gh issue view 42`.
+@@ -31,14 +32,14 @@ Create a GitHub issue.
+ 
+ ## When a skill says "fetch the relevant ticket"
+ 
+-Run `gh issue view <number> --comments`.
++Read it as in **Read an issue** above.
+ 
+ ## Wayfinding operations
+ 
+ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
+ 
+ - **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
+-- **Child ticket**: an issue linked to the map as a GitHub sub-issue (`gh api` on the sub-issues endpoint). Where sub-issues aren't enabled, add the child to a task list in the map body and put `Part of #<map>` at the top of the child body. Labels: `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
++- **Child ticket**: an issue linked to the map as a GitHub sub-issue (see **Make an issue a sub-issue of a parent**). Where sub-issues aren't enabled, add the child to a task list in the map body and put `Part of #<map>` at the top of the child body. Labels: `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
+ - **Blocking**: GitHub's **native issue dependencies**, the canonical, UI-visible representation. Add an edge with `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where `<blocker-db-id>` is the blocker's numeric **database id** (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`, _not_ the `#number` or `node_id`). GitHub reports `issue_dependencies_summary.blocked_by` (open blockers only, the live gate). Where dependencies aren't available, fall back to a `Blocked by: #<n>, #<n>` line at the top of the child body. A ticket is unblocked when every blocker is closed.
+ - **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
+ - **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
+diff --git a/.agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md b/.agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md
+index 251035a..81499dc 100644
+--- a/.agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md
++++ b/.agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md
+@@ -6,7 +6,7 @@ Issues and specs for this repo live as GitLab issues. Use the [`glab`](https://g
+ 
+ - **Create an issue**: `glab issue create --title "..." --description "..."`. Use a heredoc for multi-line descriptions. Pass `--description -` to open an editor.
+ - **Read an issue**: `glab issue view <number> --comments`. Use `-F json` for machine-readable output.
+-- **List issues**: `glab issue list -F json` with appropriate `--label` filters.
++- **List issues**: `glab issue list -O json` with appropriate `--label` filters.
+ - **Comment on an issue**: `glab issue note <number> --message "..."`. GitLab calls comments "notes".
+ - **Apply / remove labels**: `glab issue update <number> --label "..."` / `--unlabel "..."`. Multiple labels can be comma-separated or by repeating the flag.
+ - **Close**: `glab issue close <number>`. `glab issue close` does not accept a closing comment, so post the explanation first with `glab issue note <number> --message "..."`, then close.
+@@ -41,6 +41,6 @@ Used by `/wayfinder`. The **map** is a single issue with **child** issues as tic
+ - **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `glab issue create --label wayfinder:map`. (On GitLab tiers with native epics, an epic may hold the map instead; a labelled issue works everywhere.)
+ - **Child ticket**: an issue carrying `Part of #<map>` at the top of its description and labels `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
+ - **Blocking**: GitLab's **native blocking link**, the canonical, UI-visible representation. Add it with the `/blocked_by #<n>` quick action, posted as a note (`glab issue note <child> --message "/blocked_by #<blocker>"`). Native blocking links are a Premium/Ultimate feature; on the free tier (or where unavailable) fall back to a `Blocked by: #<n>, #<n>` line at the top of the description. A ticket is unblocked when every blocker is closed.
+-- **Frontier query**: `glab issue list -F json` scoped to the map's children, drop any with an open blocker: a native `blocked_by` link to an open issue (`glab api projects/:id/issues/:iid/links`), or an open issue in the `Blocked by` line, or an assignee; first in map order wins.
++- **Frontier query**: `glab issue list -O json` scoped to the map's children, drop any with an open blocker: a native `blocked_by` link to an open issue (`glab api projects/:id/issues/<child-iid>/links`), or an open issue in the `Blocked by` line, or an assignee; first in map order wins.
+ - **Claim**: `glab issue update <n> --assignee @me`, the session's first write.
+ - **Resolve**: `glab issue note <n> --message "<answer>"`, then `glab issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.
+diff --git a/.agents/skills/setup-matt-pocock-skills/triage-labels.md b/.agents/skills/setup-matt-pocock-skills/triage-labels.md
+index b716855..5276464 100644
+--- a/.agents/skills/setup-matt-pocock-skills/triage-labels.md
++++ b/.agents/skills/setup-matt-pocock-skills/triage-labels.md
+@@ -12,4 +12,4 @@ The skills speak in terms of five canonical triage roles. This file maps those r
+ 
+ When a skill mentions a role (e.g. "apply the AFK-ready triage label"), use the corresponding label string from this table.
+ 
+-Edit the right-hand column to match whatever vocabulary you actually use.
++Edit the "Label in our tracker" column to match whatever vocabulary you actually use.
+diff --git a/.agents/skills/shadcn/SKILL.md b/.agents/skills/shadcn/SKILL.md
+index 1b4c414..c1e7388 100644
+--- a/.agents/skills/shadcn/SKILL.md
++++ b/.agents/skills/shadcn/SKILL.md
+@@ -1,6 +1,6 @@
+ ---
+ name: shadcn
+-description: Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI, including chat interfaces. Provides project context, component docs, and usage examples. Applies when working with shadcn/ui, component registries, presets, --preset codes, or any project with a components.json file. Also triggers for "shadcn init", "create an app with --preset", or "switch to --preset".
++description: Manages shadcn components and projects — adding, searching, fixing, debugging, styling, and composing UI, including chat interfaces. Provides project context, component docs, and usage examples. Applies when working with shadcn/ui, component registries, presets, --preset codes, or any project with a components.json file. Also triggers for "shadcn init", "create an app with --preset", "switch to --preset", and for building a design system or applying a DESIGN.md or brand spec to shadcn/ui.
+ user-invocable: false
+ allowed-tools: Bash(npx shadcn@latest *), Bash(pnpm dlx shadcn@latest *), Bash(bunx --bun shadcn@latest *)
+ ---
+@@ -193,6 +193,17 @@ npx shadcn@latest docs button dialog select
+    - **Skip**: `npx shadcn@latest init --preset <code> --force --no-reinstall`. Only updates config and CSS, leaves components as-is.
+    - **Important**: Always run preset commands inside the user's project directory. `apply` only works in an existing project with a `components.json` file. The CLI automatically preserves the current base (`base` vs `radix`) from `components.json`. If you must use a scratch/temp directory (e.g. for `--dry-run` comparisons), pass `--base <current-base>` explicitly — preset codes do not encode the base.
+ 
++## Design Systems from DESIGN.md
++
++When the user asks for a design system from a `DESIGN.md` (or a brand spec), with or without a preset, follow [design-system.md](./design-system.md) end to end:
++
++1. `init --preset <code> --template <vite|next> --name <app> --no-monorepo -y`. Without a preset code, pick the closest style and pass `--base base --preset <style>`. Then `add --all -y`.
++2. Read the DESIGN.md frontmatter, Do's and Don'ts, and Known Gaps before editing.
++3. Map its tokens onto the shadcn variables in `tailwindCssFile`. Pin the radius scale, shadows, fonts and `type-*` utilities.
++4. Restyle components by editing their `cva` variants. Change control heights together.
++5. Build the design system page per [design-system-page.md](./design-system-page.md): contrast-checked color roles, type specimens, pinned state matrices, edge cases, do/don't pairs, recipes. Check coverage with `scripts/showcase-coverage.mjs`.
++6. Verify in a browser: typecheck, no console errors, loads at the top, no horizontal overflow, dark mode.
++
+ ## Updating Components
+ 
+ When the user asks to update a component from upstream while keeping their local changes, use `--dry-run` and `--diff` to intelligently merge. **NEVER fetch raw files from GitHub manually — always use the CLI.**
+@@ -212,6 +223,11 @@ When the user asks to update a component from upstream while keeping their local
+ npx shadcn@latest init --name my-app --preset base-nova
+ npx shadcn@latest init --name my-app --preset a2r6bw --template vite
+ 
++# Create a design system app (then follow design-system.md).
++npx shadcn@latest init --name my-ds --preset b0 --template vite --no-monorepo -y
++npx shadcn@latest init --name my-ds --base base --preset maia --template vite --no-monorepo -y
++npx shadcn@latest add --all -y
++
+ # Create a monorepo project.
+ npx shadcn@latest init --name my-app --preset base-nova --monorepo
+ npx shadcn@latest init --name my-app --preset base-nova --template next --monorepo
+@@ -275,3 +291,5 @@ npx shadcn@latest view owner/repo/item
+ - [cli.md](./cli.md) — Commands, flags, presets, templates
+ - [registry.md](./registry.md) — Authoring source registries, `include`, item definitions, dependencies, GitHub registry rules
+ - [customization.md](./customization.md) — Theming, CSS variables, extending components
++- [design-system.md](./design-system.md): DESIGN.md (with or without a preset) to a themed app: style picking, token mapping, radius, fonts, type scale, control heights, showcase traps, verification
++- [design-system-page.md](./design-system-page.md): What goes on a design system page and how: foundations, component tiers, pinned state matrices, contrast pairs, edge cases, do/don't, recipes
+diff --git a/.agents/skills/shadcn/assets/showcase/color-pair.tsx b/.agents/skills/shadcn/assets/showcase/color-pair.tsx
+new file mode 100644
+index 0000000..f80177d
+--- /dev/null
++++ b/.agents/skills/shadcn/assets/showcase/color-pair.tsx
+@@ -0,0 +1,126 @@
++import * as React from "react"
++
++import { cn } from "@/lib/utils"
++
++// Resolves any CSS color (hex, rgb, oklch, color-mix) to sRGB by painting one pixel.
++// Translucent colors are composited over the backdrop, as the browser would.
++function toRgb(color: string, backdrop = "#fff") {
++  const canvas = document.createElement("canvas")
++  canvas.width = canvas.height = 1
++  const context = canvas.getContext("2d", { willReadFrequently: true })
++  if (!context) {
++    return null
++  }
++  context.fillStyle = backdrop
++  context.fillRect(0, 0, 1, 1)
++  context.fillStyle = color
++  context.fillRect(0, 0, 1, 1)
++  const [r, g, b] = context.getImageData(0, 0, 1, 1).data
++  return [r, g, b]
++}
++
++function toHex(rgb: number[]) {
++  return `#${rgb.map((value) => value.toString(16).padStart(2, "0")).join("")}`
++}
++
++function luminance([r, g, b]: number[]) {
++  const [R, G, B] = [r, g, b].map((value) => {
++    const channel = value / 255
++    return channel <= 0.03928
++      ? channel / 12.92
++      : ((channel + 0.055) / 1.055) ** 2.4
++  })
++  return 0.2126 * R + 0.7152 * G + 0.0722 * B
++}
++
++function contrast(a: number[], b: number[]) {
++  const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x)
++  return (light + 0.05) / (dark + 0.05)
++}
++
++export function ColorPair({
++  name,
++  background,
++  foreground,
++  className,
++}: {
++  name: string
++  background: string
++  foreground: string
++  className?: string
++}) {
++  const ref = React.useRef<HTMLDivElement>(null)
++  const [info, setInfo] = React.useState<{ ratio: number; bg: string } | null>(
++    null
++  )
++
++  React.useEffect(() => {
++    const element = ref.current
++    if (!element) {
++      return
++    }
++    // Re-measure when the theme class on <html> changes.
++    const measure = () => {
++      const style = getComputedStyle(element)
++      const page = getComputedStyle(document.body).backgroundColor
++      const bg = toRgb(style.backgroundColor, page)
++      if (!bg) {
++        return
++      }
++      const fg = toRgb(style.color, toHex(bg))
++      if (fg) {
++        setInfo({ ratio: contrast(bg, fg), bg: toHex(bg) })
++      }
++    }
++    measure()
++    const observer = new MutationObserver(measure)
++    observer.observe(document.documentElement, { attributes: true })
++    return () => observer.disconnect()
++  }, [])
++
++  const level = !info
++    ? ""
++    : info.ratio >= 7
++      ? "AAA"
++      : info.ratio >= 4.5
++        ? "AA"
++        : info.ratio >= 3
++          ? "AA Large"
++          : "Fail"
++
++  return (
++    <div
++      className={cn(
++        "flex flex-col overflow-hidden rounded-xl border",
++        className
++      )}
++    >
++      <div
++        ref={ref}
++        style={{
++          backgroundColor: `var(--${background})`,
++          color: `var(--${foreground})`,
++        }}
++        className="flex h-24 items-end justify-between p-4"
++      >
++        <span className="text-2xl font-medium">Aa</span>
++        {info && (
++          <span className="rounded-full border border-current/20 px-2 py-0.5 font-mono text-xs">
++            {info.ratio.toFixed(2)} {level}
++          </span>
++        )}
++      </div>
++      <div className="flex flex-col gap-0.5 bg-background p-3">
++        <span className="text-sm font-medium">{name}</span>
++        <span className="font-mono text-xs text-muted-foreground">
++          --{background} / --{foreground}
++        </span>
++        {info && (
++          <span className="font-mono text-xs text-muted-foreground">
++            {info.bg}
++          </span>
++        )}
++      </div>
++    </div>
++  )
++}
+diff --git a/.agents/skills/shadcn/assets/showcase/preview-states.css b/.agents/skills/shadcn/assets/showcase/preview-states.css
+new file mode 100644
+index 0000000..d90febd
+--- /dev/null
++++ b/.agents/skills/shadcn/assets/showcase/preview-states.css
+@@ -0,0 +1,14 @@
++/* Add to the app's global CSS after the dark variant. */
++/* Lets the design system page pin interaction states with data-preview="hover focus active". */
++@custom-variant hover {
++  @media (hover: hover) {
++    &:hover {
++      @slot;
++    }
++  }
++  &[data-preview~="hover"] {
++    @slot;
++  }
++}
++@custom-variant focus-visible (&:focus-visible, &[data-preview~="focus"]);
++@custom-variant active (&:active, &[data-preview~="active"]);
+diff --git a/.agents/skills/shadcn/assets/showcase/state-matrix.tsx b/.agents/skills/shadcn/assets/showcase/state-matrix.tsx
+new file mode 100644
+index 0000000..69afba4
+--- /dev/null
++++ b/.agents/skills/shadcn/assets/showcase/state-matrix.tsx
+@@ -0,0 +1,72 @@
++import * as React from "react"
++
++import { cn } from "@/lib/utils"
++
++const defaultStates = [
++  "default",
++  "hover",
++  "focus",
++  "active",
++  "disabled",
++] as const
++
++export function StateMatrix<Row extends string>({
++  rows,
++  states = defaultStates,
++  render,
++  className,
++}: {
++  rows: readonly Row[]
++  states?: readonly string[]
++  render: (row: Row, state: string) => React.ReactNode
++  className?: string
++}) {
++  return (
++    <div className={cn("w-full overflow-x-auto", className)}>
++      <table className="w-full border-separate border-spacing-x-2 border-spacing-y-3">
++        <thead>
++          <tr>
++            <th />
++            {states.map((state) => (
++              <th
++                key={state}
++                scope="col"
++                className="text-left font-mono text-xs font-normal text-muted-foreground"
++              >
++                {state}
++              </th>
++            ))}
++          </tr>
++        </thead>
++        <tbody>
++          {rows.map((row) => (
++            <tr key={row}>
++              <th
++                scope="row"
++                className="pr-4 text-left font-mono text-xs font-normal text-muted-foreground"
++              >
++                {row}
++              </th>
++              {states.map((state) => (
++                <td key={state}>{render(row, state)}</td>
++              ))}
++            </tr>
++          ))}
++        </tbody>
++      </table>
++    </div>
++  )
++}
++
++// Spread onto a component to pin a state without interaction.
++export function previewState(state: string) {
++  if (state === "disabled") {
++    return { disabled: true }
++  }
++
++  if (["hover", "focus", "active"].includes(state)) {
++    return { "data-preview": state }
++  }
++
++  return {}
++}
+diff --git a/.agents/skills/shadcn/customization.md b/.agents/skills/shadcn/customization.md
+index 16954f5..d43506d 100644
+--- a/.agents/skills/shadcn/customization.md
++++ b/.agents/skills/shadcn/customization.md
+@@ -136,6 +136,8 @@ module.exports = {
+ 
+ `--radius` controls border radius globally. Components derive values from it (`rounded-lg` = `var(--radius)`, `rounded-md` = `calc(var(--radius) - 2px)`).
+ 
++When a brand spec defines its own radius scale, pin each step in `@theme inline` (`--radius-sm` … `--radius-4xl`) instead of deriving from `--radius`. See [design-system.md](./design-system.md#radius).
++
+ ---
+ 
+ ## Customizing Components
+diff --git a/.agents/skills/shadcn/design-system-page.md b/.agents/skills/shadcn/design-system-page.md
+new file mode 100644
+index 0000000..cfa2f41
+--- /dev/null
++++ b/.agents/skills/shadcn/design-system-page.md
+@@ -0,0 +1,268 @@
++# The Design System Page
++
++What goes on a design system page, and how to show it. Distilled from Primer, Carbon, Atlassian, GitLab Pajamas, Cloudscape, Twilio Paste, Salesforce Lightning, Material 3, Evergreen and Orbit, and from EightShapes' component documentation guidance.
++
++## Contents
++
++- Principles
++- Page outline
++- Foundations
++- Components: tiers and block anatomy
++- States without interaction
++- Edge cases
++- Do and Don't
++- Recipes and example screens
++- Helpers
++- Checklist
++
++---
++
++## Principles
++
++1. **Foundations, then components, then compositions.** Every mature system follows this order (Primer, Carbon, Paste, Cloudscape, M3).
++2. **Roles, not palettes.** Show each color as a surface paired with its foreground and the measured contrast. The raw palette comes second.
++3. **Lead with the typical case.** Each component opens with its most common use in real content. Then come variants in priority order, then shared axes (size, icon), then states.
++4. **Pin states so reviewers can see them.** Hover, focus and pressed render side by side without interaction. Use one consistent label, and never put the state name inside the component.
++5. **Don't render every combination.** Primitives get a variant × state matrix. Composed components get a typical example plus additions. Exhaustive combinations belong in tests (Material 3 cut its list kit from 700+ variants to about 45).
++6. **Real content in the brand's voice.** No lorem ipsum. Include the awkward cases: long text, empty, error, loading.
++7. **Composition proves the system.** End with the DESIGN.md's own recipes and one realistic screen built only from the tokens and components.
++8. **Make the DESIGN.md's rules visible.** Turn its Do's and Don'ts into rendered do/don't pairs.
++
++---
++
++## Page Outline
++
++| #   | Section                    | Contents                                                                                                                             |
++| --- | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
++| 1   | Header                     | System name, "Themed from DESIGN.md", section anchors, light/dark toggle, primary CTA.                                               |
++| 2   | Overview                   | The DESIGN.md hero recipe: display type, one-line personality, its signature artifact.                                               |
++| 3   | Foundations                | Color roles, palette, typography, spacing, radius, elevation, motion (if specified), icons.                                          |
++| 4   | Actions                    | Button, ButtonGroup, Toggle, ToggleGroup, Badge, Kbd.                                                                                |
++| 5   | Inputs                     | Field, Input, InputGroup, Textarea, Select, NativeSelect, Combobox, Checkbox, RadioGroup, Switch, Slider, InputOTP, Calendar, Label. |
++| 6   | Navigation                 | Tabs, Breadcrumb, Pagination, NavigationMenu, Menubar, Sidebar.                                                                      |
++| 7   | Data display               | Card, Table, Chart, Item, Avatar, Accordion, Collapsible, Carousel, ScrollArea, Resizable, AspectRatio, Separator.                   |
++| 8   | Feedback                   | Alert, toast (and Sonner in Base UI projects), Progress, Spinner, Skeleton, Empty.                                                   |
++| 9   | Overlays                   | Dialog, AlertDialog, Sheet, Drawer, Popover, HoverCard, Tooltip, DropdownMenu, ContextMenu, Command.                                 |
++| 10  | Conversation               | MessageScroller, Message, Bubble, Attachment, Marker, Questionnaire. See [rules/chat.md](./rules/chat.md).                           |
++| 11  | Do and Don't               | Rendered pairs for the DESIGN.md's rules.                                                                                            |
++| 12  | Recipes and example screen | The DESIGN.md's named components, then one realistic screen.                                                                         |
++| 13  | Footer                     | The DESIGN.md footer recipe.                                                                                                         |
++
++DirectionProvider goes wherever RTL matters (an RTL row in Inputs or Navigation).
++
++Alternate section surfaces the way the DESIGN.md paces its bands. Use `className="dark"` on a section to render a dark band with the same components.
++
++---
++
++## Foundations
++
++### Color roles
++
++A grid of pairs, each rendered as the surface with "Aa" in its foreground color, plus the token names, resolved value and measured contrast (Paste, Material 3, Pajamas):
++
++| Pair                                  | Required     |
++| ------------------------------------- | ------------ |
++| `background` / `foreground`           | Yes          |
++| `card` / `card-foreground`            | Yes          |
++| `popover` / `popover-foreground`      | Yes          |
++| `primary` / `primary-foreground`      | Yes          |
++| `secondary` / `secondary-foreground`  | Yes          |
++| `muted` / `muted-foreground`          | Yes          |
++| `accent` / `accent-foreground`        | Yes          |
++| `destructive` on `background`         | Yes          |
++| Each extra text token on `background` | When defined |
++
++Use `ColorPair` from the helpers. It measures contrast live and re-measures when the theme changes. Report any pair below 4.5:1 for body-size text, even when the DESIGN.md specifies it. A brand primary at 3:1 behind 14px labels is a real finding.
++
++### Palette
++
++Swatches grouped the way the DESIGN.md groups them (brand, surfaces, text, status, accents). Label each with its DESIGN.md name and token, for example "Warm Stone · `surface-warm`". Show `border`, `input`, `ring`, `chart-1…5` and `sidebar-*` here too.
++
++### Typography
++
++A specimen table, one row per type token (Cloudscape, Carbon, Atlassian):
++
++| Column   | Content                                           |
++| -------- | ------------------------------------------------- |
++| Token    | `type-display-lg`                                 |
++| Spec     | size / line height / weight / tracking            |
++| Use      | "Section heads", taken from the DESIGN.md         |
++| Specimen | Real copy set in the token, truncated to one line |
++
++Group the rows display → title → body → label/caption → code. Below the table, show one paragraph of running text at body size, with a link and inline code, so line length and rhythm are visible.
++
++### Spacing
++
++The base unit and the scale as labeled horizontal bars (Carbon, Atlassian), then a semantic ladder: inside a component, between related items, between groups, between sections (Pajamas). Skip it if the DESIGN.md defines no spacing.
++
++### Radius
++
++The same box at every step, labeled with the token, the value and what uses it (Material 3). Example: `md · 8px · buttons, inputs`.
++
++### Elevation
++
++Each level as a raised surface with the components that rest there (Pajamas, Material 3): flat for canvas and bands, hairline for cards, soft for popovers and menus, deep for dialogs.
++
++### Motion and icons
++
++Show motion only if the DESIGN.md defines durations or easings: a table of token, milliseconds and use. For icons, show one row with the icon library at each size used by components, in `foreground` and `muted-foreground`.
++
++---
++
++## Components: Tiers and Block Anatomy
++
++### Tiers
++
++| Tier         | Components                                                                                                                                                                                                            | How to show                                                         |
++| ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
++| Primitives   | Button, Badge, Toggle, ToggleGroup, Input, Textarea, Select, NativeSelect, Checkbox, RadioGroup, Switch, Slider, Tabs                                                                                                 | Variant × state matrix, size ladder, icon row.                      |
++| Fields       | Field, InputGroup, Combobox, InputOTP, Calendar, Label                                                                                                                                                                | Typical field, then description, error, disabled, required.         |
++| Composed     | Card, Table, Item, Avatar, Alert, Empty, toast, Sonner, Accordion, Collapsible, Breadcrumb, Pagination, Progress, Skeleton, Spinner, Carousel, Chart, ScrollArea, Resizable, AspectRatio, Separator, Kbd, ButtonGroup | Typical example, then one element added at a time, then edge cases. |
++| Overlays     | Dialog, AlertDialog, Sheet, Drawer, Popover, HoverCard, Tooltip, DropdownMenu, ContextMenu, Menubar, NavigationMenu, Command                                                                                          | A real trigger per overlay, labeled with what it opens.             |
++| Shell        | Sidebar, DirectionProvider                                                                                                                                                                                            | Inline in a framed preview (`collapsible="none"`).                  |
++| Conversation | MessageScroller, Message, Bubble, Attachment, Marker, Questionnaire                                                                                                                                                   | One realistic thread, then variant rows.                            |
++
++### Block anatomy
++
++Each component block, in this order. Skip the parts that don't apply:
++
++1. **Name and one line on when to use it.** Take the wording from the DESIGN.md recipe when there is one.
++2. **Typical example** in real content.
++3. **Variants** in priority order (primary before secondary before ghost), each with a one-line "when".
++4. **Sizes** as a ladder, smallest to largest.
++5. **With icon**: leading, trailing, icon-only.
++6. **States**: the matrix for primitives, single examples for the rest.
++7. **Edge cases** (see below).
++
++Wide components (Table, NavigationMenu, Menubar, Sidebar, Chart, MessageScroller) span the full row.
++
++---
++
++## States Without Interaction
++
++Pin interaction states with a `data-preview` attribute. Override the hover, focus-visible and active variants so each also matches the attribute. Copy [assets/showcase/preview-states.css](./assets/showcase/preview-states.css) into `tailwindCssFile`:
++
++```css
++@custom-variant hover {
++  @media (hover: hover) {
++    &:hover {
++      @slot;
++    }
++  }
++  &[data-preview~="hover"] {
++    @slot;
++  }
++}
++@custom-variant focus-visible (&:focus-visible, &[data-preview~="focus"]);
++@custom-variant active (&:active, &[data-preview~="active"]);
++```
++
++If the theme adds an unlayered focus rule (for an outline-style focus), add `[data-preview~="focus"]` to its selector too.
++
++Render the matrix with `StateMatrix` and `previewState` from the helpers:
++
++```tsx
++const variants = ["default", "secondary", "outline", "ghost", "destructive", "link"] as const
++
++<StateMatrix
++  rows={variants}
++  render={(variant, state) => (
++    <Button variant={variant} {...previewState(state)}>
++      Save draft
++    </Button>
++  )}
++/>
++```
++
++The columns are default, hover, focus, active and disabled. Add `loading` with Spinner + `disabled` for Button, and `invalid` (`aria-invalid`) for fields:
++
++```tsx
++<StateMatrix
++  rows={["input"] as const}
++  states={["default", "hover", "focus", "disabled", "invalid"]}
++  render={(_, state) => (
++    <Input
++      placeholder="you@company.com"
++      aria-invalid={state === "invalid" || undefined}
++      {...previewState(state)}
++    />
++  )}
++/>
++```
++
++If the DESIGN.md says a state doesn't change ("primary darkens on press only"), leave that column identical. The matrix shows the spec is followed.
++
++---
++
++## Edge Cases
++
++Show these next to the component they stress:
++
++| Case          | Where                                                                     |
++| ------------- | ------------------------------------------------------------------------- |
++| Long text     | Button label, Badge, Item title, Table cell, Breadcrumb (truncation).     |
++| Empty         | Table with no rows → Empty, Combobox with no matches, empty Command.      |
++| Error         | Field with FieldError, Alert destructive, Attachment `state="error"`.     |
++| Loading       | Button with Spinner, Skeleton for Card and Item, Progress, toast loading. |
++| Many items    | AvatarGroup with count, Pagination with ellipsis, ScrollArea list.        |
++| Missing image | Avatar falling back to AvatarFallback.                                    |
++| Disabled      | Every field and its Field `data-disabled`.                                |
++| RTL           | One row inside `DirectionProvider` with `dir="rtl"`.                      |
++
++---
++
++## Do and Don't
++
++Pick the two to four DESIGN.md rules that are easiest to break and render each as a pair (Primer, Orbit, Carbon):
++
++```tsx
++<div className="grid gap-4 md:grid-cols-2">
++  <Example title="Do">
++    <Button>Get started</Button>
++    <Button variant="outline">Contact sales</Button>
++  </Example>
++  <Example title="Don't">
++    <Button>Get started</Button>
++    <Button>Contact sales</Button>
++  </Example>
++</div>
++```
++
++Caption each with the rule in one line, for example "One primary action per group." Mark Don't with `destructive` text, not a new color.
++
++---
++
++## Recipes and Example Screens
++
++**Recipes.** Build each named component in the DESIGN.md (`hero-band`, `feature-card`, `pricing-tier-card`, `callout-card-coral`, `footer`) from shadcn components and tokens. These are the spec's acceptance tests. If a recipe can't be built without raw values, the token mapping is incomplete.
++
++**Example screen.** One realistic screen in the brand's domain (Cloudscape demos, Paste page templates): a settings page (FieldGroup, Switch, Select, Button) or a list view (Table, Badge, Pagination, Empty). Use only tokens and components.
++
++---
++
++## Helpers
++
++Copy from `assets/showcase/` into the showcase folder:
++
++| File                 | Purpose                                                                    |
++| -------------------- | -------------------------------------------------------------------------- |
++| `preview-states.css` | Variant overrides that pin hover, focus and active through `data-preview`. |
++| `state-matrix.tsx`   | `StateMatrix` (labeled variant × state table) and `previewState(state)`.   |
++| `color-pair.tsx`     | `ColorPair`: surface + foreground with live contrast ratio and WCAG level. |
++
++They import `cn` from `@/lib/utils`. Rewrite that path to the project's `utils` alias.
++
++---
++
++## Checklist
++
++- [ ] Every installed component renders (run the coverage script).
++- [ ] Color roles shown as pairs with contrast; any pair under 4.5:1 is noted in the report.
++- [ ] Type specimen covers every DESIGN.md type token, in real copy.
++- [ ] Radius and elevation ladders name the components that use each step.
++- [ ] Primitives have a state matrix; Button and fields include loading and invalid.
++- [ ] Edge cases: long text, empty, error, loading, missing image.
++- [ ] Do/Don't pairs for the DESIGN.md's key rules.
++- [ ] DESIGN.md recipes rebuilt, plus one example screen.
++- [ ] Page-level theme toggle works, and at least one scoped dark band if the DESIGN.md has dark surfaces.
++- [ ] No lorem ipsum, and no state names inside components.
+diff --git a/.agents/skills/shadcn/design-system.md b/.agents/skills/shadcn/design-system.md
+new file mode 100644
+index 0000000..018f87b
+--- /dev/null
++++ b/.agents/skills/shadcn/design-system.md
+@@ -0,0 +1,386 @@
++# Design Systems from DESIGN.md
++
++Build a new app from a preset, install every component, restyle it from a `DESIGN.md`, then render a design system page.
++
++Trigger phrases: "build me a design system using <preset>", "apply this DESIGN.md", "create a showcase / design system page", "make shadcn look like <brand>".
++
++## Contents
++
++- Inputs to confirm
++- Step 1: Scaffold
++- Step 2: Install everything
++- Step 3: Read the DESIGN.md
++- Step 4: Map tokens to the theme
++- Step 5: Map component recipes to variants
++- Step 6: Build the design system page ([design-system-page.md](./design-system-page.md))
++- Step 7: Verify
++- Report back
++
++---
++
++## Inputs to Confirm
++
++| Input     | Default                             | Notes                                                                                                                                    |
++| --------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
++| Preset    | Optional                            | Code (`b0`), style name (`luma`) or URL. Pass it through. Never decode it by hand. Without one, pick a style (see Step 1).               |
++| DESIGN.md | Required                            | A path, URL or pasted content. Copy it into the new app root as `DESIGN.md`.                                                             |
++| Template  | `vite`                              | Use `next` when the user says Next.js, App Router or SSR.                                                                                |
++| App name  | Derived from the brand in DESIGN.md | Kebab-case.                                                                                                                              |
++| Base      | `base`                              | Pass `--base` when no preset code is given. Use `radix` only when the user asks. `info --json` after init decides `render` vs `asChild`. |
++
++If the DESIGN.md path can't be read (macOS privacy blocks `~/Downloads` and `~/Desktop` for some hosts), ask the user to copy it into the working directory. Don't guess its contents.
++
++---
++
++## Step 1: Scaffold
++
++With a preset code from the user:
++
++```bash
++npx shadcn@latest init --preset <code> --template vite --name <app> --no-monorepo -y
++```
++
++Without one, pick the style whose geometry is closest to the DESIGN.md and pass it with `--base`:
++
++```bash
++npx shadcn@latest init --base base --preset <style> --template vite --name <app> --no-monorepo -y
++```
++
++Then:
++
++```bash
++cd <app>
++npx shadcn@latest info --json
++```
++
++`init` with neither `--preset` nor `--base` stops at an interactive library prompt, even with `-y`. Always pass one of them, plus `--no-monorepo`.
++
++### Picking a style
++
++The theme gets replaced by the DESIGN.md anyway. The style decides geometry the CSS variables can't reach: control padding, density, how rounded and how raised the components are. Read the DESIGN.md's radius scale, control heights, shadows and layout density, then pick:
++
++| Style  | Character                                             | Pick when the DESIGN.md has                                            |
++| ------ | ----------------------------------------------------- | ---------------------------------------------------------------------- |
++| `vega` | The classic shadcn/ui look.                           | Neutral, conventional SaaS geometry; nothing extreme.                  |
++| `nova` | Reduced padding and margins for compact layouts.      | 32–36px controls, 6–8px radius, hairlines over shadows.                |
++| `maia` | Soft and rounded, with generous spacing.              | 40px+ controls, 12px+ card radius, generous padding, editorial pacing. |
++| `lyra` | Boxy and sharp.                                       | 0–4px radius, hard edges, mono or technical type.                      |
++| `mira` | Compact.                                              | Dense data UIs, 28–32px controls, tight tables.                        |
++| `luma` | Rounded geometry, soft elevation, breathable layouts. | Pill buttons, soft layered shadows, glassy or macOS-like surfaces.     |
++| `rhea` | Luma, but more compact.                               | Luma's softness with product-UI density.                               |
++| `sera` | Editorial and typographic.                            | Serif display type, editorial pacing, magazine-like hierarchy.         |
++
++State the choice and the reason in one line ("Picked maia: 40px controls, 12–16px cards, generous padding"). If the user names a style, use it. Read `base`, `style`, `iconLibrary`, `tailwindCssFile` and `aliases` from `info` before writing any code.
++
++## Step 2: Install Everything
++
++```bash
++npx shadcn@latest add --all -y
++ls <resolvedPaths.ui>/*.tsx | wc -l
++```
++
++Count the component files on disk. Never quote a component count from memory.
++
++Then wire up the providers in the app root:
++
++- Wrap the app in `TooltipProvider`.
++- Base UI: wrap the app in `Toaster` from the `toast` component and call `toast.add({ title, description, type })`. Radix: render `<Toaster />` from `sonner`.
++
++Then typecheck the app sources. In Vite apps, the root `tsc --noEmit` checks nothing because the root tsconfig only has project references:
++
++```bash
++npx tsc -p tsconfig.app.json --noEmit   # Vite.
++npx tsc --noEmit                        # Next.js.
++```
++
++Fix generated files that fail strict checks (for example, an unused `React` import) before moving on, or `vite build` will fail.
++
++---
++
++## Step 3: Read the DESIGN.md
++
++DESIGN.md files usually carry YAML frontmatter (`colors`, `typography`, `rounded`, `spacing`, `components`) and prose sections (Overview, Colors, Typography, Layout, Elevation, Shapes, Components, Do's and Don'ts, Responsive, Known Gaps). Some only have prose with `{colors.x}` references. Handle both.
++
++Long files exceed one read. Grep the headings first, then read frontmatter, **Do's and Don'ts**, **Iteration Guide** and **Known Gaps** in full. Those sections hold the rules that override defaults.
++
++Extract into a working table before editing anything:
++
++| Extract               | Look for                                                              |
++| --------------------- | --------------------------------------------------------------------- |
++| Canvas and ink        | `canvas`, `surface`, `ink`, "page floor", "body text"                 |
++| Action color + states | `primary`, `-hover`, `-active`, `-pressed`, `-disabled`, `on-primary` |
++| Secondary actions     | `button-secondary` fill, text and border                              |
++| Surfaces              | card fills, soft bands, dark product surfaces                         |
++| Lines                 | `hairline`, border alpha, "1px solid"                                 |
++| Focus                 | outline vs ring, color, width, offset, alpha                          |
++| Type families         | display, body, mono, and the documented **substitutes**               |
++| Type scale            | size, weight, line height, tracking per token                         |
++| Radius scale          | every value and what it applies to                                    |
++| Elevation             | each shadow tier, verbatim                                            |
++| Control heights       | button, input, ghost, icon-button heights and padding                 |
++| Hard rules            | every "Don't" and "never"                                             |
++
++---
++
++## Step 4: Map Tokens to the Theme
++
++Edit only `tailwindCssFile`. Keep hex values when the DESIGN.md gives hex. Don't convert them to OKLCH.
++
++### Role mapping
++
++| DESIGN.md role                               | shadcn variable                                             |
++| -------------------------------------------- | ----------------------------------------------------------- |
++| canvas / surface / page floor                | `--background`                                              |
++| ink / headline text                          | `--foreground`, `--card-foreground`, `--popover-foreground` |
++| primary CTA fill / on-primary                | `--primary` / `--primary-foreground`                        |
++| primary hover, pressed or active fill        | new `--primary-active` (or `--primary-pressed`)             |
++| secondary button fill / text                 | `--secondary` / `--secondary-foreground`                    |
++| soft band, alternating section               | `--muted`                                                   |
++| secondary or descriptive text                | `--muted-foreground`                                        |
++| ghost hover wash, active tab, menu highlight | `--accent` / `--accent-foreground`                          |
++| card / feature card fill                     | `--card`                                                    |
++| floating layer (menus, dialogs)              | `--popover` (usually the canvas)                            |
++| hairline / structural border                 | `--border`, `--input`                                       |
++| focus color                                  | `--ring`                                                    |
++| error / validation                           | `--destructive`                                             |
++| illustration accents                         | `--chart-1` … `--chart-5`, plus named tokens                |
++| sidebar or nav rail surface                  | `--sidebar-*`                                               |
++
++Every token without a shadcn slot gets a variable in `:root` (and `.dark` when it changes) and a registration in `@theme inline`:
++
++```css
++:root {
++  --primary-active: #a9583e;
++  --surface-card: #efe9de;
++}
++
++@theme inline {
++  --color-primary-active: var(--primary-active);
++  --color-surface-card: var(--surface-card);
++}
++```
++
++### Radius
++
++A DESIGN.md radius scale rarely fits the `--radius` multipliers. Pin each step in `@theme inline` instead. These are the classes base-nova components use:
++
++| Class         | Used by                                         |
++| ------------- | ----------------------------------------------- |
++| `rounded-sm`  | Small accents                                   |
++| `rounded-md`  | Menu, select and command items                  |
++| `rounded-lg`  | Buttons, inputs, selects, tabs, popovers, menus |
++| `rounded-xl`  | Cards, dialogs, command                         |
++| `rounded-2xl` | Toasts, large containers                        |
++| `rounded-4xl` | Badges (pill)                                   |
++
++```css
++@theme inline {
++  /* DESIGN.md step → Tailwind class used by that component. */
++  --radius-sm: 4px; /* xs: accents. */
++  --radius-md: 6px; /* sm: menu items. */
++  --radius-lg: 8px; /* md: buttons, inputs. */
++  --radius-xl: 12px; /* lg: cards, dialogs. */
++  --radius-2xl: 16px; /* xl: toasts, hero containers. */
++  --radius-3xl: 16px;
++  --radius-4xl: 9999px; /* pill: badges. */
++}
++```
++
++Replace the existing `--radius-*` lines in `@theme inline` rather than adding a second block. Confirm the classes for the installed style:
++
++```bash
++grep -ohE "rounded-(\[[^ \"]+\]|[a-z0-9]+)" <ui>/*.tsx | sort | uniq -c
++```
++
++`rounded-[min(var(--radius-md),Npx)]` caps small buttons and select triggers. Edit the cap when the DESIGN.md wants rounder small controls.
++
++### Elevation
++
++Override Tailwind's shadow scale in `@theme`, not `@theme inline`. Copy multi-layer shadows verbatim. Set `--shadow-xs` to `0 0 #0000` when the system is hairline-only, because inputs and outline buttons use it.
++
++```css
++@theme {
++  --shadow-xs: 0 0 #0000;
++  --shadow-sm: 0 1px 3px rgb(20 20 19 / 0.08);
++  --shadow-lg: 0 1px 3px rgb(20 20 19 / 0.08), 0 8px 24px rgb(20 20 19 / 0.06);
++}
++```
++
++### Fonts
++
++Brand fonts are usually licensed. Use the substitutes the DESIGN.md names, installed from Fontsource with the project's package manager, and import every face you reference at the top of the CSS file:
++
++```bash
++npm install @fontsource-variable/inter @fontsource-variable/cormorant-garamond @fontsource-variable/jetbrains-mono
++```
++
++```css
++@import "@fontsource-variable/inter";
++@import "@fontsource-variable/cormorant-garamond";
++@import "@fontsource-variable/jetbrains-mono";
++
++@theme inline {
++  --font-sans: "Inter Variable", -apple-system, system-ui, sans-serif;
++  --font-serif: "Cormorant Garamond Variable", Garamond, serif;
++  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
++  --font-heading: var(--font-sans);
++}
++```
++
++`--font-heading` styles small component titles (`CardTitle`, `DialogTitle`, `SheetTitle`). Point it at the display face only when that face reads well at 16px. Otherwise keep it on the sans and use display tokens for page headings.
++
++### Type scale
++
++Turn every typography token into a `type-*` utility. Don't use `--text-*` theme keys for this, because `cn()` treats unknown `text-*` classes as colors and drops whichever comes first when one sits next to `text-muted-foreground`.
++
++```css
++@utility type-display-lg {
++  font-family: var(--font-serif);
++  font-size: clamp(34px, 3vw + 16px, 48px);
++  font-weight: 500;
++  line-height: 1.1;
++  letter-spacing: -0.021em;
++}
++
++@utility type-caption-upper {
++  font-size: 12px;
++  font-weight: 500;
++  letter-spacing: 1.5px;
++  text-transform: uppercase;
++}
++```
++
++- Clamp display sizes so mobile works. Convert pixel tracking to `em` (`-1px / 48px = -0.021em`) so the ratio holds as the size shrinks.
++- Respect the rules on tracking (none below a size) and weight (display never bold).
++
++### Dark mode
++
++- **DESIGN.md defines dark surfaces** (product mockups, footers): put them in `.dark`. Because shadcn's `@custom-variant dark (&:is(.dark *))` scopes to descendants, `className="dark"` on any section renders every component inside it with dark tokens. Use it for dark bands, featured pricing cards and footers.
++- **DESIGN.md is light-only**: derive `.dark` from the brand's known dark surfaces and tell the user it's derived.
++
++### Focus
++
++Match the documented focus treatment:
++
++- **Ring with alpha** (for example "3px coral at 15%"): replace `ring-ring/50` with the documented alpha on field components (`input`, `textarea`, `input-group`, `select`, `native-select`, `combobox`, `input-otp`).
++- **Solid outline with offset**: add an unlayered rule so it beats `outline-none`, and cancel the ring shadow:
++
++```css
++:is(
++  button,
++  a[href],
++  [role="button"],
++  [role="tab"],
++  [role="checkbox"],
++  [role="radio"],
++  [role="switch"],
++  [role="slider"]
++):focus-visible {
++  outline: 2px solid var(--ring);
++  outline-offset: 2px;
++  --tw-ring-shadow: 0 0 #0000;
++}
++```
++
++This covers actions only. Field controls keep their ring. When the DESIGN.md applies the outline to fields too, add `input, textarea, select, [role="combobox"]` to the selector.
++
++---
++
++## Step 5: Map Component Recipes to Variants
++
++Restyle by editing the `cva` variants in the installed component source. Keep existing variant names so usage stays standard. Add a variant only when the DESIGN.md defines a distinct recipe.
++
++| DESIGN.md recipe                     | shadcn target                                |
++| ------------------------------------ | -------------------------------------------- |
++| `button-primary`                     | `Button` `default`                           |
++| `button-secondary` (tinted fill)     | `Button` `secondary`                         |
++| `button-secondary` (canvas + border) | `Button` `outline`                           |
++| `button-ghost`, nav links            | `Button` `ghost`                             |
++| text link                            | `Button` `link`                              |
++| circular icon button                 | `Button` `icon*` sizes + `rounded-full`      |
++| `badge-pill`, `badge-<accent>`       | `Badge` `secondary`, `default`, new variants |
++| `card`, `feature-card`               | `Card` (fill, ring, `--card-spacing`)        |
++| `text-input`, `-focused`             | `Input`, `InputGroup`, `Select`, `Textarea`  |
++| `category-tab`, filter row           | `Tabs` `default` list + trigger              |
++
++**Control heights move together.** When the button height changes, change the field controls to match, or forms misalign. In base-nova the 32px default lives in:
++
++| File                | Class                            |
++| ------------------- | -------------------------------- |
++| `button.tsx`        | `h-8`, `size-8` (icon)           |
++| `input.tsx`         | `h-8`                            |
++| `input-group.tsx`   | `h-8`                            |
++| `select.tsx`        | `data-[size=default]:h-8`        |
++| `native-select.tsx` | `h-8`                            |
++| `combobox.tsx`      | `min-h-8` (chips)                |
++| `toggle.tsx`        | `h-8 min-w-8`                    |
++| `input-otp.tsx`     | `size-8` (slot)                  |
++| `tabs.tsx`          | `group-data-horizontal/tabs:h-8` |
++| `menubar.tsx`       | `h-8`                            |
++| `command.tsx`       | `h-8!` (input group)             |
++
++Re-grep before editing (`grep -n "\bh-8\b\|size-8\b" <ui>/*.tsx`); other styles use different values.
++
++**States.** Follow the documented states exactly. If the DESIGN.md says "darken on press only", use `active:` instead of `hover:`. Keep hover on ghost buttons and menu items even when the spec omits it, and tell the user you did.
++
++**Hard rules.** Turn each "Don't" into a check before you finish, for example: no radius outside the scale, no accent color on buttons, no bold display type.
++
++---
++
++## Step 6: Build the Design System Page
++
++Follow [design-system-page.md](./design-system-page.md). It sets the section outline, how to present each foundation, the component tiers and block anatomy, pinned state matrices, edge cases, do/don't pairs, and recipes.
++
++In short:
++
++1. Foundations first: color roles as contrast-checked pairs, palette, type specimen table, spacing, radius and elevation ladders.
++2. Components by tier: primitives get a variant × state matrix, size ladder and icon row. Composed components get a typical example, additions and edge cases. Overlays get real triggers.
++3. Then rendered do/don't pairs for the DESIGN.md's rules, the DESIGN.md's named recipes rebuilt from components, and one example screen.
++
++Copy the helpers from `assets/showcase/` (`preview-states.css`, `state-matrix.tsx`, `color-pair.tsx`). Put sections in `src/showcase/<section>.tsx` (Vite) or `app/design-system/` (Next.js). Write copy in the brand's voice.
++
++### Known traps
++
++| Component           | Trap                                                                        | Fix                                                                         |
++| ------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
++| `Command` inline    | cmdk scrolls its first item into view on mount, which jumps the page to it. | Control it: `value={value} onValueChange={setValue}` with initial `"none"`. |
++| `Sidebar`           | Default sidebar is `fixed` and escapes the preview frame.                   | `<SidebarProvider className="min-h-0">` + `<Sidebar collapsible="none">`.   |
++| `MessageFooter`     | Placed beside `MessageContent`, it becomes a squeezed flex column.          | Put it inside `MessageContent`.                                             |
++| `Select` (base)     | `SelectValue` shows the raw value.                                          | Pass `items` to `Select`.                                                   |
++| `Resizable`         | react-resizable-panels v4 dropped `direction` and numeric sizes.            | `orientation="horizontal"`, `defaultSize="40%"`.                            |
++| `DirectionProvider` | Provider alone doesn't flip layout.                                         | Also set `dir="rtl"` on the wrapper.                                        |
++| `NavigationMenu`    | The content is clipped by the example frame.                                | Leave bottom padding in that frame.                                         |
++| Header nav links    | `Button` renders a `<button>`.                                              | Base: `nativeButton={false} render={<a href="#…" />}`. Radix: `asChild`.    |
++
++### Coverage check
++
++```bash
++node <skill-dir>/scripts/showcase-coverage.mjs src/components/ui src   # Vite.
++node <skill-dir>/scripts/showcase-coverage.mjs components/ui app      # Next.js.
++```
++
++It lists every component file that no showcase file imports. Fix the list until it's empty. `add --all` installs both `toast` and `sonner` in Base UI projects; show `sonner` in Feedback next to `toast` so the list can reach zero.
++
++---
++
++## Step 7: Verify
++
++Start the dev server and check it in a browser:
++
++1. App typecheck passes (see Step 2).
++2. No console errors.
++3. Loads at `scrollY === 0`. Anything else means a component is stealing scroll on mount.
++4. No horizontal overflow at 375px and 1280px: `document.documentElement.scrollWidth <= innerWidth`.
++5. Screenshot the hero, Foundations, one form section and one dark band. Compare against the DESIGN.md: canvas color, CTA color, display font, radius, focus ring.
++6. Toggle dark mode once.
++
++---
++
++## Report Back
++
++- App path, dev URL, component count from disk.
++- The style picked (when no preset was given) and why.
++- What maps where: colors, fonts (and substitutes), radius, shadows, focus.
++- Contrast pairs under 4.5:1, including ones the DESIGN.md itself specifies.
++- Every component file you edited and why.
++- Every deliberate deviation from the DESIGN.md (derived dark mode, kept hover, substituted fonts).
+diff --git a/.agents/skills/shadcn/evals/evals.json b/.agents/skills/shadcn/evals/evals.json
+index c1b7bdd..f70c8c1 100644
+--- a/.agents/skills/shadcn/evals/evals.json
++++ b/.agents/skills/shadcn/evals/evals.json
+@@ -72,6 +72,55 @@
+         "Uses Message + Bubble + BubbleContent for the conversation rows instead of hand-rolled bubble divs",
+         "Uses semantic color tokens and gap-* spacing; includes \"use client\" (isRSC)"
+       ]
++    },
++    {
++      "id": 6,
++      "prompt": "Build me a design system using preset b0. Use the DESIGN.md in this folder (a productivity-app spec: white canvas, #0075DE primary, 8px buttons, 12px cards, multi-layer soft shadows, 2px blue focus outline with 2px offset).",
++      "expected_output": "A new Vite app created with init --preset b0 --template vite, every component installed, a design system page that renders all of them, and the DESIGN.md tokens mapped onto the shadcn theme.",
++      "files": [],
++      "expectations": [
++        "Creates the app with init --preset b0 --template vite --name <app> and passes the preset code through without decoding it",
++        "Installs every component with add --all and reports the component count from disk",
++        "Reads the DESIGN.md Do's and Don'ts and Known Gaps before editing the theme",
++        "Maps DESIGN.md colors onto shadcn variables in the existing tailwindCssFile and registers extra tokens in @theme inline instead of creating a new CSS file",
++        "Pins the radius scale in @theme inline and overrides the shadow scale with the documented multi-layer shadows",
++        "Implements the 2px outline focus with an offset instead of keeping the default ring",
++        "Changes field control heights together with the button height",
++        "Renders every installed component on the design system page and runs the coverage check",
++        "Verifies in a browser: typecheck, no console errors, page loads at the top, no horizontal overflow",
++        "Shows color roles as surface/foreground pairs with measured contrast ratios",
++        "Shows a variant × state matrix for Button with hover, focus, active and disabled pinned via data-preview",
++        "Renders do/don't pairs for rules from the DESIGN.md"
++      ]
++    },
++    {
++      "id": 7,
++      "prompt": "Create a Next.js design system app called editorial from preset b0 and apply this DESIGN.md: cream canvas #faf9f5, coral primary #cc785c that darkens only on press, licensed serif display (substitute Cormorant Garamond), Inter body, dark #181715 product surfaces, 40px buttons and inputs.",
++      "expected_output": "A Next.js app with all components, serif display type utilities, coral primary with an active-only darker state, dark bands scoped with the dark class, and a showcase page covering every component.",
++      "files": [],
++      "expectations": [
++        "Uses --template next with --preset b0 and --name editorial",
++        "Installs the documented font substitutes from Fontsource instead of linking licensed fonts",
++        "Defines type-* utilities for the display scale with serif family, weight 400-500 and negative tracking, instead of --text-* theme keys",
++        "Uses active: rather than hover: for the primary darker state, per the DESIGN.md",
++        "Raises button and input heights to 40px across button, input, input-group, select and related controls",
++        "Uses className=\"dark\" on sections or cards to render dark product surfaces with the same components",
++        "Avoids the cmdk mount scroll jump on the inline Command example",
++        "Reports deliberate deviations from the DESIGN.md (font substitutes, kept hover, derived values)"
++      ]
++    },
++    {
++      "id": 8,
++      "prompt": "Create a new design system using shadcn and the following DESIGN.md. <DESIGN.md: editorial cream canvas, coral primary, 40px controls, 12px cards, 16px hero container, pill badges, shadows rare, generous 32px card padding>",
++      "expected_output": "A new app scaffolded without a preset code by picking a style that matches the DESIGN.md geometry, then themed, with a full design system page.",
++      "files": [],
++      "expectations": [
++        "Does not ask for or invent a preset code; passes --base base --preset <style> so init doesn't stop at an interactive prompt",
++        "Picks a style matching the DESIGN.md geometry (e.g. maia for generous spacing and 12px+ cards, or sera for editorial serif type) and states the reason in one line",
++        "Passes --no-monorepo and --template vite (or next when asked)",
++        "Installs all components and builds the design system page per design-system-page.md",
++        "Reports contrast pairs below 4.5:1, including the DESIGN.md's own primary/on-primary pair if it fails"
++      ]
+     }
+   ]
+ }
+diff --git a/.agents/skills/shadcn/scripts/showcase-coverage.mjs b/.agents/skills/shadcn/scripts/showcase-coverage.mjs
+new file mode 100644
+index 0000000..d8a4eab
+--- /dev/null
++++ b/.agents/skills/shadcn/scripts/showcase-coverage.mjs
+@@ -0,0 +1,53 @@
++#!/usr/bin/env node
++// Lists installed UI components that no file in the showcase imports.
++// Usage: node showcase-coverage.mjs <ui-dir> <showcase-dir...>
++import { readdirSync, readFileSync, statSync } from "node:fs"
++import { basename, extname, join, resolve } from "node:path"
++
++const [uiArg, ...roots] = process.argv.slice(2)
++
++if (!uiArg || roots.length === 0) {
++  console.error("Usage: node showcase-coverage.mjs <ui-dir> <showcase-dir...>")
++  process.exit(1)
++}
++
++const uiDir = resolve(uiArg)
++
++const components = readdirSync(uiDir)
++  .filter((file) => [".tsx", ".ts"].includes(extname(file)))
++  .map((file) => basename(file, extname(file)))
++
++function walk(path) {
++  if (statSync(path).isFile()) {
++    return [path]
++  }
++
++  return readdirSync(path).flatMap((entry) => {
++    const child = join(path, entry)
++    // Skip the ui directory so components don't count as using each other.
++    if (entry === "node_modules" || child === uiDir) {
++      return []
++    }
++    return walk(child)
++  })
++}
++
++const source = roots
++  .map((root) => resolve(root))
++  .flatMap(walk)
++  .filter((file) => /\.(tsx?|jsx?)$/.test(file))
++  .map((file) => readFileSync(file, "utf8"))
++  .join("\n")
++
++const missing = components.filter(
++  (name) => !new RegExp(`/ui/${name}["']`).test(source)
++)
++
++console.log(
++  `${components.length - missing.length}/${components.length} components shown.`
++)
++
++if (missing.length > 0) {
++  console.log(`Missing: ${missing.join(", ")}`)
++  process.exit(1)
++}
+diff --git a/.agents/skills/tdd/SKILL.md b/.agents/skills/tdd/SKILL.md
+index 250871c..01eadaa 100644
+--- a/.agents/skills/tdd/SKILL.md
++++ b/.agents/skills/tdd/SKILL.md
+@@ -21,7 +21,7 @@ A **seam** is the public boundary you test at: the interface where you observe b
+ 
+ **Test only at pre-agreed seams.** Before writing any test, write down the seams under test and confirm them with the user. No test is written at an unconfirmed seam. You can't test everything, so agreeing the seams up front is how testing effort lands on the critical paths and complex logic instead of every edge case.
+ 
+-Ask: "What's the public interface, and which seams should we test?"
++Ask: "What's the public interface, and which seams should we test?" Give each proposed seam a one-line note on what it catches and what it misses.
+ 
+ When the shape of that interface is itself in question (how deep the module is, where the seam belongs, what the interface should expose), call the Skill tool with "codebase-design" for the vocabulary. It is the shared source of the module, interface, depth, seam, adapter, leverage and locality terms, and it is a reference to consult, not a session to run.
+ 
+diff --git a/.agents/skills/teach/SKILL.md b/.agents/skills/teach/SKILL.md
+index c679eec..493fa3b 100644
+--- a/.agents/skills/teach/SKILL.md
++++ b/.agents/skills/teach/SKILL.md
+@@ -9,7 +9,7 @@ The user has asked you to teach them something. This is a stateful request - the
+ 
+ ## Teaching Workspace
+ 
+-Treat the current directory as a teaching workspace. The state of their learning is captured in this directory in several files:
++Treat the current directory as a teaching workspace. Workspace paths (`./lessons/` and the rest) resolve from the directory `/teach` was run in; only the `*-FORMAT.md` links resolve from this skill's folder. The state of their learning is captured in this directory in several files:
+ 
+ - `MISSION.md`: A document capturing the _reason_ the user is interested in the topic. This should be used to ground all teaching. Use the format in [MISSION-FORMAT.md](./MISSION-FORMAT.md).
+ - `./reference/*.html`: A directory of reference materials. These are the compressed learnings from the lessons - cheat sheets, reference algorithms, syntax, yoga poses, glossaries. They are the raw units of learning. They should be beautiful documents which print out well, and are designed for quick reference.
+@@ -107,7 +107,7 @@ For skill acquisition, difficulty is the tool. Effortful retrieval is what build
+ 
+ Each of these should be based on a **feedback loop**, where the user receives feedback on their performance. This feedback loop should be as tight as possible, giving feedback immediately - and ideally automatically.
+ 
+-For quizzes, each answer should be exactly the same number of words (and characters, if possible). Don't give the user any clues about the answer through formatting.
++For quizzes, each answer should be exactly the same number of words (and characters, if possible). Vary which position holds the correct answer across questions. Don't give the user any clues about the answer through formatting or order.
+ 
+ ## Acquiring Wisdom
+ 
+diff --git a/.agents/skills/to-tickets/SKILL.md b/.agents/skills/to-tickets/SKILL.md
+index e868c83..9b77a01 100644
+--- a/.agents/skills/to-tickets/SKILL.md
++++ b/.agents/skills/to-tickets/SKILL.md
+@@ -60,7 +60,7 @@ Iterate until the user approves the breakdown.
+ Publish the approved tickets. **How** depends on the tracker `/setup-matt-pocock-skills` configured; the tickets are the same either way, only the shape of the blocking edges changes:
+ 
+ - **Local files** → write one file per ticket under `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01` in dependency order (blockers first). Each file's "Blocked by" lists the numbers/titles it depends on. Use the per-ticket file template below: one ticket per file, never a single combined file.
+-- **A real issue tracker (GitHub, Linear, …)** → publish one issue per ticket in dependency order (blockers first) so each ticket's blocking edges can reference real identifiers. Use the platform's native blocking / sub-issue relationship where it has one; otherwise set each ticket's "Blocked by" to the blocking issues. Apply the `ready-for-agent` triage label unless instructed otherwise; the tickets are agent-grabbable by construction.
++- **A real issue tracker (GitHub, Linear, …)** → publish one issue per ticket in dependency order (blockers first) so each ticket's blocking edges can reference real identifiers. Use the platform's native blocking relationship where it has one; otherwise set each ticket's "Blocked by" to the blocking issues. If the source was an existing issue, make each ticket its sub-issue (tracker doc's operation). Apply the `ready-for-agent` triage label unless instructed otherwise; the tickets are agent-grabbable by construction.
+ 
+ Work the **frontier**: any ticket whose blockers are all done. For a purely linear chain that means top to bottom.
+ 
+@@ -98,7 +98,7 @@ The end-to-end behaviour this ticket makes work, from the user's perspective, no
+ 
+ ## Blocked by
+ 
+-- A reference to each blocking ticket, or "None (can start immediately)".
++- A reference to each blocking ticket, or "None (can start immediately)". Omit this section when blockers were set as native edges.
+ 
+ </issue-template>
+ 
+diff --git a/.agents/skills/vercel-react-best-practices/metadata.json b/.agents/skills/vercel-react-best-practices/metadata.json
+deleted file mode 100644
+index 3bec38b..0000000
+--- a/.agents/skills/vercel-react-best-practices/metadata.json
++++ /dev/null
+@@ -1,15 +0,0 @@
+-{
+-  "version": "1.0.0",
+-  "organization": "Vercel Engineering",
+-  "date": "January 2026",
+-  "abstract": "Comprehensive performance optimization guide for React and Next.js applications, designed for AI agents and LLMs. Contains 40+ rules across 8 categories, prioritized by impact from critical (eliminating waterfalls, reducing bundle size) to incremental (advanced patterns). Each rule includes detailed explanations, real-world examples comparing incorrect vs. correct implementations, and specific impact metrics to guide automated refactoring and code generation.",
+-  "references": [
+-    "https://react.dev",
+-    "https://nextjs.org",
+-    "https://swr.vercel.app",
+-    "https://github.com/shuding/better-all",
+-    "https://github.com/isaacs/node-lru-cache",
+-    "https://vercel.com/blog/how-we-optimized-package-imports-in-next-js",
+-    "https://vercel.com/blog/how-we-made-the-vercel-dashboard-twice-as-fast"
+-  ]
+-}
+diff --git a/.agents/skills/wayfinder/SKILL.md b/.agents/skills/wayfinder/SKILL.md
+index 812805b..e28cf30 100644
+--- a/.agents/skills/wayfinder/SKILL.md
++++ b/.agents/skills/wayfinder/SKILL.md
+@@ -62,7 +62,7 @@ Each ticket is a **child issue** of the map; the tracker's issue id is its ident
+ <the decision or investigation this ticket resolves>
+ ```
+ 
+-Each ticket carries a `wayfinder:<type>` label, one of `research`, `prototype`, `grilling`, `task` (see [Ticket Types](#ticket-types)).
++Each ticket carries a `wayfinder:<type>` label, one of `research`, `prototype`, `grilling`, `task` (see [Ticket Types](#ticket-types)). `wayfinder:` labels are the only labels a map and its tickets carry, never a triage label like `ready-for-agent`: they are decisions, not implementation work.
+ 
+ A session **claims** a ticket by assigning it to the dev driving the map, **first**, before any work, so concurrent sessions skip it. That assignee _is_ the claim: an open, unassigned ticket is unclaimed.
+ 
+@@ -111,8 +111,8 @@ User invokes with a loose idea.
+ 1. **Name the destination.** Call the Skill tool twice, for "grilling" and "domain-modeling", to pin down what this map is finding its way to: the spec, decision, or change. The destination fixes the scope, so it's settled first.
+ 2. **Map the frontier.** Grill again, **breadth-first** this time: fan out across the whole space rather than deep on any one thread, surfacing the open decisions and the first steps takeable now. **If this surfaces no fog** (the way to the destination is already clear, the whole journey small enough for one session), you don't need a map. Stop and ask the user how they'd like to proceed.
+ 3. **Create the map** (label `wayfinder:map`): Destination and Notes filled in, Decisions-so-far empty, the fog sketched into **Not yet specified**.
+-4. **Create the tickets you can specify now** as child issues of the map, then wire blocking edges in a **second pass** (issues need ids before they can reference each other). Wiring sorts them into the frontier and the blocked; everything you can't yet specify stays in the fog: the **Not yet specified** section.
+-5. **Fire the research subagents.** For each `research` ticket you just created, spin up a subagent that calls the Skill tool with "research" to resolve it in parallel, capturing its findings on a throwaway `research/<name>` branch with a context pointer from the ticket.
++4. **Create the tickets you can specify now** as child issues of the map, then wire blocking edges in a **second pass** (issues need ids before they can reference each other). Write cross-references in that pass too, with real ids: a placeholder `#<n>` auto-links to an unrelated issue. Wiring sorts them into the frontier and the blocked; everything you can't yet specify stays in the fog: the **Not yet specified** section.
++5. **Fire the research subagents.** For each `research` ticket you just created, spin up a subagent that calls the Skill tool with "research" to resolve it in parallel, capturing its findings on a throwaway `research/<name>` branch with a context pointer from the ticket. Push the branch but open no PR: it is never merged.
+ 6. Stop: charting is one session's work; it hand-resolves nothing.
+ 
+ ### Work through the map
+@@ -121,7 +121,7 @@ User invokes with a map (URL or number). A ticket is **optional**: without one,
+ 
+ 1. Load the **map**: the low-res view, not every ticket body.
+ 2. Choose the ticket. If the user named one, use it. Otherwise take the first frontier ticket in order. **Claim it**: assign it to yourself before any work.
+-3. Resolve it. **Zoom as needed**: fetch the full body of any related or closed ticket on demand; call the Skill tool for whichever skills the `## Notes` block names. If in doubt, call the Skill tool twice, for "grilling" and "domain-modeling".
++3. Resolve it as the type its `wayfinder:<type>` label names (see [Ticket Types](#ticket-types)). Read the label, not just the body: the body never states the type. **Zoom as needed**: fetch the full body of any related or closed ticket on demand; call the Skill tool for whichever skills the `## Notes` block names. If in doubt, call the Skill tool twice, for "grilling" and "domain-modeling".
+ 4. Record the resolution: post the answer as a **resolution comment**, **close** the issue, and **append a context pointer** to the map's Decisions-so-far.
+ 5. Add newly-surfaced tickets (create-then-wire); graduate any fog the answer has made specifiable, clearing each graduated patch from **Not yet specified** so it lives only as its new ticket. If the answer reveals that a ticket (this one or another) sits beyond the destination, **rule it out of scope** rather than resolving it on the route. If the decision invalidates other parts of the map, update or delete those tickets.
+ 
+diff --git a/.agents/skills/wizard/template.sh b/.agents/skills/wizard/template.sh
+index 1b3cdf4..081ed3d 100644
+--- a/.agents/skills/wizard/template.sh
++++ b/.agents/skills/wizard/template.sh
+@@ -14,9 +14,9 @@ set -euo pipefail
+ 
+ if [[ -t 1 ]] && command -v tput >/dev/null 2>&1 && [[ "$(tput colors 2>/dev/null || echo 0)" -ge 8 ]]; then
+   BOLD=$(tput bold); DIM=$(tput dim); RESET=$(tput sgr0)
+-  BLUE=$(tput setaf 4); GREEN=$(tput setaf 2); YELLOW=$(tput setaf 3); RED=$(tput setaf 1)
++  BLUE=$(tput setaf 4); GREEN=$(tput setaf 2); YELLOW=$(tput setaf 3)
+ else
+-  BOLD=""; DIM=""; RESET=""; BLUE=""; GREEN=""; YELLOW=""; RED=""
++  BOLD=""; DIM=""; RESET=""; BLUE=""; GREEN=""; YELLOW=""
+ fi
+ 
+ # Author sets this at the top of the stages section.
+@@ -32,7 +32,8 @@ SKIPPED=()        # things we couldn't do (e.g. gh missing)
+ # output isn't a terminal, so piped logs stay readable.
+ _clear() {
+   [[ -t 1 ]] || return 0
+-  if command -v tput >/dev/null 2>&1; then tput clear; else printf '\033[2J\033[3J\033[H'; fi
++  if command -v tput >/dev/null 2>&1 && tput clear 2>/dev/null; then return 0; fi
++  printf '\033[2J\033[3J\033[H'
+ }
+ 
+ # banner "Title" shows the opening frame: what this wizard does.
+@@ -70,7 +71,7 @@ open_url() {
+     elif command -v explorer.exe >/dev/null 2>&1; then explorer.exe "$url"
+     elif command -v xdg-open    >/dev/null 2>&1; then xdg-open "$url"
+     elif command -v open        >/dev/null 2>&1; then open "$url"
+-    else warn "couldn't open a browser; visit it manually: $url"; fi
++    else false; fi
+   } >/dev/null 2>&1 || warn "couldn't open a browser, so visit it manually: $url"
+ }
+ 
+@@ -88,52 +89,63 @@ confirm() {
+   [[ "$reply" =~ ^[Yy] ]]
+ }
+ 
+-# _existing KEY: current value of KEY in ENV_FILE, if any.
++# _existing KEY: current value of KEY in ENV_FILE, if any, with write_env's single
++# quotes or a plain dotenv double-quoted value undone.
+ _existing() {
+   [[ -f "$ENV_FILE" ]] || return 1
+-  local line; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
+-  printf '%s' "${line#*=}"
++  local line value sq="'\\''"; line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
++  value="${line#*=}"
++  if [[ "$value" == \'*\' ]]; then value="${value:1:${#value}-2}"; value="${value//"$sq"/\'}"
++  elif [[ "$value" == \"*\" ]]; then
++    value="${value:1:${#value}-2}"
++    [[ "$value" == *[\\\$\"]* ]] && return 1   # escapes, $ or ": can't decode safely; ask again
++  fi
++  printf '%s' "$value"
+ }
+ 
+ # ask KEY "Prompt" reads a value into $KEY. Offers the existing .env value as
+-# a default on re-runs (Enter keeps it). Visible input (non-secret).
++# a default on re-runs (Enter keeps it). Visible input (non-secret), edited
++# with Readline. Fails at EOF with no input.
+ ask() {
+-  local key="$1" prompt="$2" current input
++  local key="$1" prompt="$2" current input s=$'\001' e=$'\002' p rc=0
+   current=$(_existing "$key" || true)
+-  if [[ -n "$current" ]]; then
+-    printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
+-  else
+-    printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
+-  fi
+-  read -r input || true
++  # Readline needs the colour codes wrapped in \001..\002 to place the cursor.
++  p="  $s$BOLD$e$prompt$s$RESET$e "
++  [[ -n "$current" ]] && p+="$s$DIM$e[Enter keeps current]$s$RESET$e "
++  read -e -r -p "$p" input || rc=1
++  if (( rc )) && [[ -z "$input" ]]; then return 1; fi
+   [[ -z "$input" && -n "$current" ]] && input="$current"
+   printf -v "$key" '%s' "$input"
+ }
+ 
+ # ask_secret KEY "Prompt" is like ask, but input is hidden.
+ ask_secret() {
+-  local key="$1" prompt="$2" current input
++  local key="$1" prompt="$2" current input rc=0
+   current=$(_existing "$key" || true)
+   if [[ -n "$current" ]]; then
+     printf '  %s%s%s %s[Enter keeps current]%s ' "$BOLD" "$prompt" "$RESET" "$DIM" "$RESET"
+   else
+     printf '  %s%s%s ' "$BOLD" "$prompt" "$RESET"
+   fi
+-  read -rs input || true
++  read -rs input || rc=1
+   printf '\n'
++  if (( rc )) && [[ -z "$input" ]]; then return 1; fi
+   [[ -z "$input" && -n "$current" ]] && input="$current"
+   printf -v "$key" '%s' "$input"
+ }
+ 
+-# write_env KEY VALUE upserts KEY=VALUE into ENV_FILE (creates it; replaces
+-# any existing line). Idempotent.
++# write_env KEY VALUE upserts KEY='VALUE' into ENV_FILE (replaces any existing
++# line) and sets $KEY. Idempotent. Creates ENV_FILE at mode 0600; writes through
++# a symlink and keeps an existing file's mode.
+ write_env() {
+-  local key="$1" value="$2" tmp
+-  touch "$ENV_FILE"
++  local key="$1" value="$2" tmp sq="'\\''"
++  [[ -e "$ENV_FILE" ]] || (umask 077 && : > "$ENV_FILE")
+   tmp=$(mktemp)
+   grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
+-  printf '%s=%s\n' "$key" "$value" >> "$tmp"
+-  mv "$tmp" "$ENV_FILE"
++  printf "%s='%s'\n" "$key" "${value//\'/$sq}" >> "$tmp"
++  cat "$tmp" > "$ENV_FILE"
++  rm -f "$tmp"
++  printf -v "$key" '%s' "$value"
+   WRITTEN_ENV+=("$key")
+   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$ENV_FILE"
+ }
+@@ -182,8 +194,12 @@ finish() {
+ # ──────────────────────────────────────────────────────────────────────────
+ # STAGES: author this section. One stage() per step the human takes.
+ # Replace the example below. Set TOTAL_STAGES to match the stages you write.
++# Keep every stage inside run_wizard and the last line as is: bash then parses
++# the whole file before the first prompt, so an edit mid-run can't break it.
+ # ──────────────────────────────────────────────────────────────────────────
+ 
++run_wizard() {
++
+ TOTAL_STAGES=1
+ 
+ banner "Stripe setup"
+@@ -202,3 +218,6 @@ set_secret STRIPE_SECRET_KEY "$STRIPE_SECRET_KEY"   # CI needs this one
+ # ──────────────────────────────────────────────────────────────────────────
+ 
+ finish
++}
++
++run_wizard "$@"; exit
+diff --git a/AGENTS.md b/AGENTS.md
+index 8defcd2..538087a 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -1,43 +1,17 @@
+-# Working in this repository
++# 在本仓库中工作
+ 
+-Read CONTEXT.md before changing domain terminology and the relevant docs/adr/ decisions before changing architecture. [Product scope](docs/architecture/lab-word.md) distinguishes current implementation from target behavior; inspect the repository before assuming a documented command or feature already exists.
++在更改领域术语之前，请阅读 CONTEXT.md；在更改架构之前，请阅读相关的 docs/adr/ 决策。[产品范围](docs/architecture/lab-word.md) 区分当前实现与目标行为；在假定某个已记录的命令或功能已经存在之前，请检查仓库。
+ 
+-## Agent skills
++### 工程流程
+ 
+-For Digital Twin Foundation V1 work, start with [the development handoff](docs/handoffs/digital-twin-foundation-v1.md) for the approved scope, published tickets, accepted preview and current implementation baseline.
++对于面向用户的 UI、UX 或工作流变更，请阅读 [experience-design.md](docs/agents/experience-design.md)。桌面 Web 是默认范围；仅当用户或已批准的任务明确包含移动端时，才添加移动端适配与验证。复用已接受的预览和最新的明确范围变更，包括无需再次预览即可继续的指示。
+ 
+-### Issue tracker
++对于实现，请阅读 docs/agents/development-flow.md 和 docs/testing/strategy.md。通过已商定的公共测试接口处理一个无阻塞的垂直工单。WIP 提交和获授权的草稿 PR 可以保存进度；完成和合并到 main 需要简化、独立的 Standards + Spec 审查以及必需的最终 head CI。项目流程明确覆盖冲突的导入技能默认设置；保持导入技能不变。
+ 
+-Use GitHub Issues in CaiZongyuan/labworld. Before planning, publishing, claiming or completing tickets, read docs/agents/issue-tracker.md.
++在 issue 完成时或 PR 合并前，在最终验证和代码审查之前运行仓库自有的 [reduce-complexity](.agents/skills/reduce-complexity/SKILL.md) 步骤；当变更未变时复用结果。在 Epic 完成时，使用其更广泛的简化调查。将这些步骤编排进仓库工作流，同时保持导入技能不变，以便上游更新。
+ 
+-### Triage labels
++对于协调开发、轻量级阶段记录和交付时分析，请使用 [development-timeline](.agents/skills/development-timeline/SKILL.md)。记录阶段变更、等待和返工，而不是每个动作；其报告不是额外的合并门禁。
+ 
+-Use the agreed five-role vocabulary in docs/agents/triage-labels.md when creating or changing issue state.
++### 环境与跟踪器维护
+ 
+-### Domain docs
+-
+-The shared glossary is CONTEXT.md; decisions live in docs/adr/. Read docs/agents/domain.md when exploring or changing domain boundaries.
+-
+-### Documentation
+-
+-When changing public documentation, navigation or generated references, read docs/agents/documentation.md.
+-
+-### Engineering flow
+-
+-For user-facing UI, UX or workflow changes, read [experience-design.md](docs/agents/experience-design.md). Desktop web is the default scope; add mobile adaptation and validation only when the user or approved task explicitly includes them. Reuse accepted previews and the latest explicit scope changes, including an instruction to proceed without another preview.
+-
+-For implementation, read docs/agents/development-flow.md and docs/testing/strategy.md. Work an unblocked vertical ticket through its agreed public test interfaces. WIP commits and authorized Draft PRs can preserve progress; completion and main merge require simplification, independent Standards + Spec review and required final-head CI. The project flow explicitly overrides conflicting imported-skill defaults; keep imported skills unchanged.
+-
+-At issue completion or before PR merge, run the repository-owned [reduce-complexity](.agents/skills/reduce-complexity/SKILL.md) step before final validation and code-review; reuse the result when the changes are unchanged. At Epic completion, use its broader simplification survey. Compose these steps in the repository workflow while keeping imported skills unchanged for upstream updates.
+-
+-For coordinated development, lightweight stage records and delivery-time analysis, use [development-timeline](.agents/skills/development-timeline/SKILL.md). Record stage changes, waits and rework rather than every action; its report is not an additional merge gate.
+-
+-### Docker resources
+-
+-At the start of a Docker run or validation phase, inventory containers, volumes, networks and disk usage. Use the run's fixture or supervisor to record temporary resource names, labels, ports and consumers in an owned ledger; reference it from the task checkpoint. Worktrees share the Docker daemon; isolate resources and record the owner of any shared development service.
+-
+-The creating agent owns cleanup after success, failure, timeout and cancellation. Use `docker rm -f -v <owned-container>` for disposable containers; `--rm` does not stop a container when its creating process exits. Explicitly remove owned temporary named volumes and networks after checking their references. A `finally` block alone does not cover process termination; provide interruption cleanup and recover leftovers after an interrupted run.
+-
+-Before a normal retry, reconcile the run's owned ledger with actual resources and consumers. After an abnormal exit, session recovery, run completion or ticket completion, reconcile the ledger and the global inventory. Confirm the owner and consumers have stopped before reclaiming a temporary resource. PM checks the recorded reconciliation before declaring delivery complete and reports retained resources with owner and purpose; repeat inspection when evidence is incomplete or ownership is uncertain. Age, an exited container or an unreferenced volume alone does not establish ownership.
+-
+-Preserve active development services, persistent data and other projects' resources unless the user explicitly authorizes their removal. Cleanup uses an explicit owned-resource list; do not run global Docker prune commands. At run completion, verify and report the remaining containers, volumes, networks and disk usage after cleanup. Normal command retries within that run use the owned ledger rather than repeating a full global inventory.
++在任务清理、会话恢复和每周 PM 维护轮次时，请遵循 [environment-maintenance.md](docs/agents/environment-maintenance.md)，以核对工作树、临时输出、包缓存和未关闭的 issue/PR。保留可恢复的源代码，并在移除前检查实际消费者；记录回收的空间和保留的所有者。
+\ No newline at end of file
+diff --git a/CONTEXT.md b/CONTEXT.md
+index 81f3675..2bc0569 100644
+--- a/CONTEXT.md
++++ b/CONTEXT.md
+@@ -29,15 +29,19 @@ _Avoid_: Digital Twin、场景编辑器
+ _Avoid_: 设备模型、整份数字孪生
+ 
+ **Asset（数字资产）**：
+-可复用的实验室对象定义，描述对象种类、规格以及适用的能力和状态结构，并可关联多种外观或用途的表示。资产定义与实验室中某个具体对象的身份、配置和当前状态分开。
++可复用的实验室对象定义，描述对象种类、规格、实例配置字段以及适用的能力和状态结构，并可关联模型、物理描述与文档等多用途表示。资产定义与实验室中某个具体对象的身份、配置值和当前状态分开。
+ _Avoid_: 单个 GLB 文件、Entity、设备实例
+ 
++**Asset Version（资产版本）**：
++同一数字资产一次已发布、内容固定的定义及表示引用，描述当时采用的规格、配置字段、能力和状态结构。实例及记录关联所采用的具体版本，后续发布不改写已有版本。
++_Avoid_: 当前实例状态、来源运行、仅文件 hash
++
+ **Asset Library（资产库）**：
+ 供 Lab 查找、选择与复用数字资产的目录，组织资产定义及其模型、文档、来源与许可信息。
+ _Avoid_: Knowledge Base、设备实例列表
+ 
+ **Asset Representation（资产表示）**：
+-数字资产面向查看、仿真或其他用途的一种表达，可由模型或文档等资源承载。同一资产可有多种表示，表示本身不构成实验室对象身份。
++数字资产面向查看、仿真或其他用途的一种表达，可由模型、物理描述或文档等资源承载。同一资产可有多种表示，表示本身不构成实验室对象身份。
+ _Avoid_: 完整数字资产、设备实例
+ 
+ **Equipment Model（设备模型）**：
+@@ -80,6 +84,10 @@ _Avoid_: 单个模型文件、Lab 快照、已登记对象身份
+ 某个实验室中登记的一份场景模板实例，关联所采用的场景包版本及包内对象与 Entity 的对应关系。同一模板的不同安装拥有独立对象身份，更新原安装保留已有对应关系。
+ _Avoid_: Lab Scene Package、Simulation Session、模型加载
+ 
++**Scene Synchronization（场景同步）**：
++将某个来源的对象结构、资产表示和初始空间关系登记到 Lab World，并建立来源对象与实验室对象的对应关系。场景同步与持续更新实际运动或对象状态分别表达。
++_Avoid_: 仅模型上传、运动帧、运行回放
++
+ **Lab Recording（实验录制）**：
+ 一次实验过程的历史记录，包含随时间变化的运动、设备观测、操作及任务结果，并关联当次使用的场景版本和对象身份。它表达已经发生的过程，不代表对象的当前状态。
+ _Avoid_: 当前世界快照、Device Program Run、模型动画
+@@ -116,6 +124,18 @@ _Avoid_: 仅动作名称、当前执行许可、底层协议地址
+ 设备实例与其状态来源、动作执行方之间的关联。绑定保留来源身份，模拟设备与真实设备各自拥有自己的绑定和记录。
+ _Avoid_: 设备身份、场景节点绑定、仅协议名称
+ 
++**Lab Source（实验室来源）**：
++在 Lab 中具有持久身份、提供场景描述或来源明确对象状态的信息来源，可以来自仿真程序或现实环境的适配器。来源身份独立于某次运行；来源已连接、场景已同步与对象状态有效是不同事实。
++_Avoid_: Entity、Simulation Session、仅在线设备
++
++**Source Run（来源运行）**：
++某个实验室来源程序从启动到结束的一次运行，为其提供的数据保留运行身份和时间背景。同一来源运行可以跨越多次接入或观察段，与持久来源身份及单设备的 Device Program Run 分别记录。
++_Avoid_: Lab Source、Device Program Run、观察段
++
++**Observation Segment（观察段）**：
++Lab World 连续接收某个来源运行的数据、采用固定场景版本和对象映射的一段观察，具有自己的身份与录制。重新接入可以在同一来源运行中开始新段，段间未收到的过程不构成连续记录。
++_Avoid_: 来源程序重启、完整来源历史、Device Task
++
+ **Observation（设备观测）**：
+ 来源明确的设备状态报告，包含所报告的属性值及其时间与质量信息。观测表达设备报告的实际状态，不等同于用户请求的目标值。
+ _Avoid_: 控制意图、前端预测状态
+diff --git a/README.md b/README.md
+index 3a72ef8..6682ecc 100644
+--- a/README.md
++++ b/README.md
+@@ -6,7 +6,7 @@ English | [简体中文](README.zh-CN.md)
+ 
+ The application includes persistent Labs, assets, Entities, Scene Nodes, saved layouts, observations, Commands, Tasks, records and trends. Users and Agents share the retained HTTP/SSE contract. A single Node service owns the embedded database, local file bytes and runtime; the React Web application consumes its generated SDK.
+ 
+-The migration is in progress under [#45](https://github.com/CaiZongyuan/labworld/issues/45). Ordinary development, builds, checks and contract generation use Node. Historical Rust source is preserved at the immutable `legacy-rust-final` tag. See [product architecture](docs/architecture/lab-word.en.md) and [domain vocabulary](CONTEXT.md).
++The Node migration is complete. The current planned milestone is [generic Newton rigid-body synchronization](https://github.com/CaiZongyuan/labworld/issues/103): display existing scenes and live poses in Lab World. Ordinary development, builds, checks and contract generation use Node. Historical Rust source is preserved at the immutable `legacy-rust-final` tag. See [product architecture](docs/architecture/lab-word.en.md) and [domain vocabulary](CONTEXT.md).
+ 
+ ## Run the application
+ 
+diff --git a/README.zh-CN.md b/README.zh-CN.md
+index 0772580..8db1c2a 100644
+--- a/README.zh-CN.md
++++ b/README.zh-CN.md
+@@ -6,7 +6,7 @@
+ 
+ 应用提供持久 Lab、资产、Entity、Scene Node、已保存布局、观测、Command、Task、记录和趋势。用户与 Agent 共用保留的 HTTP/SSE 合同。一个 Node 服务持有嵌入数据库、本地字节与运行状态，React Web 消费生成 SDK。
+ 
+-迁移按 [#45](https://github.com/CaiZongyuan/labworld/issues/45)推进。普通开发、构建、检查与合同生成使用 Node；历史 Rust 源码保存在不可变 `legacy-rust-final` tag。参见[产品架构](docs/architecture/lab-word.md)和[领域词汇](CONTEXT.md)。
++Node 迁移已完成。当前计划里程碑是[通用 Newton 刚体同步](https://github.com/CaiZongyuan/labworld/issues/103)：在 Lab World 显示已有场景及实时位姿。普通开发、构建、检查与合同生成使用 Node；历史 Rust 源码保存在不可变 `legacy-rust-final` tag。参见[产品架构](docs/architecture/lab-word.md)和[领域词汇](CONTEXT.md)。
+ 
+ ## 运行应用
+ 
+diff --git a/docs/adr/0013-source-presence-before-scene-synchronization.md b/docs/adr/0013-source-presence-before-scene-synchronization.md
+new file mode 100644
+index 0000000..97bc72b
+--- /dev/null
++++ b/docs/adr/0013-source-presence-before-scene-synchronization.md
+@@ -0,0 +1,35 @@
++---
++status: accepted
++---
++
++# 外部来源主动报到，在线状态先于场景和会话登记
++
++决定日期：2026-10-13。用户在 [Issue #85](https://github.com/CaiZongyuan/labworld/issues/85) 的 Q4 访谈中确认：Newton 启动时加载适配器并主动向 Lab World Server 报到，Lab World 自动显示该来源；无头和 GUI 采用相同接入方式。来源识别作为独立阶段，不要求先建立 Scene Installation 或 Simulation Session。这让接入后的来源可以先被识别，再分别同步场景与实际状态；代价是需要独立维护来源准入、在线状态及其与后续场景和运行的关联。
++
++来源在线只证明接入连接健康，不能代替场景同步完成、对象状态有效或物理运行进度。采用主动报到避免依赖本机进程扫描，也适用于后续现实环境的适配器。
++
++## 来源身份与首次授权
++
++用户在 Q7–Q8 确认：每份独立仿真世界配置保留持久来源标识。同一配置重启或切换无头与 GUI 时复用对象，同一电脑运行两份独立世界时使用不同标识。首次在 Lab World 选择目标 Lab 并生成接入配置，之后由 Newton 启动入口加载，自动报到和同步；来源仅维护自己在该 Lab 中登记的对象集合。
++
++相比每次启动创建新来源或按主机合并所有世界，这保留重复接入的对象身份，并隔离独立运行。代价是维护持久来源配置、授权范围和来源对象映射，而不能只依赖一次性会话票据或短期请求幂等记录。
++
++## 场景版本的完整切换
++
++用户在 Q5–Q6、Q9 确认：首次接入自动同步完整场景，保留原对象、几何、尺寸、层级和位置，材质与灯光允许 Web 近似。后续对象增删和模型替换提交新版本，空闲时确认应用；持续运动独立同步。模型转换、资源上传和映射校验全部通过后才切换有效场景，失败保留上次成功版本并指出失败对象；首次失败表达为来源在线、场景同步失败。
++
++相比启用部分成功对象或在活动运行中替换字典，这保留完整可校验的场景与运动对应关系。代价是需要准备中的版本、完整资源校验和最后的原子登记。用户在 Q12 确认来源同步的新资源在任务内暂存，失败可复用重试，成功后发布；取消只清理无其他对象或录制消费者的暂存资源。现有逐资产发布需要相应的暂存合同。
++
++本决定补充 [ADR 0012](0012-newton-scene-templates-and-independent-replay.md) 的接入边界，并沿用其空闲时确认场景升级的规则。外部程序的观察生命周期和录制恢复见 [ADR 0015](0015-source-owned-runs-and-observation-segments.md)；本决定不改写既有受监管运行合同。阶段和已核实基线见[设计记录](../plans/newton-source-sync.md)。
++
++## 单向同步与场景编辑权
++
++用户在 Q10 明确：Newton 到 Lab World 采用单向同步，来源对象先禁用编辑。源场景的布局、模型和物理内容由 Blender、Isaac Sim/Isaac Lab 或 Newton 程序维护，Lab World 接收并呈现场景与实际状态。接入确认、资源校验、版本确认和协议回执不赋予 Lab World 向来源修改场景或执行设备动作的权限。
++
++此来源模式采用来源权威的场景版本，不维护同一来源对象的本地 Placement 或外观覆盖，也不需要为此模式构建布局三方合并。版本及权限的并发检查仍然必要。该选择补充 ADR 0012 的场景来源模式；其受监管模板安装的本地布局规则不据此推及外部来源对象。资产信息的编写及版本规则见 [ADR 0014](0014-versioned-assets-and-external-authoring.md)。
++
++用户在 Q11、Q13 确认：来源移除对象时仅移除来源可视节点，保留 Entity 与历史并表达其不在当前来源场景中，归档另行确认；未声明资产引用的对象先作为通用模型导入并保留未知业务类别，显式引用却缺少精确版本时失败。这使场景的当前内容、对象身份和资料完整性分别表达。
++
++## 观察起点与恢复
++
++用户在 Q17–Q22 确认自动加入来源当前过程、来源运行与观察段分离、断线新段、真实来源结果及暂停/reset/结构边界。完整决定见 [ADR 0015](0015-source-owned-runs-and-observation-segments.md)，当前代码约束及衔接见[实时观察合同](../plans/newton-live-observation-contract.md)。
+diff --git a/docs/adr/0014-versioned-assets-and-external-authoring.md b/docs/adr/0014-versioned-assets-and-external-authoring.md
+new file mode 100644
+index 0000000..d49548c
+--- /dev/null
++++ b/docs/adr/0014-versioned-assets-and-external-authoring.md
+@@ -0,0 +1,15 @@
++---
++status: accepted
++---
++
++# 外部编写完整资产定义，发布固定版本并关联多用途表示
++
++决定日期：2026-10-13。用户在 [Issue #85](https://github.com/CaiZongyuan/labworld/issues/85) 的资产设计访谈中确认 Q14–Q16：建模与场景编写发生在 Blender、Isaac Sim/Isaac Lab 或 Newton 程序中；型号、规格、配置字段、状态字段与单位、能力及参数说明、文档引用通过独立的资产描述文件维护。Lab World 导入、校验、登记、管理版本并提供查询。外部场景携带资产 ID、版本及各对象独立的实例 key。
++
++Asset 是完整的可复用定义，关联查看、物理仿真和文档等用途的表示。Asset Version 发布后，定义内容及资源引用固定；修改定义或模型发布新版本，由场景显式引用并升级。相同型号的多个 Entity 复用资产，但分别保存实例配置、当前观测及记录；Asset 描述状态结构，不保存每台设备的当前状态。录制继续保留当时采用的定义和资源。
++
++相比把全部业务信息依附于三维格式或让实例自动跟随最新版，该选择使信息合同可独立校验，版本和历史可追溯。代价是需要完整资产导入、不可变版本、多表示资源引用及场景中的精确资产关联。自定义属性在三维转换中可承载引用，但不作为完整资产定义的唯一保存位置。
++
++能力描述与运行绑定、执行许可分别表达。当前外部来源采用 [ADR 0013](0013-source-presence-before-scene-synchronization.md) 的单向模式；引用离心机定义不能自动创建 Lab World 内置离心机程序绑定，也不能据此允许控制源设备。模拟与真实设备可复用定义并保留独立身份，沿用 [ADR 0007](0007-separate-simulated-and-physical-entity-identities.md)。
++
++离心机作为信息合同样例，SO-101 作为当前来源同步的实测场景。完整字段、现有实现差距和消费者影响见[资产设计](../plans/asset-definition-and-external-authoring.md)。本决定记录目标合同，不表明资产导入、多表示或外部设备状态入口已经实现。
+diff --git a/docs/adr/0015-source-owned-runs-and-observation-segments.md b/docs/adr/0015-source-owned-runs-and-observation-segments.md
+new file mode 100644
+index 0000000..ab8fec2
+--- /dev/null
++++ b/docs/adr/0015-source-owned-runs-and-observation-segments.md
+@@ -0,0 +1,17 @@
++---
++status: accepted
++---
++
++# 来源自主运行，Lab World 以独立观察段记录真实过程
++
++决定日期：2026-10-13。用户在 [Issue #85](https://github.com/CaiZongyuan/labworld/issues/85) 的 Q17–Q22 访谈中确认：场景和映射就绪后自动从 Newton 当前实际状态开始观察，新浏览器先取得完整状态；来源不回初态、不重新执行。持久 Lab Source、一次 Source Run 与固定场景和字典的 Observation Segment 分别记录，一观察段一录制。
++
++Lab World 断开只中断自己的观察与录制，Newton 继续自身程序。恢复从最新状态自动开始新段，复用对象和资产，明确缺口，不回放动作或补造历史。来源明确暂停/等待时保留连接并冻结实际样本，心跳不刷新测量；连接健康与运行进度分别表达。
++
++每次实验/episode reset 保留旧末态和来源结果，结束旧观察段与录制，再以新初态建立新段，浏览器不跨 reset 插值。同一实验因重接被分为多段时保留关联及不完整范围。实际结构变化结束旧观察，新版本确认后从来源当前状态恢复；空闲判断针对 Lab World 的观察，而不是要求源程序停机。
++
++首版记录来源明确上报的阶段和成功/失败/未知结果，不从静止、回初态或进程退出推断成功，不伪造 Lab World Command 或既有受控 Device Task。记录的完整性与实验成败分别表达。
++
++相比让源程序随观察服务暂停、重连续写无缺口历史或跨 reset 平滑运动，该选择保留单向来源权威和可追溯事实；代价是新增观察起点、双时间锚点、来源生命周期、可靠事件和不完整范围。只读 Binding 与现有受控程序合同需明确区分。
++
++本决定沿用 [ADR 0013](0013-source-presence-before-scene-synchronization.md) 的来源接入及 [ADR 0014](0014-versioned-assets-and-external-authoring.md) 的固定资产版本。它补充 [ADR 0012](0012-newton-scene-templates-and-independent-replay.md) 的外部观察模式，不改变其既有受监管启动行为。协议衔接、代码事实和所需验证见[实时观察合同](../plans/newton-live-observation-contract.md)。
+diff --git a/docs/agents/environment-maintenance.md b/docs/agents/environment-maintenance.md
+new file mode 100644
+index 0000000..c1842fb
+--- /dev/null
++++ b/docs/agents/environment-maintenance.md
+@@ -0,0 +1,45 @@
++# Environment and tracker maintenance
++
++The task owner cleans up its temporary resources. The coordinating PM owns the weekly repository and tracker maintenance pass. On session recovery, inspect the latest maintenance record; perform the weekly pass if it is more than seven days old. A long-running task performs the same pass every seven days. These are agent lifecycle duties, not an installed background deletion job.
++
++## Cadence
++
++| When                                     | Required action                                                                                                                       |
++| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
++| Task completion, cancellation or handoff | Stop owned processes, reconcile resources, retain the recovery checkpoint and release redundant worktrees and generated output        |
++| Session recovery                         | Reconcile interrupted cleanup with actual Git, processes and resource ledgers                                                         |
++| Weekly                                   | Inventory disk, worktrees, scratch, package caches and every open issue/PR; reclaim eligible resources and update stale tracker state |
++| Epic completion                          | Finish the weekly pass, archive useful evidence and accepted previews, and reconcile the spec with actual child delivery              |
++
++## Inventory and select
++
++1. Record the main revision, `git worktree list --porcelain`, complete status of each worktree including staged and untracked files, directory sizes and filesystem free space. Read the current open issues, PR heads, CI results and blockers from `CaiZongyuan/labworld`.
++2. Check running processes, their working directories and open files, and the run ledgers. A clean Git status, an old timestamp or an exited container alone does not establish that a resource is disposable. Persistent development data, external projects and active services retain their existing owners.
++3. Write an explicit removal list with each path/resource, owner, reason, consumers and recovery location. Keep worktrees needed by current delivery. Consolidate redundant diagnostics into a source archive and a small checkpoint.
++
++Measure each root separately when reporting sizes: hard links shared between package stores, installations and worktrees make a combined `du` result order-dependent. Record cache-prune output and filesystem free space as well; logical bytes removed need not equal physical bytes reclaimed.
++
++## Preserve and reclaim
++
++- **Worktrees:** pin every removed head with a Git reference and verify a source bundle. Save working-tree and index patches plus untracked source before removing a dirty worktree. Preserve required ignored evidence separately. Verify the archives, then recheck the head, complete status and consumers immediately before `git worktree remove`. Use `--force` only for the exact archived candidate. Keep source branches until their delivery or archive disposition is settled.
++- **Scratch:** retain current checkpoints, unpublished designs, accepted previews and evidence needed by open work. Archive superseded runs before deleting their original directories. Keep small durable conclusions in `docs/internal/`; recovery instructions identify the source revision, archive and checksum. Avoid creating a full source checkout for each probe when a shared immutable revision and a small patch suffice.
++- **Package caches:** use the owning tool's cleanup interface after checking package-manager consumers. Use `uv cache prune` for ordinary maintenance; `uv cache prune --ci` can additionally reclaim downloaded wheels and unpacked packages when installed environments and rebuildable dependencies are understood. Use `pnpm store prune` for its selected store. Preserve managed Python installations, installed virtual environments, browser binaries required by active work, credentials and persistent application data. Do not manually delete package-store internals or use forced cache removal.
++- **Docker:** follow the resource ownership and reconciliation rules in [AGENTS.md](../../AGENTS.md#docker-resources). Remove only the explicit owned resource list; retain other projects' resources.
++
++Write the archive manifest before removal and update it after each completed action. On interruption, resume from that manifest and recheck consumers and status. Keep the last verified recovery copy until the source is delivered or explicitly retired; backup age alone does not authorize its removal. At each weekly pass, review older archives so backups do not become a second unbounded scratch directory.
++
++## Reconcile GitHub
++
++Follow [issue-tracker.md](issue-tracker.md) and the five state roles in [triage-labels.md](triage-labels.md).
++
++- A spec is a reference rather than an implementation assignment. Remove `ready-for-agent` from specs; use `type:spec` and `type:task` to distinguish document and implementation issues without introducing new triage states.
++- Keep one delivery PR for each scope. Before closing a duplicate, verify its complete head is retained by the replacement or a recoverable archive. State the replacement and closure reason on the PR, close it without merging, and leave its unintegrated implementation issues open.
++- Close superseded requests with a replacement link. Close administrative handoffs after ownership and recovery information have a current home. Preserve valid unfinished requirements and dependencies; cleanup does not mark them delivered.
++- Close an implementation issue only after actual integration and agreed acceptance. Inspect a spec's full scope before closing it: closed migration children do not establish completion of a separate product-restoration gate.
++- Reconcile stale owners, blockers and PR descriptions against current state. For each remaining open item, record its role, current delivery path or backlog dependency, and next action. Use the tracker for current work and link historical logs from the maintenance record.
++
++## Verify and record
++
++Read back worktree registrations, source references, archive integrity, remaining processes, directory sizes and filesystem free space. Re-read changed issue/PR states and labels from GitHub. Record any retained resources with owner and purpose, including unavailable or uncertain evidence. Run only checks affected by a maintenance policy change; resource reclamation does not require repeating unrelated product suites.
++
++Use one dated record in `docs/internal/` for the outcome and recovery map. Link it from the active checkpoint. Maintenance is complete when every selected action is reconciled with actual state and every retained item has a disposition.
+diff --git a/docs/agents/triage-labels.md b/docs/agents/triage-labels.md
+index 34804d1..cd0cea5 100644
+--- a/docs/agents/triage-labels.md
++++ b/docs/agents/triage-labels.md
+@@ -2,12 +2,14 @@
+ 
+ The user selected the standard vocabulary.
+ 
+-| Canonical role | GitHub label | Meaning |
+-| --- | --- | --- |
+-| needs-triage | needs-triage | Incoming work needs assessment |
+-| needs-info | needs-info | Waiting for missing information |
++| Canonical role  | GitHub label    | Meaning                                                                                        |
++| --------------- | --------------- | ---------------------------------------------------------------------------------------------- |
++| needs-triage    | needs-triage    | Incoming work needs assessment                                                                 |
++| needs-info      | needs-info      | Waiting for missing information                                                                |
+ | ready-for-agent | ready-for-agent | Acceptance criteria are sufficient for an implementation agent; check blockers before starting |
+-| ready-for-human | ready-for-human | Requires work only a human can perform |
+-| wontfix | wontfix | Work is intentionally not pursued |
++| ready-for-human | ready-for-human | Requires work only a human can perform                                                         |
++| wontfix         | wontfix         | Work is intentionally not pursued                                                              |
+ 
+ Tickets produced by to-tickets are already specified and skip incoming-request triage. Dependency state is represented by GitHub's native blocking links, not by inventing additional triage labels.
++
++`type:spec` identifies a reference spec and `type:task` an implementation ticket. These type labels are separate from the five state roles. Specs do not carry `ready-for-agent`. Reconcile stale tracker state during [environment and tracker maintenance](environment-maintenance.md).
+diff --git a/docs/internal/development-timeline-2026-10-15.md b/docs/internal/development-timeline-2026-10-15.md
+new file mode 100644
+index 0000000..eb1f770
+--- /dev/null
++++ b/docs/internal/development-timeline-2026-10-15.md
+@@ -0,0 +1,64 @@
++# 开发全过程时间线与返工总结 — 2026-10-15
++
++已按现存 Git、GitHub、阶段日志和维护归档整理。覆盖 **2026-10-01 至 2026-10-15**；早期以合入里程碑为主，10 月 13–15 日有更细的开发、审查、验证与诊断记录。阶段不完整的地方保留 unknown，不补造编码或等待工时。
++
++- [交互时间线：离线打开，无需启动服务](../../backups/maintenance-2026-10-15/timeline-summary/timeline.html)
++- [生成的当前快照](../../backups/maintenance-2026-10-15/timeline-summary/current.md)
++- [报告输入与全部事件](../../backups/maintenance-2026-10-15/timeline-summary/report.json)
++- [原始日志恢复清单](../../backups/maintenance-2026-10-15/timeline-summary/source/recovery-manifest.json)
++
++## 主要开发阶段
++
++以下日期使用 Asia/Taipei（UTC+8）；交互时间线使用 UTC。日期区间表达里程碑跨度，不代表连续工作时间。
++
++| 时段           | 开发结果                                                                                    | 实际交付与限制                                                                                                        |
++| -------------- | ------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
++| 10 月 1–2 日   | 仓库初始化、Lab Viewer、会话资产库、初始 CI 修复                                            | main 有保留提交；不等同于后续持久资产和完整数字孪生能力                                                               |
++| 10 月 2–4 日   | Foundation V1：资产、Lab/Entity、照明、布局、温度、离心任务、世界订阅、历史、归档及综合旅程 | PR #12–#22 陆续合入，含独立的缓存测试修复；历史验收不替代后来版本的检查                                               |
++| 10 月 4–5 日   | 空间工作台、混合记录、温度与转速趋势、SQL 计量修复                                          | PR #41–#44 合入；后续可辨识三维表示的 PR #65 是另一份未合入候选                                                       |
++| 10 月 5–8 日   | Rust → Node/PGlite 迁移、身份与文件、设备运行、持久化、恢复与旧栈移除                       | PR #53–#59 合入；产品恢复的完整 Gate 没有因此自动完成                                                                 |
++| 10 月 8–10 日  | 引导进度、设备详情、趋势、记录、布局草稿与运行概览                                          | PR #60–#64、#66 合入；#65 的空间验收一直未完成合入                                                                    |
++| 10 月 10–13 日 | 合成运动、权威 Session、可靠录制、WSS、Newton 实际位姿与机器人控制                          | PR #77–#82、#84 合入，#80 为文档首页；这些既有受控能力不证明当前 #103 的通用来源链路已完成                            |
++| 10 月 13–15 日 | 旧 Source V1 规格 #86 与 #87–#98；#87–#89 形成来源、完整资产与原场景工具候选，汇总到 #102   | 来源／资产／导出局部有验证；旧 12 张实施票没有合入交付，#90 及之后未解除原依赖。大量时间进入浏览器与 Windows 失败诊断 |
++| 10 月 15 日    | 环境清理、旧排程关闭、新 #103 通用 Newton 刚体同步规格                                      | #65/#102 关闭而未合并；当前只有 #103 开放，四个工作包仍是草案，没有发布实施票或启动本轮产品实现                       |
++
++GitHub 本次回读共 **42 个 PR：36 个已合入、6 个关闭未合入、0 个开放**。main 仍是 `9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5`。关闭旧 issue/PR 表示停止或替代排程，不代表未交付功能已经完成。
++
++## 时间记录能证明什么
++
++恢复了两份原始 JSONL：共 **99 条记录**，规范化为 **94 个阶段事件**。加入合入、规格、CI 和范围调整事实后，交互报告共 **161 个事件**。原始阶段名称和当时的 pending 描述作为历史保留；当前状态以新的 GitHub 回读和范围调整记录为准。
++
++| 可计量范围              | 数值                | 含义                                                                                        |
++| ----------------------- | ------------------- | ------------------------------------------------------------------------------------------- |
++| 归档 CI 运行／attempt   | 13 次               | 含一次仅重试 Windows 作业；单次实际作业窗口约 31 分 52 秒至 39 分 10 秒                     |
++| 上述 CI 窗口累计        | 7 小时 52 分 51 秒  | 每个 attempt 从最早实际 job 开始至最晚 job 完成；并行窗口可重复累计，窗口内部可能有作业空隙 |
++| 另有完整起止的探针      | 2 次，共 3 分 42 秒 | 仅统计 journal 中具备完整起止的两次探针；其他探针不因缺少 command 记录而被当成没有执行      |
++| 15 个已结束命令窗口累计 | 7 小时 56 分 33 秒  | CI 与上述探针合计；两条重复 CI 注册记录已改为点，避免重复计量                               |
++| 上述窗口的时间并集      | 5 小时 53 分 28 秒  | 同时运行的窗口只计一次；累计重叠为 2 小时 3 分 5 秒                                         |
++
++这些不是 CPU 时间、总人时、全部测试时间或浪费时间。未记录的编码、思考、排队与停顿无法准确分配；PR 创建至合并或关闭的跨度也不计为编码工时。计量排除了跳过作业、倒置时间戳和重试快照中保留的前次 attempt 作业。
++
++## 返工与开发策略调整
++
++| 观察到的问题                                        | 已发生的后果                                                                                               | 采用或保留的改进                                                                     |
++| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
++| 并行修改共享消费者，真实合同与测试 fixture 对齐较晚 | WorldView、状态、趋势和记录多次重新组合；出现不存在的 Task wire 值、合法动态标签触发静态像素断言等不同问题 | 先核对共享消费者和真实 wire 值；以一个纵向公开旅程覆盖断线、重接和实际结果           |
++| 多个堆叠候选重复完整检查                            | Source、Assets、工具候选重复验证共享代码；完整 CI 常需三十多分钟                                           | 汇总稳定候选后运行完整检查，局部修复复用输入未变的审查与检查结果                     |
++| 定向绿色未复现完整 CI                               | 省略原先同进程前置用例；多次绿色仍不能定位原失败                                                           | 恢复有依据的前置条件，准确核对用例数量与顺序；绿色明确记为未复现                     |
++| 首因和追踪归属不足                                  | 缺少首次公开失败原因；trace 超过 32 MiB；旧 ACK 可能属于不同 document/loader                               | 在原失败后保存有界公开原因；校验页面身份，追踪不完整时保留 unknown，维持原断言和期限 |
++| 对已结束 Agent 发送消息却未激活                     | 已排队或预留被误报为正在运行，实际存在协调停顿                                                             | 恢复使用 followup_task；以 started ACK、进程或 ledger 确认实际执行。精确停顿时长未知 |
++| 工作树、缓存和旧 checkpoint 积累                    | 清理前 76 个工作树，接手需反复核对旧状态                                                                   | 单一当前 checkpoint；历史放日志；任务收尾、恢复和每周核对消费者与可恢复归档          |
++
++独立审查也发现并促成了有效修复：原启动器参数丢失、资产 enum/const 与其他约束未同时生效，以及 Python/Node 场景 hash 不一致。真实公共接口与几何验证有价值；但局部通过仍未带来旧 Source V1 的完整交付。策略调整节省了多少总工时，没有足够证据量化。
++
++## 最后验证与范围调整
++
++旧 #102 最终 head 为 `bbbc9ab5817ac5ff8029e05a4e7139ddf9377114`。[最后一次 CI](https://github.com/CaiZongyuan/labworld/actions/runs/38658377245) 已完成：Windows、verify、浏览器 shard 1 通过；shard 2 和 aggregate 失败。剩余公开失败前沿为原始 5 秒初始渲染 readiness。响应 200 不能证明 body、解码和模型提交已经完成；具体根因未确认。
++
++因此，之前“主要卡在 Windows”的进度快照已过时。今天关闭 #65/#102 是[范围调整](scope-reset-2026-10-15.md)，不是失败已修复；新入口为 [#103](https://github.com/CaiZongyuan/labworld/issues/103)，近期只验证固定结构刚体场景与实时位姿同步。
++
++## 环境与资料保留
++
++[环境维护记录](environment-maintenance-2026-10-15.md)记载工作树先从 76 个回收到 3 个，再随范围调整回收到仅 main；root `.scratch` 已归档清除。缓存工具报告清理 20.9 GiB 和 6.03 GB；共享硬链接使逻辑删除量不能直接相加为物理回收量。记录中的文件系统可用空间从约 688G 增至 712G，是当时的取样，不是本报告重新测量。
++
++本次只从原归档恢复了约 1 MiB 的阶段和选定证据，再生成报告；没有重建旧工作树或 root `.scratch`，没有运行产品测试、Newton 或 Docker，也没有删除原恢复包。未展开的历史证据在[证据位置索引](../../backups/maintenance-2026-10-15/timeline-summary/source/provenance.json)中保留，原始 archive member 见恢复清单。报告只打开静态 HTML 验证筛选、详情和证据链接。
+diff --git a/docs/internal/environment-maintenance-2026-10-15.md b/docs/internal/environment-maintenance-2026-10-15.md
+new file mode 100644
+index 0000000..ab0b2b3
+--- /dev/null
++++ b/docs/internal/environment-maintenance-2026-10-15.md
+@@ -0,0 +1,89 @@
++# Environment and tracker maintenance — 2026-10-15
++
++User authorization: clean the growing development environment and the current open issues/PRs; add regular maintenance. Baseline: `main@9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5`. This record is a maintenance snapshot; GitHub remains the current tracker.
++
++## Result
++
++- Registered worktrees: **76 → 3** (main and two unfinished delivery candidates). Removed 73 redundant worktrees after preserving heads, dirty changes and required evidence.
++- Approximate `du` inventory: `.worktrees` **9.6 GiB → 928 MiB**, `.scratch` **3.8 GiB → 941 MiB**. The verified recovery backup occupies **1.7 GiB** separately.
++- `uv cache prune --ci` completed: 261,318 files / **20.9 GiB** reported removed; cache now about **412 MiB**. `pnpm store prune` completed: 20,201 files / 952 packages / **6.03 GB** reported removed; shared store now about **7.4 GiB**. Logical deletion totals are not physical reclaimed space because of hard links.
++- Filesystem `df -h`: used **268G → 245G**, available **688G → 712G**, rounded by the tool. The exact cache-size sampling overlapped cache pruning; it is recorded as an after-cache sample rather than a false before baseline.
++- Open PRs: **5 → 2**. Open issues: **27 → 25**, consisting of six reference specs and nineteen unfinished implementation tasks.
++
++## GitHub disposition
++
++- Closed superseded Draft PRs [#99](https://github.com/CaiZongyuan/labworld/pull/99), [#100](https://github.com/CaiZongyuan/labworld/pull/100), [#101](https://github.com/CaiZongyuan/labworld/pull/101) without merging or deleting branches. Each full head is an ancestor of #102 at `bbbc9ab5817ac5ff8029e05a4e7139ddf9377114`; closure comments identify the replacement.
++- Retained [#102](https://github.com/CaiZongyuan/labworld/pull/102) as the single #87–#89 foundation delivery and [#65](https://github.com/CaiZongyuan/labworld/pull/65) for #31 spatial work. Both remain Draft and unfinished. Updated descriptions make the delivery boundary explicit; #65 needs its baseline refreshed after actual #102 integration.
++- Closed [#85](https://github.com/CaiZongyuan/labworld/issues/85) as superseded by #86 and #87–#98; the original product goal remains pending there. Closed [#67](https://github.com/CaiZongyuan/labworld/issues/67) as a completed historical administrative handoff; its unfinished product work remains in the implementation issues.
++- Added `type:spec` / `type:task`, preserving the five triage state roles. Removed `ready-for-agent` from reference specs. Re-read all open item states and labels, and verified native blocker links for all nineteen remaining implementation tasks against their published bodies.
++- #45 remains open: closed migration tickets #46–#52 do not complete its separate Product Completion Gate. #24 remains a reference pending full integrated acceptance rather than being closed merely because its main feature tickets are integrated.
++
++| Open issue                                               | Role and next action                                                                                                     |
++| -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
++| [#23](https://github.com/CaiZongyuan/labworld/issues/23) | Reference: spatial/product acceptance remains in #31 and #40.                                                            |
++| [#24](https://github.com/CaiZongyuan/labworld/issues/24) | Reference: retain integrated workspace requirements until milestone acceptance is reconciled.                            |
++| [#25](https://github.com/CaiZongyuan/labworld/issues/25) | Reference: creation/onboarding work remains in #34–#39.                                                                  |
++| [#31](https://github.com/CaiZongyuan/labworld/issues/31) | Active delivery: PR #65; preserve accepted rendering scope, refresh foundation baseline and finish required CI.          |
++| [#34](https://github.com/CaiZongyuan/labworld/issues/34) | Backlog: blocked by #31. Preserve scope and start only after real blockers close.                                        |
++| [#35](https://github.com/CaiZongyuan/labworld/issues/35) | Backlog: blocked by #34. Preserve scope and start only after real blockers close.                                        |
++| [#38](https://github.com/CaiZongyuan/labworld/issues/38) | Backlog: blocked by #35. Preserve scope and start only after real blockers close.                                        |
++| [#39](https://github.com/CaiZongyuan/labworld/issues/39) | Backlog: blocked by #38. Preserve scope and start only after real blockers close.                                        |
++| [#40](https://github.com/CaiZongyuan/labworld/issues/40) | Backlog: blocked by #39. Preserve scope and start only after real blockers close.                                        |
++| [#45](https://github.com/CaiZongyuan/labworld/issues/45) | Reference: migration is integrated; product-restoration gate still depends on the unfinished product tickets.            |
++| [#69](https://github.com/CaiZongyuan/labworld/issues/69) | Reference: deferred remote/WAN/soak and complete control acceptance remains in #76.                                      |
++| [#76](https://github.com/CaiZongyuan/labworld/issues/76) | Deferred backlog: remote host/WAN readiness and full native acceptance remain outstanding; no infrastructure re-request. |
++| [#86](https://github.com/CaiZongyuan/labworld/issues/86) | Reference: source scope remains in #87–#98.                                                                              |
++| [#87](https://github.com/CaiZongyuan/labworld/issues/87) | Active delivery: PR #102; repair actual failing checks and integrate before closing.                                     |
++| [#88](https://github.com/CaiZongyuan/labworld/issues/88) | Active delivery: PR #102; repair actual failing checks and integrate before closing.                                     |
++| [#89](https://github.com/CaiZongyuan/labworld/issues/89) | Active delivery: PR #102; repair actual failing checks and integrate before closing.                                     |
++| [#90](https://github.com/CaiZongyuan/labworld/issues/90) | Backlog: blocked by #87, #88. Preserve scope and start only after real blockers close.                                   |
++| [#91](https://github.com/CaiZongyuan/labworld/issues/91) | Backlog: blocked by #90. Preserve scope and start only after real blockers close.                                        |
++| [#92](https://github.com/CaiZongyuan/labworld/issues/92) | Backlog: blocked by #91. Preserve scope and start only after real blockers close.                                        |
++| [#93](https://github.com/CaiZongyuan/labworld/issues/93) | Backlog: blocked by #91, #92. Preserve scope and start only after real blockers close.                                   |
++| [#94](https://github.com/CaiZongyuan/labworld/issues/94) | Backlog: blocked by #92. Preserve scope and start only after real blockers close.                                        |
++| [#95](https://github.com/CaiZongyuan/labworld/issues/95) | Backlog: blocked by #89, #94. Preserve scope and start only after real blockers close.                                   |
++| [#96](https://github.com/CaiZongyuan/labworld/issues/96) | Backlog: blocked by #92. Preserve scope and start only after real blockers close.                                        |
++| [#97](https://github.com/CaiZongyuan/labworld/issues/97) | Backlog: blocked by #89, #93, #95, #96. Preserve scope and start only after real blockers close.                         |
++| [#98](https://github.com/CaiZongyuan/labworld/issues/98) | Backlog: blocked by #97. Preserve scope and start only after real blockers close.                                        |
++
++## Retained resources and recovery
++
++| Resource                                                                                                   | Owner and purpose                                                                                                                                                                                                                 |
++| ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
++| Main working tree                                                                                          | User workspace; all pre-existing staged changes, terminology edits and unpublished ADR/plans remain intact                                                                                                                        |
++| `.worktrees/102-browser-failure-facts`                                                                     | #87–#89 delivery / #102, exact head `bbbc9ab5817ac5ff8029e05a4e7139ddf9377114`                                                                                                                                                    |
++| `.worktrees/65-offline-canvas-geometry`                                                                    | #31 delivery / #65, exact head `1054619df9baec211c98897a825651e418a5f014`; retains its installed dependencies                                                                                                                     |
++| `.scratch/improve-harness`                                                                                 | User workflow proposal; maintenance additions and both regenerated patch forms are retained; remaining proposal is not applied                                                                                                    |
++| Remaining scratch previews and `newton-source-v1` / `use-newton`                                           | Accepted previews, unpublished design and current native evidence retained for the user and the two delivery scopes                                                                                                               |
++| `.scratch/maintenance-2026-10-15`                                                                          | This maintenance run: inventories, action/closure bodies, GitHub readbacks and cleanup recovery script                                                                                                                            |
++| `backups/maintenance-2026-10-15`                                                                           | Maintenance owner: Codex; recovery bundle, uncommitted patches, evidence archives and checksums. Review weekly; preserve the last verified source copy until delivered or explicitly retired                                      |
++| Shared pnpm store                                                                                          | User package tooling across projects; retained referenced v11 packages and legacy v10 store (consumer ownership of v10 not established)                                                                                           |
++| Playwright/Electron and other project caches                                                               | User tooling; no blanket deletion of installed browser/runtime environments                                                                                                                                                       |
++| Docker: `clinmesh-synthea-provider-1`, `clinmesh-cn-health-localizer-1`, two images and `clinmesh_default` | Another project (`/home/caii/backend/clinmesh`); unchanged. No volumes or build cache. Final Docker reconciliation confirms 2 images / 1.019 GB, 2 stopped foreign containers, 0 volumes, 4 networks and 0 build cache; unchanged |
++
++The source bundle and every archived head are listed in `backups/maintenance-2026-10-15/manifest.json`; SHA-256 checksums accompany the evidence archives. `uncommitted/<worktree>/working-tree.patch` records the complete tracked delta from HEAD, `index.patch` records staged changes, and `untracked.tar.gz` contains any untracked source. Installed dependency symlinks are rebuildable and excluded from untracked-source archives.
++
++For recovery, first inspect the manifest. Restore a chosen head with `git worktree add --detach <new-recovery-path> refs/archive/maintenance-2026-10-15/<worktree-name>`. If the archive refs are unavailable, fetch them from `backups/maintenance-2026-10-15/source.bundle`. Apply the working-tree patch, restore the index patch with `git apply --cached`, then extract the untracked archive into that recovery worktree. Extract evidence archives into an empty separate directory; their member paths retain the original `.worktrees/` and `.scratch/` locations.
++
++Cleanup recovered once from an owned read-only snapshot directory. The recovery verified the Motion archive checksum and removed only that explicit archived tree after adding owner write permission to its directories. It did not change hard-linked file permissions. GitHub PR-body editing recovered through REST after the installed gh GraphQL path failed on retired Projects Classic fields. Both failures and successful continuations are retained in the run records.
++
++## Policy, validation and limits
++
++- [Environment maintenance policy](../agents/environment-maintenance.md) is linked from root AGENTS.md and the harness drafts. It assigns task cleanup, recovery reconciliation and weekly PM maintenance; no background deletion scheduler was installed.
++- Both proposal patch forms include the maintenance addition and were checked against a clean HEAD using an alternate index. The user index was not rewritten. Original proposal patches are preserved in the backup.
++- Local simplification: kept one maintenance policy with short entrypoint links; no new cleanup framework, dependencies or duplicate tracker was introduced. No additional simplification was justified.
++- Focused formatting, `git diff --check`, `pnpm docs:check` and installed React/TypeScript imports pass. Archive gzip integrity, member readability, source-bundle verification, status rechecks and consumer checks cover the destructive cleanup. Unrelated product suites were not rerun.
++- The existing product baseline remains red: main CI 38323821077 failed, and #102 final-head CI 38658377245 failed its second browser shard and aggregate. This maintenance does not establish product acceptance or authorize a failed-check merge. The earlier review findings about the broader lighter-delivery proposal remain separate.
++- Independent Standards/Spec maintenance review: **PASS / PASS**, zero required findings. The non-author reviewer independently checked archive refs, the complete source bundle and archive checksums, duplicate-PR ancestry and fresh GitHub item states. Report: `backups/maintenance-2026-10-15/scratch-records/maintenance-2026-10-15/independent-review.md`.
++
++## Follow-up: root scratch cleared
++
++The user requested clearing the remaining root `.scratch`. No process had that tree as its working directory or an open-file consumer. The complete remaining tree was archived before removal, including unpublished designs, accepted previews, current harness proposals and maintenance evidence. The `.scratch` directory is now absent. This follow-up supersedes the earlier retained-scratch entries and sizes above.
++
++- Recovery archive: `backups/maintenance-2026-10-15/scratch-remainder.tar.gz` (442,146,270 bytes).
++- SHA-256: `9a19dd34c354680ab63a63aa4ed25686a359714465ceb7873f2b6c2d45316354`.
++- Verified archive inventory: 51,473 entries, with unchanged source metadata and no consumers rechecked immediately before removal.
++- Browsable harness proposals: `backups/maintenance-2026-10-15/scratch-records/improve-harness/`.
++- Browsable previous maintenance records and independent review: `backups/maintenance-2026-10-15/scratch-records/maintenance-2026-10-15/`.
++- Completion manifest: `backups/maintenance-2026-10-15/scratch-clearance.json`; the source inventory is stored alongside it.
++- Recover into an empty directory with `tar -xzf backups/maintenance-2026-10-15/scratch-remainder.tar.gz -C <empty-recovery-directory>`; archived member paths retain the `.scratch/` prefix. The root directory is recreated only when future work needs new temporary output.
+diff --git a/docs/internal/scope-reset-2026-10-15.md b/docs/internal/scope-reset-2026-10-15.md
+new file mode 100644
+index 0000000..6e5d40e
+--- /dev/null
++++ b/docs/internal/scope-reset-2026-10-15.md
+@@ -0,0 +1,42 @@
++# 当前开发方向与旧排程收敛 — 2026-10-15
++
++用户提供 `.scratch/chat.md` 的完整讨论，并要求按当前方向关闭旧 issue 和 PR。本记录更新同日环境清理记录中保留旧排程的决定；GitHub 是当前工作状态的唯一来源。
++
++## 当前入口
++
++[Issue #103：通用 Newton 刚体同步 V1](https://github.com/CaiZongyuan/labworld/issues/103) 是新的参考规格，标记为 `type:spec`，没有 `ready-for-agent`。其四个工作包仍是拆票草案；本轮没有发布实施票或开始产品实现。
++
++长期方向仍包括 real2sim、仿真预演与训练、sim2real，以及供人和 Agent 观察实验室的窗口。近期先让 Newton 的固定结构刚体场景和实际位姿通过同一 bridge 接入 Lab World。以两三个结构不同的官方示例、选定 `env_index`、两个浏览器和离线提示验证通用性。设备控制、IoT 信息层、语义事实、MCP、完整资产管理、运行中结构变化和远程长测暂缓。
++
++现有 LWM1 编解码可以复用，但当前 publisher 仍绑定固定 profile、受监管 Session 与 Recording。旧 #101 导出工具基于 USD/Blender 和 Isaac Lab 钩子，属于复用素材，不能据此宣称直接面向通用 Newton Model 的链路已完成。新规格明确这些边界和既有 main CI 失败的事实。
++
++## 旧 issue 与 PR 的去向
++
++| 范围                             | 已关闭条目                                       | 原因                                       |
++| -------------------------------- | ------------------------------------------------ | ------------------------------------------ |
++| 空间、工作台、首次使用与产品恢复 | #23、#24、#25、#31、#34、#35、#38、#39、#40、#45 | 原完整里程碑暂缓；迁移及其他已合入功能保留 |
++| 远程、控制与综合验收             | #69、#76                                         | 公网/WAN、长测和完整控制验收暂缓           |
++| 原完整 Source V1                 | #86–#98                                          | 由 #103 的较小同步范围重新规划             |
++| 旧大型 Draft PR                  | #65、#102                                        | 关闭而不合并，按新范围选择必要代码复用     |
++
++25 个旧 issue 均以 `not_planned` 关闭，并移除 `ready-for-agent`。每个关闭评论链接到 #103，说明关闭代表停止原排程或被新范围替代，不代表未交付功能已完成或验收通过。旧正文、评论、依赖和已交付事实保留，后续方向也未被永久取消。
++
++两个旧 PR 保留分支和完整 head：
++
++- #65：`1054619df9baec211c98897a825651e418a5f014`。
++- #102：`bbbc9ab5817ac5ff8029e05a4e7139ddf9377114`。
++
++这两个 head 已包含在 `backups/maintenance-2026-10-15/source.bundle`，并由 `refs/archive/maintenance-2026-10-15/pr-65` 和 `pr-102` 保持可达。回收旧工作树时保留必要的忽略文件证据；详见本轮 worktree manifest。
++
++## 核对与恢复
++
++- 发布输入、完整对话快照、旧 tracker 快照、关闭说明和 API 操作记录位于 `backups/maintenance-2026-10-15/scope-reset/`。
++- `new-direction.md` SHA-256：`58c83f426090c793d0c796ec30e7fd52043b40819959ba5d1d9c84e1e4673a9f`。
++- 完整对话 SHA-256：`25957c45a79126968501a82a7986c3113d810925f97acd2eec7c01e0e23145b8`。
++- 独立 Standards / Spec 审查通过，包含完整对话的增量核对；报告为该目录下的 `review.md`。
++- 中英文 README 修正过时的迁移状态，并将当前计划入口指向 #103。
++- 最终 GitHub 状态、工作树回收和文档验证以该目录的最终 readback 为准。本轮不合并产品代码，也不将 main 的已知 CI 失败视为已解决。
++
++最终回读确认：25 个旧 issue 均为 `closed / not_planned`；#65、#102 均关闭且未合并。开放队列只剩参考规格 #103，开放 PR 为 0。两个旧 PR 工作树已归档回收，当前只保留 main 工作树；本轮用户提供的 `.scratch/chat.md` 仍保留。
++
++中英文 README 和本记录通过独立审查及格式检查；`git diff --check`、`pnpm docs:check`、`pnpm docs:build` 通过。文档构建核对了 104 页和 105 个内部目标。这些结果验证本轮文档与排程整理，不构成新同步功能或既有产品 CI 的验收。
+diff --git a/docs/plans/asset-definition-and-external-authoring.md b/docs/plans/asset-definition-and-external-authoring.md
+new file mode 100644
+index 0000000..d9dea53
+--- /dev/null
++++ b/docs/plans/asset-definition-and-external-authoring.md
+@@ -0,0 +1,201 @@
++# 完整资产定义、外部编写与来源实例
++
++状态：资产边界已在 Q10、Q14–Q16 确认，2026-10-13；字段名、接口路径和兼容迁移仍为设计草案。本文细化 [Issue #85](https://github.com/CaiZongyuan/labworld/issues/85) 的资产信息需求，不是已实现接口参考。决定见 [ADR 0014](../adr/0014-versioned-assets-and-external-authoring.md)，来源流程见[三阶段设计](newton-source-sync.md)。
++
++## 1. 编写与运行职责
++
++| 内容 | 编写或产生位置 | Lab World 的责任 |
++| --- | --- | --- |
++| 几何、材质、纹理 | Blender 或其他三维工具 | 管理表示资源，选择适用的 Web 表示并显示。 |
++| 物理描述 | USD Physics、Isaac Sim/Isaac Lab 配置或 Newton ModelBuilder | 保留表示及实际采用版本的引用，不根据外观推断物理参数。 |
++| 场景结构和初始布局 | Isaac Sim 场景、Isaac Lab 配置或 Newton 程序 | 导入来源场景与对象映射，来源对象先禁用编辑。 |
++| 型号、规格、配置与状态结构、能力和文档 | 独立资产描述文件 | 导入、校验、发布固定版本、查询与关联；首版不新增网页编写入口。 |
++| 实际运动与设备观测 | Newton 程序或未来现实设备适配器 | 接收来源明确的状态，保存及展示有效值、最后值与缺口。 |
++
++Newton 的主要职责是构建或导入物理模型并推进求解；其 Python 程序可以装配场景和执行任务。Isaac Sim/Kit 可以提供 GUI，而物理仍由 Newton 求解；本机原 GUI 脚本采用的正是这个组合。Blender 处理外观资产，这些工具可共同参与一条资产和场景流程。
++
++## 2. 四个不同的领域含义
++
++```mermaid
++flowchart LR
++  Definition[型号、规格、配置与状态结构、能力说明] --> Version[Asset Version：固定版本]
++  Representations[Web模型、物理表示、文档] --> Version
++  Version --> A[Entity：离心机 A]
++  Version --> B[Entity：离心机 B]
++  Source[来源程序或设备适配器] -->|A 的实际观测| A
++  Source -->|B 的实际观测| B
++  A --> Viewer[Lab Viewer]
++  B --> Viewer
++```
++
++| 概念 | 离心机例子 | 不混入的数据 |
++| --- | --- | --- |
++| Asset / Asset Version | 某型号冷冻离心机的已发布定义 | 某台设备当前正在以多少 rpm 运行。 |
++| Asset Representation | 外观 GLB、仿真 USD/物理描述、说明文档 | 设备实例身份和当前任务结果。 |
++| Entity / Equipment Instance | 离心机 A、离心机 B，各自的配置和来源对象 key | 另一台同型号设备的身份或运行状态。 |
++| Observation 与运行记录 | A 的 speed、temperature、phase 及时间、质量、来源 | 额定最大转速或默认初始温度冒充实际测量。 |
++
++资产保存“speed 是数值、单位为 rpm”等结构定义。实际的 `speed=4200` 属于某个 Entity 的某次来源报告，需要带时间和质量信息。没有报告时显示未知；新的连接心跳不能使旧转速变成实时值。
++
++实验结果、操作记录与历史测量也属于具体实例或运行。资产可以描述输出数据的结构和含义，但不承载各台设备不断增长的历史值。
++
++模拟和现实设备可复用资产定义与模型，但保留不同 Entity、Binding 和历史，沿用 ADR 0007。
++
++## 3. 资产描述文件建议
++
++首版可采用 JSON 描述文件。以下字段形状用于设计审阅，尚不是当前 SDK 或公开导入接口。声明的资源需要对应真实内容及校验值；示例文件名是示意。
++
++| 字段组 | 内容与校验目的 |
++| --- | --- |
++| 身份与版本 | schema_version、asset_id、version；资产身份不以 GLB hash 或设备实例 key 替代。 |
++| 基础资料 | 名称、类别、厂商、型号、说明、来源与许可。未知资料明确缺省，不从几何猜测。 |
++| 规格 | 额定转速范围、温度范围、容量、适用转子等静态资料，附单位及来源。 |
++| configuration_schema | 实例可携带哪些配置，例如初始温度或所用转子；实际配置值由实例/来源提供。 |
++| state_schema | 状态属性类型、单位、枚举与含义；不存每台设备的最新值。 |
++| capabilities | 能力标识、版本、参数约束、结果含义与说明；不提供“已实现/可执行”的自报许可。 |
++| representations | 各表示的 key、用途、格式、精确资源引用与校验值；允许视觉、物理和文档分别表达。 |
++| 依赖清单 | 所声明资源的闭包、内容 hash、尺寸和转换来源，保证发布版本引用可解析。 |
++
++离心机信息样例：
++
++```json
++{
++  "schema_version": 1,
++  "asset_id": "example/centrifuge-c",
++  "version": "1.0.0",
++  "name": "冷冻离心机 C",
++  "category": "instrument",
++  "specifications": {
++    "speed": { "unit": "rpm", "minimum": 0, "maximum": 15000 },
++    "temperature": { "unit": "degC", "minimum": -10, "maximum": 40 }
++  },
++  "configuration_schema": {
++    "type": "object",
++    "properties": {
++      "initial_temperature": { "type": "number", "unit": "degC" }
++    }
++  },
++  "state_schema": {
++    "type": "object",
++    "properties": {
++      "speed": { "type": "number", "unit": "rpm" },
++      "temperature": { "type": "number", "unit": "degC" },
++      "elapsed_seconds": { "type": "number", "unit": "s" },
++      "phase": {
++        "enum": ["idle", "preparing", "running", "decelerating"]
++      }
++    }
++  },
++  "capabilities": [
++    {
++      "id": "centrifuge.start",
++      "version": "1.0",
++      "parameters": {
++        "rpm": { "type": "integer", "unit": "rpm" },
++        "temperature": { "type": "number", "unit": "degC" },
++        "duration_seconds": { "type": "integer", "unit": "s" }
++      },
++      "result_meaning": "task_started"
++    }
++  ],
++  "representations": [
++    { "key": "web", "purpose": "visual", "resource": "model.glb" },
++    { "key": "physics", "purpose": "simulation", "resource": "model.usd" },
++    { "key": "manual", "purpose": "documentation", "resource": "manual.pdf" }
++  ]
++}
++```
++
++此处数值和四个状态字段取自现有内置离心机定义，示例型号名和资源引用为示意。完整导入需要补齐资源校验值、来源资料和能力参数限制；本例没有宣称外部离心机模型、文档或遥测入口已经存在。`unit` 等注解的正式格式及验证方式需与现有状态合同统一。
++
++一个表示可以由多个资源共同构成。SO-101 的 Web 表示需要声明各连杆的 component key、局部原点及资源引用，再由场景映射到多个可视根；七个连杆仍属于一个机器人 Asset 和一个整机 Entity。组件 key 属于资产表示，源程序的实际 prim/body path 属于该场景的映射，二者不能合并成全局实例身份。
++
++额定规格、实例配置和实际观测用途不同。额定最大转速不是当前转速；初始温度配置也不能替代来源报告的实际温度。物理求解器未产生或程序未上报的业务状态保持未知，不能因存在离心机模型就启动另一套内置数据来补值。
++
++能力存在可作为资产说明；本次来源模式没有设备动作执行入口，Binding 及执行许可必须明确表达只读。能力参数的限制与遥测值的类型/质量校验也需要分别实现，不能把真实超额定报告改写成额定值。
++
++## 4. 场景只引用资产，实例保留独立 key
++
++外部场景需要保留以下关联，字段名仍为草案：
++
++```json
++{
++  "objects": [
++    {
++      "object_key": "centrifuge-a",
++      "asset_ref": { "id": "example/centrifuge-c", "version": "1.0.0" },
++      "visual_representation": "web",
++      "physics_representation": "physics"
++    },
++    {
++      "object_key": "centrifuge-b",
++      "asset_ref": { "id": "example/centrifuge-c", "version": "1.0.0" },
++      "visual_representation": "web",
++      "physics_representation": "physics"
++    }
++  ]
++}
++```
++
++两个对象引用同一资产版本，但分别登记 Entity，并分别接收配置、观测与任务信息。Scene Node 和物理字典进一步引用各自的 object key；不能用共享的 asset_id、网格名或资源 hash 作为实例身份。
++
++USD customData、assetInfo、自定义属性，或源程序的配置文件可承载这些引用。完整业务定义使用独立描述文件，避免把复杂 schema 重复复制到每个网格。Q13 已确认，未声明业务资产引用时可作为通用模型导入，类别和能力未知；已声明引用却找不到精确版本时报告失败，不能猜测成某台或某型号离心机，也不能静默降级隐藏错误。
++
++## 5. 版本与导入过程
++
++建议通过一个完整资产导入接口准备描述文件与表示资源，返回可解析的精确资产版本和各表示引用。调用方不用分别拼接设备定义、GLB 资产、文件 pin 和运行绑定。场景导入再解析资产版本，登记实例与来源映射；逐帧发布只使用已经固定的对象字典。
++
++作者准备资产描述文件并在场景中声明引用；适配器可以自动提交所需描述及资源，复用 Lab World 已登记的相同版本。首次准备资料发生在外部资产编写流程，来源接入时不要求用户再逐个上传或登记对象。只携带资产引用时，Server 必须能解析精确版本；版本缺失或内容冲突报告明确失败。
++
++| 步骤 | 行为与不变量 |
++| --- | --- |
++| 准备 | 检查描述、引用与所声明资源，上传缺少内容；来源同步的新资源按 Q12 暂存，失败可重试，成功后发布。 |
++| 验证 | 校验结构、单位、状态字段、资源闭包及表示用途；资源可保存与后端实际支持该物理格式分别表达。 |
++| 发布 | 固定定义和资源引用，登记 Asset Version；同 ID/版本/内容可幂等复用，不同内容不能覆盖原版本。 |
++| 场景采用 | 用精确版本及表示引用登记实例；配置和最新观测属于实例。 |
++| 升级 | 新定义、状态结构或模型发布新版本；通过场景差异显式采用，历史继续引用旧版。 |
++
++几何相同的不同型号可以复用资源字节，但不因此合并资产身份。资产或文件的移除只能释放自己的引用；场景及 Recording 保留的旧版本与所用资源仍需可解析。
++
++Q11 已确认来源移除对象只移除来源可视节点，保留 Entity 与历史，归档单独确认。Q12 的取消清理只处理无其他消费者的暂存资源；已发布 Asset Version 和被实例/录制保留的依赖不因此删除。
++
++资产发布的权限与场景来源维护权限分开约束。实施默认给来源配置限定的资产发布命名空间，来源只发布其获准空间内的新版本；其他共享资产只使用已获准的精确引用。组织资产可由现有 full-access 用户/Agent 单独导入。来源凭据不继承用户/Agent 的整个 Lab 修改权，也不能覆盖已发布版本或其他来源对象。
++
++同 ID/版本/内容重复提交返回原版本，不同内容返回版本冲突；不以顺手递增版本或重命名隐藏冲突。正式路径、错误码和迁移在实现中与现有合同统一，这是工程默认，不新增成员角色。
++
++## 6. 源侧元数据的已验证入口
++
++本机只读调查和独立临时小文件验证得到以下事实：
++
++- USD Flatten 保留 customData、assetInfo 和 custom attributes。
++- Blender 的自定义属性导入与 GLB export_extras 可以保留明确写入的资产引用、版本和实例 key。
++- customData/assetInfo 不会自动进入该 Blender 到 GLB 链路，需要适配器主动提取并写入映射或 sidecar。
++- 两个相同 Cube 的小测试成功保留共同 asset key/version 和不同 object key；不代表复杂设备 schema 或完整场景转换已经验证。临时产物和进程已清理。
++- Newton CustomAttribute 可以承载显式声明的 body/shape 属性，但不会从几何推断厂商型号、设备能力或业务状态结构。
++- 原 SO-101 场景目前没有 Lab 资产引用，需要增加源侧描述或映射配置。
++
++复杂设备定义因此从描述文件导入。转换器保证引用和原点映射可追溯；定义登记不依赖 GLB extras 是否保留全部业务信息。
++
++## 7. 当前实现与消费者影响
++
++代码基线：`9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5`。本次候选为设计文档与术语变更，没有生产接口或数据库迁移。下表为代码阅读证据；源侧小型转换证据的实际范围见上节。
++
++当前存在两条链：静态 catalog 的 AssetDefinition 固定到 Entity 定义快照；GLB LabAsset 的唯一 Representation 引用到 Entity/Scene Node。LabAsset 本身没有 definition 关联，多表示也未实现。完整 Asset 是现有领域目标，需要建设正式关联与版本，而非仅新增几个 GLB metadata 字段。
++
++| 受影响合同 | 真实消费者与当前事实 | 需要保留或新增的验证 |
++| --- | --- | --- |
++| 完整定义与模型关联 | [AssetDefinition](../../packages/server/src/lab/world/domain.ts)、[GLB Asset](../../packages/server/src/lab/assets/domain.ts)当前分开；[schema](../../packages/server/src/lab/assets/schema.ts)一资产一表示。 | 新版本能关联多用途表示；既有纯 GLB 与 catalog 定义仍能准确读取和追溯。 |
++| World 与 SDK | [World](../../packages/server/src/lab/world/use-cases.ts)返回实际引用资产及 Entity 定义快照；[SDK](../../packages/sdk/src/generated/sdk.gen.ts)有分开的两套列表合同。 | 不因改统一列表而丢模型、定义快照或未列在第一页的引用。 |
++| 定义与运行绑定 | [登记](../../packages/server/src/lab/world/entities.ts)会给模拟 light/sensor/centrifuge 自动创建内置程序 Binding。 | 来源对象可引用离心机信息定义，并绑定外部只读来源；不创建错误的内置来源和执行许可。 |
++| 状态与能力展示 | [观测](../../packages/views/src/lab/observation-state.ts)依据定义结构、来源、当前 Binding/Run 与质量判断；[离心机界面](../../packages/views/src/lab/centrifuge-panel.tsx)有专门实现。 | 结构化状态字段可查看，缺值为未知；单向来源无控制执行入口。 |
++| 模型与运动 | [Viewer](../../packages/views/src/lab/world-viewport.tsx)按表示加载；离心机内置转子与导入 GLB 的映射不同。 | 多表示选择正确；导入离心机没有转子映射时，不据数据假定内部模型已经可动画。 |
++| 录制与资源 | [Recording](../../packages/server/src/lab/recordings/service.ts)保存定义/配置/绑定快照，资源收集当前仅遍历单 representation。 | 新资产版本的实际所用表示与依赖被正式保留，删除当前资产不改写旧录制。 |
++| 定义/外观升级 | [生命周期](../../packages/server/src/lab/world/lifecycle.ts)分别处理定义与外观，定义升级需空闲。 | 明确版本采用与来源权限；不让共享资产更新自动改写正在观察的实例。 |
++
++仅导入设备描述不会实现新的设备程序、测量协议或控制执行。外部设备状态的通用接入仍需第三阶段合同，不能将已有内置离心机行为当作 Newton 离心机的数据来源。
++
++## 8. 实施与验证
++
++资产发布通过限定命名空间及固定版本约束；状态字段依据明确 schema 和源侧映射显示，未报告保持未知。第三阶段的起点、生命周期、段间缺口及来源结果已在 Q17–Q22 确认，见[实时观察合同](newton-live-observation-contract.md)。
++
++实施仍需验证完整设备描述文件、复杂 schema、多用途资源及消费者兼容。此前两个 Cube 的引用传递是小型事实证据，不能替代离心机完整信息导入、状态读取或整场景端到端验证。
+diff --git a/docs/plans/newton-live-observation-contract.md b/docs/plans/newton-live-observation-contract.md
+new file mode 100644
+index 0000000..aa2d308
+--- /dev/null
++++ b/docs/plans/newton-live-observation-contract.md
+@@ -0,0 +1,134 @@
++# Newton 单向实时观察与来源事件合同草案
++
++状态：Q17–Q22 的产品行为已确认，2026-10-13；正式字段与兼容实现待开发验证。本文是 [Issue #85](https://github.com/CaiZongyuan/labworld/issues/85) 第三阶段的设计，不是已实现接口。决定见 [ADR 0015](../adr/0015-source-owned-runs-and-observation-segments.md)，前置合同见[场景接入](newton-scene-ingestion-contract.md)和[完整资产](asset-definition-and-external-authoring.md)。
++
++## 1. 已确认的行为
++
++来源自己推进程序。场景、资产和映射就绪后，Lab World 自动从当前实际状态开始观察；新浏览器加入时先取得完整状态。观察不要求来源重置或重新执行，来源对象禁用本地编辑，设备动作执行不属于此模式。
++
++Lab World 或网络断开时，Newton 继续自身程序；旧观察与录制中断。恢复后建立新观察段和录制，复用对象及资产，明确未收到的区间。若来源程序实际重启，则 Source Run 也变化；不能把观察服务重启与来源程序重启当成同一事件。
++
++首版记录来源明确报告的阶段、开始/结束及结果。未报告结果为未知，不从静止、reset、正常进程退出或通信成功推断实验成功。
++
++来源明确暂停/等待时保持观察连接，冻结在最后实际样本；心跳只证明连接健康。每次实验/episode reset 保留旧末态与结果，结束旧观察和录制，再从新初态开始新段，对象及资产身份复用。
++
++实际源结构变化结束旧观察，旧版本最后状态明确标记；新版本确认后从来源当前状态恢复。“空闲”指 Lab World 没有活动观察段，不要求 Newton 本身停止。
++
++## 2. 三类数据与执行权限
++
++| 通道 | 数据 | 处理方式 |
++| --- | --- | --- |
++| Motion | 实际 body pose、joint coordinates、序列和仿真时间 | 复用高频二进制通道与浏览器缓存；直播可替换待发旧帧，不逐帧写布局或 world_clock。 |
++| 设备观测 | 资产声明的状态属性、值、单位、时间、质量 | 来源限定、字段校验、逐属性持久化与历史；心跳不刷新旧测量，未报告属性保留原时间。 |
++| 来源事件与录制 | 程序/实验生命周期、阶段、结果、reset/场景边界和采样事实 | 独立可靠采集、去重、明确结束与缺口；不能用直播 latest-wins 代替完整录制。 |
++
++关节与位姿的高频样本由 Motion/Recording 承载，不要求每帧产生设备属性数据库写入。设备观测和阶段转换按真实低频业务变化发布。具体频率依据源程序配置及现有预算验证，不改动求解周期来迎合 Viewer。
++
++能力定义、来源实际提供的字段与执行许可分别表达。外部 Binding 采用只读观察策略，不自动创建内置 Device Program，不允许通过已有 Command 接口绕过只读模式。
++
++## 3. 身份、字典和时钟
++
++| 标识或时间 | 含义 |
++| --- | --- |
++| source_id | 某份独立世界配置的持久来源身份；重接、GUI/无头切换不改变它。 |
++| source_run_id | 来源程序的一次运行；观察断线不使其变化，来源重启需要新运行身份。 |
++| observation_segment_id | 固定场景版本、映射和时间锚点的一段接收；每段有独立录制。 |
++| scene/asset version、mapping revision | 本段采用的精确结构、资源和 body/joint 顺序。 |
++| lease / server epoch | Server 授权的当前发布代次，旧连接不能覆写新段。 |
++| source simulation time | 来源真实物理时钟；来源可快于或慢于墙钟运行。 |
++| observation relative time | 从本段起点计算的相对仿真时间，首帧可以为 0，不要求源时钟归零。 |
++| episode 与其计数 | 来源实验/episode 边界及进度；不等同全局物理时钟。 |
++| audit / received time | Server 收到事件的真实时间，用于审计及本地时效；不能冒充未知的源测量时间。 |
++
++如果在源仿真时间 12 秒加入，本段首帧相对时间为 0，同时记录源时间锚点 12 秒。后续相对 0.2 秒对应同一源时钟下的 12.2 秒。这是观察时间映射，不是重放源程序前 12 秒。
++
++源时钟回退、运行身份变化、结构版本变化或字典失配必须形成明确边界，不能通过修改时间戳隐藏。跨主机墙钟不同步时不以直接相减估算单向延迟。
++
++## 4. 一致的观察起点
++
++建议流程：
++
++1. 完成来源授权、场景版本及完整资产引用验证。
++2. 在源的有效采样点复制一份实际完整状态，附源运行、时钟、实验上下文和所用字典。
++3. Server 以这份状态建立固定观察快照、外部观察上下文和 Recording。
++4. 授予发布 lease 与票据，可靠采集保存精确初始帧。
++5. Motion 使用与快照及可靠初始帧一致的字节开始发布，随后处理后续实际样本。
++
++快照只冻结观察条件，不冻结来源程序。握手期间的样本需要有界缓存和明确处理；如果源上下文已经变化或缓存不足，应重新从有效当前状态建立起点，并标记未覆盖范围，不把缺失帧补成连续数据。
++
++当前录制要求首帧 sequence=1、sim_time_ns=0、pose/joints 对应快照，Motion 初始字节与已写入 Recording 相同。这些一致性约束可保留，新增的是源当前状态与观察相对时间的映射，而不是放宽首帧验证。
++
++## 5. 设备观测的来源上下文
++
++外部报告需要绑定本来源的 Entity、资产版本、当前观察上下文与发布代次。类型和单位依据所采用资产定义及明确映射校验；Source Run 或段已结束的迟到消息不能变成新段的当前状态。
++
++当前可信观测依赖 Binding、running Device Program Run 和服务 generation，外部通用遥测入口尚不存在。实现需要明确的外部观察上下文及其与现有读取规则的兼容，不为得到“当前有效”显示而伪造内置程序运行。
++
++部分报告只更新实际提供的属性。温度没有新样本时保留原温度及其时间，新的转速和心跳不刷新它。来源未知测量时间明确为空；新浏览器能读最后设备报告，但必须保留旧段、质量和时效标记。
++
++## 6. 来源实验事件
++
++建议来源事件至少携带 source/run、实验标识、事件序列或稳定事件 ID、源时间、影响对象 key、类型和实际提供的结果/原因。字段名与正式 schema 尚待定稿。
++
++| 事件 | 允许表达的事实 |
++| --- | --- |
++| experiment started / 当前实验上下文 | 来源明确报告的实验身份、已知参数、开始时间与是否中途加入。 |
++| phase changed | 来源报告的阶段；来源没有阶段名称时保持未知。 |
++| experiment ended | 来源报告的成功、失败、取消或未知，以及实际判据/结束原因。 |
++| source state changed | 来源的运行、暂停、等待或结束；不能凭静止直接推断。 |
++| reset / scene changed | 瞬时边界及前后上下文，不能以插值生成不存在的搬运。 |
++
++来源事件与 Lab World Command/Device Task 记录分别表达。现有 Robot observation 的 phase 不要求 Command，可以复用其阶段语义；现有 Robot task 则强制关联已受理 Command，不适用于自主来源结果。新的结构化结果应明确来源类型，不生成虚假 Command 来满足旧表约束。
++
++一次实验的结果与当前运行状态分别保存。旧实验成功后，新实验开始时不能保留“当前实验已成功”。录制数据完整性也与实验成败分别表达：一段完整记录可以包含失败实验，中途加入的记录也可能接收到明确成功结果。
++
++## 7. 已核实的 Isaac Lab 生命周期
++
++源码调查未运行新仿真，得到以下实际顺序：
++
++- PHYSICS_READY 只表明 model/state 已创建，FK 初始化仍可能延后，不能直接当作有效初态。
++- 显式环境 reset 写入状态并执行 sim.forward 后调用 record_post_reset，适合取得有效初态；get_state 会补 pending FK。
++- 正常求解后调用采样 hook，再计算 termination/reward，record_post_step 在自动 reset 之前，能读取真实末态和原因。
++- 自动 episode reset 清零 episode_length_buf，但正常全局 simulation time 不归零。物理 manager 重建/关闭仍可能重置时钟。
++- 原任务 success、vial_lost、unstable_robot、time_out 有明确判据；done 是结束原因并集，不等于成功。reset 后某些旧结果保留到下一次 compute，需要按实验边界隔离。
++- GUI 的 training pause 与 rendering pause 分别存在。training pause 可能停止后续 Recorder step hook；独立心跳可以使用缓存进度，而不能制造新 GPU 样本。跨线程状态读取仍需真实验证。
++- 原默认 player 在成功后自动 reset 并继续；旧成功导出脚本则退出。不能把旧脚本退出伪装成来源仍在线或持续运行。
++
++源适配器应在原程序的物理/reset hook 采样，使用独立网络 writer。它不拥有源求解器，断开仅关闭自己的观察连接与队列，不能调用当前受监管 publisher 的 run.close 结束外部程序。
++
++## 8. 暂停、reset 和结构变化规则
++
++Q20 已确认连接健康与物理进度分开：来源明确暂停/等待时保持连接并冻结在实际末样本，心跳不刷新测量；声称运行却长期不推进时显示停滞。现有 Server 在 running 下仅凭仿真时间 5 秒不推进便中断，须新增来源状态合同。
++
++Q21 已确认每次实验/episode reset 结束旧观察段及录制，在保留末态和来源结果后，以新初态开始新段；源程序不因此停止，对象/资产身份复用，不跨 reset 插值。中途加入与网络缺口分别标记。同一实验因重接形成多个段时关联同一来源实验标识，不伪装成多次实验。
++
++Q22 已确认实际源结构变化结束旧观察，保留并标明旧版本最后状态；新版本待用户确认后从当前源状态开始新观察。“空闲”指没有活动 Lab World 观察段，不要求 Newton 自身停止。活动观察不使用旧字典解释新结构。
++
++Episode、source clock 与结构边界各有明确作用。只发生 reset 而字典不变时复用场景/资产版本；模型、结构或业务定义实际改变时应用新版本。源时钟重建不继续使用旧时间锚点。
++
++## 9. 最后已知状态与恢复
++
++来源失联后，已打开浏览器冻结最后实际姿态。新浏览器及 Server 重启恢复也需要受授权的最后已知姿态快照及时间、版本和来源上下文，不能退回初始布局并把它称为最后状态。
++
++现有低频观测已持久保存，但高频末帧只有活动 Gateway 缓存；已结束 Session 不能再取得 Viewer 票据。建议新增最后已知状态的读取合同，可利用已验证缓存的边界快照及可靠 Recording 前缀恢复，不增加每帧布局或数据库写入。
++
++正常断开、异常终止与恢复必须分别验证快照来源和持久程度。只能恢复到最后可靠样本时显示其实际时间和范围，不能宣称恢复到尚未保留的最后直播帧。最后状态不允许继续外推运动或暗示设备仍实时在线。
++
++## 10. 实现影响与验证入口
++
++代码基线为 `9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5`。本次为设计文档，不是生产协议或数据库改动。
++
++| 当前入口 | 需要的衔接 |
++| --- | --- |
++| [Session 准入与首帧](../../packages/server/src/lab/sessions/service.ts) | 当前状态快照、源时间锚点、只读模式、自主生命周期与旧代次 fencing。 |
++| [Recording](../../packages/server/src/lab/recordings/service.ts) | observer 来源头、自然边界、结构化来源事件、段间缺口和末帧恢复。 |
++| [Robot 数据](../../packages/server/src/lab/devices/robot.ts) | 来源阶段可报告；自主结果不用已有 Command/Task 关联冒充。 |
++| [观测显示](../../packages/views/src/lab/observation-state.ts) | 外部观察上下文和最后报告，保留旧段/未知/过期语义。 |
++| [Viewer 运动](../../packages/views/src/lab/motion-scene.ts) | 固定映射、pause/reset/段切换不跨边界插值，模型原点正确。 |
++| [Session tests](../../tests/server/session-authority.test.ts) | 已有健康暂停与运行无进度检查；需新增来源自主暂停及等待。 |
++| [真实 Viewer](../../tests/e2e/lab-secure-motion.spec.ts) | 复用双浏览器/外部 Machine 测试面，新增正常自动接入与中途观察。 |
++| [可靠记录](../../tests/e2e/recording-reliability.test.ts) | 保留采样与直播分离、ACK、故障前缀证据，新增自然结果与段边界。 |
++
++首个实测继续使用原 SO-101 来源及现有程序，不增加训练。通过正常接入启动后，两个浏览器必须看到同一实际场景、body/joint 与来源状态；独立 agent 对照源样本和 Viewer 世界变换，验证暂停/reset、断开/重接、完整性与结果未知规则。GUI 与无头采用相同采样入口，但各组合的实际支持需要验证记录。
++
++首版沿用每 Lab 至多一个活动仿真会话及当前容量限制。来源可以先上线和同步场景；若 Lab 已有其他活动观察，新的来源显示等待观察及原因，不抢占或停止另一来源。用户结束旧观察后可加入另一来源的当前状态。多来源合并、实机协议和跨主机/公网长测分别按后续范围设计。
+diff --git a/docs/plans/newton-scene-ingestion-contract.md b/docs/plans/newton-scene-ingestion-contract.md
+new file mode 100644
+index 0000000..987c995
+--- /dev/null
++++ b/docs/plans/newton-scene-ingestion-contract.md
+@@ -0,0 +1,150 @@
++# Newton 场景接入细化草案
++
++状态：设计讨论中，2026-10-13。本文细化 [Issue #85](https://github.com/CaiZongyuan/labworld/issues/85) 的第二阶段，不是已实现的接口参考或实施票。Q4–Q16 的产品规则已确认，协议字段、转换验证及第三阶段衔接仍需细化。总体阶段见[设计记录](newton-source-sync.md)。
++
++## 1. 已确认的结果与阶段边界
++
++Newton 启动时加载适配器并主动报到。来源识别可以先于场景同步完成，无头与 GUI 使用相同接入方式。场景同步应保留原场景的对象、几何、尺寸、层级与位置；材质和灯光允许 Web 近似。
++
++首次接入自动同步完整场景。对象增删和模型替换形成新版本，空闲时确认应用；持续变化的位置、旋转和关节由第三阶段更新。第二阶段不要求 Lab World 启动求解器，也不依靠用户提交运动命令。
++
++“完整场景”需要有明确来源范围。首个 SO-101 闭环应包括机器人、试管、试管架和垫面，并保留适配器声明的其他静态可见几何。碰撞辅助几何、相机和灯光的处理须按源格式的用途区分，不能把每个 USD prim 都登记为一个 Entity。
++
++每份独立仿真世界配置保留持久来源标识。同一配置重启或切换 GUI/无头复用对象；同机同时运行两份独立世界使用不同标识。首次在 Lab World 选择目标 Lab、生成接入配置，之后 Newton 加载配置自动报到和同步。来源权限仅覆盖自己在该 Lab 中登记的对象集合。
++
++转换、上传和映射全部验证成功后，整份版本才成为有效场景。首次失败显示来源在线、场景同步失败；升级失败保留上次成功版本，报告具体失败对象。这些规则已在 Q7–Q9 确认。
++
++Q10 已确认：来源采用单向同步，来源对象禁用编辑，场景布局和外观由源维护。资产的三维/物理内容在外部工具编写，业务信息通过独立描述文件导入，发布后固定版本；此规则见[资产设计](asset-definition-and-external-authoring.md)。
++
++## 2. 最小数据合同建议
++
++以下是业务合同建议，字段名和端点尚未定案，也没有现成 SDK 可调用。
++
++| 数据 | 需要表达的内容 | 用途 |
++| --- | --- | --- |
++| 来源引用 | 来源标识、目标 Lab、当前接入身份 | 持久来源身份与某次运行、某份凭据分开；只能维护本来源对象。 |
++| 资产引用 | 每对象的稳定资产 ID、明确版本和所选表示 | 业务定义与三维/物理内容一起解析，实例身份不使用资产 ID 替代。 |
++| 场景版本 | 清单格式版本、结构版本、资源摘要、转换器版本 | 识别重复提交、待升级版本与所使用的资源。 |
++| 对象字典 | 稳定 object key、名称、已知类别和来源路径 | 建立来源对象与 Entity 的对应关系。 |
++| 原始层级 | 稳定 node key、parent key、对象归属、局部变换 | 保留源场景结构；它不是 Registered Location 或业务包含关系。 |
++| 视觉资源 | 资源 key、内容 hash、类型、字节数、来源和许可信息 | 自动上传、校验与复用模型，不依赖作者本机路径。 |
++| 可视目标 | 表示引用、节点路径、原点校正 | 对应一个能接收运动的视觉目标，避免 GLB 自动居中造成错位。 |
++| 物理映射 | 稳定 body key、joint key、所对应的对象与可视目标 | 为第三阶段建立固定的采样字典；运行时数组索引不成为持久身份。 |
++| 坐标说明 | 源轴向、手性、单位、变换层级和输出坐标约定 | 校验转换只应用一次，保持真实尺寸。 |
++| 场景基准 | 源定义中的静态摆放及结构变换 | 与持续采样的当前位姿分开，作为来源版本和坐标校验的基准。 |
++
++结构版本的判定应使用对象字典、层级、静态基准和资源内容，不因每一帧的位姿、速度或仿真时间变化而产生新版本。清单与初始状态需要关联同一来源的采样边界；具体边界协议在第三阶段细化。
++
++版本记录需要保留上次已应用清单及资源引用，不能只修改当前 Asset 的 version 字符串。hash 相同只能证明字节内容相同，不能证明来源、对象或安装身份相同。
++
++例如，同一个来源下的 `object_key=robot` 表达整机身份，`node_key=robot/shoulder` 表达一个可视目标；原始 USD prim path 另行保留作为来源映射。换模型时资源 hash 可以变化，但 object key 不应因为转换器重命名或文件路径变化而改变。原始 parent key 必须从源层级读取，不能根据物理关节链虚构。
++
++## 3. SO-101 的对象与可视目标
++
++| 来源结构 | 业务身份建议 | 可视与运动表达 |
++| --- | --- | --- |
++| SO-101 整机 | 一个设备类 Entity | 连杆分别有稳定可视目标及 body 映射，保持原连杆结构。 |
++| 试管 | 独立 Labware Entity | 自由刚体运动独立于机器人，不能用夹爪动画代替。 |
++| 试管架 | 独立 Entity | 保留原几何、尺寸和来源定位；kinematic 属性不自动赋予控制能力。 |
++| 垫面及其他静态场景对象 | 按来源声明的对象分组登记 | 可以有视觉表示而没有 Runtime Binding。 |
++| 碰撞辅助形状 | 保留必要来源信息 | 按源用途处理，不能把 guide 碰撞网格自动当成普通可见外观。 |
++| 相机、灯光、视觉辅助节点 | 保留适用的表示配置 | 不因场景节点存在就成为设备 Entity。 |
++
++这些分组是首个场景的适配建议。来源适配器应明确声明业务分组；Server 不根据网格数量、名称或三维重叠猜测设备能力、容纳关系和任务结果。Q13 已确认，未声明资产引用时可用通用模型导入并表达业务类别未知；显式资产引用的精确版本缺失则失败，不用通用模型掩盖错误。
++
++本机原场景的七个 Robot link 是同一 Robot 下的直接子节点，物理关节另行连接它们。Mat 没有 RigidBody，Rack 有 RigidBody 但为 kinematic。因此只遍历 Newton body 会漏掉静态场景，按 USD 父子关系推导机器人关节链也会得到错误结构。场景描述与物理字典必须一起读取并校验。
++
++必须保持三类结构的区别：来源中的视觉层级、Lab 中的对象关系、运动字典中的 body/joint。机器人七个连杆可以共享一个 Entity，同时拥有多个运动目标。
++
++当前持久 Scene Node 没有 parent 字段，Motion 目标仅支持 node-root。因此，“保留原层级”还需要明确的来源结构记录和呈现映射，不能仅调用现有 layout API 就宣称完成。GLB 内部层级也不能自动成为 Lab 的业务关系。
++
++现有 GLB loader 和 Viewer 保留文件内部的节点层级，但不同持久 Scene Node 仍在同一根下并列渲染。Motion 不支持按 GLB child path 或 bone 定位，也不根据 joint 数组自行计算机器人连杆位置。为复用当前 Motion，首个场景可以先为各物理 body 建立独立的可视根，并在来源清单中保留完整原层级；源层级如何在查看器中呈现仍需定案。
++
++当前公开登记需要已有 catalog definition。通用 `model@1.0` 可表达没有控制能力的模型对象，但不能自动生成实验室分类或能力。Q13 的通用模型路径可复用其语义，同时仍需补充来源限定的资产与对象登记合同。
++
++## 4. 场景提取与资源转换
++
++建议由适配器在场景就绪后读取源场景和 Model，提取对象、原始节点路径、视觉资源、结构变换与 body/joint 字典。若场景来自 USD，优先使用原 USD 的可见几何和外观；Newton Model 的物理 shapes 不一定包含同等的视觉信息。
++
++资源转换需要执行以下检查：
++
++1. 解析源场景及依赖，区分可见几何、碰撞辅助形状与实例。
++2. 导出 Web 可用的自包含表示，纹理内嵌或按服务支持的资源闭包打包。
++3. 按已同意的规则转换材质，保留基础颜色、适用纹理和透明度；报告实际近似项。
++4. 保留模型原点、相对变换和真实尺寸，记录 body-to-visual 校正。
++5. 使用正式 GLB 校验器检查资源，再以已知源样本对照 Viewer 的实际世界变换。
++
++原场景使用米制、Z-up，现有 Motion 使用右手 Y-up、米和 XYZW。适配器应统一坐标约定，并记录转换过程。当前 Viewer 会对 GLB 自动居中、贴底；直接将这个显示根当作物理原点会产生偏移。
++
++推荐在来源侧进行提取和转换，再由 Lab World Server 沿用资产上传和 GLB 校验能力。源场景的依赖本就在 Newton 环境中，这也与单 Node Server 的既有边界相符。具体工具链需要固定版本和可重现验证。
++
++本机已有可读取原 USD 的 pxr、能导入 USD 和导出 GLB 的 Blender，以及可导出 GLB 的 trimesh。trimesh 本身不能直接导入 USD，需要接收从 USD 提取的几何。仓库没有通用 USD 到 GLB 转换器。
++
++本轮使用 Blender 5.4.0 Alpha（29ff43161222）完成一次小型实证：从原历史 USD 导入 Vial 可见表示并导出 293,200 字节 GLB，得到 3 个网格、2 个材质，保留 Vial 内部层级，并得到符合 Z-up 到 Y-up 变换的位置。没有运行渲染或仿真；该 Vial 没有图片，所以纹理转换尚未验证。临时产物及进程已清理。这不是生产工具版本定案或整场景验收。
++
++这次导出的 Vial 根仍带原世界位姿。如果再给 Scene Node 设置同一位姿，会重复应用变换。生产表示应明确采用 body 局部原点加单独位姿，或采用另一种经过验证的一致坐标合同。导出器若已转换轴向，后续不能再次转换同一表示。
++
++Blender 这次没有自动保留完整原 USD prim path。转换器必须主动输出 path 到节点和运动根的对应关系，不能用 `Mesh_001` 或数组序号当身份。原 USD 共 65 个网格，其中 32 个可见 default、32 个 guide、1 个隐藏 default；外观导出应遵循 purpose 和 visibility，而完整来源清单保留相应分类。
++
++## 5. 建议的同步过程
++
++| 步骤 | 对外行为 | 失败或重试 |
++| --- | --- | --- |
++| A. 来源上线 | 独立显示来源已连接 | 场景失败不伪装成来源离线。 |
++| B. 准备清单 | 提取场景结构，生成资源列表和映射 | 显示具体源路径及失败原因。 |
++| C. 准备资源 | 转换、上传和校验所需资源 | 按内容与上传状态复用已完成工作。 |
++| D. 验证完整版本 | 检查资源闭包、key 唯一性、父子结构、坐标和映射 | 失败版本不得成为有效运动字典。 |
++| E. 首次登记 | 整份版本通过后，自动原子登记本来源安装及身份对应 | 失败不启用部分对象，显示具体原因。 |
++| F. 相同版本重接 | 复用已登记对象和资源 | 依靠持久来源映射，不能依赖短期请求幂等记录。 |
++| G. 新版本到达 | 显示对象增删、资产版本和模型替换差异 | 活动运行不热替换字典；外部结构变化的观察边界在第三阶段细化。 |
++| H. 空闲时应用 | 用户确认后提交版本切换 | 使用期望版本检查并发修改；冲突返回重新比较。 |
++
++Q9 已确认整份场景版本校验成功后切换：首次失败显示“来源在线、场景同步失败”；升级失败保留上次成功版本。失败报告与当前已应用版本分别保留。
++
++场景登记的事务原子性与资源上传不是同一件事。GLB 转换和网络上传先完成，数据库事务再发布场景对象、映射和引用。Q12 已确认来源同步的新资源先进入同步任务暂存区，失败可复用已完成工作，成功后发布；现有逐资产上传不能直接提供这种可见性，需要新增暂存发布合同。
++
++取消仅释放本同步任务的引用并清理无其他消费者的暂存资源，不删除已发布资产、其他任务或 Recording 的依赖。相同 hash 可以复用字节，不意味着取得其他资源的删除权。恢复中断任务时先核对持久任务清单和实际资源，再决定继续或释放。
++
++失败报告应包含阶段、源对象或资源路径、错误类型、可重试性和保留的当前版本。不得将占位模型、缺失对象或错误映射报告为完整同步成功。
++
++## 6. 版本更新与来源编辑权
++
++相同 object key 保留已有 Entity，新 key 建立新身份；删除项、节点移除与 Entity 归档要分别处理。ADR 0012 已要求由用户决定移除项是否归档，不能因来源中少一个节点就彻底删除业务对象或历史。
++
++Q11 已确认：移除项不再有当前来源可视节点，Entity 与历史保留，并标记不在当前来源场景中。归档单独确认；来源版本更新不自动删除身份和记录。
++
++来源场景的父子关系不自动证明真实物料的 Registered Location。导入和升级只处理显式声明的业务关系，不从视觉层级或几何重叠推断“包含”。
++
++来源对象的 Placement 与外观先禁用本地编辑，更新只采用来源版本，因此不需要本地覆盖层或布局三方比较。应用时仍需检查期望场景版本、权限与活动观察状态，防止两个确认操作互相覆盖。实时位姿与持久源场景基准继续分开表达。
++
++此规则限定外部来源模式。ADR 0012 中由 Lab World 监管的模板安装具有自己的布局规则，不据此改变其历史合同。
++
++## 7. 可复用能力与新增工作
++
++| 能力 | 当前事实 | 新工作 |
++| --- | --- | --- |
++| 文件与 GLB | 已有上传、格式校验、按内容 hash 保存字节与正式 pin | 来源限定的上传权限及跨重接的资源身份复用。 |
++| 场景安装 | 固定 SO-101 安装在一事务登记对象和映射 | 通用清单、来源身份关系、原始层级记录与完整版本验证。 |
++| 同一 Entity 多 Node | 已有；机器人连杆共用整机身份 | 原场景业务分组与可视目标生成。 |
++| 版本更新 | 仅有固定 SO-101 控制版本升级 | 通用差异、确认应用和删除项处理；来源对象无本地覆盖。 |
++| 布局并发 | 已有 expected_version 检查 | 来源限定的修改集合，不能整体替换其他来源或人工对象。 |
++| Motion 与 Recording | 已有固定字典、来源隔离与资源引用 | 自主来源的初态边界和与新场景合同的衔接。 |
++
++主要入口：[Asset 上传](../../packages/server/src/lab/assets/use-cases.ts)、[文件发布与引用](../../packages/server/src/core/files/use-cases.ts)、[固定安装](../../packages/server/src/lab/sessions/newton-installation.ts)、[安装服务](../../packages/server/src/lab/sessions/service.ts)、[布局保存](../../packages/server/src/lab/world/layout.ts)、[对象生命周期](../../packages/server/src/lab/world/lifecycle.ts)。
++
++## 8. 现有限额与验收建议
++
++这些是已核实的实现边界，不是新增预算：单文件默认 20 MiB，FILE_MAX_BYTES 最多可配置 100 MiB；GLB 展开资源预算 256 MiB；只接受自包含 GLB/data URI；一个 Lab 最多 1000 个 Scene Node。当前普通安装请求仅 4 KiB，Session snapshot 约 1 MiB，Recording manifest 2 MiB。新清单必须验证实际规模和载荷路径，不能因为 Motion 可承载 1024 个 body 就认为其他入口也支持同样规模。
++
++第二阶段完成的验收建议：
++
++- 来源已上线后，通过正常接入自动呈现声明范围内的完整场景，无需手工上传和登记。
++- 独立对照源场景对象清单、几何尺寸、层级和多个静态世界变换；实际浏览器能加载对应资源。
++- 同一来源重复接入保留对象身份；其他来源和人工对象不被覆盖。
++- 资源缺失、非法层级、错误坐标和错误物理映射得到具体失败结果；失败不被算作成功。
++- 活动运行期间新结构版本只显示待更新；空闲确认后应用，旧录制仍能解析自己的模型和映射。
++- 原场景几何与材质转换的证据分别记录；已有历史 USD 或工具版本不能代替本次真实导入结果。
++
++来源标识和对象 key 的组合维持身份连续性，场景版本和资源 hash 表达内容变化；两者不能互相代替。接入配置也不能以凭据内容作为来源标识，否则换凭据会错误地产生新对象。
++
++上述产品规则已确认，正式字段、接口与兼容迁移在实施准备时定稿。第三阶段的起点、reset、来源事件和恢复规则见[实时观察合同](newton-live-observation-contract.md)，整体实施拆分见[主设计](newton-source-sync.md)。
+diff --git a/docs/plans/newton-source-sync.md b/docs/plans/newton-source-sync.md
+new file mode 100644
+index 0000000..143a948
+--- /dev/null
++++ b/docs/plans/newton-source-sync.md
+@@ -0,0 +1,109 @@
++# Newton 来源识别、场景同步与实时状态同步
++
++状态：产品方案已批准，2026-10-14 进入规格、实施拆分和开发。用户明确授权 to-spec、tickets 发布和 pm-development 直接开发，规格及拆票无需再次确认；沿用已确认合同和现有体验，直接实施，无需等待另一轮预览批准。本文记录 [Issue #85](https://github.com/CaiZongyuan/labworld/issues/85) 的设计和代码基线，不替代正式 GitHub 实施票或公开教程。正式协议、实际应用验证和交付仍按仓库流程进行。
++
++## 已确认的阶段
++
++| 阶段 | 用户要看到的结果 |
++| --- | --- |
++| 1. 识别运行来源 | Newton 启动时加载适配器并主动报到，无论无头或 GUI，Lab World 自动显示该来源。 |
++| 2. 同步场景 | 将该 Newton 程序实际使用的场景同步到 Lab World，无需用户手工重建。 |
++| 3. 同步实时状态 | Newton 自己的程序推进运行，Lab World 持续呈现其实际运动和设备状态。 |
++
++阶段 1 的完成不代表阶段 2 或 3 已完成。场景和状态应来自同一来源及相符的对象映射。重复接入不重复创建整套对象，来源失联后显示最后已知状态和失联标识；这些要求沿用 #85。
++
++Q4 已确认：第一阶段的识别建立在适配器主动报到之上，作为独立阶段验收，不要求先安装场景或创建仿真会话。来源在线只表示接入连接健康，不证明场景已经同步或物理仿真正在推进。该接入边界见 [ADR 0013](../adr/0013-source-presence-before-scene-synchronization.md)，领域含义登记为 [Lab Source](../../CONTEXT.md)。
++
++Q5 已确认：第二阶段保留原场景的对象、几何、尺寸、层级与位置，材质和灯光允许采用 Web 可用的近似表现。
++
++Q6 已确认：接入时自动同步完整场景；后续新增或删除对象、替换模型时提交新版本，在空闲时确认应用。持续变化的位置、旋转和关节归第三阶段实时状态同步。该规则沿用 ADR 0012 的场景版本边界，不在活动运行中替换对象字典。
++
++Q7 已确认：每份独立仿真世界配置保留持久来源标识。重启、切换 GUI 或无头时复用原对象；同一电脑运行两份独立世界时使用不同来源标识。
++
++Q8 已确认：首次在 Lab World 选择目标 Lab 并生成接入配置，Newton 启动入口加载该配置。后续启动自动报到和同步，来源只维护自己在该 Lab 中登记的对象集合。
++
++Q9 已确认：以整份场景版本为单位校验和切换。转换、上传、映射全部通过后才应用；失败保留上次成功版本并报告具体失败对象，首次失败显示来源在线、场景同步失败。
++
++Q10 已确认：Newton 到 Lab World 单向同步，来源对象先禁用编辑。布局、模型和场景内容由外部工具维护，Lab World 接收与呈现；来源模式的本地 Placement/外观覆盖与三方合并不进入本次方案。
++
++Q11 已确认：来源移除对象时，移除对应来源可视节点，保留 Entity 和历史，标记不在当前来源场景中；归档另行确认。
++
++Q12 已确认：来源同步的新资源先留在同步任务内，失败可复用重试，成功后发布；取消仅清理未被其他对象或录制引用的暂存资源。已发布的共享资源不进入这类清理。
++
++Q13 已确认：未声明资产引用的对象先作为通用模型导入，业务类别和能力保持未知；已声明资产引用但精确版本不存在时报告失败，不静默降级。
++
++Q14–Q16 已确认：完整资产包括型号与规格、实例配置字段、状态字段及单位、能力及参数说明、文档引用。通过独立描述文件编写并导入 Lab World，外部场景使用资产 ID/版本和对象 key。发布版本固定，更新显式升级；实例与历史保留当时版本。详细合同见[资产设计](asset-definition-and-external-authoring.md)和 [ADR 0014](../adr/0014-versioned-assets-and-external-authoring.md)。
++
++Q17 已确认：场景和映射就绪后自动从来源当前实际状态开始观察，晚加入浏览器先取得完整状态再收更新，不要求 Newton 重置或重新执行。
++
++Q18 已确认：Lab World 断开时 Newton 继续自身程序，观察与录制中断；重连从最新状态自动建立新观察段及录制，复用原对象，明确保留缺口，不自动重放或补出未收到的过程。
++
++Q19 已确认：首版记录和显示来源明确上报的实验阶段、开始/结束及成功/失败/未知结果，作为来源事件。没有报告时保持未知，不从运动停止、回初态或进程退出推断成功，不伪造 Lab World 命令。
++
++Q20 已确认：来源明确暂停/等待时保留连接，冻结最后实际样本；心跳不刷新测量，连接健康与运行进度分开，声称运行却长期不推进显示停滞。
++
++Q21 已确认：每次实验/episode reset 保留末态与来源结果，结束旧观察和录制，再从新初态开始新段；来源继续，对象及资产身份复用，不跨 reset 插值。中途加入或断线分段明确不完整范围。
++
++Q22 已确认：结构变化结束旧观察并保留旧版本末态，新版本确认后从当前来源状态加入。空闲指 Lab World 无活动观察段，Newton 本身可继续运行。
++
++第三阶段的协议衔接、时间、来源事件与事实缺口见[实时观察合同草案](newton-live-observation-contract.md)。
++
++第二阶段的合同、对象映射、失败恢复与验收建议见[场景接入细化草案](newton-scene-ingestion-contract.md)。草案中的未确认选择不会因记录在文档中而自动成为已接受决定。
++
++## 适配器与 Newton 程序的关系
++
++接入采用已确认的适配器主动报到方式。后续阶段由适配器读取正在运行的程序所持有的场景、Model 和 State，再向 Lab World Server 发布数据。这里的接入改动指在应用入口或回调中加载适配器，不是修改 Newton 库、求解器或策略算法。无头和 GUI 是同一类接入：GUI 是否绘制窗口不决定状态从哪里读取。
++
++实施默认先采用本仓库启动包装器，利用原 Isaac Lab 的启动回调和 RecorderTerm 加载适配器，配置和实现保存在本仓库，原项目文件保持只读。其他 Newton 程序可使用相同合同的显式接入入口，但首版不承诺任意未接入程序零改动。尚未接入适配器的普通 Newton 进程，不会因进程存在就被现有服务自动发现。
++
++本机 Isaac Lab 源码已提供环境创建前的 `--external_callback` 和配置中的 `RecorderTerm` 扩展点。前者可加载适配器，后者可在实际物理步之后、reset 前后读取状态；组合后的启动包装器尚未实际运行验证。采样应挂在物理或策略步进路径，不依赖 GUI 渲染回调，否则无头模式可能不会采样。
++
++## 核实的实现基线
++
++### 阶段 1：已有会话准入，缺少独立来源在线登记
++
++[Machine](../../packages/server/src/core/machines/schema.ts) 保存凭据身份，不保存在线状态。[Machine 路由](../../packages/server/src/core/machines/routes.ts)提供创建和撤销，没有来源在线列表或心跳入口。
++
++[Session 服务](../../packages/server/src/lab/sessions/service.ts)允许将外部 Machine 绑定到已创建的 Session，再通过 `publisher-admissions` 取得票据、lease 和 epoch。它要求已经有 Installation 和处于 starting 的 Session，因此不能单独证明阶段 1 已完成。[会话界面](../../packages/views/src/lab/simulation-session-controls.tsx)中的 Newton 可用提示来自服务配置开关，不是发现了正在运行的 Newton。
++
++### 阶段 2：已有固定场景安装，缺少实际来源场景导入
++
++[现有安装脚本](../../tools/newton-motion/install_scene.mjs)自动上传固定 SO-101 的十个 GLB，再创建 Installation。它不从活动 Newton 场景提取对象和外观，重复执行也没有来源身份驱动的映射复用合同。
++
++[Installation 合同](../../packages/server/src/lab/sessions/dto.ts)已表达 object key、Entity、pose key、Scene Node 和 body-to-visual 校正。实际来源导入可复用这些含义，但还需要来源场景描述、模型资源处理和来源限定的登记合同。
++
++用户已有的 IsaacLabTutorial 场景与仓库内置场景是不同模型。已有项目通过 NewtonManager 读取 Model 和 State，并导出原 USD 场景。本轮只读调查实际打开其历史 USD，确认 Robot、Vial、Rack、Mat 几何存在；这不证明当前程序再次运行成功，也不证明 USD 到 Web 表示的转换完成。原场景仍有 MDL 资源引用，转换需保留对象路径、坐标、原点与外观资源的对应关系。
++
++原场景的优先复用背景见[原物理仿真计划](newton-backend.md)。该计划将训练策略接入列入后续；#85 若用已有策略验收，应明确只是复用现有程序，不增加训练任务。
++
++### 阶段 3：已有运动与录制通道，缺少自主来源运行边界
++
++[Newton 采样](../../tools/newton-motion/physics.py)从实际 State 读取 body pose、joint position 和 velocity，并进行坐标转换。[Motion 接入](../../apps/server/src/motion-ws.ts)与浏览器使用同一会话的固定映射。直播与可靠录制分别传输，不逐帧覆盖持久布局。
++
++当前首帧必须符合 Server 固定启动快照；新 SO-101 安装采用受控模式。已运行的外部程序不能直接以当前状态建立观察起点。现有 publisher 还将网络连接结束与自己拥有的 Newton 运行结束绑定，需要为观察独立程序划清资源所有权。
++
++来源自主任务不能直接冒充 Lab World 已受理的 Device Command 或 Device Task。若本阶段要显示自主程序的任务结果，还需要定义其登记与报告合同；运动本身不能证明任务成功。
++
++## 实施顺序与可验收结果
++
++这是实施拆分草案，尚未发布或领取票。每项进入开发前都需落实公开测试接口、教程与现有体验流程，不把这份顺序当成已经授权的无限实施运行。
++
++| 顺序 | 完整结果 | 主要验证 |
++| --- | --- | --- |
++| 1. 来源识别 | 用户选择 Lab 生成配置，启动原 Newton 程序后自动报到，来源在线/离线可辨，无需先安装场景。 | 真实启动入口、GUI/无头、健康心跳、撤销、重复来源及其他 Lab 隔离。 |
++| 2. 完整资产版本 | 描述文件与表示资源导入、固定版本和查询，离心机信息可查看，两个实例可共享定义但状态独立。 | 字段/单位、资源引用、多表示、不可变版本、错误引用、旧数据及录制依赖兼容。 |
++| 3. 原场景自动登记 | 自动提取原 SO-101 场景，转换完整可见表示和稳定映射；重复接入不复制身份，源对象不可编辑。 | 原几何/层级/尺寸/多个世界变换，暂存失败与重试、移除项和空闲确认。 |
++| 4. 当前过程实时观察 | 原程序自主动作，两个浏览器共享实际位姿/关节和来源观测，阶段/结果可靠记录。 | 一致起点、时钟映射、无命令依赖、正确只读绑定、当前/最后值、身体原点对齐。 |
++| 5. 边界与恢复交付 | 暂停、每实验录制、reset、结构版本、断线/恢复和最后状态均符合已确认规则，教程可照做。 | 来源继续运行、旧 epoch 拒绝、未覆盖区间、新浏览器末态、失败/未知结果、保留资源与独立 E2E。 |
++
++顺序 1 与资产准备不互相依赖，场景登记依赖来源与资产合同，实时观察依赖完整映射；边界和资源保留需与录制一起建设，不能最后才补正确性。实际票粒度与原生 blockers 在 reviewed 拆分后另行发布。
++
++## 当前证据与尚待实现的验证
++
++已完成代码消费者调查、原历史 USD 的读取、试管的小型 GLB 转换和两个相同模型的元数据传递验证。它们分别证明数据入口及部分转换可行，不证明整场景、包装器运行、GUI 暂停状态线程、外部遥测和真实多浏览器闭环已完成。
++
++首个实际闭环优先使用原 IsaacLabTutorial SO-101 场景及现有程序，复用已有策略产生实际运行，不新增训练。固定仓库演示可作为协议/对照输入，不替代原场景同步证据。首版为本地桌面 Web、当前单 Lab 活动会话容量；任意场景、真实设备适配和 #76 的跨主机/公网/长测另行扩展。
++
++已有基础仍需要新增来源在线合同、完整资产关联与多表示、通用场景清单和暂存、外部观察上下文及生命周期，不能套用 #85 早期仅复用固定通道的 1–2 日估算作为整个扩展设计的交付承诺。实施估算在验证包装器与整场景转换后按实际票给出。
++
++已确认选择在 [ADR 0013](../adr/0013-source-presence-before-scene-synchronization.md)、[ADR 0014](../adr/0014-versioned-assets-and-external-authoring.md)和 [ADR 0015](../adr/0015-source-owned-runs-and-observation-segments.md)记录。[ADR 0012](../adr/0012-newton-scene-templates-and-independent-replay.md)的受监管模式作为现有合同保留，新的单向观察模式明确分开；[ADR 0007](../adr/0007-separate-simulated-and-physical-entity-identities.md)关于模拟与真实对象独立身份的决定继续适用。
+diff --git a/skills-lock.json b/skills-lock.json
+index 7ec9871..e6de8ef 100644
+--- a/skills-lock.json
++++ b/skills-lock.json
+@@ -1,23 +1,17 @@
+ {
+   "version": 1,
+   "skills": {
+-    "archify": {
+-      "source": "tt-a1i/archify",
+-      "sourceType": "github",
+-      "skillPath": "archify/SKILL.md",
+-      "computedHash": "d96f95fd2f5c043c18919bfade7688fb0eb62a051b3be4ab98faa312fc2ee927"
+-    },
+     "ask-matt": {
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/ask-matt/SKILL.md",
+-      "computedHash": "16554b785353aabf3880228755d317a3193a8359772f25ecb5f2a1f762d6e12d"
++      "computedHash": "d1c5b4151720e96135154bd593ac4986a1030a2bc81e2aaf129f8b11224af9a9"
+     },
+     "code-review": {
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/code-review/SKILL.md",
+-      "computedHash": "caa9a086baaf9e0f7cd71f64edfa83da6821c05e826b083221f3d02e3d6a1905"
++      "computedHash": "57cfd4ceb011f05e58a1a4f4cad3b2e03419d371f8990f4bcb32ff0d435a039f"
+     },
+     "codebase-design": {
+       "source": "mattpocock/skills",
+@@ -29,7 +23,7 @@
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/diagnosing-bugs/SKILL.md",
+-      "computedHash": "b35c6a6e37c61ca3169532fbab2300dea26f2ad190e1d2dac065800b8b2bb0aa"
++      "computedHash": "ede7254edbd22fcab97a0941511f7d440d8f9a249348fea97c50987ad5501674"
+     },
+     "domain-modeling": {
+       "source": "mattpocock/skills",
+@@ -53,19 +47,19 @@
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/productivity/grilling/SKILL.md",
+-      "computedHash": "4dd886b0196bf43729d954ae326016f2bd9f5f79d892500b407c33a753362f14"
++      "computedHash": "ef1641a2047b71b60f1942cd35efb47d3afc9d584dff5a0b01f8c7db923aaa08"
+     },
+     "handoff": {
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/productivity/handoff/SKILL.md",
+-      "computedHash": "20e5f4afdef502637510bc5c64d27645d3c85c88df9cb006824bbb0980166319"
++      "computedHash": "8ebcf017c0a59681f3c2f1ebf90e32f481954a068181a75151c44aa2c55de4b4"
+     },
+     "implement": {
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/implement/SKILL.md",
+-      "computedHash": "2139cfedf24791adbc839aaab6019cff158af1e28bfead020ec6e0ce01b3e74d"
++      "computedHash": "b6371a0a6723bad551f3adc721e3729a6a97acfc3670dc2bdea198bbe78408c0"
+     },
+     "implement-spec": {
+       "source": "mattpocock/skills",
+@@ -107,25 +101,25 @@
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/setup-matt-pocock-skills/SKILL.md",
+-      "computedHash": "09f2ffc146213ba0d02f385f20e8d340ef04858ba7d90e71963fbd96fdba78d8"
++      "computedHash": "1d35d0afa3ded88c9324d38db08b2cff91cd03e0e11d64786bee41385cd7b9fb"
+     },
+     "shadcn": {
+       "source": "shadcn/ui",
+       "sourceType": "github",
+       "skillPath": "skills/shadcn/SKILL.md",
+-      "computedHash": "f615de216e085a84e31593ad0fa9062232adc40cd87b7c7ab2b8e49abf6500be"
++      "computedHash": "da388f632cd83783c02967446e21941c9ee8291ccb43ba74c23f7d4e9b7c298c"
+     },
+     "tdd": {
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/tdd/SKILL.md",
+-      "computedHash": "9ce12c4a1e209e557fcf9d02086ade3d7ffdb976186018fc1b063b4164246004"
++      "computedHash": "daf55026f456af104a72fa43247f7bcec89e5127316dc5b1b8d675d6a9d8ce94"
+     },
+     "teach": {
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/productivity/teach/SKILL.md",
+-      "computedHash": "b8a69574c7a019bed84e84313dc8bf02e1d1bf925ba43057d433217c63863206"
++      "computedHash": "81c196426808c270a9d4688be291405c038bba11f020b9fe10098ad0f1d8c132"
+     },
+     "to-questionnaire": {
+       "source": "mattpocock/skills",
+@@ -143,7 +137,7 @@
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/to-tickets/SKILL.md",
+-      "computedHash": "bf5e6ebcb4f1272de0c188d5b3901f265a03d1fa9935a21a7a56938e21e2e761"
++      "computedHash": "5f871bdc46a9212222214ba399be4965374208af1bd7f48f1271bef72841dd31"
+     },
+     "triage": {
+       "source": "mattpocock/skills",
+@@ -155,7 +149,7 @@
+       "source": "vercel-labs/agent-skills",
+       "sourceType": "github",
+       "skillPath": "skills/react-best-practices/SKILL.md",
+-      "computedHash": "ca7b0c0c6e5f2750043f7f0cd72d16ac4e2abc48f9b5500d047a4b77a2506212"
++      "computedHash": "3219a1944e404ffc14d1d9d6aef6dd2e3855b81387ee0a044ccbfe14d34c2357"
+     },
+     "wait-what": {
+       "source": "mattpocock/skills",
+@@ -167,13 +161,13 @@
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/wayfinder/SKILL.md",
+-      "computedHash": "fa790eb4255b13d24d7e33ff4891ccd3d621558cc0ab87ae226777538ea16a8f"
++      "computedHash": "71d1296ae9f1ea0397f385f72d11ca3473827f5d067df4d06c58eb03377a57ce"
+     },
+     "wizard": {
+       "source": "mattpocock/skills",
+       "sourceType": "github",
+       "skillPath": "skills/engineering/wizard/SKILL.md",
+-      "computedHash": "dee7f1a523994a1e063c69fe09c2f5b4da97a41ad68107722664e6e472cb2423"
++      "computedHash": "49298bed80e7f722b071ad5d64798c75eb705bbbe0635b9bbffd08cd6fb81647"
+     },
+     "writing-for-agents": {
+       "source": "mattpocock/skills",

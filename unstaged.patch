@@ -1,0 +1,355 @@
+diff --git a/.agents/skills/pm-development/SKILL.md b/.agents/skills/pm-development/SKILL.md
+index 5395eb0..560219e 100644
+--- a/.agents/skills/pm-development/SKILL.md
++++ b/.agents/skills/pm-development/SKILL.md
+@@ -11,14 +11,24 @@ Matt owns clarification, specs, and tickets; Developers use its implementation/T
+ 
+ Check independent implementer/reviewer capacity before dispatch; limited capacity permits preparation, not claims of independent implementation or review. At the start, use installed [development-timeline](../development-timeline/SKILL.md) for stage changes and waits, or the host's existing journal/report when unavailable.
+ 
++## Plan the Next Merge
++
++Read the host's delivery policy before dispatch. In this repository, [Merge first](../../../docs/agents/development-flow.md#merge-first) owns WIP, candidate-size and elapsed-time limits. Its decision points override imported instructions to keep investigating, build an integration branch or run another complete suite.
++
++- Name the next independently mergeable behavior, its owner, normal entrypoint, cheapest useful verification and next decision time. Keep all unimplemented acceptance criteria visible. Shared contracts land with the first real consumer, not a speculative Epic-wide foundation.
++- Check the actual main head and CI. A known red baseline takes priority as a bounded repair; avoid adding feature code behind it or folding every baseline defect into the feature candidate.
++- Work within the host's WIP limit, including unpublished source work. Use spare capacity for independent review, bounded investigation and preparation. A dependent ticket waits for its predecessor's actual integration.
++- After behavior is complete, freeze scope and drive simplification, review, CI and the authorized merge. Batch repairs and reuse unchanged evidence. Do not wait for the entire Epic or create an overlapping superset PR.
++- At a no-progress threshold, choose and report a smaller complete result, a supported prerequisite repair or the real blocker. Changing agents or branches does not reset the clock. A deadline never establishes correctness or waives required CI.
++
+ ## Dispatch and Schedule
+ 
+ - Reconcile parent/child acceptance, accepted experience, and latest corrections before dispatch. List key failure states and known verification risks; settle contradictions using existing decisions or a concrete user decision when needed. Desktop web is the default unless mobile is already included. Preserve commitments and record which criteria a later explicit scope correction supersedes.
+ - Read the tracker, actual blockers, agents, and Git. Claim ready, unowned implementation issues. Keep one owner, branch, and worktree per issue; give the Developer the baseline, approved artifacts, public verification entrypoints, deliverable, authorization, and evidence locations.
+-- Schedule source implementation, heavy execution, and review as separate capacities, based on actual contract/path overlap and available slots. Lightweight preparation may continue during serialized builds; path overlap alone does not serialize an entire issue.
++- Schedule source implementation, heavy execution and review as separate capacities within the host's WIP limit. Two writers must not independently move the same shared contract or consumer baseline. Lightweight preparation may continue during serialized builds.
+ - Isolate databases, migration identifiers, accounts, ports, build directories, and evidence as well as worktrees. Declare shared services, quotas, and consumers with an owner; assign an integration owner for coordinated registration or generation changes. Follow the host's resource ledger and cleanup policy.
+-- Record readiness, last progress, next stage, and a continuation plan before borrowing an implementer. Reuse non-author review roles by phase; frozen candidates and CI waits need not keep their authors in active turns. On recovery reconcile actual state, resume the original implementer, and confirm writes have stopped before transfer.
+-- Give maintenance, diagnosis, and review a phase goal and exit condition. Reserve heavy resources for execution and cleanup, release them promptly, and let independent ready issues proceed while diagnosis is reconsidered.
++- Record readiness, last progress, next stage and a continuation plan before borrowing an implementer. Reuse non-author review roles by phase. On recovery, use the runtime's actual resume operation for an idle/completed agent (for example `followup_task`); a queued message is not activation. Confirm a started acknowledgement or actual process/ledger before reporting work as running, and confirm writes have stopped before transfer.
++- Give maintenance, diagnosis and review a phase goal and exit condition. Reserve heavy resources for execution and cleanup, release them promptly, and apply the host's failure and no-merge decisions before dispatching more implementation.
+ 
+ ## Select Methods When Needed
+ 
+@@ -37,10 +47,12 @@ Complete bounded [reduce-complexity](../reduce-complexity/SKILL.md) or the host'
+ 
+ For GitHub CI, read [the observer contract](references/ci-observer.md) before using `scripts/ci-observer.mjs`; act on changes and failures. The observer reports facts; PM determines required checks from host policy and verifies the final head. When unavailable, use the host's observation process.
+ 
+-Before an authorized merge, verify the complete candidate, simplification, applicable independent review, and required CI on the final head. WIP commits and authorized Draft PRs preserve progress. Completion requires the authorized delivery goal and actual integration: read back the merge, then update the tracker; pending integration stays unfinished.
++Before an authorized merge, verify the complete candidate, simplification, applicable independent review and required CI on the final head. Complete the authorized merge promptly once these hold, then read it back and update the tracker. WIP commits and Draft PRs preserve progress; pending integration stays unfinished. A required failure remains a blocker until repaired or handled by an explicitly reviewed gate change.
+ 
+ ## Report and Improve
+ 
+-Keep the checkpoint to authorization/scope, roles/issues, revisions, resource owners, results, and next steps; link history/evidence. Reuse runner/observer facts through installed timeline projections. At delivery, task end, pause, or handoff, report completed/pending work, evidence, blockers, rework, and limitations. Reports add no merge gate; retain unknown intervals.
++Keep one current checkpoint within the host's bound: authorization, main/CI, candidate/owner, last actual merge, blocker, next decision time and resources. Link history and reuse runner/observer facts. Report integrated work first; then unfinished scope and the next concrete decision. Reports add no merge gate; retain unknown intervals.
+ 
+ Verify approved real user journeys and the usable application address. At milestone completion, review and survey simplification from the entire milestone baseline to the integrated revision, including consumers. Optional cleanup remains a proposal. Feed the same factual record to Matt `retro` for environment improvements; publication and release follow existing authorization.
++
++Own the host's task-end, recovery and weekly environment/tracker maintenance. Preserve recoverable source and evidence, then retire redundant worktrees and temporary output using the existing resource ownership policy.
+diff --git a/.agents/skills/pm-development/references/delivery.md b/.agents/skills/pm-development/references/delivery.md
+index aeb5f28..85ac08e 100644
+--- a/.agents/skills/pm-development/references/delivery.md
++++ b/.agents/skills/pm-development/references/delivery.md
+@@ -4,21 +4,21 @@ Apply these coordination criteria within the host's implementation, testing, rev
+ 
+ ## Early Evidence and Stable Candidates
+ 
+-At dispatch, make known verification risks actionable: failure signature, smallest existing entrypoint, relevant preconditions, tried remedies, unknowns, and an exit condition. Separate a fixture's stable capacity workload from a product's real retention behavior. Verify shared runtime assumptions in the first integrated batch while repairs are cheap.
++At dispatch, name the next merge and known verification risks: failure signature, smallest normal entrypoint, preconditions, tried remedies and an exit condition. Verify shared assumptions in the first producer-to-consumer behavior while repairs are cheap. Use the actual generated contract and normal launcher, not guessed wire values or a scratch callback that omits caller behavior.
+ 
+ For a high-risk oracle or consequential design, get a bounded non-author check of the first actionable example before expanding the pattern. Inspect the authoritative contract, an independent expected result, and the smallest counterexample that would catch a wrong implementation or reject a legal one. This applies especially to dynamic tolerances, rejection/recovery, ordered results, gaps, time, and rate-limit preconditions. Reuse valid TDD red/green evidence; add a counterexample when the oracle changes or a key risk lacks coverage.
+ 
+-Use existing low-cost formatting, type, static, and focused public-behavior checks during editing. Classify cost by actual execution: a documentation check can invoke a compiler. Run full coverage on the stable candidate in the responsible environment, which may be agreed CI. Independent groups may run concurrently when their actual dependencies and resources permit it; every required group still needs a result.
++Use existing low-cost formatting, types and focused behavior checks during editing. Reuse the same assertion across TDD and final coverage; add another layer only for a distinct risk. Classify cost by actual execution. Run full coverage on one stable candidate in the responsible environment, normally CI; a duplicate local full run needs a concrete reason. Independent review may overlap that run. Every required group still needs a result.
+ 
+ Record source/test tree, target build, command, non-sensitive environment/dependencies, actual test coverage, exit and cleanup status, and evidence paths using the existing runner's receipts. Identify uncommitted inputs when present. Zero collected tests, skipped target scenarios, broken locators, or compilation failures leave the target behavior unverified.
+ 
+-Reuse coverage by examining the complete candidate, contracts, dependencies, environment, and semantic delta. A different commit alone does not invalidate every check; unchanged source alone does not establish valid runtime evidence. Cite an existing complete gate's affected coverage instead of immediately repeating it. Required final-head CI remains binding.
++Reuse coverage by candidate, contracts, dependencies, environment and semantic delta. Freeze the candidate during final validation; batch supported repairs before another push. A new commit alone does not invalidate every local check, while unchanged source alone does not establish runtime equivalence. Required final-head CI remains binding. Do not repeat full gates on overlapping stacked candidates or rerun an unchanged failure without evidence of a transient cause.
+ 
+ ## Browser Journeys
+ 
+ Use the approved viewport and journey scope. Before reserving execution resources, inspect discovery, identity, target state, component actions, and rendering prerequisites. Dynamic UI readiness follows a business or geometry predicate rather than a fixed sleep or a stale rectangle.
+ 
+-Cover critical paths through the real business journey; use focused scenarios for layout, copy, or selector changes and reuse unaffected evidence. Visibility means the user can see and operate the content. Relevant screenshots plus geometry or hit testing can distinguish an exposed scene from a canvas covered by panels. Keep failed-scenario evidence separate and redact sensitive fields.
++Cover critical paths through the real business journey; use focused scenarios for layout, copy or selector changes and reuse unaffected evidence. Keep the original same-process history when it is needed to reproduce a CI failure. Visibility means content is exposed and operable, not just that a canvas exists. Use existing safe traces and failure artifacts before adding instrumentation; synthetic accounts alone do not prove that captured headers or tokens are safe to publish.
+ 
+ ## Independent Review and Repair
+ 
+@@ -26,7 +26,7 @@ Pin the base and complete task-owned candidate, including consumers, new files,
+ 
+ The review method comes from installed Matt `code-review` or the host's equivalent. For high risk, use the existing reviewers to challenge concrete assumptions and seek counterexamples; another mandatory review round or cross-vendor model is unnecessary. Formal review checks acceptance and related boundaries together. Each defect needs a location, falsifiable basis, and acceptance condition; optional style preferences and large refactors stay separate.
+ 
+-Batch compatible repairs with the original Developer when available. Refresh affected verification and independent review on the complete repaired candidate, reusing unchanged coverage and roles. Repeated rounds with no new evidence, a recurring defect class, or conflicting findings trigger [Advisor consultation](advisor.md). A retry limit prompts reconsideration; it cannot establish a pass. Complete simplification before final validation and formal review; reuse it while its inputs remain valid. Stable-candidate CI can overlap review.
++Batch repairs with the original Developer. Refresh affected verification and review on the repaired candidate, reusing unchanged coverage and roles. Complete bounded simplification once before formal review; no-change is valid. Publish or link the review with its candidate. Repeated rounds without new evidence trigger the host's diagnosis decision; [Advisor consultation](advisor.md) answers a bounded question and does not add an automatic review round.
+ 
+ ## Bounded Diagnosis
+ 
+@@ -34,7 +34,9 @@ Use Matt `diagnosing-bugs` or the host's equivalent through the original public
+ 
+ Each retry answers an unresolved question by changing a justified condition. Repeated green runs with identical inputs cannot validate a defective performance oracle. Preserve acceptance, budgets, thresholds, and data semantics; diagnostic guards must permit the original assertion to be observed. An instrumentation repair supported by reliable evidence can proceed without exhaustive upstream investigation.
+ 
+-At the diagnosis budget, summarize knowns and unknowns, reconsider the probe, consult, or report the actual blocker. Release heavy resources and continue independent ready work. Missing permissions or external state remain explicit limits.
++Use the host's per-failure and no-merge budgets across agent/context restarts. At the limit, PM chooses a supported minimal repair, a single new discriminating probe with an explicit bounded extension, or an unresolved blocker. An extension does not reset the overall delivery clock. Stop identical retries and release resources; more feature dispatch must still satisfy the host's WIP and baseline rules.
++
++Repeated failure does not establish flakiness. Quarantine needs instability evidence, an owner, a repair deadline and an implemented non-blocking execution route. An unknown cause cannot be turned into a passing gate. Diagnostic scaffolding stays temporary unless its reusable failure-observation value is established; a new evidence-only commit is not delivery progress.
+ 
+ ## Execution Ownership and Records
+ 
+diff --git a/AGENTS.md b/AGENTS.md
+index 538087a..a4ee763 100644
+--- a/AGENTS.md
++++ b/AGENTS.md
+@@ -4,6 +4,8 @@
+ 
+ ### 工程流程
+ 
++以小切片实际合入 main 为开发节拍。派工、候选大小、无进展处理和诊断预算遵循 [development-flow.md 的合并优先规则](docs/agents/development-flow.md#merge-first)；先处理阻塞当前合并的问题，再扩张实现范围。该规则覆盖导入技能中的无限排查、批量集成和重复全量验证默认值。
++
+ 对于面向用户的 UI、UX 或工作流变更，请阅读 [experience-design.md](docs/agents/experience-design.md)。桌面 Web 是默认范围；仅当用户或已批准的任务明确包含移动端时，才添加移动端适配与验证。复用已接受的预览和最新的明确范围变更，包括无需再次预览即可继续的指示。
+ 
+ 对于实现，请阅读 docs/agents/development-flow.md 和 docs/testing/strategy.md。通过已商定的公共测试接口处理一个无阻塞的垂直工单。WIP 提交和获授权的草稿 PR 可以保存进度；完成和合并到 main 需要简化、独立的 Standards + Spec 审查以及必需的最终 head CI。项目流程明确覆盖冲突的导入技能默认设置；保持导入技能不变。
+@@ -14,4 +16,4 @@
+ 
+ ### 环境与跟踪器维护
+ 
+-在任务清理、会话恢复和每周 PM 维护轮次时，请遵循 [environment-maintenance.md](docs/agents/environment-maintenance.md)，以核对工作树、临时输出、包缓存和未关闭的 issue/PR。保留可恢复的源代码，并在移除前检查实际消费者；记录回收的空间和保留的所有者。
+\ No newline at end of file
++在任务清理、会话恢复和每周 PM 维护轮次时，请遵循 [environment-maintenance.md](docs/agents/environment-maintenance.md)，以核对工作树、临时输出、包缓存和未关闭的 issue/PR。保留可恢复的源代码，并在移除前检查实际消费者；记录回收的空间和保留的所有者。
+diff --git a/docs/agents/development-flow.md b/docs/agents/development-flow.md
+index 9f17cbe..e58fe26 100644
+--- a/docs/agents/development-flow.md
++++ b/docs/agents/development-flow.md
+@@ -4,28 +4,50 @@ Choose the route from the agreed task scope; this project is a multi-session bui
+ 
+ Desktop web is the default product and browser-validation scope. Include mobile adaptation, narrow-screen, touch or device testing only when the user or approved task explicitly requires them. Apply the latest explicit user scope change to active work and record its effect on earlier acceptance criteria; this does not authorize rewriting published issues or parent specs.
+ 
++## Merge first
++
++Schedule around the next independently mergeable behavior. A draft, a local green run or more implemented tickets does not replace actual integration. These rules override imported skill defaults, including unlimited diagnosis, integration branches and repeated local full-suite runs.
++
++| Decision point                                    | Default and required response                                                                                                                                                                                                                                                           |
++| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
++| Work in progress                                  | One implementation item, including unpublished code and Draft PRs. A second is allowed only to unblock the first, or after the first slice has merged when contracts and consumers are independent. Maximum two; reviewers and read-only preparation do not add implementation items.   |
++| Slice size                                        | Aim for 200–500 added non-generated code lines, including tests. Above 1,000, stop expanding and split the observable behavior, or record the inseparable coupling and a bounded completion plan. Generated files and documentation are reported separately.                            |
++| Four working hours without a reviewable candidate | PM freezes new scope and selects a smaller complete result, a prerequisite repair, or a concrete blocker. Preserve all remaining acceptance criteria as unfinished work.                                                                                                                |
++| Eight working hours without an actual merge       | PM stops dispatching feature work, explains the failed delivery plan, and chooses the next bounded route. Do not reset this clock by opening another ticket, branch or context. If a product decision or unavailable permission is essential, present the concrete options to the user. |
++| One failure                                       | At most two working hours or three discriminating attempts, whichever comes first; then apply the diagnosis decision below.                                                                                                                                                             |
++
++Working time here is elapsed time in recorded periods when the task is being pursued, including CI and diagnosis waits. Explicit user pauses and known unavailable execution periods are separate; unknown historical gaps stay unknown. These are intervention thresholds, not delivery guarantees or permission to bypass checks. Record them in the existing checkpoint; no new dashboard is required.
++
++The delivery clock starts when implementation is dispatched. Only an actual merge that advances the named result or removes its prerequisite blocker resets it; an unrelated cosmetic merge does not. Record the last transition and decision time using the existing stage journal.
++
++Before feature dispatch, inspect the actual main head and its required CI. Reuse valid results for that head. A known red baseline becomes the first bounded repair, with one owner and its own candidate; do not accumulate features behind it or absorb unrelated baseline repairs into every feature PR. Unknown baseline status needs one responsible verification route, not duplicate local and hosted full runs.
++
++Land the first slice before scheduling dependent implementation. Shared contracts travel with their first real consumer and a small public example; avoid a standalone framework or the entire Epic's DTO/schema up front. An integration branch is an exception for an evidenced inseparable change, with an owner and exit plan; it is not the default route for feature tickets. Keep a single PR for each candidate, and never create a superset PR while its overlapping originals remain active.
++
++Once the agreed behavior works, stop adding scope. Run bounded simplification, obtain the required independent review and final-head CI, then merge promptly within existing authorization. Review and CI may run concurrently against the same frozen candidate. Waiting for another ticket or an Epic report is not a merge condition.
++
+ ## Planning and publication
+ 
+ 1. Refine requirements with grill-with-docs, recording terminology and meaningful ADRs. For UI, UX and user-visible workflow changes, follow [experience design](experience-design.md) to establish a runnable, accepted experience before implementation. Reuse accepted versions and explicit user corrections, including an instruction to skip another preview.
+ 2. Synthesize the agreed behavior and public testing interfaces into a spec with to-spec. Existing architecture material is an input; avoid repeating the interview just to reformat it.
+-3. Use to-tickets to produce vertical, individually verifiable slices with only their real blockers.
++3. Use to-tickets to produce vertical, independently mergeable slices with only their real blockers and the limits above. For each slice, name its observable result, cheapest useful test seam and what can land before the next ticket. A later slice must not be needed to make the current one usable or green.
+ 4. Show the numbered breakdown, full acceptance criteria and test strategy. Obtain the user's approval of granularity/dependencies before publishing.
+-5. Publish the spec and approved implementation tickets to GitHub; create and verify native blocking edges. Leave source/parent issues unchanged thereafter.
++5. Publish the spec and approved implementation tickets to GitHub; create and verify native blocking edges. Keep specs as reference issues, and preserve the approved scope when splitting. Spec completion and explicitly authorized scope retirement follow the issue-tracker policy.
+ 
+-The integrated viewer is described in [product architecture](../architecture/lab-word.md). Digital Twin Foundation V1 has an approved experience and published implementation tickets; start with [the development handoff](../handoffs/digital-twin-foundation-v1.md). Its GitHub spec and child tickets own implementation scope and dependencies. Historical template tickets and autonomous-build approvals do not authorize work in Lab World.
++The tracker owns current scope and dependencies. Older handoffs, previews and closed specs are reusable evidence, not an active assignment. Check the latest explicit scope before reviving an old branch or its acceptance matrix.
+ 
+ ## Per implementation ticket
+ 
+-1. Prefer a fresh implementation context for a new ticket; resume the original writer for repairs. If fresh contexts are unavailable, give an eligible existing developer a bounded handoff after confirming its previous writes have stopped. Provide the ticket, comments, blockers, glossary and relevant ADRs. Do a short design/Spec preflight: align parent and child criteria, accepted experience, latest corrections and public testing interfaces. Resolve implementation facts directly; use existing decisions and authorization without reopening settled approvals.
++1. Prefer a fresh implementation context for a new ticket; resume the original writer for repairs. If transferring work, confirm previous writes have stopped. Give the owner the ticket, baseline, relevant decisions, normal entrypoint, first observable result, test seam and the next delivery decision time. Resolve implementation facts directly; use existing authorization without reopening settled approvals.
+ 2. Claim only an implementation ticket whose blockers are complete. Keep unrelated repository/user changes intact.
+ 3. Run implement and tdd at the agreed public interfaces: observe one behavior red, make the minimal end-to-end change green, then take the next behavior. Reuse that red/green evidence for the same VDD assertion as described in [testing strategy](../testing/strategy.md).
+-4. Run focused checks during development. Update the business, paired online guide or tutorial, generated references and ownership with the feature. WIP commits on the feature branch may preserve each slice; when publication is authorized, push and open a linked Draft PR with the actual verified and pending scope. Commit or Draft PR existence does not mean completion or authorize merge.
++4. Run focused checks during development and validate the normal entrypoint early. Update affected bilingual guides, generated references and ownership. Open one linked Draft PR after the first coherent green slice when publication is authorized; batch related repairs before further pushes. Keep diagnostic-only probes out of the delivery branch unless they are a justified reusable harness repair.
+ 5. For consequential design or contract choices, obtain a short independent pre-review while changes are still cheap. Once behavior works, batch compatible actionable findings, apply their bounded repairs, then run [reduce-complexity](../../.agents/skills/reduce-complexity/SKILL.md). Keep larger refactors as proposals; no-change and optional-cleanup deferral are valid outcomes.
+-6. Pin the complete candidate and obtain independent Standards + Spec review under the policy below. Refresh affected review coverage after repairs; reuse unchanged coverage. Findings that require a product decision follow existing authorization; routine repairs do not create another approval stage.
++6. Pin the complete candidate and obtain independent Standards + Spec review under the policy below. Publish the review on the PR when that communication is authorized; otherwise link the local report. Batch actionable repairs and refresh only affected coverage. Routine repairs do not create another approval stage.
+ 7. On the stable final candidate, complete the coverage matrix in [testing strategy](../testing/strategy.md). Run the full gate once in the responsible environment: local focused checks plus final-head CI `pnpm check` can provide final coverage. If local full validation is needed, record why. A failed check or later semantic change refreshes affected coverage; a changed commit id alone does not require repeating every suite. For visible changes, complete [real-application acceptance](experience-design.md#5-verify-the-real-application) within the agreed viewport and journey scope.
+-8. Publish reviewed changes within existing authorization, with behavior, evidence and limits. Before main merge, require final changes to be covered by simplification, independent review and required final-head CI. Verify actual merge and tracker state. Reuse completed passes while their inputs remain valid; continue further tickets only within the user's actual Lab World authorization.
++8. Integrate within existing authorization as soon as simplification, independent review and required final-head CI cover the final changes. Read back the merge and tracker state before taking dependent work. Report a blocked merge as unfinished delivery with its exact next decision, rather than starting another implementation to fill the wait.
+ 
+-Deliver tests, documentation and ownership with the behavior. The release ticket checks that already-delivered chapters form a coherent learning path.
++Deliver tests, usage documentation and ownership with the behavior. Update existing pages or add a short guide for a new entrypoint. Write a new tutorial sequence once at Epic completion, unless a ticket's explicitly approved acceptance requires a chapter earlier.
+ 
+ ## Review and integration policy
+ 
+@@ -38,11 +60,21 @@ This project policy overrides imported `implement` and `code-review` defaults wi
+ 
+ Batch related repairs when they preserve a clear diagnosis and independently observable behavior. Classify setup/oracle failures separately from product defects, and reuse completed checks by their source, contract, environment and coverage inputs. A named documentation or browser command is a coverage route, not a requirement to execute identical checks again when valid evidence already covers it.
+ 
++## Diagnosis decision
++
++Classify a failure as product, test/oracle, environment, or still unknown. Keep the original acceptance assertion. A focused green that omits the original same-process history only establishes non-reproduction; it does not clear the original failure. Check discovery, actual case counts and relevant setup before another expensive run. Reuse existing safe traces and first-failure facts before adding instrumentation.
++
++At the failure budget, the PM must choose: apply the supported minimal repair; change to one named discriminating probe with new evidence and an explicit limited extension; or record the unresolved blocker and stop that line of work. The extension remains subject to the overall no-merge threshold. A new agent, branch or narrower test name does not reset the original failure budget. Imported instructions to keep trying or to minimise every element do not override this decision.
++
++Two failures alone do not establish flakiness. Quarantine requires evidence that the test or environment is unstable, an owner and a repair deadline, and a real non-blocking execution route. Unknown failures remain blockers. Until a reviewed CI change implements test selection or quarantine, the existing required checks still apply; labels and prose do not switch them off.
++
++Required checks run once on each stable final candidate in the responsible environment. Rerun after a justified repair or demonstrated transient failure, not because an unchanged retry might turn green. Full CI is a validation route, not the default diagnostic probe. Preserve mandatory final-head checks even when focused local evidence is reused.
++
+ ## Epic completion
+ 
+ Once the Epic's implementation tickets are integrated, run the reduce-complexity Epic survey over the whole Epic and its current consumers. Use the pre-Epic revision and integrated head, or an explicit child-PR inventory; the last child's diff alone is insufficient. Report supported opportunities to reduce duplicated state, APIs, configuration and other maintenance costs.
+ 
+-The survey produces proposals. Required behavior defects affect acceptance; optional cleanup can become follow-up work without reopening completed tickets or blocking an otherwise complete Epic. Implement accepted proposals as bounded changes through the same validation and code-review flow. Publishing follow-ups or changing parent/spec state still follows [issue-tracker.md](issue-tracker.md) and existing authorization.
++The survey produces proposals. Required behavior defects affect acceptance; optional cleanup can become follow-up work without reopening completed tickets or blocking an otherwise complete Epic. Assemble the tutorial sequence and verify the integrated journey. Publishing follow-ups, closing the spec or changing scope follows [issue-tracker.md](issue-tracker.md) and existing authorization.
+ 
+ Keep imported skills intact for upstream updates. Repository-specific overrides belong in AGENTS.md, this workflow and repository-owned skills.
+ 
+@@ -50,8 +82,8 @@ Keep imported skills intact for upstream updates. Repository-specific overrides
+ 
+ Keep the current design/spec/ticket reasoning together through publication when feasible. Each implementation context is then independent because the ticket is self-contained.
+ 
+-For PM coordination, record lightweight stage starts/ends, waits, role changes and rework using [development-timeline](../../.agents/skills/development-timeline/SKILL.md). Keep the current checkpoint small and link event history and evidence. Record actual intervals and unknowns rather than reconstructing every action; a timeline report is for scheduling and diagnosis, not a new merge condition.
++For PM coordination, record lightweight stage starts/ends, waits, role changes and rework using [development-timeline](../../.agents/skills/development-timeline/SKILL.md). Keep one current checkpoint under 30 lines: authorization, main/CI, active candidate and owner, last actual merge, current blocker, next decision time and resources. Link history. Confirm actual agent activation before reporting work as running; resuming a completed agent needs the runtime's activation operation, such as `followup_task`, not merely a queued message. Reports are not merge gates.
+ 
+ Use a prototype only when a design question needs runnable evidence; return the result to the spec before implementation. Use diagnosing-bugs for a difficult regression, research for primary-source reading, and wizard only for a step the agent cannot perform itself.
+ 
+-For diagnosis, accept a cause-equivalent reproduction when the public failure and evidence distinguish the same defect; preserve the original assertion and thresholds. An exact numeric match is needed only when it distinguishes competing causes. Set a diagnostic timebox and evidence-based stop condition: at the limit, change the probe, consult an Advisor or report the remaining blocker and release idle capacity. A timebox never turns a failure into a pass or permits skipping a required assertion.
++For diagnosis, accept a cause-equivalent reproduction when it distinguishes the same defect. An exact numeric match is needed only when it separates competing causes. Follow the diagnosis decision above. At task cleanup, recovery and the weekly pass, use [environment maintenance](environment-maintenance.md).
+diff --git a/docs/agents/documentation.md b/docs/agents/documentation.md
+index fb05272..a745348 100644
+--- a/docs/agents/documentation.md
++++ b/docs/agents/documentation.md
+@@ -9,7 +9,7 @@ Apply the author guide's [ASD-STE100-inspired writing rules](../guides/maintain-
+ 1. Identify the reader, task and page type. Use `overview`, `tutorial`, `guide`, `concept` or `reference` in `docs/site.json`.
+ 2. Inspect the current public interface, source and existing behavior checks. Use CONTEXT terms and accepted ADRs. Distinguish production capabilities, isolated previews and planned behavior.
+ 3. Write the smallest complete path from source location to observable result. Tutorials continue the same business code; guides can be entered independently. Explain the reason after the first runnable result.
+-4. Deliver Chinese and English sources together with one stable chapter id. Set explicit `previous`/`next` ids when pages form a sequence; absent relationships disable automatic unrelated neighbors.
++4. Deliver Chinese and English sources together with one stable chapter id. A ticket updates affected guides or adds a short guide for a new entrypoint; new tutorial sequences are assembled at Epic completion unless explicitly required by the ticket. Set explicit `previous`/`next` ids when pages form a sequence; absent relationships disable automatic unrelated neighbors.
+ 5. Update code, tests, source snippets, links and business ownership with the capability. Keep API DTOs and configuration defaults generated from implementation.
+ 6. Run affected public behavior checks, `pnpm docs:check` and `pnpm docs:build`. Compare visible navigation and layouts with the accepted experience. Use the repository simplification and Standards + Spec review before delivery.
+ 
+@@ -17,13 +17,13 @@ Done when the task can be followed in its declared source version, both language
+ 
+ ## Content responsibilities
+ 
+-| Type | Required content |
+-| --- | --- |
+-| Tutorial | Starting code state, complete change, files, run/request, expected result, one failure check, next stage |
+-| Guide | Goal, prerequisites, public interface, complete minimal implementation, verification, recovery |
+-| Concept | Definition, real relationship diagram, minimal example, tradeoff and failure boundary, practical guide |
+-| Reference | Source, classified index, types/options/returns/errors/limits, links to usage |
+-| Overview | Product scope, current stage, task entry paths and a first result |
++| Type      | Required content                                                                                         |
++| --------- | -------------------------------------------------------------------------------------------------------- |
++| Tutorial  | Starting code state, complete change, files, run/request, expected result, one failure check, next stage |
++| Guide     | Goal, prerequisites, public interface, complete minimal implementation, verification, recovery           |
++| Concept   | Definition, real relationship diagram, minimal example, tradeoff and failure boundary, practical guide   |
++| Reference | Source, classified index, types/options/returns/errors/limits, links to usage                            |
++| Overview  | Product scope, current stage, task entry paths and a first result                                        |
+ 
+ Keep historical tickets and validation reports in maintainer records. The public page describes current behavior. The footer SHA identifies the build source; it does not prove every command was tested.
+ 
+diff --git a/docs/agents/environment-maintenance.md b/docs/agents/environment-maintenance.md
+index c1842fb..e7a9454 100644
+--- a/docs/agents/environment-maintenance.md
++++ b/docs/agents/environment-maintenance.md
+@@ -24,7 +24,7 @@ Measure each root separately when reporting sizes: hard links shared between pac
+ - **Worktrees:** pin every removed head with a Git reference and verify a source bundle. Save working-tree and index patches plus untracked source before removing a dirty worktree. Preserve required ignored evidence separately. Verify the archives, then recheck the head, complete status and consumers immediately before `git worktree remove`. Use `--force` only for the exact archived candidate. Keep source branches until their delivery or archive disposition is settled.
+ - **Scratch:** retain current checkpoints, unpublished designs, accepted previews and evidence needed by open work. Archive superseded runs before deleting their original directories. Keep small durable conclusions in `docs/internal/`; recovery instructions identify the source revision, archive and checksum. Avoid creating a full source checkout for each probe when a shared immutable revision and a small patch suffice.
+ - **Package caches:** use the owning tool's cleanup interface after checking package-manager consumers. Use `uv cache prune` for ordinary maintenance; `uv cache prune --ci` can additionally reclaim downloaded wheels and unpacked packages when installed environments and rebuildable dependencies are understood. Use `pnpm store prune` for its selected store. Preserve managed Python installations, installed virtual environments, browser binaries required by active work, credentials and persistent application data. Do not manually delete package-store internals or use forced cache removal.
+-- **Docker:** follow the resource ownership and reconciliation rules in [AGENTS.md](../../AGENTS.md#docker-resources). Remove only the explicit owned resource list; retain other projects' resources.
++- **Docker, when a task uses it:** inventory the daemon and record owned temporary resources and their consumers. Reconcile after interruption and completion; stop consumers before removing the explicit owned resource list. Preserve shared services, persistent data and other projects' resources. Use no global prune. Ordinary Node work does not require a Docker inventory.
+ 
+ Write the archive manifest before removal and update it after each completed action. On interruption, resume from that manifest and recheck consumers and status. Keep the last verified recovery copy until the source is delivered or explicitly retired; backup age alone does not authorize its removal. At each weekly pass, review older archives so backups do not become a second unbounded scratch directory.
+ 
+diff --git a/docs/agents/experience-design.md b/docs/agents/experience-design.md
+index dafddf8..3a3d362 100644
+--- a/docs/agents/experience-design.md
++++ b/docs/agents/experience-design.md
+@@ -40,7 +40,7 @@ Translate the experience into observable acceptance criteria and tests at the in
+ 
+ Before substantial implementation, compare the parent criteria, child ticket, accepted preview and latest explicit corrections in a short design/Spec preflight. A preview approval does not silently waive a contradictory criterion. Resolve settled priorities from existing decisions and record the result; seek a product decision only for a material conflict that remains unresolved.
+ 
+-Implement using the real components and contracts. Prototype code is evidence for the design, not a production-quality implementation. Preserve example ownership and Core independence, update the runnable example and paired tutorials, then run the repository's simplification, required checks and Standards + Spec review.
++Implement using the real components and contracts. Prototype code is evidence for the design, not a production-quality implementation. Preserve example ownership and Core independence, update the runnable example and affected bilingual guides, then run the repository's bounded simplification, required checks and Standards + Spec review. New tutorial sequences follow the documentation cadence in [development-flow.md](development-flow.md).
+ 
+ ## 5. Verify the real application
+ 
+diff --git a/docs/agents/issue-tracker.md b/docs/agents/issue-tracker.md
+index ef5a658..7c7ef4e 100644
+--- a/docs/agents/issue-tracker.md
++++ b/docs/agents/issue-tracker.md
+@@ -6,7 +6,7 @@ Canonical tracker: https://github.com/CaiZongyuan/labworld/issues. Use the gh CL
+ 
+ - Specs and implementation tickets are GitHub issues. A spec is a reference document, not a single implementation assignment; only the scoped implementation tickets are claimed for coding.
+ - Read the full issue body, comments, labels and current blockers before implementation. Use each child ticket's Parent reference to find the approved spec.
+-- Publish only the reviewed ticket breakdown. Each implementation ticket is a complete observable behavior with acceptance criteria, agreed tests and an online tutorial requirement.
++- Publish only the reviewed ticket breakdown. Each implementation ticket is an independently mergeable observable behavior with acceptance criteria, agreed tests and usage documentation. New tutorial sequences normally belong to Epic completion; preserve any explicitly approved per-ticket tutorial criterion.
+ - Local plans and .scratch artifacts are design or publication drafts, not a second issue tracker. Record resulting GitHub identifiers after publication.
+ - Create multiline bodies from UTF-8 files using --body-file. Preserve the approved content and real newlines.
+ - Apply ready-for-agent to fully specified implementation tickets. This means the ticket is specified; it can start only when its blockers are closed.
+@@ -20,12 +20,14 @@ Create blockers before blocked tickets, retain readable Blocked by issue links i
+ 
+ A ticket is eligible only when all blocking issues are closed and no other implementer owns it. Ready labels alone do not prove eligibility. Distinct unblocked branches may proceed independently.
+ 
+-Do not modify or close a source/parent spec issue while splitting it. Keep implementation status in child tickets and PRs.
++Do not modify or close a source/parent spec issue while publishing its breakdown. Keep implementation status in child tickets and PRs. After integration, close the spec only when its agreed scope is delivered; a child closed as `not_planned` is not delivered scope. An explicitly authorized scope retirement may close the old spec and tasks with a replacement or deferral explanation.
+ 
+ ## Completion
+ 
+ Use an isolated branch/worktree appropriate to the task. Follow [development-flow.md](development-flow.md): WIP commits and authorized Draft PRs may preserve progress before final review, with verified and pending scope clearly stated. A PR references its implementation issue and contains behavior and validation evidence. Final merge requires the stable candidate's simplification, independent Standards/Spec coverage and required final-head CI. Close the implementation issue when the agreed completed work is integrated, not merely because a commit, PR or draft exists. Publishing tickets does not itself authorize starting an unlimited implementation run.
+ 
++Follow the [merge-first limits](development-flow.md#merge-first) before claiming another item. Keep one delivery PR per candidate. When an item cannot fit a bounded merge, preserve its remaining acceptance criteria and re-scope the delivery plan within existing authorization; do not silently mark deferred work done or open a larger superset PR.
++
+ ## Pull requests as a triage surface
+ 
+ PRs as a request surface: no.
+diff --git a/docs/testing/strategy.md b/docs/testing/strategy.md
+index 248b7fa..c702f85 100644
+--- a/docs/testing/strategy.md
++++ b/docs/testing/strategy.md
+@@ -4,15 +4,15 @@
+ 
+ 默认范围是 desktop web。只有用户或已批准任务明确要求移动端时，才增加移动适配、窄屏、触屏或真机验证。最新明确范围更改优先，记录对旧验收项的影响；既有测试保留原职责，不因默认范围主动扩展新场景或擅改历史 issues。
+ 
+-| 接口 | 工具与依赖 | 验证责任 |
+-| --- | --- | --- |
+-| 后端 HTTP | Node/Hono、真实 HTTP、隔离 PGlite 目录 | 身份、成员、权限、CRUD、错误与持久化 |
+-| 公开任务/存储 | Node 服务、目录租约与本地校验字节 | 租约、重试、对象清理、缓存与事务恢复 |
+-| React Views | Vitest、Testing Library、user-event；MSW 仅替代 HTTP | 表单、选择、导入反馈、拒绝、冲突与恢复 |
+-| 真实应用浏览器 | Playwright 与真实应用栈 | Cookie/CSRF、SDK、权限、文件、任务及关键旅程 |
+-| Lab 三维浏览器 | Playwright、真实 GLB/HDR 和 WebGL | 实际像素、取景、相机、点选、快速切换与资源释放 |
+-| 文档浏览器 | Playwright 与静态 dist | 导航、搜索、同页语言、主题、约定视口和自定义 base |
+-| 工程合同 | 合同生成、边界检查、文档构建与性能预算 | 协议漂移、依赖、来源链接和确定性计量 |
++| 接口           | 工具与依赖                                           | 验证责任                                          |
++| -------------- | ---------------------------------------------------- | ------------------------------------------------- |
++| 后端 HTTP      | Node/Hono、真实 HTTP、隔离 PGlite 目录               | 身份、成员、权限、CRUD、错误与持久化              |
++| 公开任务/存储  | Node 服务、目录租约与本地校验字节                    | 租约、重试、对象清理、缓存与事务恢复              |
++| React Views    | Vitest、Testing Library、user-event；MSW 仅替代 HTTP | 表单、选择、导入反馈、拒绝、冲突与恢复            |
++| 真实应用浏览器 | Playwright 与真实应用栈                              | Cookie/CSRF、SDK、权限、文件、任务及关键旅程      |
++| Lab 三维浏览器 | Playwright、真实 GLB/HDR 和 WebGL                    | 实际像素、取景、相机、点选、快速切换与资源释放    |
++| 文档浏览器     | Playwright 与静态 dist                               | 导航、搜索、同页语言、主题、约定视口和自定义 base |
++| 工程合同       | 合同生成、边界检查、文档构建与性能预算               | 协议漂移、依赖、来源链接和确定性计量              |
+ 
+ ## 公开接口与风险
+ 
+@@ -22,6 +22,8 @@
+ 
+ 同一验收断言的真实 TDD red 与恢复 green 可直接作为 VDD 辨别证据。仅当缺少有效 red、检查对象变化或存在具体假绿风险时补最小反证；编译、零收集和错误定位器失败不算业务 red。性能预算可用独立计量 observer，但业务结果仍从公开接口断言，并记录目标隔离和计量有效性。
+ 
++每个切片先在能证明行为的最低成本公开接缝建立反馈。HTTP 或可操作组件已经证明的合同，不为“补一层测试”再次逐项搬到浏览器；真实浏览器负责正常入口、跨端接合、实际渲染及明确约定的关键旅程。新增安全、恢复或共享合同风险按受影响边界补齐。覆盖随切片交付，完整端到端组合在里程碑检查，不要求每张票重演整个 Epic。
++
+ ## Lab 当前与后续
+ 
+ 正式 Lab Viewer 与会话资产库已有渲染、导入、相机、选择、失败恢复、响应式和重复导入资源计数证据，记录在[体验文件](../ui/lab-viewer-experience.md)与[实现验证](../reviews/2026-10-02-lab-viewer-implementation.md)。主导航为 Lab 与资产库，登录后的默认业务入口为 Lab。
+@@ -36,8 +38,12 @@ FPS 和内存趋势附场景、资产、浏览器与硬件；软件渲染及单
+ 
+ 编辑循环跑定向检查。稳定最终候选的完整门禁 `pnpm check` 在负责环境运行一次；本地定向检查与最终 head 的 CI 完整门禁可以共同覆盖交付。本地也跑完整门禁时注明需要它的原因。它已经包含的受影响检查按覆盖矩阵引用，不先重复执行。失败、修复或 main 前进后，按语义、依赖和环境变化刷新受影响检查与审查；影响无法界定时再完整重跑。记录 base、candidate commit/tree、实际环境、覆盖入口、结果和可复用证据，简化与独立双轴评审按[开发流程](../agents/development-flow.md)完成。
+ 
++验证候选冻结后可并行进行独立审查和 CI。完整 CI 失败时先读现有失败产物，在原失败所需的用例数量、顺序和环境下建立定向反馈；缺少同进程前置条件的绿色只算未复现。诊断次数与时限统一采用[合并优先规则](../agents/development-flow.md#merge-first)，换 agent、分支或探针名称不重置预算。未知失败继续作为 blocker；隔离不稳定测试需要原因证据和实际执行机制，不能仅因失败两次就移出门禁。
++
++当前 workflow 仍执行完整 Linux、浏览器分片与 Windows 检查。`ci:full`、轻量 PR 门禁和 quarantine 分流尚未实现；流程文字或标签不会改变现有必需检查。CI 分层须作为有独立验收的工程改动交付。
++
+ 新的关键旅程、浏览器回归或里程碑验收需要真实 E2E；已有旅程按有效输入复用。CSS/布局修复跑受影响状态和约定视口的 focused case。heavy browser 前先核对 discovery、测试数量与场景前提，再通过显式 ready 条件观察稳定的外部几何。三维可见性同时核对外部遮挡、可见像素或真实操作，不能用 canvas 存在替代场景曝光证据。
+ 
+-资源记录、重试与清理按 [AGENTS.md 的 Docker run 规则](../../AGENTS.md#docker-resources)，由 fixture/supervisor 自动留下 owned ledger。阶段、等待和返工只做轻量记录；需要时用 [development-timeline](../../.agents/skills/development-timeline/SKILL.md)分析，报告不是交付门禁。
++资源记录、重试与清理按[环境维护规则](../agents/environment-maintenance.md)，由 fixture/supervisor 自动留下资源归属记录。阶段、等待和返工只做轻量记录；需要时用 [development-timeline](../../.agents/skills/development-timeline/SKILL.md)分析，报告不是交付门禁。
+ 
+ 命令与前提见[开发与验证](t01-feedback-loop.md)。

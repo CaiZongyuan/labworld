@@ -1,0 +1,1527 @@
+{
+  "purpose": "Recovery anchor for retired branches, not a product merge",
+  "main": "9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5",
+  "baselineBranch": "chore/development-baseline",
+  "baselineHead": "185af5f49d1992595640cbd1bf70452539d6775a",
+  "refsBefore": [
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/102-browser-frontiers",
+      "sha": "c6c803814315c4c44095c3fff06588db5b954f74",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/102-foundation-fallback",
+      "sha": "d3b7190df2d0ef69905f673f47df24857e1afade",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/102-initial-render-readiness",
+      "sha": "bf073c7cff060fd00d9df8415b91b280168d5503",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/102-recording-clock-repair",
+      "sha": "042535c25f92d909f023e69a8479d08f56885183",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/102-tls-admission-diagnosis",
+      "sha": "1f26c3a1c9ef597e35b8ec8d8ee07dad01a04a3b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-default-update-attribution",
+      "sha": "47a7f15348bfdb33ac4d904c21d2af39dc73ea61",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-foundation-renderer-trace",
+      "sha": "f6a78036c94f38501c1f5f3b446c82e45e8d6aac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-glb-fallback-repair",
+      "sha": "afa1dd4cebd0c9fc7a368b8d47b6bd8c80ec1211",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-offline-appearance",
+      "sha": "fd53fbf702e96ddad6c821272d28e2c8858ae8a1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-post-orbit-predicate",
+      "sha": "017d3f1bce029196bd70b1add094272d6871cb10",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-preference-receipt",
+      "sha": "94f4fbba1b4c796c22c34749cfa52ce511751da1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-reduced-motion-preference",
+      "sha": "011d7b32578786daddf0ca82d542753af3961495",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-shadow-depth-treatment",
+      "sha": "e2e145b0fd94264714850456a090b1f615c020f7",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-shadow-receiver-depth",
+      "sha": "9e85fd98561fa64394993cff8d9fa735eaf54ab8",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-spatial-delivery",
+      "sha": "66b81684c778b43407721971fd1cfb224824dd6a",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/65-workbench-native-trace",
+      "sha": "1ebb5d97f1284f60bc58325ad5e5493bddb8e694",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/70-synthetic-motion",
+      "sha": "316f4bb0fb63905b4794cb17121d6ba42b8d0cdf",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/71-authoritative-session",
+      "sha": "1a4ae66dd4ad9f61e520bfe10c8bb1c3e7a73743",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/72-reliable-recording",
+      "sha": "36b091cff4c89a3e22cccb16e88b0756cb0e7fce",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/73-newton-adapter",
+      "sha": "d52b7c0c6fe0906c8e4d23011d8d92a5b26a2618",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/74-secure-motion",
+      "sha": "6c7594ed9e65a4e7eb9bd17572616765d5cbf32f",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/75-robot-controls",
+      "sha": "b3863f5f9319f63c967777f3386b30b08c1590a3",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-89-foundation-delivery",
+      "sha": "a0b6cb9c273642e4f613cbc6d5267878b9716c26",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-geometry-diagnosis",
+      "sha": "f6170c91dd5005d0829d9dfdd59e0bd08b83cffd",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-model-acquisition-diagnosis",
+      "sha": "6211ae6ebd8c66ac2a640fc69004bd0f32b827a0",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-model-attachment-diagnosis",
+      "sha": "80401ff0176becf2975e6c0cbb05ad86b52aa803",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-motion-render-diagnosis",
+      "sha": "bdde15cc03cd6a09f4b872b26371dfd67f6e5010",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-safe-test-failure-facts",
+      "sha": "8bdeb1a9ca8f16b9f90ba43e2d0d748619b6b9e5",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-source-presence",
+      "sha": "36ee4a06e9aa7e2d612fc7993793a060d49dde9a",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-static-canvas-diagnosis",
+      "sha": "fa8c97e4490054831033b789aa169ae44802a481",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-static-canvas-lifecycle",
+      "sha": "c20f1c97efccb39470e2c1ce1fc03df916c65013",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-static-model-pending",
+      "sha": "795964cd49765bc1dcc5cbbe0784d8a78e6373fe",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-static-model-pending-hosted",
+      "sha": "23bb9cc95c0b0d64005735221b42500ccead041b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-static-model-pending-prefix",
+      "sha": "f216fa7fcf42ea089d987a33724778d3d0e5b9c5",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-static-render-frontier",
+      "sha": "4d43ca191ce0603e33128c1131c023a5ef575b51",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-tls-control-diagnosis",
+      "sha": "88728876b935d65b0a7c46240aa062dd526e49d2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-tls-control-repair",
+      "sha": "bf6334bac955a01f62a2d9c8a88d3cb60389ac1b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-windows-original-prefix",
+      "sha": "9c57ebf02f0d3a46a415fd319b5f5c4c840495ac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-windows-pause-control",
+      "sha": "8101499cae524e2c34af961c60675449b6ed22c8",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-windows-public-frontiers",
+      "sha": "d5c8601f56065c3307508ffa0bae4cdec09d7e90",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-windows-recovery",
+      "sha": "c471fe075cb9243c8df11c595d2fa495cc551fce",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-windows-source-client-diagnosis",
+      "sha": "45e4628a030948a8b9725c48331c65e4d35f7506",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-windows-sync-prefix",
+      "sha": "52e5683963d3d27718c0fb2542e7415340c49da7",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/87-windows-task-receipt",
+      "sha": "c297c25030f77c694c7fc5ed9ec66646e953e8d2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/88-asset-integration",
+      "sha": "5b24fbdabe9f2f027ac664a1756b2e5357bd82ac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/88-complete-assets",
+      "sha": "d6eab513f2b5037739282f110856a5fb34e33aa2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/88-records-readiness",
+      "sha": "599cc309810b5ec0eb18963db4150da8620fdabf",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/89-buffered-spike",
+      "sha": "12f6c6d5c866329535a595852d23830b7a8d9751",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/89-native-integration",
+      "sha": "e253e93354c0819f8e976725d42e5d6215b2c42c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/89-native-source-tools",
+      "sha": "81e61599fd07da2acd9f89770ca00747ff7987eb",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/89-recording-first-fault",
+      "sha": "7963142e4e4aa45f73227414ddcd639effd44ebc",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/90-source-scene-staging",
+      "sha": "456d574d99693b6335eb7ff0eb150997eca24a9a",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-73-paused-image-d52",
+      "sha": "d52b7c0c6fe0906c8e4d23011d8d92a5b26a2618",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-73-recording-wss-a66",
+      "sha": "a66e9b680d1a956debff8823eff9e780a6bb1ad2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-73-three-predicates-6a",
+      "sha": "6a985db993e584d69b2984df709cfb2643917830",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-73-windows-four-d52",
+      "sha": "2c3f8cd7f91641a3c754f6ef84c478c58ac8da5b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-74-dialog-9842",
+      "sha": "28eec6b7afdf62fa9482fdbf25904882ac31bbe1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-74-lab334-aa5",
+      "sha": "d060332468ef69eaf2d29a0ee19939fe7f544d75",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-74-offline-aa5",
+      "sha": "3731b5fc1bf9ad529b68bd8c00b20267058bb443",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-74-recording-read-aa5",
+      "sha": "06a87e40acf60fab8ae7c6b39e8beadfc23a0246",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-74-runtime-budget-d839",
+      "sha": "d8397229b199fe361fa029d4dc6ee60988ea7a74",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-74-tls-pressure-aa5",
+      "sha": "90acb9327c02b4432bfba17abf3bdfad38be7582",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/diag-74-windows-u64-6c",
+      "sha": "75d59d9db8bacf74bf0a976bbd7fd8cd14a6721c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/e2e-73-lab-import-c",
+      "sha": "da947849d78dac1b342d22ce2625a00bc25a42de",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/e2e-73-lab-import-o",
+      "sha": "da947849d78dac1b342d22ce2625a00bc25a42de",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/e2e-73-owned-vite-cache-o",
+      "sha": "314dce49eca27e37fee0cba3677722d06d3b5063",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/e2e-73-paused-image-d52",
+      "sha": "d52b7c0c6fe0906c8e4d23011d8d92a5b26a2618",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/e2e-73-recording-boundary-c",
+      "sha": "928f21171f1c39094d7ae43719de068f18339d23",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/e2e-73-recording-boundary-o",
+      "sha": "928f21171f1c39094d7ae43719de068f18339d23",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/fix-73-lab-import-readiness",
+      "sha": "da947849d78dac1b342d22ce2625a00bc25a42de",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/fix-73-recording-completion-boundary",
+      "sha": "928f21171f1c39094d7ae43719de068f18339d23",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/lab-world-name",
+      "sha": "8e5f9315fc812631f2810493f4edbfb6ea9339d9",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/newton-source-v1-integration",
+      "sha": "ac1675d017eda33cee77b6fca630701322576f85",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/pr-100",
+      "sha": "5b24fbdabe9f2f027ac664a1756b2e5357bd82ac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/pr-101",
+      "sha": "e253e93354c0819f8e976725d42e5d6215b2c42c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/pr-102",
+      "sha": "bbbc9ab5817ac5ff8029e05a4e7139ddf9377114",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/pr-65",
+      "sha": "1054619df9baec211c98897a825651e418a5f014",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/archive/maintenance-2026-10-15/pr-99",
+      "sha": "379e02a66f84de2be13dfd3a3c06165aeee28443",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/102-browser-frontiers",
+      "sha": "c6c803814315c4c44095c3fff06588db5b954f74",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/102-initial-render-readiness",
+      "sha": "bf073c7cff060fd00d9df8415b91b280168d5503",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/102-tls-admission",
+      "sha": "1f26c3a1c9ef597e35b8ec8d8ee07dad01a04a3b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-default-update-attribution",
+      "sha": "47a7f15348bfdb33ac4d904c21d2af39dc73ea61",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-foundation-renderer-trace",
+      "sha": "f6a78036c94f38501c1f5f3b446c82e45e8d6aac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-offline-appearance",
+      "sha": "fd53fbf702e96ddad6c821272d28e2c8858ae8a1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-post-orbit-predicate",
+      "sha": "017d3f1bce029196bd70b1add094272d6871cb10",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-preference-receipt",
+      "sha": "94f4fbba1b4c796c22c34749cfa52ce511751da1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-reduced-motion-preference",
+      "sha": "011d7b32578786daddf0ca82d542753af3961495",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-shadow-depth-treatment",
+      "sha": "e2e145b0fd94264714850456a090b1f615c020f7",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/65-workbench-native-trace",
+      "sha": "1ebb5d97f1284f60bc58325ad5e5493bddb8e694",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/74-dialog-9842",
+      "sha": "28eec6b7afdf62fa9482fdbf25904882ac31bbe1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/74-lab334-aa5",
+      "sha": "d060332468ef69eaf2d29a0ee19939fe7f544d75",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/74-offline-aa5",
+      "sha": "3731b5fc1bf9ad529b68bd8c00b20267058bb443",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/74-recording-read-aa5",
+      "sha": "06a87e40acf60fab8ae7c6b39e8beadfc23a0246",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/74-tls-pressure-aa5",
+      "sha": "90acb9327c02b4432bfba17abf3bdfad38be7582",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/74-windows-u64-6c",
+      "sha": "75d59d9db8bacf74bf0a976bbd7fd8cd14a6721c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-geometry-diagnosis",
+      "sha": "f6170c91dd5005d0829d9dfdd59e0bd08b83cffd",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-model-acquisition",
+      "sha": "6211ae6ebd8c66ac2a640fc69004bd0f32b827a0",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-model-attachment",
+      "sha": "711ab726f21b448a6b0df5b358069015e01f7a14",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-model-byte-green",
+      "sha": "80401ff0176becf2975e6c0cbb05ad86b52aa803",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-canvas",
+      "sha": "fa8c97e4490054831033b789aa169ae44802a481",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-canvas-lifecycle",
+      "sha": "c20f1c97efccb39470e2c1ce1fc03df916c65013",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-model-pending",
+      "sha": "795964cd49765bc1dcc5cbbe0784d8a78e6373fe",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-model-pending-hosted",
+      "sha": "23bb9cc95c0b0d64005735221b42500ccead041b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-model-pending-prefix",
+      "sha": "f216fa7fcf42ea089d987a33724778d3d0e5b9c5",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-tls-control-diagnosis",
+      "sha": "88728876b935d65b0a7c46240aa062dd526e49d2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-original-prefix",
+      "sha": "9c57ebf02f0d3a46a415fd319b5f5c4c840495ac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-pause-control",
+      "sha": "8101499cae524e2c34af961c60675449b6ed22c8",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-public-frontiers",
+      "sha": "d5c8601f56065c3307508ffa0bae4cdec09d7e90",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-recovery",
+      "sha": "c471fe075cb9243c8df11c595d2fa495cc551fce",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-source-client",
+      "sha": "45e4628a030948a8b9725c48331c65e4d35f7506",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-sync-prefix",
+      "sha": "52e5683963d3d27718c0fb2542e7415340c49da7",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-task-receipt",
+      "sha": "c297c25030f77c694c7fc5ed9ec66646e953e8d2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/88-records-readiness",
+      "sha": "599cc309810b5ec0eb18963db4150da8620fdabf",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/89-buffered-spike",
+      "sha": "12f6c6d5c866329535a595852d23830b7a8d9751",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/diag/89-recording-first-fault",
+      "sha": "7963142e4e4aa45f73227414ddcd639effd44ebc",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/70-synthetic-motion",
+      "sha": "316f4bb0fb63905b4794cb17121d6ba42b8d0cdf",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/71-authoritative-session",
+      "sha": "1a4ae66dd4ad9f61e520bfe10c8bb1c3e7a73743",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/72-reliable-recording",
+      "sha": "36b091cff4c89a3e22cccb16e88b0756cb0e7fce",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/73-newton-adapter",
+      "sha": "d52b7c0c6fe0906c8e4d23011d8d92a5b26a2618",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/74-secure-motion",
+      "sha": "6c7594ed9e65a4e7eb9bd17572616765d5cbf32f",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/75-robot-controls",
+      "sha": "b3863f5f9319f63c967777f3386b30b08c1590a3",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/87-89-foundation-delivery",
+      "sha": "a0b6cb9c273642e4f613cbc6d5267878b9716c26",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/87-source-presence",
+      "sha": "36ee4a06e9aa7e2d612fc7993793a060d49dde9a",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/88-asset-integration",
+      "sha": "17c1880cbfae62459682a6126e4f9f68f4d4800f",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/88-asset-version-delivery",
+      "sha": "5b24fbdabe9f2f027ac664a1756b2e5357bd82ac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/88-complete-assets",
+      "sha": "d6eab513f2b5037739282f110856a5fb34e33aa2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/89-native-integration",
+      "sha": "2ba76547de49c3fe7e8d8ab33fa3ccd76798b2f6",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/89-native-source-delivery",
+      "sha": "ec5ae9a23c2f150eaea1e216c3c1b03ae2415c0e",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/89-native-source-tools",
+      "sha": "81e61599fd07da2acd9f89770ca00747ff7987eb",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/89-source-tools-final",
+      "sha": "e253e93354c0819f8e976725d42e5d6215b2c42c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/90-source-scene-staging",
+      "sha": "456d574d99693b6335eb7ff0eb150997eca24a9a",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/landing-page-refresh",
+      "sha": "f1343115cba86538382e25b4cd3c294fc380f5cd",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/feat/newton-source-v1-integration",
+      "sha": "ac1675d017eda33cee77b6fca630701322576f85",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/102-browser-failure-facts",
+      "sha": "bbbc9ab5817ac5ff8029e05a4e7139ddf9377114",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/102-foundation-fallback",
+      "sha": "d3b7190df2d0ef69905f673f47df24857e1afade",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/102-recording-relative-clocks",
+      "sha": "042535c25f92d909f023e69a8479d08f56885183",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/65-glb-fallback-ownership",
+      "sha": "afa1dd4cebd0c9fc7a368b8d47b6bd8c80ec1211",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/65-offline-canvas-geometry",
+      "sha": "1054619df9baec211c98897a825651e418a5f014",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/65-shadow-receiver-depth",
+      "sha": "9e85fd98561fa64394993cff8d9fa735eaf54ab8",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/65-spatial-integration",
+      "sha": "66b81684c778b43407721971fd1cfb224824dd6a",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/87-motion-render-readiness",
+      "sha": "bdde15cc03cd6a09f4b872b26371dfd67f6e5010",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/87-safe-test-failure-facts",
+      "sha": "8bdeb1a9ca8f16b9f90ba43e2d0d748619b6b9e5",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/87-static-render-frontier",
+      "sha": "4d43ca191ce0603e33128c1131c023a5ef575b51",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/87-tls-control-atomic",
+      "sha": "bf6334bac955a01f62a2d9c8a88d3cb60389ac1b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/fix/lab-world-name",
+      "sha": "8e5f9315fc812631f2810493f4edbfb6ea9339d9",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/main",
+      "sha": "9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/heads/scratch/88-ci-repair-pre-source-rebase",
+      "sha": "cee735a5cfa463ceb9d0988ee88deeeba86ceae0",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/65-default-update-attribution-47a",
+      "sha": "47a7f15348bfdb33ac4d904c21d2af39dc73ea61",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/65-foundation-renderer-trace",
+      "sha": "f6a78036c94f38501c1f5f3b446c82e45e8d6aac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/65-post-orbit-predicate",
+      "sha": "017d3f1bce029196bd70b1add094272d6871cb10",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/65-preference-receipt",
+      "sha": "94f4fbba1b4c796c22c34749cfa52ce511751da1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/65-reduced-motion-preference",
+      "sha": "011d7b32578786daddf0ca82d542753af3961495",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/65-shadow-depth-treatment",
+      "sha": "e2e145b0fd94264714850456a090b1f615c020f7",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/65-workbench-native-trace",
+      "sha": "1ebb5d97f1284f60bc58325ad5e5493bddb8e694",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/67-camera-prefix-ci-20261011",
+      "sha": "8926fa71360cac1ac5b733ea01e376fd570042a0",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/67-early-handle-ci-20261011",
+      "sha": "cb58f724da361220be2221a6fd9ea1731bf3a11e",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/74-dialog-9842",
+      "sha": "28eec6b7afdf62fa9482fdbf25904882ac31bbe1",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/74-windows-u64-6c",
+      "sha": "75d59d9db8bacf74bf0a976bbd7fd8cd14a6721c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-static-canvas",
+      "sha": "fd30bedd97af0c0a2e314b6e21ba54ba71a95a74",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-static-canvas-lifecycle",
+      "sha": "24b2374ee355c3874a88d5bce20cbba20254157b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-static-model-pending-hosted",
+      "sha": "23bb9cc95c0b0d64005735221b42500ccead041b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-static-model-pending-prefix",
+      "sha": "f216fa7fcf42ea089d987a33724778d3d0e5b9c5",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-windows-original-prefix",
+      "sha": "9c57ebf02f0d3a46a415fd319b5f5c4c840495ac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-windows-pause-control",
+      "sha": "8101499cae524e2c34af961c60675449b6ed22c8",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-windows-public-frontiers",
+      "sha": "d5c8601f56065c3307508ffa0bae4cdec09d7e90",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-windows-recovery",
+      "sha": "c471fe075cb9243c8df11c595d2fa495cc551fce",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-windows-source-client",
+      "sha": "45e4628a030948a8b9725c48331c65e4d35f7506",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-windows-sync-prefix",
+      "sha": "52e5683963d3d27718c0fb2542e7415340c49da7",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/diag/87-windows-task-receipt",
+      "sha": "c297c25030f77c694c7fc5ed9ec66646e953e8d2",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/31-vnext-spatial-representation",
+      "sha": "1054619df9baec211c98897a825651e418a5f014",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/36-vnext-layout-draft",
+      "sha": "353d0182b9be0e6038f3c60c3564c810e19b9390",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/37-vnext-operations-overview",
+      "sha": "f0be011e1293197f46ffaaa2138da6a865139ce3",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/70-synthetic-motion",
+      "sha": "316f4bb0fb63905b4794cb17121d6ba42b8d0cdf",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/71-authoritative-session",
+      "sha": "1a4ae66dd4ad9f61e520bfe10c8bb1c3e7a73743",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/72-reliable-recording",
+      "sha": "36b091cff4c89a3e22cccb16e88b0756cb0e7fce",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/73-newton-adapter",
+      "sha": "d52b7c0c6fe0906c8e4d23011d8d92a5b26a2618",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/74-secure-motion",
+      "sha": "6c7594ed9e65a4e7eb9bd17572616765d5cbf32f",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/75-robot-controls",
+      "sha": "b3863f5f9319f63c967777f3386b30b08c1590a3",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/87-89-foundation-delivery",
+      "sha": "bbbc9ab5817ac5ff8029e05a4e7139ddf9377114",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/87-source-presence",
+      "sha": "379e02a66f84de2be13dfd3a3c06165aeee28443",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/88-asset-version-delivery",
+      "sha": "5b24fbdabe9f2f027ac664a1756b2e5357bd82ac",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/89-source-tools-final",
+      "sha": "e253e93354c0819f8e976725d42e5d6215b2c42c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/landing-page-refresh",
+      "sha": "f1343115cba86538382e25b4cd3c294fc380f5cd",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/feat/newton-source-v1-integration",
+      "sha": "ebf4e9a28b82f81e9551b5c225afa024907ea46b",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/fix/87-motion-render-readiness",
+      "sha": "bdde15cc03cd6a09f4b872b26371dfd67f6e5010",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/fix/lab-world-name",
+      "sha": "8e5f9315fc812631f2810493f4edbfb6ea9339d9",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/gh-pages",
+      "sha": "9c466ffd48bdef53ece3e8a935a28d9585d70403",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/remotes/origin/main",
+      "sha": "9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/accepted-onboarding-v2",
+      "sha": "037fa8eef6438a748096f0b3b2a795ff1723f395",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/accepted-operations-v1",
+      "sha": "a1486c78a06324985d799fa6d08b50299434f458",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/accepted-spatial-v1",
+      "sha": "7a7007d7e40ac0f47387959fd4b457f085fe05c0",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/foundation-preview",
+      "sha": "10c4c22f875b958c7adc30cf84c7a41d56a4589c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/27-maintenance",
+      "sha": "51e6ac053428490377295246b6de138ea9b88289",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/29-progress",
+      "sha": "d42f9a3b0e0ebd3e24f2930d9f9d80e645cf620c",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/30-details",
+      "sha": "4bd101b1286a651804900d735e34611bad82bf15",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/root-workflow",
+      "sha": "b77ec109e53eb3f0ad8b9ba4c3a49fd83e3de270",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/debug/36-peer-save-ci-observe-20261008",
+      "sha": "00c2f5e95a01a8362b5f25c03477b3b7aee07510",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/feat/46-vnext-contract-baseline",
+      "sha": "a8d9b9663845d1de7a33c00b52daa840fdaf7c13",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/feat/50-vnext-device-runtime",
+      "sha": "96a94be3cdfb7442e4349d1634df946128d9a140",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/fix/main-sql-count-scope",
+      "sha": "5014ff4467e7eae5f82db1bd2d1a7ccab8f11e23",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/backup/36-before-32-ab44d76",
+      "sha": "ab44d76d5ac53891425af87c20372f2a823aee16",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/debug/36-peer-save-ci-observe-20261008",
+      "sha": "00c2f5e95a01a8362b5f25c03477b3b7aee07510",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/29-guide-progress",
+      "sha": "8ae4839a3db26716315fce5914d3432ec3c3c8c9",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/30-device-details",
+      "sha": "16868bb00a7e4094a637aadce443220de11f7b10",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/46-vnext-contract-baseline",
+      "sha": "a8d9b9663845d1de7a33c00b52daa840fdaf7c13",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/50-vnext-device-runtime",
+      "sha": "96a94be3cdfb7442e4349d1634df946128d9a140",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/fix/main-sql-count-scope",
+      "sha": "0586d65e23c3a250f14731f038969387e0f1eb7e",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/preserve/36-b450-before-30",
+      "sha": "b4503c7e73a01f8530b9dc1bc8847bd47598744a",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/wip-27-bounded-trends",
+      "sha": "0586d65e23c3a250f14731f038969387e0f1eb7e",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/wip-29-guide-progress",
+      "sha": "8ae4839a3db26716315fce5914d3432ec3c3c8c9",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/wip-30-device-details",
+      "sha": "16868bb00a7e4094a637aadce443220de11f7b10",
+      "objectType": "commit"
+    },
+    {
+      "ref": "refs/tags/legacy-rust-final",
+      "sha": "ccaa3993f8b37ac11609834ca6306ad3fe3c5021",
+      "objectType": "tag"
+    }
+  ],
+  "remoteBefore": [
+    {
+      "ref": "refs/heads/diag/65-default-update-attribution-47a",
+      "sha": "47a7f15348bfdb33ac4d904c21d2af39dc73ea61"
+    },
+    {
+      "ref": "refs/heads/diag/65-foundation-renderer-trace",
+      "sha": "f6a78036c94f38501c1f5f3b446c82e45e8d6aac"
+    },
+    {
+      "ref": "refs/heads/diag/65-post-orbit-predicate",
+      "sha": "017d3f1bce029196bd70b1add094272d6871cb10"
+    },
+    {
+      "ref": "refs/heads/diag/65-preference-receipt",
+      "sha": "94f4fbba1b4c796c22c34749cfa52ce511751da1"
+    },
+    {
+      "ref": "refs/heads/diag/65-reduced-motion-preference",
+      "sha": "011d7b32578786daddf0ca82d542753af3961495"
+    },
+    {
+      "ref": "refs/heads/diag/65-shadow-depth-treatment",
+      "sha": "e2e145b0fd94264714850456a090b1f615c020f7"
+    },
+    {
+      "ref": "refs/heads/diag/65-workbench-native-trace",
+      "sha": "1ebb5d97f1284f60bc58325ad5e5493bddb8e694"
+    },
+    {
+      "ref": "refs/heads/diag/67-camera-prefix-ci-20261011",
+      "sha": "8926fa71360cac1ac5b733ea01e376fd570042a0"
+    },
+    {
+      "ref": "refs/heads/diag/67-early-handle-ci-20261011",
+      "sha": "cb58f724da361220be2221a6fd9ea1731bf3a11e"
+    },
+    {
+      "ref": "refs/heads/diag/74-dialog-9842",
+      "sha": "28eec6b7afdf62fa9482fdbf25904882ac31bbe1"
+    },
+    {
+      "ref": "refs/heads/diag/74-windows-u64-6c",
+      "sha": "75d59d9db8bacf74bf0a976bbd7fd8cd14a6721c"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-canvas",
+      "sha": "fd30bedd97af0c0a2e314b6e21ba54ba71a95a74"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-canvas-lifecycle",
+      "sha": "24b2374ee355c3874a88d5bce20cbba20254157b"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-model-pending-hosted",
+      "sha": "23bb9cc95c0b0d64005735221b42500ccead041b"
+    },
+    {
+      "ref": "refs/heads/diag/87-static-model-pending-prefix",
+      "sha": "f216fa7fcf42ea089d987a33724778d3d0e5b9c5"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-original-prefix",
+      "sha": "9c57ebf02f0d3a46a415fd319b5f5c4c840495ac"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-pause-control",
+      "sha": "8101499cae524e2c34af961c60675449b6ed22c8"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-public-frontiers",
+      "sha": "d5c8601f56065c3307508ffa0bae4cdec09d7e90"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-recovery",
+      "sha": "c471fe075cb9243c8df11c595d2fa495cc551fce"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-source-client",
+      "sha": "45e4628a030948a8b9725c48331c65e4d35f7506"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-sync-prefix",
+      "sha": "52e5683963d3d27718c0fb2542e7415340c49da7"
+    },
+    {
+      "ref": "refs/heads/diag/87-windows-task-receipt",
+      "sha": "c297c25030f77c694c7fc5ed9ec66646e953e8d2"
+    },
+    {
+      "ref": "refs/heads/feat/31-vnext-spatial-representation",
+      "sha": "1054619df9baec211c98897a825651e418a5f014"
+    },
+    {
+      "ref": "refs/heads/feat/36-vnext-layout-draft",
+      "sha": "353d0182b9be0e6038f3c60c3564c810e19b9390"
+    },
+    {
+      "ref": "refs/heads/feat/37-vnext-operations-overview",
+      "sha": "f0be011e1293197f46ffaaa2138da6a865139ce3"
+    },
+    {
+      "ref": "refs/heads/feat/70-synthetic-motion",
+      "sha": "316f4bb0fb63905b4794cb17121d6ba42b8d0cdf"
+    },
+    {
+      "ref": "refs/heads/feat/71-authoritative-session",
+      "sha": "1a4ae66dd4ad9f61e520bfe10c8bb1c3e7a73743"
+    },
+    {
+      "ref": "refs/heads/feat/72-reliable-recording",
+      "sha": "36b091cff4c89a3e22cccb16e88b0756cb0e7fce"
+    },
+    {
+      "ref": "refs/heads/feat/73-newton-adapter",
+      "sha": "d52b7c0c6fe0906c8e4d23011d8d92a5b26a2618"
+    },
+    {
+      "ref": "refs/heads/feat/74-secure-motion",
+      "sha": "6c7594ed9e65a4e7eb9bd17572616765d5cbf32f"
+    },
+    {
+      "ref": "refs/heads/feat/75-robot-controls",
+      "sha": "b3863f5f9319f63c967777f3386b30b08c1590a3"
+    },
+    {
+      "ref": "refs/heads/feat/87-89-foundation-delivery",
+      "sha": "bbbc9ab5817ac5ff8029e05a4e7139ddf9377114"
+    },
+    {
+      "ref": "refs/heads/feat/87-source-presence",
+      "sha": "379e02a66f84de2be13dfd3a3c06165aeee28443"
+    },
+    {
+      "ref": "refs/heads/feat/88-asset-version-delivery",
+      "sha": "5b24fbdabe9f2f027ac664a1756b2e5357bd82ac"
+    },
+    {
+      "ref": "refs/heads/feat/89-source-tools-final",
+      "sha": "e253e93354c0819f8e976725d42e5d6215b2c42c"
+    },
+    {
+      "ref": "refs/heads/feat/landing-page-refresh",
+      "sha": "f1343115cba86538382e25b4cd3c294fc380f5cd"
+    },
+    {
+      "ref": "refs/heads/feat/newton-source-v1-integration",
+      "sha": "ebf4e9a28b82f81e9551b5c225afa024907ea46b"
+    },
+    {
+      "ref": "refs/heads/fix/87-motion-render-readiness",
+      "sha": "bdde15cc03cd6a09f4b872b26371dfd67f6e5010"
+    },
+    {
+      "ref": "refs/heads/fix/lab-world-name",
+      "sha": "8e5f9315fc812631f2810493f4edbfb6ea9339d9"
+    },
+    {
+      "ref": "refs/heads/gh-pages",
+      "sha": "9c466ffd48bdef53ece3e8a935a28d9585d70403"
+    },
+    {
+      "ref": "refs/heads/main",
+      "sha": "9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/accepted-onboarding-v2",
+      "sha": "037fa8eef6438a748096f0b3b2a795ff1723f395"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/accepted-operations-v1",
+      "sha": "a1486c78a06324985d799fa6d08b50299434f458"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/accepted-spatial-v1",
+      "sha": "7a7007d7e40ac0f47387959fd4b457f085fe05c0"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/foundation-preview",
+      "sha": "10c4c22f875b958c7adc30cf84c7a41d56a4589c"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/27-maintenance",
+      "sha": "51e6ac053428490377295246b6de138ea9b88289"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/29-progress",
+      "sha": "d42f9a3b0e0ebd3e24f2930d9f9d80e645cf620c"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/30-details",
+      "sha": "4bd101b1286a651804900d735e34611bad82bf15"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/prior-handoff/root-workflow",
+      "sha": "b77ec109e53eb3f0ad8b9ba4c3a49fd83e3de270"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/debug/36-peer-save-ci-observe-20261008",
+      "sha": "00c2f5e95a01a8362b5f25c03477b3b7aee07510"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/feat/46-vnext-contract-baseline",
+      "sha": "a8d9b9663845d1de7a33c00b52daa840fdaf7c13"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/feat/50-vnext-device-runtime",
+      "sha": "96a94be3cdfb7442e4349d1634df946128d9a140"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/remote/fix/main-sql-count-scope",
+      "sha": "5014ff4467e7eae5f82db1bd2d1a7ccab8f11e23"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/backup/36-before-32-ab44d76",
+      "sha": "ab44d76d5ac53891425af87c20372f2a823aee16"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/debug/36-peer-save-ci-observe-20261008",
+      "sha": "00c2f5e95a01a8362b5f25c03477b3b7aee07510"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/29-guide-progress",
+      "sha": "8ae4839a3db26716315fce5914d3432ec3c3c8c9"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/30-device-details",
+      "sha": "16868bb00a7e4094a637aadce443220de11f7b10"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/46-vnext-contract-baseline",
+      "sha": "a8d9b9663845d1de7a33c00b52daa840fdaf7c13"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/feat/50-vnext-device-runtime",
+      "sha": "96a94be3cdfb7442e4349d1634df946128d9a140"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/fix/main-sql-count-scope",
+      "sha": "0586d65e23c3a250f14731f038969387e0f1eb7e"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/retired/preserve/36-b450-before-30",
+      "sha": "b4503c7e73a01f8530b9dc1bc8847bd47598744a"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/wip-27-bounded-trends",
+      "sha": "0586d65e23c3a250f14731f038969387e0f1eb7e"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/wip-29-guide-progress",
+      "sha": "8ae4839a3db26716315fce5914d3432ec3c3c8c9"
+    },
+    {
+      "ref": "refs/tags/archive/2026-10-09/wip-30-device-details",
+      "sha": "16868bb00a7e4094a637aadce443220de11f7b10"
+    },
+    {
+      "ref": "refs/tags/legacy-rust-final",
+      "sha": "ccaa3993f8b37ac11609834ca6306ad3fe3c5021"
+    },
+    {
+      "ref": "refs/tags/legacy-rust-final^{}",
+      "sha": "2fef28c35afea44ae2018f0e4b6a3a18a96a2bf7"
+    }
+  ],
+  "workspace": {
+    "base": "9e0f1040608f5c40d7e7b33f9c0b099b32ed88b5",
+    "originalIndexTree": "9422257919b5f20829ab416e7cd559e653ab9913",
+    "originalIndexCommit": "26fa5270b64cec5a49410fae669a2a6aa473156f",
+    "expectedFinalTree": "1b475c3a4233bbb466fb2b75591004b52eb37556",
+    "paths": [
+      ".agents/skills/ask-matt/SKILL.md",
+      ".agents/skills/code-review/SKILL.md",
+      ".agents/skills/diagnosing-bugs/SKILL.md",
+      ".agents/skills/grilling/SKILL.md",
+      ".agents/skills/handoff/SKILL.md",
+      ".agents/skills/implement/SKILL.md",
+      ".agents/skills/pm-development/SKILL.md",
+      ".agents/skills/pm-development/references/delivery.md",
+      ".agents/skills/setup-matt-pocock-skills/SKILL.md",
+      ".agents/skills/setup-matt-pocock-skills/issue-tracker-github.md",
+      ".agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md",
+      ".agents/skills/setup-matt-pocock-skills/triage-labels.md",
+      ".agents/skills/shadcn/SKILL.md",
+      ".agents/skills/shadcn/assets/showcase/color-pair.tsx",
+      ".agents/skills/shadcn/assets/showcase/preview-states.css",
+      ".agents/skills/shadcn/assets/showcase/state-matrix.tsx",
+      ".agents/skills/shadcn/customization.md",
+      ".agents/skills/shadcn/design-system-page.md",
+      ".agents/skills/shadcn/design-system.md",
+      ".agents/skills/shadcn/evals/evals.json",
+      ".agents/skills/shadcn/scripts/showcase-coverage.mjs",
+      ".agents/skills/tdd/SKILL.md",
+      ".agents/skills/teach/SKILL.md",
+      ".agents/skills/to-tickets/SKILL.md",
+      ".agents/skills/vercel-react-best-practices/metadata.json",
+      ".agents/skills/wayfinder/SKILL.md",
+      ".agents/skills/wizard/template.sh",
+      "AGENTS.md",
+      "CONTEXT.md",
+      "README.md",
+      "README.zh-CN.md",
+      "docs/adr/0013-source-presence-before-scene-synchronization.md",
+      "docs/adr/0014-versioned-assets-and-external-authoring.md",
+      "docs/adr/0015-source-owned-runs-and-observation-segments.md",
+      "docs/agents/development-flow.md",
+      "docs/agents/documentation.md",
+      "docs/agents/environment-maintenance.md",
+      "docs/agents/experience-design.md",
+      "docs/agents/issue-tracker.md",
+      "docs/agents/triage-labels.md",
+      "docs/internal/delivery-flow-2026-10-15.md",
+      "docs/internal/development-timeline-2026-10-15.md",
+      "docs/internal/environment-maintenance-2026-10-15.md",
+      "docs/internal/scope-reset-2026-10-15.md",
+      "docs/plans/asset-definition-and-external-authoring.md",
+      "docs/plans/newton-live-observation-contract.md",
+      "docs/plans/newton-scene-ingestion-contract.md",
+      "docs/plans/newton-source-sync.md",
+      "docs/testing/strategy.md",
+      "skills-lock.json"
+    ]
+  },
+  "organizedCommits": [
+    {
+      "sha": "952d3d53950a003a53e7fd3568ac8b68bbea6d35",
+      "message": "chore(skills): update imported agent skills",
+      "paths": [
+        ".agents/skills/ask-matt/SKILL.md",
+        ".agents/skills/code-review/SKILL.md",
+        ".agents/skills/diagnosing-bugs/SKILL.md",
+        ".agents/skills/grilling/SKILL.md",
+        ".agents/skills/handoff/SKILL.md",
+        ".agents/skills/implement/SKILL.md",
+        ".agents/skills/setup-matt-pocock-skills/SKILL.md",
+        ".agents/skills/setup-matt-pocock-skills/issue-tracker-github.md",
+        ".agents/skills/setup-matt-pocock-skills/issue-tracker-gitlab.md",
+        ".agents/skills/setup-matt-pocock-skills/triage-labels.md",
+        ".agents/skills/shadcn/SKILL.md",
+        ".agents/skills/shadcn/assets/showcase/color-pair.tsx",
+        ".agents/skills/shadcn/assets/showcase/preview-states.css",
+        ".agents/skills/shadcn/assets/showcase/state-matrix.tsx",
+        ".agents/skills/shadcn/customization.md",
+        ".agents/skills/shadcn/design-system-page.md",
+        ".agents/skills/shadcn/design-system.md",
+        ".agents/skills/shadcn/evals/evals.json",
+        ".agents/skills/shadcn/scripts/showcase-coverage.mjs",
+        ".agents/skills/tdd/SKILL.md",
+        ".agents/skills/teach/SKILL.md",
+        ".agents/skills/to-tickets/SKILL.md",
+        ".agents/skills/vercel-react-best-practices/metadata.json",
+        ".agents/skills/wayfinder/SKILL.md",
+        ".agents/skills/wizard/template.sh",
+        "skills-lock.json"
+      ]
+    },
+    {
+      "sha": "dd9a3f8372a0db3b72f28761a571a3a824adb799",
+      "message": "docs(source): preserve source design decisions and plans",
+      "paths": [
+        "CONTEXT.md",
+        "docs/adr/0013-source-presence-before-scene-synchronization.md",
+        "docs/adr/0014-versioned-assets-and-external-authoring.md",
+        "docs/adr/0015-source-owned-runs-and-observation-segments.md",
+        "docs/plans/asset-definition-and-external-authoring.md",
+        "docs/plans/newton-live-observation-contract.md",
+        "docs/plans/newton-scene-ingestion-contract.md",
+        "docs/plans/newton-source-sync.md"
+      ]
+    },
+    {
+      "sha": "185af5f49d1992595640cbd1bf70452539d6775a",
+      "message": "docs(process): establish merge-first development baseline",
+      "paths": [
+        ".agents/skills/pm-development/SKILL.md",
+        ".agents/skills/pm-development/references/delivery.md",
+        "AGENTS.md",
+        "README.md",
+        "README.zh-CN.md",
+        "docs/agents/development-flow.md",
+        "docs/agents/documentation.md",
+        "docs/agents/environment-maintenance.md",
+        "docs/agents/experience-design.md",
+        "docs/agents/issue-tracker.md",
+        "docs/agents/triage-labels.md",
+        "docs/internal/delivery-flow-2026-10-15.md",
+        "docs/internal/development-timeline-2026-10-15.md",
+        "docs/internal/environment-maintenance-2026-10-15.md",
+        "docs/internal/scope-reset-2026-10-15.md",
+        "docs/testing/strategy.md"
+      ]
+    }
+  ],
+  "parents": [
+    "00c2f5e95a01a8362b5f25c03477b3b7aee07510",
+    "037fa8eef6438a748096f0b3b2a795ff1723f395",
+    "0586d65e23c3a250f14731f038969387e0f1eb7e",
+    "06a87e40acf60fab8ae7c6b39e8beadfc23a0246",
+    "10c4c22f875b958c7adc30cf84c7a41d56a4589c",
+    "12f6c6d5c866329535a595852d23830b7a8d9751",
+    "16868bb00a7e4094a637aadce443220de11f7b10",
+    "17c1880cbfae62459682a6126e4f9f68f4d4800f",
+    "185af5f49d1992595640cbd1bf70452539d6775a",
+    "1a4ae66dd4ad9f61e520bfe10c8bb1c3e7a73743",
+    "1ebb5d97f1284f60bc58325ad5e5493bddb8e694",
+    "1f26c3a1c9ef597e35b8ec8d8ee07dad01a04a3b",
+    "24b2374ee355c3874a88d5bce20cbba20254157b",
+    "26fa5270b64cec5a49410fae669a2a6aa473156f",
+    "28eec6b7afdf62fa9482fdbf25904882ac31bbe1",
+    "2ba76547de49c3fe7e8d8ab33fa3ccd76798b2f6",
+    "2c3f8cd7f91641a3c754f6ef84c478c58ac8da5b",
+    "316f4bb0fb63905b4794cb17121d6ba42b8d0cdf",
+    "36b091cff4c89a3e22cccb16e88b0756cb0e7fce",
+    "36ee4a06e9aa7e2d612fc7993793a060d49dde9a",
+    "3731b5fc1bf9ad529b68bd8c00b20267058bb443",
+    "45e4628a030948a8b9725c48331c65e4d35f7506",
+    "47a7f15348bfdb33ac4d904c21d2af39dc73ea61",
+    "4bd101b1286a651804900d735e34611bad82bf15",
+    "51e6ac053428490377295246b6de138ea9b88289",
+    "599cc309810b5ec0eb18963db4150da8620fdabf",
+    "6211ae6ebd8c66ac2a640fc69004bd0f32b827a0",
+    "75d59d9db8bacf74bf0a976bbd7fd8cd14a6721c",
+    "7963142e4e4aa45f73227414ddcd639effd44ebc",
+    "7a7007d7e40ac0f47387959fd4b457f085fe05c0",
+    "80401ff0176becf2975e6c0cbb05ad86b52aa803",
+    "81e61599fd07da2acd9f89770ca00747ff7987eb",
+    "88728876b935d65b0a7c46240aa062dd526e49d2",
+    "8926fa71360cac1ac5b733ea01e376fd570042a0",
+    "8ae4839a3db26716315fce5914d3432ec3c3c8c9",
+    "8e5f9315fc812631f2810493f4edbfb6ea9339d9",
+    "96a94be3cdfb7442e4349d1634df946128d9a140",
+    "9c466ffd48bdef53ece3e8a935a28d9585d70403",
+    "9e85fd98561fa64394993cff8d9fa735eaf54ab8",
+    "a1486c78a06324985d799fa6d08b50299434f458",
+    "a8d9b9663845d1de7a33c00b52daa840fdaf7c13",
+    "ab44d76d5ac53891425af87c20372f2a823aee16",
+    "ac1675d017eda33cee77b6fca630701322576f85",
+    "b3863f5f9319f63c967777f3386b30b08c1590a3",
+    "b4503c7e73a01f8530b9dc1bc8847bd47598744a",
+    "b77ec109e53eb3f0ad8b9ba4c3a49fd83e3de270",
+    "bdde15cc03cd6a09f4b872b26371dfd67f6e5010",
+    "bf073c7cff060fd00d9df8415b91b280168d5503",
+    "c20f1c97efccb39470e2c1ce1fc03df916c65013",
+    "c297c25030f77c694c7fc5ed9ec66646e953e8d2",
+    "c471fe075cb9243c8df11c595d2fa495cc551fce",
+    "c6c803814315c4c44095c3fff06588db5b954f74",
+    "cb58f724da361220be2221a6fd9ea1731bf3a11e",
+    "cee735a5cfa463ceb9d0988ee88deeeba86ceae0",
+    "d060332468ef69eaf2d29a0ee19939fe7f544d75",
+    "d42f9a3b0e0ebd3e24f2930d9f9d80e645cf620c",
+    "d6eab513f2b5037739282f110856a5fb34e33aa2",
+    "ec5ae9a23c2f150eaea1e216c3c1b03ae2415c0e",
+    "f216fa7fcf42ea089d987a33724778d3d0e5b9c5",
+    "f6170c91dd5005d0829d9dfdd59e0bd08b83cffd",
+    "f6a78036c94f38501c1f5f3b446c82e45e8d6aac",
+    "fd53fbf702e96ddad6c821272d28e2c8858ae8a1"
+  ],
+  "localRecovery": "Additional historical stash and handoff refs remain in the private local repository-state.bundle; they are not parents of this remote anchor."
+}
