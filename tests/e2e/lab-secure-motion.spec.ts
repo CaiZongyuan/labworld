@@ -8,6 +8,7 @@ import type {
   SimulationSession,
   SessionMotionTicket,
   CreatedApiKey,
+  LabRecording,
 } from '../../packages/contracts/src/generated/types.gen';
 import { CoreHttp } from '../support/core-http';
 import { register } from './motion-support';
@@ -39,6 +40,7 @@ import { readSessionFrame } from './simulation-session-oracle';
 import { OwnedMotionActor } from './secure-motion-source';
 import { assertPrivateDenial } from './secure-motion-oracle';
 import { assertSourceWitness } from './secure-source-witness';
+import { predicateFact } from './original-predicate-facts';
 
 test.use({ locale: 'zh-CN', viewport: { width: 1440, height: 1000 } });
 
@@ -316,15 +318,88 @@ test('trusted WSS journey: two real WebGL views recover with fresh tickets, paus
     assertSessionGeometry(await pose(page, active.id), active);
     assertSessionGeometry(await pose(f.second, active.id), active);
     const oldRecording = await recordingForSession(f.api, f.lab.id, old.id);
-    await eventually(
-      () =>
-        f!.api.json<{ status: string }>(
-          'GET',
-          recordingPath(f!.lab.id, oldRecording.id),
-        ),
-      (value) => value.status === 'complete',
-      10000,
-    );
+    let metadataReads = 0,
+      lastMetadata: object | null = null;
+    const code = (value: unknown) =>
+      value === null
+        ? null
+        : typeof value === 'string' &&
+            [
+              'preparing',
+              'open',
+              'complete',
+              'incomplete',
+              'deleting',
+              'deleted',
+              'reset_requested',
+              'reset_source_drain_incomplete',
+              'recording_ack_timeout',
+              'recording_drain_timeout',
+              'recording_seal_failed',
+              'recording_seal_timeout',
+              'recording_event_prepare_failed',
+              'recording_event_commit_failed',
+              'recording_event_prepare_timeout',
+              'recording_event_commit_timeout',
+              'recording_session_event_commit_failed',
+              'recording_prepare_failed',
+              'recording_abort_failed',
+              'recording_event_bytes_missing',
+              'server_shutdown',
+              'publisher_disconnected',
+              'source_ack_timeout',
+              'source_progress_timeout',
+            ].includes(value)
+          ? value
+          : 'OTHER';
+    const decimal = (value: unknown) =>
+      typeof value === 'string' && /^\d{1,20}$/.test(value) ? value : null;
+    try {
+      await eventually(
+        () =>
+          f!.api
+            .json<LabRecording>(
+              'GET',
+              recordingPath(f!.lab.id, oldRecording.id),
+            )
+            .then((value) => {
+              metadataReads++;
+              lastMetadata = {
+                status: code(value.status),
+                reason: code(value.reason),
+                sourceEnded:
+                  typeof value.prefix.source_ended === 'boolean'
+                    ? value.prefix.source_ended
+                    : null,
+                sourcePacketSequence: decimal(
+                  value.prefix.source_packet_sequence,
+                ),
+                lastSourceSequence: decimal(value.prefix.last_source_sequence),
+                lastSourceEventSequence: decimal(
+                  value.prefix.last_source_event_sequence,
+                ),
+                sealPresent: !!value.seal,
+                sealIntegrity: code(value.seal?.integrity),
+                sealReason: code(value.seal?.reason),
+              };
+              return value;
+            }),
+        (value) => value.status === 'complete',
+        10000,
+      );
+    } catch (error) {
+      predicateFact('recording', {
+        stage: 'original-wss-old-recording-failed',
+        metadataReads,
+        lastMetadata,
+      });
+      throw error;
+    }
+    predicateFact('recording', {
+      stage: 'original-wss-old-recording-passed',
+      metadataReads,
+      lastMetadata,
+    });
     const oldRead = await publicRecording(f.api, f.lab.id, oldRecording.id);
     assert.equal(oldRead.metadata.snapshot_hash, old.snapshot.hash);
     assert.equal(oldRead.metadata.prefix.source_ended, true);

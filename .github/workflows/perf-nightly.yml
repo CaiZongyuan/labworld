@@ -75,7 +75,26 @@ jobs:
         run: |
           case "$DIAGNOSE_PROFILE" in
             history) pnpm test:e2e tests/e2e/lab-history.spec.ts ;;
-            motion) pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion smoke:' ;;
+            motion)
+              record_profile() {
+                DIAGNOSTIC_SUBPROFILE="$1" node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const profile = process.env.DIAGNOSTIC_SUBPROFILE;
+          const summary = JSON.parse(readFileSync('test-results/summary.json', 'utf8'));
+          const skipped = summary.tests.filter((test) => test.status === 'skipped').length;
+          const counts = { profile, collected: summary.tests.length, executed: summary.tests.length - skipped, skipped };
+          console.log(JSON.stringify(counts));
+          writeFileSync('.scratch/vnext-m1/diagnostic-' + profile + '-summary.json', JSON.stringify(summary));
+          if (counts.executed === 0) process.exitCode = 1;
+          NODE
+              }
+              result=0
+              pnpm test:e2e tests/e2e/lab-secure-motion.spec.ts --grep 'trusted WSS|external trusted source' || result=1
+              record_profile wss || result=1
+              pnpm test:e2e tests/e2e/lab-synthetic-motion.spec.ts --grep 'motion smoke:' || result=1
+              record_profile motion || result=1
+              exit "$result"
+              ;;
             resources) pnpm test:e2e tests/e2e/lab.spec.ts ;;
             *) echo 'Unsupported Web diagnostic profile' >&2; exit 2 ;;
           esac

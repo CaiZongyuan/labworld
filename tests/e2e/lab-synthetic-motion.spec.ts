@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { bindMotionPeer, type MotionPeer } from '../support/motion-socket';
 import { WebSocket } from 'ws';
 import { assertResourceConvergence } from './motion-resources';
+import { predicateFact } from './original-predicate-facts';
+import { boundedBrowserFact } from './lab-browser-facts';
 import {
   assertTrajectory,
   assertAdvanced,
@@ -105,14 +107,113 @@ test('motion smoke: real Python, same-port authenticated Node, two GLB viewers, 
     assertTrajectory(advancedA, world.fixture.session_id);
     assertTrajectory(advancedB, world.fixture.session_id);
     const geometry = [];
-    for (const viewer of [page, world.second]) {
+    for (const [viewerIndex, viewer] of [page, world.second].entries()) {
       await viewer
         .getByRole('button', { name: '聚焦模型', exact: true })
         .click();
-      const sample = await eventually(
-        () => metrics(viewer),
-        (value) => Number(value.stats['三角形']?.replaceAll(',', '')) >= 240,
-      );
+      type Observation = Awaited<ReturnType<typeof metrics>>['observation'];
+      let readCount = 0,
+        first: Observation | null = null,
+        last: Observation | null = null;
+      let minTriangles: number | null = null,
+        maxTriangles: number | null = null;
+      const projected = () => ({
+        viewerIndex,
+        readCount,
+        first,
+        last,
+        minTriangles,
+        maxTriangles,
+      });
+      let sample: Awaited<ReturnType<typeof metrics>>;
+      try {
+        sample = await eventually(
+          () =>
+            metrics(viewer).then((value) => {
+              readCount++;
+              first ??= value.observation;
+              last = value.observation;
+              const triangles = last.parsedTriangles;
+              if (triangles !== null) {
+                minTriangles = Math.min(minTriangles ?? triangles, triangles);
+                maxTriangles = Math.max(maxTriangles ?? triangles, triangles);
+              }
+              return value;
+            }),
+          (value) => Number(value.stats['三角形']?.replaceAll(',', '')) >= 240,
+        );
+      } catch (error) {
+        const expected = [a, b][viewerIndex];
+        const displayed = await boundedBrowserFact(() =>
+          viewer.evaluate(
+            (earlier) => {
+              const canvas = document.querySelector('canvas') as
+                | (HTMLCanvasElement & {
+                    getMotionDiagnostics?: () => {
+                      epoch?: unknown;
+                      mapping_revision?: unknown;
+                      rendered_at_ms?: unknown;
+                      nodes?: { sequence?: unknown; sim_time_ns?: unknown }[];
+                    } | null;
+                  })
+                | null;
+              const value = canvas?.getMotionDiagnostics?.();
+              const decimal = (input: unknown) =>
+                typeof input === 'string' && /^\d{1,20}$/.test(input)
+                  ? input
+                  : null;
+              const finite = (input: unknown) =>
+                typeof input === 'number' &&
+                Number.isFinite(input) &&
+                Math.abs(input) <= 1e12
+                  ? input
+                  : null;
+              const nodes = value?.nodes;
+              const busy = document
+                .querySelector('.world-page')
+                ?.getAttribute('aria-busy');
+              return {
+                getterPresent:
+                  typeof canvas?.getMotionDiagnostics === 'function',
+                diagnosticPresent: !!value,
+                nodeCount:
+                  Array.isArray(nodes) && nodes.length <= 1024
+                    ? nodes.length
+                    : null,
+                epoch: decimal(value?.epoch),
+                mappingRevision:
+                  typeof value?.mapping_revision === 'number' &&
+                  Number.isInteger(value.mapping_revision) &&
+                  value.mapping_revision >= 0 &&
+                  value.mapping_revision <= 0xffffffff
+                    ? value.mapping_revision
+                    : null,
+                renderedAt: finite(value?.rendered_at_ms),
+                firstSequence: decimal(nodes?.[0]?.sequence),
+                firstSimTimeNs: decimal(nodes?.[0]?.sim_time_ns),
+                matchesEarlierEpoch: value?.epoch === earlier.epoch,
+                matchesEarlierMapping:
+                  value?.mapping_revision === earlier.mapping,
+                busy: busy === 'true' || busy === 'false' ? busy : 'missing',
+                renderErrorPresent: !!document.querySelector(
+                  '.world-render-error',
+                ),
+              };
+            },
+            { epoch: expected.epoch, mapping: expected.mapping_revision },
+          ),
+        );
+        predicateFact('motion', {
+          stage: 'original-post-fit-triangles-failed',
+          ...projected(),
+          displayed,
+        });
+        throw error;
+      }
+      predicateFact('motion', {
+        stage: 'original-post-fit-triangles-passed',
+        ...projected(),
+      });
       // The tracked cube has twelve triangles; twenty rendered copies need 240.
       expect(
         Number(sample.stats['三角形']?.replaceAll(',', '')),

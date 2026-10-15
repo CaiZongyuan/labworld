@@ -321,18 +321,61 @@ export async function pixels(page: Page, name: string) {
   return count;
 }
 export async function metrics(page: Page) {
-  return page.locator('.lab-perf').evaluate((panel) => ({
-    fps: Number(panel.querySelector('.lab-perf-main strong')?.textContent),
-    frameMs: Number(
+  return page.locator('.lab-perf').evaluate((panel) => {
+    const fps = Number(
+      panel.querySelector('.lab-perf-main strong')?.textContent,
+    );
+    const frameMs = Number(
       panel.querySelector('.lab-perf-main small')?.textContent?.split(' ')[0],
-    ),
-    stats: Object.fromEntries(
+    );
+    const stats = Object.fromEntries(
       Array.from(panel.querySelectorAll('dl > div')).map((row) => [
         row.querySelector('dt')?.textContent,
         row.querySelector('dd')?.textContent,
       ]),
-    ),
-  }));
+    );
+    const finite = (value: number) =>
+      Number.isFinite(value) && Math.abs(value) <= 1e12 ? value : null;
+    const attribute = (name: string) => {
+      const value = panel.getAttribute(name);
+      return value !== null && value.trim() !== ''
+        ? finite(Number(value))
+        : null;
+    };
+    const expectedTriangleFieldPresent = Object.hasOwn(stats, '三角形');
+    const label = expectedTriangleFieldPresent
+      ? '三角形'
+      : Object.hasOwn(stats, 'Triangles')
+        ? 'Triangles'
+        : 'missing';
+    const value = label === 'missing' ? null : stats[label];
+    const busy = document
+      .querySelector('.world-page')
+      ?.getAttribute('aria-busy');
+    return {
+      fps,
+      frameMs,
+      stats,
+      observation: {
+        busy: busy === 'true' ? true : busy === 'false' ? false : null,
+        browserMonotonicMs: finite(performance.now()),
+        sampledAt: attribute('data-sampled-at'),
+        completedRenderFrame: attribute('data-completed-render-frame'),
+        expectedTriangleFieldPresent,
+        label,
+        numericText:
+          typeof value === 'string' && /^[0-9,.+\-\s]{1,32}$/.test(value)
+            ? value
+            : 'OTHER',
+        parsedTriangles:
+          typeof value === 'string' && value.trim() !== ''
+            ? finite(Number(value.replaceAll(',', '')))
+            : null,
+        fps: finite(fps),
+        frameMs: finite(frameMs),
+      },
+    };
+  });
 }
 export async function ticket(
   api: CoreHttp,
